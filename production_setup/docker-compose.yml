@@ -101,6 +101,7 @@ services:
       - ROOT_URL=${ROOT_URL:-https://localhost}
       - MAIL_URL=${MAIL_URL:-}
       - NODE_ENV=production
+      - APP_VERSION=${APP_VERSION:-v2.0.0.b1}
       - DISABLE_RATE_LIMITS=${DISABLE_RATE_LIMITS:-false}
       - REDIS_URL=${REDIS_URL:?Set REDIS_URL in .env}
     volumes:

@@ -74,7 +74,7 @@ export async function buildApp(opts = {}) {
       info: {
         title: 'Qlicker API',
         description: 'Fastify API for the Qlicker migration project.',
-        version: '1.0.0',
+        version: app.config.appVersion,
       },
       servers: [
         { url: app.config.rootUrl },
@@ -159,6 +159,7 @@ export async function buildApp(opts = {}) {
           type: 'object',
           properties: {
             status: { type: 'string' },
+            version: { type: 'string' },
             timestamp: { type: 'string', format: 'date-time' },
             websocket: { type: 'boolean' },
             redis: { type: 'boolean' },
@@ -168,6 +169,7 @@ export async function buildApp(opts = {}) {
     },
   }, async () => ({
     status: 'ok',
+    version: app.config.appVersion,
     timestamp: new Date().toISOString(),
     websocket: typeof app.wsSendToUser === 'function',
     redis: typeof app.redis !== 'undefined' && app.redis !== null,

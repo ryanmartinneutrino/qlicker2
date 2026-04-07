@@ -25,6 +25,13 @@ This repository contains the current **Fastify + React** version of Qlicker. Mig
 - [`meteorjs_migration/`](meteorjs_migration/) - migration status, completed archive, legacy DB notes, and original migration requirements
 - [`CODING_STANDARDS.md`](CODING_STANDARDS.md) - future-work conventions
 
+## Release versioning
+
+- The canonical app release string lives in [`VERSION`](VERSION).
+- Current release: `v2.0.0.b1`.
+- The backend exposes this value via `GET /api/v1/health` as `version`.
+- Docker image builds default to this value as the image tag and bake it into runtime metadata.
+
 ## Quick start
 
 ### Option 1: native development

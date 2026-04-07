@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import crypto from 'crypto';
+import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
 
@@ -23,6 +24,31 @@ function parseNonNegativeIntEnv(value, fallback) {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
+function readVersionFromFile(filePath) {
+  try {
+    const value = readFileSync(filePath, 'utf8').trim();
+    return value || '';
+  } catch {
+    return '';
+  }
+}
+
+function readVersionFromPackageJson(filePath) {
+  try {
+    const parsed = JSON.parse(readFileSync(filePath, 'utf8'));
+    const version = typeof parsed?.version === 'string' ? parsed.version.trim() : '';
+    if (!version) return '';
+    return version.startsWith('v') ? version : `v${version}`;
+  } catch {
+    return '';
+  }
+}
+
+const appVersion = (process.env.APP_VERSION || '').trim()
+  || readVersionFromFile(resolve(__dirname, '../../../VERSION'))
+  || readVersionFromPackageJson(resolve(__dirname, '../../package.json'))
+  || 'dev';
+
 if (nodeEnv === 'production') {
   if (!process.env.JWT_SECRET || !process.env.JWT_REFRESH_SECRET) {
     throw new Error('JWT_SECRET and JWT_REFRESH_SECRET must be set in production');
@@ -38,6 +64,7 @@ export default {
   rootUrl: process.env.ROOT_URL || 'http://localhost:3000',
   mailUrl: process.env.MAIL_URL || '',
   redisUrl: process.env.REDIS_URL || '',
+  appVersion,
   mongoMaxPoolSize: parseNonNegativeIntEnv(process.env.MONGO_MAX_POOL_SIZE, 25),
   mongoMinPoolSize: parseNonNegativeIntEnv(process.env.MONGO_MIN_POOL_SIZE, 0),
   mongoServerSelectionTimeoutMs: parseNonNegativeIntEnv(

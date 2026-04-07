@@ -119,6 +119,7 @@ It will prompt for:
 |---------|-------------|---------|
 | Domain | Your server's FQDN | `qlicker.example.com` |
 | Server/client image tags | Tags applied to existing image repositories | `latest` (or current `.env` values) |
+| App version label | Runtime release string shown in health checks and UI | `v2.0.0.b1` (or current `.env` value) |
 | TLS certificate path | Path to fullchain.pem | `./certs/fullchain.pem` |
 | TLS key path | Path to privkey.pem | `./certs/privkey.pem` |
 | Let's Encrypt auto-renew | Whether certbot auto-renew runs in Docker | `false` (or current `.env` value) |
@@ -733,11 +734,12 @@ From the repository root (where you have the source code):
 ./scripts/build-images.sh --tag v2.0.0 --registry ghcr.io/yourorg --push
 ```
 
-`production_setup/docker-compose.yml` already uses pre-built images. You can override the default tags in `.env`:
+`production_setup/docker-compose.yml` already uses pre-built images. You can override the default tags in `.env` and set the runtime release label:
 
 ```env
 SERVER_IMAGE=ghcr.io/yourorg/qlicker-server:v2.0.0
 CLIENT_IMAGE=ghcr.io/yourorg/qlicker-client:v2.0.0
+APP_VERSION=v2.0.0.b1
 ```
 
 ---

@@ -9,6 +9,7 @@ import apiClient from '../api/client';
 import ResponsiveTabsNavigation from '../components/common/ResponsiveTabsNavigation';
 import QlickerWordmark from '../components/common/QlickerWordmark';
 import { getDashboardPath } from '../utils/dashboard';
+import { APP_VERSION } from '../utils/version';
 
 export default function Login() {
   const { t } = useTranslation();
@@ -184,6 +185,9 @@ export default function Login() {
           >
             <QlickerWordmark height={42} title={t('common.appName')} />
           </Box>
+          <Typography variant="caption" component="p" sx={{ textAlign: 'center', color: 'text.secondary', mb: 2 }}>
+            {APP_VERSION}
+          </Typography>
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
           {statusMessage && <Alert severity={statusMessage.severity} sx={{ mb: 2 }}>{statusMessage.text}</Alert>}
           {ssoEnabled ? (

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
-  AppBar, Toolbar, IconButton, Menu, MenuItem, Avatar, Box, Container, Button, Tooltip, Badge,
+  AppBar, Toolbar, IconButton, Menu, MenuItem, Avatar, Box, Container, Button, Tooltip, Badge, Typography,
 } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
@@ -11,6 +11,7 @@ import QlickerWordmark from '../common/QlickerWordmark';
 import { getManualPath, getPreferredManualRole } from '../../utils/userManuals';
 import { getDashboardPath } from '../../utils/dashboard';
 import NotificationsDialog from '../notifications/NotificationsDialog';
+import { APP_VERSION } from '../../utils/version';
 
 export default function AppLayout() {
   const { t } = useTranslation();
@@ -163,6 +164,13 @@ export default function AppLayout() {
                 style={{ color: 'currentColor' }}
               />
             </Button>
+            <Typography
+              component="span"
+              variant="caption"
+              sx={{ ml: 1, opacity: 0.9, fontWeight: 600, letterSpacing: 0.2 }}
+            >
+              {APP_VERSION}
+            </Typography>
           </Box>
           <Box sx={{ flexGrow: 1 }} />
           <Tooltip title={t('nav.openAccountMenuTooltip')} arrow>

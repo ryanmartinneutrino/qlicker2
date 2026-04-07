@@ -1,15 +1,42 @@
 import { defineConfig, loadEnv } from 'vite';
 import { configDefaults } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+function resolveAppVersion(env) {
+  if (typeof env.VITE_APP_VERSION === 'string' && env.VITE_APP_VERSION.trim()) {
+    return env.VITE_APP_VERSION.trim();
+  }
+
+  try {
+    // Local development can read ../VERSION from the repository root.
+    const fileVersion = readFileSync(resolve(process.cwd(), '../VERSION'), 'utf8').trim();
+    if (fileVersion) return fileVersion;
+  } catch {
+    // Docker client builds use ./client as the context, so ../VERSION does not exist there.
+  }
+
+  const packageVersion = (process.env.npm_package_version || '').trim();
+  if (packageVersion) {
+    return packageVersion.startsWith('v') ? packageVersion : `v${packageVersion}`;
+  }
+
+  return 'dev';
+}
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const apiTarget = env.VITE_API_URL || 'http://localhost:3001';
   const wsTarget = env.VITE_WS_URL || 'ws://localhost:3001';
   const devPort = parseInt(env.VITE_DEV_PORT || '3000', 10);
+  const appVersion = resolveAppVersion(env);
 
   return {
     plugins: [react()],
+    define: {
+      'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion),
+    },
     oxc: {
       jsx: {
         runtime: 'automatic',
