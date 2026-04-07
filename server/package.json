@@ -1,0 +1,46 @@
+{
+  "name": "qlicker-server",
+  "version": "1.0.0",
+  "description": "Qlicker Fastify backend server",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "vitest run",
+    "migrate:question-types": "node scripts/migrate-question-types.js",
+    "migrate:question-types:apply": "node scripts/migrate-question-types.js --apply"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1011.0",
+    "@azure/storage-blob": "^12.31.0",
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/cors": "^10.0.2",
+    "@fastify/formbody": "^8.0.2",
+    "@fastify/helmet": "^13.0.2",
+    "@fastify/jwt": "^9.0.2",
+    "@fastify/multipart": "^9.0.3",
+    "@fastify/rate-limit": "^10.3.0",
+    "@fastify/swagger": "^9.4.2",
+    "@fastify/swagger-ui": "^5.2.1",
+    "@fastify/websocket": "^11.0.2",
+    "@node-rs/argon2": "^2.0.2",
+    "@node-saml/node-saml": "^5.1.0",
+    "dotenv": "^17.3.1",
+    "fastify": "^5.8.1",
+    "fastify-plugin": "^5.0.1",
+    "file-type": "^21.3.1",
+    "ioredis": "^5.10.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^9.3.1",
+    "nodemailer": "^8.0.3",
+    "sharp": "^0.34.5"
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "^11.0.1",
+    "vitest": "^4.1.0"
+  },
+  "overrides": {
+    "fast-xml-parser": ">=5.5.6"
+  }
+}
