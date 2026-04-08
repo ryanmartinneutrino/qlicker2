@@ -245,5 +245,7 @@ describe('WebSocket without Redis (single-instance fallback)', () => {
     const res = await app.inject({ method: 'GET', url: '/api/v1/health' });
     const body = JSON.parse(res.body);
     expect(body.redis).toBe(false);
+    expect(typeof body.version).toBe('string');
+    expect(body.version.length).toBeGreaterThan(0);
   });
 });

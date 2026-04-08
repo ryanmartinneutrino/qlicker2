@@ -6,6 +6,8 @@ COPY src/ ./src/
 
 FROM node:20-alpine
 WORKDIR /app
+ARG APP_VERSION=dev
+ENV APP_VERSION=$APP_VERSION
 RUN addgroup -g 1001 -S appgroup && adduser -S appuser -u 1001
 COPY --from=builder /app ./
 RUN mkdir -p /app/uploads && chown appuser:appgroup /app/uploads
