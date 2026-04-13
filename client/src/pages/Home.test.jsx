@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Home from './Home';
 import { APP_VERSION } from '../utils/version';
 
@@ -26,6 +26,17 @@ vi.mock('../components/common/ConnectionStatus', () => ({
 }));
 
 describe('Home', () => {
+  beforeEach(() => {
+    window.matchMedia = vi.fn().mockReturnValue({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    });
+  });
+
   it('shows the app version above the motion note', () => {
     render(<Home />);
 
