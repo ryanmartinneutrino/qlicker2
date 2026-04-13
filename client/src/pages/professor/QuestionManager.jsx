@@ -2,6 +2,7 @@ import {
   useCallback,
   useDeferredValue,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -267,6 +268,7 @@ export default function QuestionManager() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const requestIdRef = useRef(0);
+  const selectionViewportAnchorRef = useRef(null);
 
   const [filters, setFilters] = useState({
     q: '',
@@ -691,6 +693,45 @@ export default function QuestionManager() {
     await loadEntries();
   }, [loadEntries]);
 
+  const handleSelectEntry = useCallback((entry, previewElement = null) => {
+    if (previewElement?.getBoundingClientRect) {
+      selectionViewportAnchorRef.current = {
+        fingerprint: entry.fingerprint,
+        top: previewElement.getBoundingClientRect().top,
+      };
+    } else {
+      selectionViewportAnchorRef.current = null;
+    }
+
+    setActiveFingerprint(entry.fingerprint);
+    setCreatingQuestion(false);
+    if (!editingQuestion) {
+      setEditingBaseline(null);
+    }
+  }, [editingQuestion]);
+
+  useLayoutEffect(() => {
+    const anchor = selectionViewportAnchorRef.current;
+    if (!anchor) return;
+
+    const element = document.querySelector(`[data-question-manager-preview="${anchor.fingerprint}"]`);
+    if (!element?.getBoundingClientRect) {
+      selectionViewportAnchorRef.current = null;
+      return;
+    }
+
+    const nextTop = element.getBoundingClientRect().top;
+    const delta = nextTop - anchor.top;
+    if (Math.abs(delta) > 1) {
+      window.scrollTo({
+        left: window.scrollX,
+        top: window.scrollY + delta,
+      });
+    }
+
+    selectionViewportAnchorRef.current = null;
+  }, [activeFingerprint]);
+
   const activeImportLabel = useMemo(() => formatImportLabel(activeEntry, t), [activeEntry, t]);
 
   const isEditing = !!editingQuestion || creatingQuestion;
@@ -1030,19 +1071,19 @@ export default function QuestionManager() {
                       </Stack>
 
                       <Box
+                        data-question-manager-preview={entry.fingerprint}
                         role="button"
                         tabIndex={0}
-                        onClick={() => {
-                          setActiveFingerprint(entry.fingerprint);
-                          setCreatingQuestion(false);
-                          if (!editingQuestion) {
-                            setEditingBaseline(null);
-                          }
+                        onMouseDown={(event) => {
+                          event.preventDefault();
+                        }}
+                        onClick={(event) => {
+                          handleSelectEntry(entry, event.currentTarget);
                         }}
                         onKeyDown={(event) => {
                           if (event.key === 'Enter' || event.key === ' ') {
                             event.preventDefault();
-                            setActiveFingerprint(entry.fingerprint);
+                            handleSelectEntry(entry, event.currentTarget);
                           }
                         }}
                         sx={{

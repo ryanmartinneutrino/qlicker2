@@ -154,6 +154,77 @@ describe('QuestionManager page', () => {
     expect(screen.getAllByText(/Owners: Prof One/).length).toBeGreaterThan(0);
   });
 
+  it('preserves the viewport position when selecting a lower question group', async () => {
+    apiClientMock.get.mockImplementation((url) => {
+      if (url === '/health') {
+        return Promise.resolve({ data: { websocket: false } });
+      }
+      if (url === '/question-manager/questions') {
+        return Promise.resolve(createListResponse([
+          baseEntry,
+          {
+            ...baseEntry,
+            fingerprint: 'fp-2',
+            sourceQuestionId: 'q-session-2',
+            editableQuestionId: 'q-safe-2',
+            question: {
+              ...baseEntry.question,
+              _id: 'q-session-2',
+              content: '<p>Question content 2</p>',
+              plainText: 'Question content 2',
+            },
+          },
+        ]));
+      }
+      return Promise.reject(new Error(`Unexpected GET ${url}`));
+    });
+
+    const scrollToMock = vi.fn();
+    const originalScrollTo = window.scrollTo;
+    const scrollXDescriptor = Object.getOwnPropertyDescriptor(window, 'scrollX');
+    const scrollYDescriptor = Object.getOwnPropertyDescriptor(window, 'scrollY');
+
+    window.scrollTo = scrollToMock;
+    Object.defineProperty(window, 'scrollX', { configurable: true, value: 0 });
+    Object.defineProperty(window, 'scrollY', { configurable: true, value: 400 });
+
+    try {
+      renderPage();
+      await screen.findAllByText(/Question content/);
+
+      const preview = document.querySelector('[data-question-manager-preview="fp-2"]');
+      expect(preview).toBeTruthy();
+
+      let callCount = 0;
+      preview.getBoundingClientRect = vi.fn(() => ({
+        top: callCount++ === 0 ? 320 : 220,
+        left: 0,
+        right: 400,
+        bottom: 520,
+        width: 400,
+        height: 200,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      }));
+
+      fireEvent.mouseDown(preview);
+      fireEvent.click(preview);
+
+      await waitFor(() => {
+        expect(scrollToMock).toHaveBeenCalledWith({ left: 0, top: 300 });
+      });
+    } finally {
+      window.scrollTo = originalScrollTo;
+      if (scrollXDescriptor) {
+        Object.defineProperty(window, 'scrollX', scrollXDescriptor);
+      }
+      if (scrollYDescriptor) {
+        Object.defineProperty(window, 'scrollY', scrollYDescriptor);
+      }
+    }
+  });
+
   it('creates an editable detached copy and opens the inline editor', async () => {
     apiClientMock.get.mockImplementation((url) => {
       if (url === '/health') {
