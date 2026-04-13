@@ -10,6 +10,7 @@ import { I18nextProvider } from 'react-i18next';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import i18n from '../../i18n';
 import AppLayout from './AppLayout';
+import { APP_VERSION } from '../../utils/version';
 
 const { authState, apiClientMock } = vi.hoisted(() => ({
   authState: {
@@ -178,5 +179,11 @@ describe('AppLayout', () => {
     await waitFor(() => {
       expect(apiClientMock.post).toHaveBeenCalledWith('/notifications/notification-1/dismiss');
     });
+  });
+
+  it('does not show the app version in the app bar', () => {
+    renderLayout('/prof');
+
+    expect(screen.queryByText(APP_VERSION)).not.toBeInTheDocument();
   });
 });
