@@ -9,6 +9,10 @@ import {
   sanitizeExportedQuestion,
   sanitizeImportedQuestion,
 } from '../services/questionImportExport.js';
+import {
+  applyQuestionManagerFingerprint,
+} from '../services/questionManager.js';
+import { notifyQuestionManagerChanged } from '../services/questionManagerRealtime.js';
 import { isQuestionResponseCollectionEnabled, normalizeQuestionType } from '../services/grading.js';
 import { computeWordFrequencies } from '../utils/wordFrequency.js';
 import { computeHistogramData } from '../utils/histogram.js';
@@ -462,7 +466,7 @@ async function createLibraryQuestionCopy({
   delete copiedPayload.updatedAt;
   delete copiedPayload.sessionOptions;
 
-  return Question.create({
+  return Question.create(applyQuestionManagerFingerprint({
     ...copiedPayload,
     creator: String(sourceObject.creator || userId),
     owner: userId,
@@ -478,7 +482,7 @@ async function createLibraryQuestionCopy({
     approved: forceStudentCopy ? false : true,
     studentCreated: forceStudentCopy ? true : !!sourceObject.studentCreated,
     studentCopyOfPublic: forceStudentCopy ? true : !!sourceObject.studentCopyOfPublic,
-  });
+  }, sourceObject.questionManager));
 }
 
 function countCorrectOptions(options = []) {
@@ -1186,7 +1190,7 @@ export default async function questionRoutes(app) {
         }
       }
 
-      const questionData = {
+      const questionData = applyQuestionManagerFingerprint({
         type,
         content: content || '',
         plainText: plainText || '',
@@ -1206,12 +1210,13 @@ export default async function questionRoutes(app) {
         imagePath: imagePath || '',
         approved: !isStudent,
         studentCreated: isStudent,
-      };
+      });
 
       if (toleranceNumerical !== undefined) questionData.toleranceNumerical = toleranceNumerical;
       if (correctNumerical !== undefined) questionData.correctNumerical = correctNumerical;
 
       const question = await Question.create(questionData);
+      await notifyQuestionManagerChanged(app, { questions: [question] });
 
       return reply.code(201).send({ question: question.toObject() });
     }
@@ -1346,6 +1351,14 @@ export default async function questionRoutes(app) {
         updates.publicOnQlickerForStudents = false;
       }
 
+      const normalizedTags = updates.tags !== undefined ? normalizeTags(updates.tags) : question.tags;
+      const nextQuestionPayload = {
+        ...question.toObject(),
+        ...updates,
+        tags: normalizedTags,
+      };
+      const nextQuestionManager = applyQuestionManagerFingerprint(nextQuestionPayload, question.questionManager || {}).questionManager;
+
       const updated = await Question.findByIdAndUpdate(
         request.params.id,
         {
@@ -1353,12 +1366,14 @@ export default async function questionRoutes(app) {
             ...updates,
             owner: request.user.userId,
             lastEditedAt: new Date(),
-            ...(updates.tags !== undefined ? { tags: normalizeTags(updates.tags) } : {}),
+            ...(updates.tags !== undefined ? { tags: normalizedTags } : {}),
+            questionManager: nextQuestionManager,
           },
         },
         { returnDocument: 'after' }
       );
 
+      await notifyQuestionManagerChanged(app, { questions: [updated || question] });
       await notifyLinkedSessionQuestionUpdated(app, updated || question);
 
       return { question: updated.toObject() };
@@ -1394,6 +1409,10 @@ export default async function questionRoutes(app) {
       );
 
       await Question.findByIdAndDelete(request.params.id);
+      await notifyQuestionManagerChanged(app, {
+        questions: [question],
+        deletedQuestionIds: [String(question._id)],
+      });
 
       return { success: true };
     }
@@ -1426,6 +1445,7 @@ export default async function questionRoutes(app) {
         userId,
         forceStudentCopy: shouldTreatUserAsStudentForCourse(request.user, course),
       });
+      await notifyQuestionManagerChanged(app, { questions: [copy] });
 
       return reply.code(201).send({ question: copy.toObject() });
     }
@@ -1468,6 +1488,7 @@ export default async function questionRoutes(app) {
         },
         { returnDocument: 'after' }
       );
+      await notifyQuestionManagerChanged(app, { questions: [updated] });
 
       return { question: updated.toObject() };
     }
@@ -1511,6 +1532,7 @@ export default async function questionRoutes(app) {
         },
         { returnDocument: 'after' }
       );
+      await notifyQuestionManagerChanged(app, { questions: [updated] });
 
       return { question: updated.toObject() };
     }
@@ -1582,6 +1604,9 @@ export default async function questionRoutes(app) {
         }
         copiedQuestions.push(copy.toObject());
       }
+      await notifyQuestionManagerChanged(app, {
+        questions: copiedQuestions,
+      });
 
       return reply.code(201).send({ questions: copiedQuestions });
     }
@@ -1627,6 +1652,10 @@ export default async function questionRoutes(app) {
         { $pull: { questions: { $in: questionIds } } }
       );
       await Question.deleteMany({ _id: { $in: questionIds } });
+      await notifyQuestionManagerChanged(app, {
+        questions,
+        deletedQuestionIds: questionIds,
+      });
 
       return { deletedQuestionIds: questionIds };
     }
@@ -1690,6 +1719,7 @@ export default async function questionRoutes(app) {
         { _id: { $in: questionIds } },
         { $set: updates }
       );
+      await notifyQuestionManagerChanged(app, { questions });
 
       return { updatedQuestionIds: questionIds };
     }
@@ -1787,6 +1817,7 @@ export default async function questionRoutes(app) {
           $set: { questions: nextQuestionIds },
         });
       }
+      await notifyQuestionManagerChanged(app, { questions: importedQuestions });
 
       return reply.code(201).send({
         questions: importedQuestions.map((question) => question.toObject()),
@@ -1829,6 +1860,7 @@ export default async function questionRoutes(app) {
         targetCourseId: String(course._id),
         userId,
       });
+      await notifyQuestionManagerChanged(app, { questions: [copy] });
 
       return reply.code(201).send({ question: copy.toObject() });
     }
@@ -1867,6 +1899,7 @@ export default async function questionRoutes(app) {
         targetCourseId: String(course._id),
         userId: request.user.userId,
       });
+      await notifyQuestionManagerChanged(app, { questions: [copy] });
 
       const updated = await Session.findById(session._id).lean();
       return { session: updated, copiedQuestionId: String(copy._id) };
@@ -1913,6 +1946,15 @@ export default async function questionRoutes(app) {
         },
         { returnDocument: 'after' }
       );
+      await notifyQuestionManagerChanged(app, {
+        questions: [{
+          _id: String(request.params.questionId),
+          courseId: String(course._id),
+          owner: '',
+          creator: '',
+        }],
+        deletedQuestionIds: [String(request.params.questionId)],
+      });
 
       return { session: updated.toObject() };
     }

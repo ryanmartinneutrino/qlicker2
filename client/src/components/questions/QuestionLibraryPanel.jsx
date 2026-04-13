@@ -422,6 +422,7 @@ function QuestionLibraryPanel({
   allowQuestionCreate = true,
   selectionAction = null,
   permissionMode = null,
+  showCourseSelector = true,
   ref,
 }) {
   const { t } = useTranslation();
@@ -1060,7 +1061,7 @@ function QuestionLibraryPanel({
           </Box>
 
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.25}>
-            {!isStudentLibrary ? (
+            {!isStudentLibrary && showCourseSelector ? (
               <Autocomplete
                 sx={{ minWidth: 220, flex: 1 }}
                 options={courses}

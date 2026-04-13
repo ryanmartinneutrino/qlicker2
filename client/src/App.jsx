@@ -19,6 +19,7 @@ import PageLoadFallback from './components/common/PageLoadFallback';
 const Profile = lazy(() => import('./pages/Profile'));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 const ProfDashboard = lazy(() => import('./pages/professor/ProfDashboard'));
+const ProfQuestionManager = lazy(() => import('./pages/professor/QuestionManager'));
 const ProfCourseDetail = lazy(() => import('./pages/professor/CourseDetail'));
 const SessionEditor = lazy(() => import('./pages/professor/SessionEditor'));
 const ProfLiveSession = lazy(() => import('./pages/professor/LiveSession'));
@@ -47,6 +48,7 @@ function RouteAccessibility() {
       [/^\/profile$/, t('pageTitles.profile')],
       [/^\/admin$/, t('pageTitles.adminDashboard')],
       [/^\/prof$/, t('pageTitles.professorDashboard')],
+      [/^\/prof\/question-manager$/, t('pageTitles.questionManager')],
       [/^\/prof\/course\/[^/]+$/, t('pageTitles.courseDetails')],
       [/^\/prof\/course\/[^/]+\/session\/[^/]+$/, t('pageTitles.sessionEditor')],
       [/^\/prof\/course\/[^/]+\/session\/[^/]+\/live$/, t('pageTitles.liveSession')],
@@ -113,6 +115,7 @@ export default function App() {
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/admin" element={<RequireRole role="admin"><AdminDashboard /></RequireRole>} />
                 <Route path="/prof" element={<RequireRole role="professor" allowInstructorCourses={false}><ProfDashboard /></RequireRole>} />
+                <Route path="/prof/question-manager" element={<RequireRole role="professor" allowInstructorCourses={false}><ProfQuestionManager /></RequireRole>} />
                 <Route path="/prof/course/:id" element={<RequireRole role="professor" allowInstructorCourses><ProfCourseDetail /></RequireRole>} />
                 <Route path="/prof/course/:courseId/session/:sessionId" element={<RequireRole role="professor" allowInstructorCourses><SessionEditor /></RequireRole>} />
                 <Route path="/prof/course/:courseId/session/:sessionId/live" element={<RequireRole role="professor" allowInstructorCourses><ProfLiveSession /></RequireRole>} />

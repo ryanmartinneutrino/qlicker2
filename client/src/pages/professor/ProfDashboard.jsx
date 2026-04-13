@@ -10,7 +10,7 @@ import {
 } from '@mui/material';
 import {
   Add as AddIcon, Search as SearchIcon, ContentCopy as CopyIcon,
-  School as SchoolIcon, PlayCircle as LiveIcon,
+  School as SchoolIcon, PlayCircle as LiveIcon, LibraryBooks as QuestionManagerIcon,
 } from '@mui/icons-material';
 import apiClient from '../../api/client';
 import {
@@ -149,11 +149,16 @@ export default function ProfDashboard() {
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
         <Typography variant="h4">{t('professor.dashboard.myCourses')}</Typography>
-        {canCreateCourses ? (
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
-            {t('professor.dashboard.createCourse')}
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          <Button variant="outlined" startIcon={<QuestionManagerIcon />} onClick={() => navigate('/prof/question-manager')}>
+            {t('professor.dashboard.questionManager')}
           </Button>
-        ) : null}
+          {canCreateCourses ? (
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
+              {t('professor.dashboard.createCourse')}
+            </Button>
+          ) : null}
+        </Box>
       </Box>
 
       <TextField

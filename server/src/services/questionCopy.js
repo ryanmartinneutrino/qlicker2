@@ -1,6 +1,7 @@
 import Question from '../models/Question.js';
 import Session from '../models/Session.js';
 import { buildSessionResponseTracking } from '../utils/sessionResponseTracking.js';
+import { applyQuestionManagerFingerprint } from './questionManager.js';
 
 function buildCopiedSessionOptions(sessionOptions, { preservePoints = false } = {}) {
   const sourceOptions = sessionOptions && typeof sessionOptions === 'object' ? sessionOptions : {};
@@ -45,7 +46,7 @@ export async function copyQuestionToSession({
     preservePoints: preservePoints !== false,
   });
 
-  const copy = await Question.create({
+  const copy = await Question.create(applyQuestionManagerFingerprint({
     ...copiedPayload,
     creator: String(sourceObject.creator || userId),
     owner: userId,
@@ -57,7 +58,7 @@ export async function copyQuestionToSession({
     lastEditedAt: new Date(),
     approved: true,
     studentCreated: !!sourceObject.studentCreated,
-  });
+  }, sourceObject.questionManager));
 
   if (addToSession) {
     const session = await Session.findById(targetSessionId).lean();

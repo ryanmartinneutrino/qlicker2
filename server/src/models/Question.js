@@ -132,6 +132,19 @@ const SessionOptionsSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const QuestionManagerSchema = new mongoose.Schema(
+  {
+    fingerprint: { type: String, default: '' },
+    detachedFromQuestionId: { type: String, default: '' },
+    importedAt: { type: Date, default: null },
+    importedBy: { type: String, default: '' },
+    importFormat: { type: String, default: '' },
+    importFilename: { type: String, default: '' },
+    importIgnoredPoints: { type: Boolean, default: false },
+  },
+  { _id: false }
+);
+
 const QuestionSchema = new mongoose.Schema(
   {
     _id: { type: String, default: () => generateMeteorId() },
@@ -158,6 +171,7 @@ const QuestionSchema = new mongoose.Schema(
     tags: { type: [TagSchema], default: [] },
     sessionOptions: { type: SessionOptionsSchema },
     sessionProperties: { type: SessionPropertiesSchema },
+    questionManager: { type: QuestionManagerSchema, default: () => ({}) },
     imagePath: { type: String, default: '' },
     studentCopyOfPublic: { type: Boolean, default: false },
     studentCreated: { type: Boolean, default: false },
@@ -174,6 +188,8 @@ QuestionSchema.index({ courseId: 1 });
 QuestionSchema.index({ owner: 1 });
 QuestionSchema.index({ courseId: 1, createdAt: -1 });
 QuestionSchema.index({ originalCourse: 1 });
+QuestionSchema.index({ 'questionManager.fingerprint': 1 });
+QuestionSchema.index({ 'questionManager.detachedFromQuestionId': 1 });
 QuestionSchema.index({ 'tags.value': 1 });
 QuestionSchema.index({
   plainText: 'text',

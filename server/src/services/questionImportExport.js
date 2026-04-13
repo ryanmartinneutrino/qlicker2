@@ -1,3 +1,8 @@
+import {
+  applyQuestionManagerFingerprint,
+  buildQuestionManagerImportMetadata,
+} from './questionManager.js';
+
 export function normalizeTags(tags = []) {
   if (!Array.isArray(tags)) return [];
 
@@ -147,6 +152,13 @@ export function sanitizeImportedQuestion(question, {
     createdAt: new Date(),
     lastEditedAt: new Date(),
     studentCreated: false,
+    questionManager: buildQuestionManagerImportMetadata({
+      importedAt: new Date(),
+      importedBy: userId,
+      importFormat: 'json',
+      importFilename: '',
+      importIgnoredPoints: false,
+    }),
   };
 
   if (question?.toleranceNumerical !== undefined) {
@@ -159,5 +171,5 @@ export function sanitizeImportedQuestion(question, {
     payload.sessionOptions = sanitizeSessionOptionsForImport(question?.sessionOptions);
   }
 
-  return payload;
+  return applyQuestionManagerFingerprint(payload, payload.questionManager);
 }

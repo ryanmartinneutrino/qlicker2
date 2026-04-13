@@ -46,6 +46,8 @@ data/db/
 tmp/
 .tmp/
 .qlicker.pids
+qexample/
+questionmanager
 
 # Uploaded files
 server/uploads/
