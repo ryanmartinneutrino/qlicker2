@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import ConnectionStatus from '../components/common/ConnectionStatus';
 import QlickerWordmark from '../components/common/QlickerWordmark';
+import { APP_VERSION } from '../utils/version';
 import './HomeAnimated.css';
 
 const DOODLES = [
@@ -228,6 +229,7 @@ export default function Home() {
                 {t('home.getStarted')}
               </button>
             </div>
+            <div className="homeHeroNote">{APP_VERSION}</div>
             <div className="homeHeroNote">{t('home.motionNote')}</div>
           </div>
 
