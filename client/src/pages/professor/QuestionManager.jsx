@@ -23,7 +23,6 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  Divider,
   FormControlLabel,
   IconButton,
   MenuItem,
@@ -268,7 +267,8 @@ export default function QuestionManager() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const requestIdRef = useRef(0);
-  const selectionViewportAnchorRef = useRef(null);
+  const viewportAnchorRef = useRef(null);
+  const cardElementsRef = useRef(new Map());
 
   const [filters, setFilters] = useState({
     q: '',
@@ -290,13 +290,14 @@ export default function QuestionManager() {
     owners: [],
   });
   const [selectedFingerprints, setSelectedFingerprints] = useState([]);
-  const [activeFingerprint, setActiveFingerprint] = useState('');
+  const [expandedFingerprints, setExpandedFingerprints] = useState({});
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(null);
   const [syncTransport, setSyncTransport] = useState('manual');
   const [pendingRefresh, setPendingRefresh] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState(null);
   const [editingBaseline, setEditingBaseline] = useState(null);
+  const [editingEntryFingerprint, setEditingEntryFingerprint] = useState('');
   const [creatingQuestion, setCreatingQuestion] = useState(false);
   const [actionBusyKey, setActionBusyKey] = useState('');
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -338,6 +339,11 @@ export default function QuestionManager() {
       setSelectedFingerprints((current) => current.filter((fingerprint) => (
         nextEntries.some((entry) => entry.fingerprint === fingerprint)
       )));
+      setExpandedFingerprints((current) => Object.fromEntries(
+        Object.entries(current).filter(([fingerprint]) => (
+          nextEntries.some((entry) => entry.fingerprint === fingerprint)
+        ))
+      ));
 
       if (focusQuestionId) {
         const focusedEntry = nextEntries.find((entry) => (
@@ -346,12 +352,11 @@ export default function QuestionManager() {
           || String(entry?.question?._id) === String(focusQuestionId)
         ));
         if (focusedEntry) {
-          setActiveFingerprint(focusedEntry.fingerprint);
-        } else if (!nextEntries.some((entry) => entry.fingerprint === activeFingerprint)) {
-          setActiveFingerprint(String(nextEntries[0]?.fingerprint || ''));
+          setExpandedFingerprints((current) => ({
+            ...current,
+            [focusedEntry.fingerprint]: true,
+          }));
         }
-      } else if (!nextEntries.some((entry) => entry.fingerprint === activeFingerprint)) {
-        setActiveFingerprint(String(nextEntries[0]?.fingerprint || ''));
       }
 
       return data;
@@ -369,7 +374,7 @@ export default function QuestionManager() {
         setLoading(false);
       }
     }
-  }, [activeFingerprint, requestParams, t]);
+  }, [requestParams, t]);
 
   useEffect(() => {
     loadEntries();
@@ -490,16 +495,10 @@ export default function QuestionManager() {
     };
   }, [creatingQuestion, editingQuestionId, loadEntries]);
 
-  const activeEntry = useMemo(() => (
-    entries.find((entry) => entry.fingerprint === activeFingerprint) || entries[0] || null
-  ), [activeFingerprint, entries]);
-
   const tagSuggestionLabels = useMemo(() => (
     filterOptions.tags.map((tag) => String(tag?.label || tag?.value || '').trim()).filter(Boolean)
   ), [filterOptions.tags]);
 
-  const activeQuestion = editingQuestion || activeEntry?.question || null;
-  const activeCourse = activeEntry?.courses?.length === 1 ? activeEntry.courses[0] : null;
   const selectedCount = selectedFingerprints.length;
   const totalPages = Math.max(Math.ceil(total / Number(filters.limit || DEFAULT_LIMIT)), 1);
 
@@ -526,11 +525,21 @@ export default function QuestionManager() {
   }, []);
 
   const closeEditorPanel = useCallback(async ({ persistedQuestionId = '' } = {}) => {
+    if (editingEntryFingerprint) {
+      const cardElement = cardElementsRef.current.get(editingEntryFingerprint);
+      if (cardElement?.getBoundingClientRect) {
+        viewportAnchorRef.current = {
+          fingerprint: editingEntryFingerprint,
+          top: cardElement.getBoundingClientRect().top,
+        };
+      }
+    }
     setCreatingQuestion(false);
     setEditingQuestion(null);
     setEditingBaseline(null);
+    setEditingEntryFingerprint('');
     await loadEntries({ focusQuestionId: persistedQuestionId });
-  }, [loadEntries]);
+  }, [editingEntryFingerprint, loadEntries]);
 
   const handleEditorSave = useCallback(async (payload, questionId) => {
     try {
@@ -559,10 +568,20 @@ export default function QuestionManager() {
     setCreatingQuestion(true);
     setEditingQuestion(null);
     setEditingBaseline(null);
+    setEditingEntryFingerprint('');
   }, []);
 
   const handleStartEditingEntry = useCallback(async (entry) => {
     if (!entry?.sourceQuestionId) return;
+    const cardElement = cardElementsRef.current.get(entry.fingerprint);
+    if (cardElement?.getBoundingClientRect) {
+      viewportAnchorRef.current = {
+        fingerprint: entry.fingerprint,
+        top: cardElement.getBoundingClientRect().top,
+      };
+    } else {
+      viewportAnchorRef.current = null;
+    }
     const busyKey = `edit:${entry.fingerprint}`;
     setActionBusyKey(busyKey);
     setMessage(null);
@@ -572,7 +591,11 @@ export default function QuestionManager() {
       setCreatingQuestion(false);
       setEditingQuestion(data.question);
       setEditingBaseline(data.question);
-      await loadEntries({ silent: true, focusQuestionId: data.question?._id });
+      setEditingEntryFingerprint(entry.fingerprint);
+      setExpandedFingerprints((current) => ({
+        ...current,
+        [entry.fingerprint]: true,
+      }));
       if (data?.detached) {
         setMessage({
           severity: 'info',
@@ -588,12 +611,22 @@ export default function QuestionManager() {
           defaultValue: 'Failed to prepare an editable copy of the question.',
         }),
       });
+      viewportAnchorRef.current = null;
     } finally {
       setActionBusyKey('');
     }
-  }, [loadEntries, t]);
+  }, [t]);
 
   const handleToggleSelection = useCallback((fingerprint) => {
+    const cardElement = cardElementsRef.current.get(fingerprint);
+    if (cardElement?.getBoundingClientRect) {
+      viewportAnchorRef.current = {
+        fingerprint,
+        top: cardElement.getBoundingClientRect().top,
+      };
+    } else {
+      viewportAnchorRef.current = null;
+    }
     setSelectedFingerprints((current) => (
       current.includes(fingerprint)
         ? current.filter((value) => value !== fingerprint)
@@ -693,30 +726,30 @@ export default function QuestionManager() {
     await loadEntries();
   }, [loadEntries]);
 
-  const handleSelectEntry = useCallback((entry, previewElement = null) => {
-    if (previewElement?.getBoundingClientRect) {
-      selectionViewportAnchorRef.current = {
-        fingerprint: entry.fingerprint,
-        top: previewElement.getBoundingClientRect().top,
+  const toggleExpanded = useCallback((fingerprint) => {
+    const cardElement = cardElementsRef.current.get(fingerprint);
+    if (cardElement?.getBoundingClientRect) {
+      viewportAnchorRef.current = {
+        fingerprint,
+        top: cardElement.getBoundingClientRect().top,
       };
     } else {
-      selectionViewportAnchorRef.current = null;
+      viewportAnchorRef.current = null;
     }
 
-    setActiveFingerprint(entry.fingerprint);
-    setCreatingQuestion(false);
-    if (!editingQuestion) {
-      setEditingBaseline(null);
-    }
-  }, [editingQuestion]);
+    setExpandedFingerprints((current) => ({
+      ...current,
+      [fingerprint]: !current[fingerprint],
+    }));
+  }, []);
 
   useLayoutEffect(() => {
-    const anchor = selectionViewportAnchorRef.current;
+    const anchor = viewportAnchorRef.current;
     if (!anchor) return;
 
-    const element = document.querySelector(`[data-question-manager-preview="${anchor.fingerprint}"]`);
+    const element = cardElementsRef.current.get(anchor.fingerprint);
     if (!element?.getBoundingClientRect) {
-      selectionViewportAnchorRef.current = null;
+      viewportAnchorRef.current = null;
       return;
     }
 
@@ -729,12 +762,8 @@ export default function QuestionManager() {
       });
     }
 
-    selectionViewportAnchorRef.current = null;
-  }, [activeFingerprint]);
-
-  const activeImportLabel = useMemo(() => formatImportLabel(activeEntry, t), [activeEntry, t]);
-
-  const isEditing = !!editingQuestion || creatingQuestion;
+    viewportAnchorRef.current = null;
+  }, [editingEntryFingerprint, editingQuestion?._id, expandedFingerprints, selectedFingerprints]);
 
   return (
     <Box sx={{ p: { xs: 2, md: 3 }, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -945,14 +974,36 @@ export default function QuestionManager() {
           <CircularProgress aria-label={t('professor.questionManager.loading', { defaultValue: 'Loading question manager…' })} />
         </Box>
       ) : (
-        <Box
-          sx={{
-            display: 'grid',
-            gap: 2,
-            gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1.15fr) minmax(380px, 0.85fr)' },
-            alignItems: 'start',
-          }}
-        >
+        <Stack spacing={1.5}>
+          {creatingQuestion ? (
+            <Paper variant="outlined" sx={{ p: 2.25 }}>
+              <Stack spacing={2}>
+                <Box>
+                  <Typography variant="h6">
+                    {t('questionLibrary.newQuestion', { defaultValue: 'New question' })}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {t('professor.questionManager.editingNewHelp', {
+                      defaultValue: 'New question-manager questions start as standalone questions with no course or session attached.',
+                    })}
+                  </Typography>
+                </Box>
+
+                <QuestionEditor
+                  open
+                  inline
+                  initial={null}
+                  initialBaseline={null}
+                  onAutoSave={handleEditorSave}
+                  onClose={closeEditorPanel}
+                  tagSuggestions={tagSuggestionLabels}
+                  showVisibilityControls={false}
+                  allowCustomTags
+                />
+              </Stack>
+            </Paper>
+          ) : null}
+
           <Stack spacing={1.5}>
             {entries.length === 0 ? (
               <Alert severity="info">
@@ -960,12 +1011,15 @@ export default function QuestionManager() {
               </Alert>
             ) : entries.map((entry, index) => {
               const selected = selectedFingerprints.includes(entry.fingerprint);
-              const active = entry.fingerprint === activeEntry?.fingerprint;
+              const expanded = !!expandedFingerprints[entry.fingerprint];
+              const editing = editingEntryFingerprint === entry.fingerprint && !!editingQuestion;
               const normalizedType = normalizeQuestionType(entry.question);
               const duplicateCount = Number(entry?.duplicateCount || 0);
               const responseBackedCount = Number(entry?.responseBackedCount || 0);
               const sessionLinkedCount = Number(entry?.sessionLinkedCount || 0);
               const standaloneCount = Number(entry?.standaloneCount || 0);
+              const importLabel = formatImportLabel(entry, t);
+              const singleCourse = entry.courses.length === 1 ? entry.courses[0] : null;
               const coursesLabel = entry.courses.length > 0
                 ? entry.courses.map((course) => course.label).join(', ')
                 : t('professor.questionManager.courseIndependent', { defaultValue: 'Course-independent' });
@@ -974,14 +1028,25 @@ export default function QuestionManager() {
                 <Card
                   key={entry.fingerprint}
                   variant="outlined"
+                  ref={(node) => {
+                    if (node) {
+                      cardElementsRef.current.set(entry.fingerprint, node);
+                    } else {
+                      cardElementsRef.current.delete(entry.fingerprint);
+                    }
+                  }}
                   sx={{
-                    borderColor: active ? 'primary.main' : 'divider',
-                    boxShadow: active ? 2 : 'none',
+                    borderColor: editing ? 'primary.main' : expanded ? 'primary.light' : 'divider',
+                    boxShadow: editing ? 2 : 'none',
+                    overflowAnchor: 'none',
                   }}
                 >
                   <CardContent sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
                     <Checkbox
                       checked={selected}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                      }}
                       onChange={() => handleToggleSelection(entry.fingerprint)}
                       inputProps={{
                         'aria-label': t('professor.questionManager.selectQuestionGroup', {
@@ -1046,7 +1111,10 @@ export default function QuestionManager() {
                             <span>
                               <IconButton
                                 size="small"
-                                onClick={() => handleStartEditingEntry(entry)}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleStartEditingEntry(entry);
+                                }}
                                 disabled={actionBusyKey === `edit:${entry.fingerprint}`}
                                 aria-label={entry.requiresDetachedCopy
                                   ? t('professor.questionManager.createEditableCopy', { defaultValue: 'Create editable copy' })
@@ -1060,7 +1128,10 @@ export default function QuestionManager() {
                             <span>
                               <IconButton
                                 size="small"
-                                onClick={() => handleOpenExportDialog([entry.fingerprint])}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleOpenExportDialog([entry.fingerprint]);
+                                }}
                                 aria-label={t('professor.questionManager.exportLatex', { defaultValue: 'Export LaTeX' })}
                               >
                                 <DownloadIcon fontSize="small" />
@@ -1070,50 +1141,89 @@ export default function QuestionManager() {
                         </Stack>
                       </Stack>
 
-                      <Box
-                        data-question-manager-preview={entry.fingerprint}
-                        role="button"
-                        tabIndex={0}
-                        onMouseDown={(event) => {
-                          event.preventDefault();
-                        }}
-                        onClick={(event) => {
-                          handleSelectEntry(entry, event.currentTarget);
-                        }}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter' || event.key === ' ') {
-                            event.preventDefault();
-                            handleSelectEntry(entry, event.currentTarget);
-                          }
-                        }}
-                        sx={{
-                          cursor: 'pointer',
-                          borderRadius: 1,
-                          p: 0.5,
-                          '&:hover': { backgroundColor: 'action.hover' },
-                        }}
-                      >
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-                          {t('questionLibrary.previewHint', {
-                            number: (filters.page - 1) * filters.limit + index + 1,
-                            defaultValue: `Question ${(filters.page - 1) * filters.limit + index + 1}`,
-                          })}
-                        </Typography>
-                        <Box sx={{ position: 'relative', maxHeight: 220, overflow: 'hidden' }}>
-                          <QuestionDisplay question={entry.question} allowVideoEmbeds={false} />
-                          <Box
-                            sx={{
-                              position: 'absolute',
-                              left: 0,
-                              right: 0,
-                              bottom: 0,
-                              height: 52,
-                              background: (theme) => `linear-gradient(to bottom, rgba(255,255,255,0), ${theme.palette.background.paper})`,
-                              pointerEvents: 'none',
-                            }}
+                      {editing ? (
+                        <Stack spacing={1.5}>
+                          <Box>
+                            <Typography variant="subtitle1">
+                              {t('professor.questionManager.editingTitle', { defaultValue: 'Editing question' })}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {t('professor.questionManager.editingExistingHelp', {
+                                defaultValue: 'Autosave is on. Changes here update only the editable manager copy.',
+                              })}
+                            </Typography>
+                          </Box>
+
+                          {entry.requiresDetachedCopy ? (
+                            <Alert severity="info">
+                              {t('professor.questionManager.detachedCopyRequired', {
+                                defaultValue: 'This question group includes response-backed or session-linked copies, so editing happens on a detached standalone copy instead.',
+                              })}
+                            </Alert>
+                          ) : null}
+
+                          <QuestionEditor
+                            open
+                            inline
+                            initial={editingQuestion}
+                            initialBaseline={editingBaseline}
+                            onAutoSave={handleEditorSave}
+                            onClose={closeEditorPanel}
+                            tagSuggestions={tagSuggestionLabels}
+                            showVisibilityControls={false}
+                            allowCustomTags
                           />
+                        </Stack>
+                      ) : (
+                        <Box
+                          data-question-manager-preview={entry.fingerprint}
+                          role="button"
+                          tabIndex={0}
+                          aria-expanded={expanded}
+                          onClick={() => {
+                            toggleExpanded(entry.fingerprint);
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              toggleExpanded(entry.fingerprint);
+                            }
+                          }}
+                          sx={{
+                            cursor: 'pointer',
+                            borderRadius: 1,
+                            p: 0.5,
+                            '&:hover': { backgroundColor: 'action.hover' },
+                          }}
+                        >
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                            {t('questionLibrary.previewHint', {
+                              number: (filters.page - 1) * filters.limit + index + 1,
+                              defaultValue: `Question ${(filters.page - 1) * filters.limit + index + 1}`,
+                            })}
+                            {' \u00b7 '}
+                            {expanded
+                              ? t('questionLibrary.tapCollapse', { defaultValue: 'Tap to collapse' })
+                              : t('questionLibrary.tapExpand', { defaultValue: 'Tap to expand' })}
+                          </Typography>
+                          <Box sx={{ position: 'relative', maxHeight: expanded ? 'none' : 220, overflow: 'hidden' }}>
+                            <QuestionDisplay question={entry.question} allowVideoEmbeds={false} />
+                            {!expanded ? (
+                              <Box
+                                sx={{
+                                  position: 'absolute',
+                                  left: 0,
+                                  right: 0,
+                                  bottom: 0,
+                                  height: 52,
+                                  background: (theme) => `linear-gradient(to bottom, rgba(255,255,255,0), ${theme.palette.background.paper})`,
+                                  pointerEvents: 'none',
+                                }}
+                              />
+                            ) : null}
+                          </Box>
                         </Box>
-                      </Box>
+                      )}
 
                       <Stack spacing={0.4} sx={{ mt: 1 }}>
                         <Typography variant="body2" color="text.secondary">
@@ -1125,7 +1235,29 @@ export default function QuestionManager() {
                         <Typography variant="body2" color="text.secondary">
                           {t('professor.questionManager.ownerLabel', { defaultValue: 'Owners' })}: {summarizePeople(entry.owners) || t('common.unknown')}
                         </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {t('professor.questionManager.lastEdited', { defaultValue: 'Last edited' })}: {getTimestamp(entry.lastEditedAt) > 0
+                            ? new Date(entry.lastEditedAt).toLocaleString()
+                            : t('common.unknown')}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {importLabel}
+                        </Typography>
                       </Stack>
+
+                      {singleCourse ? (
+                        <Button
+                          size="small"
+                          startIcon={<OpenInNewIcon />}
+                          sx={{ mt: 1 }}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            navigate(`/prof/course/${singleCourse._id}`);
+                          }}
+                        >
+                          {t('professor.questionManager.openCourse', { defaultValue: 'Open course workspace' })}
+                        </Button>
+                      ) : null}
 
                       <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
                         {entry.tags.map((tag) => (
@@ -1160,176 +1292,7 @@ export default function QuestionManager() {
               </Paper>
             ) : null}
           </Stack>
-
-          <Paper variant="outlined" sx={{ p: 2.25, position: { xl: 'sticky' }, top: { xl: 24 } }}>
-            {isEditing ? (
-              <Stack spacing={2}>
-                <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ xs: 'flex-start', md: 'center' }}>
-                  <Box>
-                    <Typography variant="h6">
-                      {creatingQuestion
-                        ? t('questionLibrary.newQuestion', { defaultValue: 'New question' })
-                        : t('professor.questionManager.editingTitle', { defaultValue: 'Editing question' })}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {creatingQuestion
-                        ? t('professor.questionManager.editingNewHelp', {
-                          defaultValue: 'New question-manager questions start as standalone questions with no course or session attached.',
-                        })
-                        : t('professor.questionManager.editingExistingHelp', {
-                          defaultValue: 'Autosave is on. Changes here update only the editable manager copy.',
-                        })}
-                    </Typography>
-                  </Box>
-                  {activeCourse ? (
-                    <Button
-                      size="small"
-                      startIcon={<OpenInNewIcon />}
-                      onClick={() => navigate(`/prof/course/${activeCourse._id}`)}
-                    >
-                      {t('professor.questionManager.openCourse', { defaultValue: 'Open course workspace' })}
-                    </Button>
-                  ) : null}
-                </Stack>
-
-                {!creatingQuestion && activeEntry?.requiresDetachedCopy ? (
-                  <Alert severity="info">
-                    {t('professor.questionManager.detachedCopyRequired', {
-                      defaultValue: 'This question group includes response-backed or session-linked copies, so editing happens on a detached standalone copy instead.',
-                    })}
-                  </Alert>
-                ) : null}
-
-                <QuestionEditor
-                  open
-                  inline
-                  initial={creatingQuestion ? null : editingQuestion}
-                  initialBaseline={creatingQuestion ? null : editingBaseline}
-                  onAutoSave={handleEditorSave}
-                  onClose={closeEditorPanel}
-                  tagSuggestions={tagSuggestionLabels}
-                  showVisibilityControls={false}
-                  allowCustomTags
-                />
-              </Stack>
-            ) : activeEntry ? (
-              <Stack spacing={2}>
-                <Box>
-                  <Typography variant="h6">{t('professor.questionManager.questionDetails', { defaultValue: 'Question details' })}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {t('professor.questionManager.detailsSubtitle', {
-                      defaultValue: 'This view shows the deduplicated question content the manager is grouping together.',
-                    })}
-                  </Typography>
-                </Box>
-
-                {activeEntry.requiresDetachedCopy ? (
-                  <Alert severity="info">
-                    {t('professor.questionManager.detachedCopyRequired', {
-                      defaultValue: 'This question group includes response-backed or session-linked copies, so editing happens on a detached standalone copy instead.',
-                    })}
-                  </Alert>
-                ) : null}
-
-                <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-                  <Chip
-                    color={TYPE_COLORS[normalizeQuestionType(activeEntry.question)] || 'default'}
-                    label={getQuestionTypeLabel(t, normalizeQuestionType(activeEntry.question), { defaultValue: String(activeEntry.question?.type || '') })}
-                  />
-                  <Chip
-                    variant="outlined"
-                    label={t('professor.questionManager.duplicateCopies', {
-                      count: Number(activeEntry.duplicateCount || 0),
-                      defaultValue: Number(activeEntry.duplicateCount || 0) === 1
-                        ? '1 copy'
-                        : `${Number(activeEntry.duplicateCount || 0)} copies`,
-                    })}
-                  />
-                  <Chip
-                    variant="outlined"
-                    label={t('professor.questionManager.responseBackedCopies', {
-                      count: Number(activeEntry.responseBackedCount || 0),
-                      defaultValue: Number(activeEntry.responseBackedCount || 0) === 1
-                        ? '1 copy has responses'
-                        : `${Number(activeEntry.responseBackedCount || 0)} copies have responses`,
-                    })}
-                  />
-                </Stack>
-
-                <QuestionDisplay question={activeQuestion} />
-
-                <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} flexWrap="wrap" useFlexGap>
-                  <Button
-                    variant="contained"
-                    startIcon={<EditIcon />}
-                    onClick={() => handleStartEditingEntry(activeEntry)}
-                    disabled={actionBusyKey === `edit:${activeEntry.fingerprint}`}
-                  >
-                    {activeEntry.requiresDetachedCopy
-                      ? t('professor.questionManager.createEditableCopy', { defaultValue: 'Create editable copy' })
-                      : t('common.edit')}
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    startIcon={<DownloadIcon />}
-                    onClick={() => handleOpenExportDialog([activeEntry.fingerprint])}
-                  >
-                    {t('professor.questionManager.exportLatex', { defaultValue: 'Export LaTeX' })}
-                  </Button>
-                  {activeCourse ? (
-                    <Button
-                      variant="outlined"
-                      startIcon={<OpenInNewIcon />}
-                      onClick={() => navigate(`/prof/course/${activeCourse._id}`)}
-                    >
-                      {t('professor.questionManager.openCourse', { defaultValue: 'Open course workspace' })}
-                    </Button>
-                  ) : null}
-                </Stack>
-
-                <Divider />
-
-                <Stack spacing={1}>
-                  <Typography variant="subtitle2">{t('professor.questionManager.metadata', { defaultValue: 'Metadata' })}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {t('professor.questionManager.coursesLabel', { defaultValue: 'Courses' })}: {activeEntry.courses.length > 0
-                      ? activeEntry.courses.map((course) => course.label).join(', ')
-                      : t('professor.questionManager.courseIndependent', { defaultValue: 'Course-independent' })}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {t('professor.questionManager.creatorLabel', { defaultValue: 'Creators' })}: {summarizePeople(activeEntry.creators) || t('common.unknown')}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {t('professor.questionManager.ownerLabel', { defaultValue: 'Owners' })}: {summarizePeople(activeEntry.owners) || t('common.unknown')}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {t('professor.questionManager.lastEdited', { defaultValue: 'Last edited' })}: {getTimestamp(activeEntry.lastEditedAt) > 0
-                      ? new Date(activeEntry.lastEditedAt).toLocaleString()
-                      : t('common.unknown')}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {activeImportLabel}
-                  </Typography>
-                </Stack>
-
-                <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-                  {activeEntry.tags.length > 0
-                    ? activeEntry.tags.map((tag) => (
-                      <Chip key={`active-${tag.value}`} size="small" variant="outlined" label={tag.label || tag.value} />
-                    ))
-                    : <Chip size="small" variant="outlined" label={t('professor.questionManager.noTags', { defaultValue: 'No tags' })} />}
-                </Stack>
-              </Stack>
-            ) : (
-              <Box sx={{ py: 6 }}>
-                <Typography variant="h6">{t('professor.questionManager.noSelectionTitle', { defaultValue: 'No question selected' })}</Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                  {t('professor.questionManager.noSelectionText', { defaultValue: 'Pick a question group from the list, or create a new standalone question.' })}
-                </Typography>
-              </Box>
-            )}
-          </Paper>
-        </Box>
+        </Stack>
       )}
 
       <QuestionManagerImportDialog

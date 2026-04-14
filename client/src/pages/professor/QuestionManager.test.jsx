@@ -148,13 +148,13 @@ describe('QuestionManager page', () => {
     expect((await screen.findAllByText('Question content')).length).toBeGreaterThan(0);
     expect(screen.getAllByText('2 copies').length).toBeGreaterThan(0);
     expect(screen.getAllByText('1 copy has responses').length).toBeGreaterThan(0);
-    expect(screen.getByText('Question details')).toBeInTheDocument();
     expect(screen.getAllByText(/Courses: CS 301 · 001/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Creators: Prof One/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Owners: Prof One/).length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Open course workspace' })).toBeInTheDocument();
   });
 
-  it('preserves the viewport position when selecting a lower question group', async () => {
+  it('expands a lower question group in place without moving the viewport away', async () => {
     apiClientMock.get.mockImplementation((url) => {
       if (url === '/health') {
         return Promise.resolve({ data: { websocket: false } });
@@ -194,9 +194,11 @@ describe('QuestionManager page', () => {
 
       const preview = document.querySelector('[data-question-manager-preview="fp-2"]');
       expect(preview).toBeTruthy();
+      const card = preview.closest('.MuiCard-root');
+      expect(card).toBeTruthy();
 
       let callCount = 0;
-      preview.getBoundingClientRect = vi.fn(() => ({
+      card.getBoundingClientRect = vi.fn(() => ({
         top: callCount++ === 0 ? 320 : 220,
         left: 0,
         right: 400,
@@ -208,12 +210,14 @@ describe('QuestionManager page', () => {
         toJSON: () => ({}),
       }));
 
-      fireEvent.mouseDown(preview);
       fireEvent.click(preview);
 
       await waitFor(() => {
         expect(scrollToMock).toHaveBeenCalledWith({ left: 0, top: 300 });
       });
+
+      expect(preview).toHaveAttribute('aria-expanded', 'true');
+      expect(apiClientMock.get.mock.calls.filter(([url]) => url === '/question-manager/questions')).toHaveLength(1);
     } finally {
       window.scrollTo = originalScrollTo;
       if (scrollXDescriptor) {
@@ -223,6 +227,19 @@ describe('QuestionManager page', () => {
         Object.defineProperty(window, 'scrollY', scrollYDescriptor);
       }
     }
+  });
+
+  it('opens the inline editor from the edit pencil button', async () => {
+    renderPage();
+
+    await screen.findAllByText('Question content');
+    fireEvent.click(screen.getAllByRole('button', { name: 'common.edit' })[0]);
+
+    await waitFor(() => {
+      expect(apiClientMock.post).toHaveBeenCalledWith('/question-manager/questions/q-session/editable-copy');
+    });
+
+    expect(await screen.findByText('Mock Question Editor')).toBeInTheDocument();
   });
 
   it('creates an editable detached copy and opens the inline editor', async () => {
