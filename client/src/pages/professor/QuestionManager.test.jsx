@@ -6,6 +6,7 @@ import QuestionManager from './QuestionManager';
 
 const {
   apiClientMock,
+  requestCloseMock,
   tMock,
   questionEditorPropsMock,
 } = vi.hoisted(() => ({
@@ -14,6 +15,7 @@ const {
     post: vi.fn(),
     patch: vi.fn(),
   },
+  requestCloseMock: vi.fn(),
   tMock: vi.fn((key, options) => options?.defaultValue ?? key),
   questionEditorPropsMock: vi.fn(),
 }));
@@ -32,10 +34,13 @@ vi.mock('../../components/questions/QuestionDisplay', () => ({
 }));
 
 vi.mock('../../components/questions/QuestionEditor', () => ({
-  default: function MockQuestionEditor(props) {
+  default: React.forwardRef(function MockQuestionEditor(props, ref) {
+    React.useImperativeHandle(ref, () => ({
+      requestClose: requestCloseMock,
+    }));
     questionEditorPropsMock(props);
     return <div>Mock Question Editor</div>;
-  },
+  }),
 }));
 
 const baseEntry = {
@@ -87,6 +92,7 @@ function createListResponse(entries = [baseEntry]) {
 describe('QuestionManager page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    requestCloseMock.mockReset();
 
     apiClientMock.get.mockImplementation((url) => {
       if (url === '/health') {
@@ -229,7 +235,7 @@ describe('QuestionManager page', () => {
     }
   });
 
-  it('opens the inline editor from the edit pencil button', async () => {
+  it('turns the edit pencil into a close action for the active inline editor', async () => {
     renderPage();
 
     await screen.findAllByText('Question content');
@@ -240,6 +246,11 @@ describe('QuestionManager page', () => {
     });
 
     expect(await screen.findByText('Mock Question Editor')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'professor.sessionEditor.closeEditor' }));
+
+    await waitFor(() => {
+      expect(requestCloseMock).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('creates an editable detached copy and opens the inline editor', async () => {

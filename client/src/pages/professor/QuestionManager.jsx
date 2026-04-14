@@ -37,6 +37,7 @@ import {
   Add as AddIcon,
   ArrowBack as ArrowBackIcon,
   CloudUpload as UploadIcon,
+  Close as CloseIcon,
   Download as DownloadIcon,
   Edit as EditIcon,
   OpenInNew as OpenInNewIcon,
@@ -269,6 +270,7 @@ export default function QuestionManager() {
   const requestIdRef = useRef(0);
   const viewportAnchorRef = useRef(null);
   const cardElementsRef = useRef(new Map());
+  const inlineQuestionEditorRef = useRef(null);
 
   const [filters, setFilters] = useState({
     q: '',
@@ -570,6 +572,15 @@ export default function QuestionManager() {
     setEditingBaseline(null);
     setEditingEntryFingerprint('');
   }, []);
+
+  const requestInlineEditorClose = useCallback(() => {
+    const requestClose = inlineQuestionEditorRef.current?.requestClose;
+    if (typeof requestClose === 'function') {
+      requestClose();
+      return;
+    }
+    closeEditorPanel();
+  }, [closeEditorPanel]);
 
   const handleStartEditingEntry = useCallback(async (entry) => {
     if (!entry?.sourceQuestionId) return;
@@ -1105,22 +1116,30 @@ export default function QuestionManager() {
                           ) : null}
                         </Stack>
                         <Stack direction="row" spacing={0.5}>
-                          <Tooltip title={entry.requiresDetachedCopy
-                            ? t('professor.questionManager.createEditableCopy', { defaultValue: 'Create editable copy' })
-                            : t('common.edit')}>
+                          <Tooltip title={editing
+                            ? t('professor.sessionEditor.closeEditor')
+                            : entry.requiresDetachedCopy
+                              ? t('professor.questionManager.createEditableCopy', { defaultValue: 'Create editable copy' })
+                              : t('common.edit')}>
                             <span>
                               <IconButton
                                 size="small"
                                 onClick={(event) => {
                                   event.stopPropagation();
+                                  if (editing) {
+                                    requestInlineEditorClose();
+                                    return;
+                                  }
                                   handleStartEditingEntry(entry);
                                 }}
                                 disabled={actionBusyKey === `edit:${entry.fingerprint}`}
-                                aria-label={entry.requiresDetachedCopy
-                                  ? t('professor.questionManager.createEditableCopy', { defaultValue: 'Create editable copy' })
-                                  : t('common.edit')}
+                                aria-label={editing
+                                  ? t('professor.sessionEditor.closeEditor')
+                                  : entry.requiresDetachedCopy
+                                    ? t('professor.questionManager.createEditableCopy', { defaultValue: 'Create editable copy' })
+                                    : t('common.edit')}
                               >
-                                <EditIcon fontSize="small" />
+                                {editing ? <CloseIcon fontSize="small" /> : <EditIcon fontSize="small" />}
                               </IconButton>
                             </span>
                           </Tooltip>
@@ -1163,6 +1182,7 @@ export default function QuestionManager() {
                           ) : null}
 
                           <QuestionEditor
+                            ref={inlineQuestionEditorRef}
                             open
                             inline
                             initial={editingQuestion}
