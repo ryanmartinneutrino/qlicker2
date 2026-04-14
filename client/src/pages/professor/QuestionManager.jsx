@@ -42,6 +42,8 @@ import {
   Edit as EditIcon,
   OpenInNew as OpenInNewIcon,
   Refresh as RefreshIcon,
+  UnfoldLess as CollapseAllIcon,
+  UnfoldMore as ExpandAllIcon,
 } from '@mui/icons-material';
 import apiClient, { getAccessToken } from '../../api/client';
 import QuestionDisplay from '../../components/questions/QuestionDisplay';
@@ -109,6 +111,19 @@ function formatImportLabel(entry, t) {
     source,
     user: importedBy,
     date: timestamp,
+  });
+}
+
+function formatCompactImportLabel(entry, t) {
+  const manager = entry?.question?.questionManager || {};
+  if (!manager.importFormat && !manager.importedAt) {
+    return t('professor.questionManager.notImported', { defaultValue: 'Created in Qlicker' });
+  }
+
+  const source = manager.importFilename || manager.importFormat || t('common.unknown');
+  return t('professor.questionManager.importedLabel', {
+    defaultValue: 'Imported: {{source}}',
+    source,
   });
 }
 
@@ -503,6 +518,9 @@ export default function QuestionManager() {
 
   const selectedCount = selectedFingerprints.length;
   const totalPages = Math.max(Math.ceil(total / Number(filters.limit || DEFAULT_LIMIT)), 1);
+  const allEntriesExpanded = entries.length > 0 && entries.every((entry) => (
+    editingEntryFingerprint === entry.fingerprint || !!expandedFingerprints[entry.fingerprint]
+  ));
 
   const updateFilter = useCallback((key, value) => {
     setFilters((current) => ({
@@ -754,6 +772,14 @@ export default function QuestionManager() {
     }));
   }, []);
 
+  const handleToggleAllExpanded = useCallback(() => {
+    if (entries.length === 0) return;
+    const nextExpanded = !allEntriesExpanded;
+    setExpandedFingerprints(Object.fromEntries(
+      entries.map((entry) => [entry.fingerprint, nextExpanded])
+    ));
+  }, [allEntriesExpanded, entries]);
+
   useLayoutEffect(() => {
     const anchor = viewportAnchorRef.current;
     if (!anchor) return;
@@ -849,6 +875,16 @@ export default function QuestionManager() {
             </Button>
             <Button startIcon={<RefreshIcon />} onClick={handleRefreshNow}>
               {t('professor.questionManager.refresh', { defaultValue: 'Refresh' })}
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={allEntriesExpanded ? <CollapseAllIcon /> : <ExpandAllIcon />}
+              onClick={handleToggleAllExpanded}
+              disabled={entries.length === 0}
+            >
+              {allEntriesExpanded
+                ? t('professor.questionManager.collapseAll', { defaultValue: 'Collapse all' })
+                : t('professor.questionManager.expandAll', { defaultValue: 'Expand all' })}
             </Button>
           </Stack>
         </Stack>
@@ -1030,10 +1066,20 @@ export default function QuestionManager() {
               const sessionLinkedCount = Number(entry?.sessionLinkedCount || 0);
               const standaloneCount = Number(entry?.standaloneCount || 0);
               const importLabel = formatImportLabel(entry, t);
+              const compactImportLabel = formatCompactImportLabel(entry, t);
               const singleCourse = entry.courses.length === 1 ? entry.courses[0] : null;
               const coursesLabel = entry.courses.length > 0
                 ? entry.courses.map((course) => course.label).join(', ')
                 : t('professor.questionManager.courseIndependent', { defaultValue: 'Course-independent' });
+              const metadataSummary = [
+                `${t('professor.questionManager.coursesLabel', { defaultValue: 'Courses' })}: ${coursesLabel}`,
+                `${t('professor.questionManager.creatorLabel', { defaultValue: 'Creator' })}: ${summarizePeople(entry.creators) || t('common.unknown')}`,
+                `${t('professor.questionManager.ownerLabel', { defaultValue: 'Owner' })}: ${summarizePeople(entry.owners) || t('common.unknown')}`,
+                `${t('professor.questionManager.lastEdited', { defaultValue: 'Last edited' })}: ${getTimestamp(entry.lastEditedAt) > 0
+                  ? new Date(entry.lastEditedAt).toLocaleString()
+                  : t('common.unknown')}`,
+                compactImportLabel,
+              ].join(' • ');
 
               return (
                 <Card
@@ -1245,25 +1291,11 @@ export default function QuestionManager() {
                         </Box>
                       )}
 
-                      <Stack spacing={0.4} sx={{ mt: 1 }}>
-                        <Typography variant="body2" color="text.secondary">
-                          {t('professor.questionManager.coursesLabel', { defaultValue: 'Courses' })}: {coursesLabel}
+                      <Tooltip title={importLabel}>
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block', lineHeight: 1.5 }}>
+                          {metadataSummary}
                         </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {t('professor.questionManager.creatorLabel', { defaultValue: 'Creators' })}: {summarizePeople(entry.creators) || t('common.unknown')}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {t('professor.questionManager.ownerLabel', { defaultValue: 'Owners' })}: {summarizePeople(entry.owners) || t('common.unknown')}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {t('professor.questionManager.lastEdited', { defaultValue: 'Last edited' })}: {getTimestamp(entry.lastEditedAt) > 0
-                            ? new Date(entry.lastEditedAt).toLocaleString()
-                            : t('common.unknown')}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {importLabel}
-                        </Typography>
-                      </Stack>
+                      </Tooltip>
 
                       {singleCourse ? (
                         <Button

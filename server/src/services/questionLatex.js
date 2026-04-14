@@ -187,6 +187,91 @@ function wrapAlignBlocksForKatex(source) {
   return String(source || '').replace(ALIGN_BLOCK_REGEX, (match) => `$$\n${match.trim()}\n$$`);
 }
 
+function readBalancedGroup(source, startIndex) {
+  if (source[startIndex] !== '{') return null;
+
+  let depth = 0;
+  let content = '';
+  for (let index = startIndex; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === '{') {
+      if (depth > 0) content += char;
+      depth += 1;
+      continue;
+    }
+    if (char === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        return {
+          content,
+          endIndex: index + 1,
+        };
+      }
+      if (depth < 0) return null;
+      content += char;
+      continue;
+    }
+    content += char;
+  }
+
+  return null;
+}
+
+function replaceLatexCommandGroup(source, prefix, replacement = '') {
+  const input = String(source || '');
+  let result = '';
+
+  for (let index = 0; index < input.length; index += 1) {
+    if (!input.startsWith(prefix, index)) {
+      result += input[index];
+      continue;
+    }
+
+    let cursor = index + prefix.length;
+    while (cursor < input.length && /\s/.test(input[cursor])) {
+      cursor += 1;
+    }
+
+    const group = readBalancedGroup(input, cursor);
+    if (!group) {
+      result += input[index];
+      continue;
+    }
+
+    if (replacement === '__UNWRAP__') {
+      result += group.content;
+    } else {
+      result += replacement;
+    }
+    index = group.endIndex - 1;
+  }
+
+  return result;
+}
+
+export function sanitizeLatexFigureMarkup(source) {
+  let nextSource = String(source || '');
+
+  nextSource = nextSource
+    .replace(/\bFig(?:ure)?\.?\s*~?\s*\\(?:auto)?ref\{[^}]+\}/gi, 'Figure 1')
+    .replace(/~\\(?:auto|page)?ref\{[^}]+\}/g, ' 1')
+    .replace(/\\(?:auto|page)?ref\{[^}]+\}/g, '1')
+    .replace(/\\begin\{center\}/g, '')
+    .replace(/\\end\{center\}/g, '')
+    .replace(/\\begin\{figure\*?\}(?:\[[^\]]*\])?/g, '')
+    .replace(/\\end\{figure\*?\}/g, '')
+    .replace(/\\begin\{wrapfigure\}(?:\[[^\]]*\])?(?:\{[^}]*\}){2}/g, '')
+    .replace(/\\end\{wrapfigure\}/g, '')
+    .replace(/\\centering\b/g, '');
+
+  nextSource = replaceLatexCommandGroup(nextSource, '\\captionsetup', '');
+  nextSource = replaceLatexCommandGroup(nextSource, '\\label', '');
+  nextSource = replaceLatexCommandGroup(nextSource, '\\captionof{figure}', '__UNWRAP__');
+  nextSource = replaceLatexCommandGroup(nextSource, '\\caption', '__UNWRAP__');
+
+  return normalizeWhitespace(nextSource);
+}
+
 function parseQuestionPointValue(rawValue, ignorePoints) {
   if (ignorePoints) return 1;
   const numeric = Number.parseFloat(String(rawValue || '').replace(/[^0-9.+-]/g, ''));
@@ -362,6 +447,8 @@ async function convertLatexFragmentToHtml(source, {
     });
     nextSource = nextSource.replace(match[0], token);
   }
+
+  nextSource = sanitizeLatexFigureMarkup(nextSource);
 
   const paragraphs = normalizeWhitespace(nextSource)
     .split(/\n\s*\n/g)

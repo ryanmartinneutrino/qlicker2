@@ -155,9 +155,48 @@ describe('QuestionManager page', () => {
     expect(screen.getAllByText('2 copies').length).toBeGreaterThan(0);
     expect(screen.getAllByText('1 copy has responses').length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Courses: CS 301 · 001/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Creators: Prof One/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Owners: Prof One/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Creator: Prof One/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Owner: Prof One/).length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Open course workspace' })).toBeInTheDocument();
+  });
+
+  it('expands and collapses every visible question group from the list controls', async () => {
+    apiClientMock.get.mockImplementation((url) => {
+      if (url === '/health') {
+        return Promise.resolve({ data: { websocket: false } });
+      }
+      if (url === '/question-manager/questions') {
+        return Promise.resolve(createListResponse([
+          baseEntry,
+          {
+            ...baseEntry,
+            fingerprint: 'fp-2',
+            sourceQuestionId: 'q-session-2',
+            editableQuestionId: 'q-safe-2',
+            question: {
+              ...baseEntry.question,
+              _id: 'q-session-2',
+              content: '<p>Question content 2</p>',
+              plainText: 'Question content 2',
+            },
+          },
+        ]));
+      }
+      return Promise.reject(new Error(`Unexpected GET ${url}`));
+    });
+
+    renderPage();
+    await screen.findAllByText(/Question content/);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expand all' }));
+
+    expect(document.querySelector('[data-question-manager-preview="fp-1"]')).toHaveAttribute('aria-expanded', 'true');
+    expect(document.querySelector('[data-question-manager-preview="fp-2"]')).toHaveAttribute('aria-expanded', 'true');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse all' }));
+
+    expect(document.querySelector('[data-question-manager-preview="fp-1"]')).toHaveAttribute('aria-expanded', 'false');
+    expect(document.querySelector('[data-question-manager-preview="fp-2"]')).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('expands a lower question group in place without moving the viewport away', async () => {
