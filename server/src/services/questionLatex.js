@@ -16,6 +16,9 @@ const execFile = promisify(execFileCallback);
 const TIKZ_BLOCK_REGEX = /\\begin\{tikzpicture\}[\s\S]*?\\end\{tikzpicture\}/g;
 const ALIGN_BLOCK_REGEX = /\\begin\{align\*?\}[\s\S]*?\\end\{align\*?\}/g;
 const ATTACHMENT_FIGURE_REGEX = /\\includegraphics(?:\[[^\]]*\])?\{[^}]+\}|\\capfig(?:\{[^}]*\}){3}|\\rwcapfig(?:\[[^\]]*\])?(?:\{[^}]*\}){3}/g;
+const FIGURE_MARKER_REGEX = /__QUESTION_MANAGER_FIGURE_\d+__|\\includegraphics(?:\[[^\]]*\])?\{[^}]+\}|\\capfig(?:\{[^}]*\}){3}|\\rwcapfig(?:\[[^\]]*\])?(?:\{[^}]*\}){3}|\\begin\{tikzpicture\}[\s\S]*?\\end\{tikzpicture\}/g;
+const FIGURE_REF_REGEX = /\\(?:auto)?ref\{([^}]+)\}/g;
+const FIGURE_LABEL_REGEX = /\\label\{([^}]+)\}/g;
 const HTML_ENTITY_MAP = new Map([
   ['&nbsp;', ' '],
   ['&amp;', '&'],
@@ -249,13 +252,82 @@ function replaceLatexCommandGroup(source, prefix, replacement = '') {
   return result;
 }
 
-export function sanitizeLatexFigureMarkup(source) {
+function buildFigureReferenceContext(source) {
+  const nextSource = stripLatexComments(source || '');
+  const markers = [...String(nextSource).matchAll(FIGURE_MARKER_REGEX)].map((match, index) => ({
+    index: Number(match.index || 0),
+    number: index + 1,
+  }));
+
+  if (markers.length === 0) {
+    return {
+      figureCount: 0,
+      labelToNumber: new Map(),
+    };
+  }
+
+  const labelToNumber = new Map();
+  [...String(nextSource).matchAll(FIGURE_LABEL_REGEX)].forEach((match) => {
+    const label = String(match[1] || '').trim();
+    if (!label) return;
+
+    const labelIndex = Number(match.index || 0);
+    const previousMarker = [...markers].reverse().find((marker) => marker.index <= labelIndex);
+    const nextMarker = markers.find((marker) => marker.index > labelIndex);
+    const targetMarker = previousMarker || nextMarker;
+    if (!targetMarker || labelToNumber.has(label)) return;
+    labelToNumber.set(label, targetMarker.number);
+  });
+
+  const unassignedFigureNumbers = markers
+    .map((marker) => marker.number)
+    .filter((number) => ![...labelToNumber.values()].includes(number));
+
+  [...String(nextSource).matchAll(FIGURE_REF_REGEX)].forEach((match) => {
+    const label = String(match[1] || '').trim();
+    if (!label || labelToNumber.has(label) || unassignedFigureNumbers.length === 0) return;
+    labelToNumber.set(label, unassignedFigureNumbers.shift());
+  });
+
+  return {
+    figureCount: markers.length,
+    labelToNumber,
+  };
+}
+
+function resolveFigureReference(label, referenceContext) {
+  const normalizedLabel = String(label || '').trim();
+  if (!normalizedLabel) return null;
+  const explicitFigureNumber = referenceContext?.labelToNumber?.get(normalizedLabel);
+  if (Number.isFinite(explicitFigureNumber) && explicitFigureNumber > 0) {
+    return explicitFigureNumber;
+  }
+  if (Number(referenceContext?.figureCount || 0) === 1) {
+    return 1;
+  }
+  return null;
+}
+
+export function sanitizeLatexFigureMarkup(source, { referenceContext = null } = {}) {
   let nextSource = String(source || '');
+  const resolvedReferenceContext = referenceContext || buildFigureReferenceContext(nextSource);
 
   nextSource = nextSource
-    .replace(/\bFig(?:ure)?\.?\s*~?\s*\\(?:auto)?ref\{[^}]+\}/gi, 'Figure 1')
-    .replace(/~\\(?:auto|page)?ref\{[^}]+\}/g, ' 1')
-    .replace(/\\(?:auto|page)?ref\{[^}]+\}/g, '1')
+    .replace(/\bFig(?:ure)?\.?\s*~?\s*\\(?:auto)?ref\{([^}]+)\}/gi, (_match, label) => {
+      const figureNumber = resolveFigureReference(label, resolvedReferenceContext);
+      return figureNumber ? `Figure ${figureNumber}` : 'Figure ?';
+    })
+    .replace(/\\autoref\{([^}]+)\}/g, (_match, label) => {
+      const figureNumber = resolveFigureReference(label, resolvedReferenceContext);
+      return figureNumber ? `Figure ${figureNumber}` : 'Figure ?';
+    })
+    .replace(/~?\\ref\{([^}]+)\}/g, (match, label) => {
+      const figureNumber = resolveFigureReference(label, resolvedReferenceContext);
+      if (figureNumber) {
+        return match.startsWith('~') ? ` ${figureNumber}` : String(figureNumber);
+      }
+      return match.startsWith('~') ? ' ?' : '?';
+    })
     .replace(/\\begin\{center\}/g, '')
     .replace(/\\end\{center\}/g, '')
     .replace(/\\begin\{figure\*?\}(?:\[[^\]]*\])?/g, '')
@@ -421,6 +493,7 @@ async function convertLatexFragmentToHtml(source, {
   filenameBase,
   warnings,
   warningPrefix,
+  referenceContext = null,
 }) {
   let nextSource = wrapAlignBlocksForKatex(stripLatexComments(source || ''));
 
@@ -448,7 +521,7 @@ async function convertLatexFragmentToHtml(source, {
     nextSource = nextSource.replace(match[0], token);
   }
 
-  nextSource = sanitizeLatexFigureMarkup(nextSource);
+  nextSource = sanitizeLatexFigureMarkup(nextSource, { referenceContext });
 
   const paragraphs = normalizeWhitespace(nextSource)
     .split(/\n\s*\n/g)
@@ -518,6 +591,7 @@ export async function parseLatexQuestionSet(source, {
     const block = blocks[index];
     const rawBlock = normalizeWhitespace(block.lines.join('\n'));
     if (!rawBlock) continue;
+    const referenceContext = buildFigureReferenceContext(rawBlock);
 
     const {
       content: solutionSource,
@@ -544,6 +618,7 @@ export async function parseLatexQuestionSet(source, {
       filenameBase: `question-${index + 1}-stem`,
       warnings,
       warningPrefix: `Question ${index + 1}`,
+      referenceContext,
     });
 
     const solution = await convertLatexFragmentToHtml(solutionSource, {
@@ -552,6 +627,7 @@ export async function parseLatexQuestionSet(source, {
       filenameBase: `question-${index + 1}-solution`,
       warnings,
       warningPrefix: `Question ${index + 1}`,
+      referenceContext,
     });
 
     const options = [];
@@ -564,6 +640,7 @@ export async function parseLatexQuestionSet(source, {
         filenameBase: `question-${index + 1}-option-${optionIndex + 1}`,
         warnings,
         warningPrefix: `Question ${index + 1} option ${optionIndex + 1}`,
+        referenceContext,
       });
       options.push(formatOptionPayload(option, optionContent.html, optionContent.plainText));
     }

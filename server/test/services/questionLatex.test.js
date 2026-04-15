@@ -51,6 +51,24 @@ __QUESTION_MANAGER_FIGURE_0__
     expect(sanitized).not.toContain('\\ref{');
   });
 
+  it('maps figure references to their labeled order when multiple figures are present', () => {
+    const sanitized = sanitizeLatexFigureMarkup(String.raw`
+Compare Figure \ref{fig:second} with Figure \ref{fig:first}.
+\begin{center}
+__QUESTION_MANAGER_FIGURE_0__
+\captionof{figure}{\label{fig:first} The first figure.}
+\end{center}
+\begin{center}
+__QUESTION_MANAGER_FIGURE_1__
+\captionof{figure}{\label{fig:second} The second figure.}
+\end{center}
+`);
+
+    expect(sanitized).toContain('Compare Figure 2 with Figure 1.');
+    expect(sanitized).toContain('The first figure.');
+    expect(sanitized).toContain('The second figure.');
+  });
+
   it('imports exam-class LaTeX into question-manager question payloads and preserves export structure', async () => {
     const { questions, warnings } = await parseLatexQuestionSet(SAMPLE_LATEX, {
       app: {},
@@ -106,6 +124,38 @@ Use Figure \ref{fig:attachment-demo}.
     expect(questions[0].plainText).not.toContain('\\begin{center}');
     expect(questions[0].plainText).not.toContain('\\ref{');
     expect(questions[0].solution_plainText).toBe('Use Figure 1.');
+    expect(warnings).toEqual(expect.arrayContaining([
+      'Question 1: attached figures were ignored during LaTeX import.',
+    ]));
+  });
+
+  it('preserves distinct figure numbers across multiple imported figures in one question', async () => {
+    const latexWithTwoFigures = String.raw`
+\documentclass[12pt, oneside, addpoints]{exam}
+\begin{document}
+\begin{questions}
+\question[3] Compare Figure \ref{fig:second} with Figure \ref{fig:first}.
+\begin{center}
+\includegraphics[width=0.5\textwidth]{figures/first.png}
+\captionof{figure}{\label{fig:first} First setup}
+\end{center}
+\begin{center}
+\includegraphics[width=0.5\textwidth]{figures/second.png}
+\captionof{figure}{\label{fig:second} Second setup}
+\end{center}
+\end{questions}
+\end{document}
+`;
+
+    const { questions, warnings } = await parseLatexQuestionSet(latexWithTwoFigures, {
+      app: {},
+      userId: 'prof-1',
+    });
+
+    expect(questions).toHaveLength(1);
+    expect(questions[0].plainText).toContain('Compare Figure 2 with Figure 1.');
+    expect(questions[0].plainText).toContain('First setup');
+    expect(questions[0].plainText).toContain('Second setup');
     expect(warnings).toEqual(expect.arrayContaining([
       'Question 1: attached figures were ignored during LaTeX import.',
     ]));
