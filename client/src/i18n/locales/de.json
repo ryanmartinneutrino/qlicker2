@@ -615,7 +615,18 @@
       "lastEdited": "Last edited",
       "noTags": "No tags",
       "noSelectionTitle": "No question selected",
-      "noSelectionText": "Pick a question group from the list, or create a new standalone question."
+      "noSelectionText": "Pick a question group from the list, or create a new standalone question.",
+      "assignCourses": "Associate with courses",
+      "assignCoursesDialogTitle": "Associate question with courses",
+      "assignCoursesDialogDescription": "Selected question-manager groups stay unchanged. Qlicker will create course-library copies for each selected course that is not already associated.",
+      "assignCoursesField": "Courses",
+      "assignCoursesPlaceholder": "Choose one or more courses",
+      "assignCoursesConfirm": "Create course copies",
+      "assignCoursesSuccess": "Created {{createdCount}} course copies.",
+      "assignCoursesPartial": "Created {{createdCount}} course copies and skipped {{skippedCount}} existing associations.",
+      "failedAssignCourses": "Failed to associate the selected questions with courses.",
+      "selectAll": "Select all",
+      "clearSelection": "Clear selection"
     },
     "course": {
       "myCourses": "Meine Kurse",

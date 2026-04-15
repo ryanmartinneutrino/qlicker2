@@ -101,6 +101,22 @@ describe('QuestionManager page', () => {
       if (url === '/question-manager/questions') {
         return Promise.resolve(createListResponse());
       }
+      if (url === '/courses') {
+        return Promise.resolve({
+          data: {
+            courses: [
+              {
+                _id: 'course-1',
+                deptCode: 'CS',
+                courseNumber: '301',
+                section: '001',
+                semester: 'Fall 2026',
+                createdAt: '2026-04-01T00:00:00.000Z',
+              },
+            ],
+          },
+        });
+      }
       return Promise.reject(new Error(`Unexpected GET ${url}`));
     });
 
@@ -182,6 +198,13 @@ describe('QuestionManager page', () => {
           },
         ]));
       }
+      if (url === '/courses') {
+        return Promise.resolve({
+          data: {
+            courses: [],
+          },
+        });
+      }
       return Promise.reject(new Error(`Unexpected GET ${url}`));
     });
 
@@ -220,6 +243,13 @@ describe('QuestionManager page', () => {
             },
           },
         ]));
+      }
+      if (url === '/courses') {
+        return Promise.resolve({
+          data: {
+            courses: [],
+          },
+        });
       }
       return Promise.reject(new Error(`Unexpected GET ${url}`));
     });
@@ -306,6 +336,13 @@ describe('QuestionManager page', () => {
           },
         ]));
       }
+      if (url === '/courses') {
+        return Promise.resolve({
+          data: {
+            courses: [],
+          },
+        });
+      }
       return Promise.reject(new Error(`Unexpected GET ${url}`));
     });
 
@@ -353,5 +390,48 @@ describe('QuestionManager page', () => {
     const [, formData] = apiClientMock.post.mock.calls.find(([url]) => url === '/question-manager/questions/import-latex');
     expect(formData.get('file')).toBe(file);
     expect(formData.get('ignorePoints')).toBe('true');
+  });
+
+  it('selects and clears all visible question groups from the toolbar', async () => {
+    apiClientMock.get.mockImplementation((url) => {
+      if (url === '/health') {
+        return Promise.resolve({ data: { websocket: false } });
+      }
+      if (url === '/question-manager/questions') {
+        return Promise.resolve(createListResponse([
+          baseEntry,
+          {
+            ...baseEntry,
+            fingerprint: 'fp-2',
+            sourceQuestionId: 'q-session-2',
+            editableQuestionId: 'q-safe-2',
+            question: {
+              ...baseEntry.question,
+              _id: 'q-session-2',
+              content: '<p>Question content 2</p>',
+              plainText: 'Question content 2',
+            },
+          },
+        ]));
+      }
+      if (url === '/courses') {
+        return Promise.resolve({ data: { courses: [] } });
+      }
+      return Promise.reject(new Error(`Unexpected GET ${url}`));
+    });
+
+    renderPage();
+
+    await screen.findAllByText(/Question content/);
+    fireEvent.click(screen.getByRole('button', { name: 'Select all' }));
+
+    const checkboxes = screen.getAllByRole('checkbox').slice(0, 2);
+    expect(checkboxes[0]).toBeChecked();
+    expect(checkboxes[1]).toBeChecked();
+    expect(screen.getByText('2 selected')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
+    expect(checkboxes[0]).not.toBeChecked();
+    expect(checkboxes[1]).not.toBeChecked();
   });
 });

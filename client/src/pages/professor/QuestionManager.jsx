@@ -39,7 +39,9 @@ import {
   CloudUpload as UploadIcon,
   Close as CloseIcon,
   Download as DownloadIcon,
+  DoneAll as SelectAllIcon,
   Edit as EditIcon,
+  LibraryAdd as AssignCoursesIcon,
   OpenInNew as OpenInNewIcon,
   Refresh as RefreshIcon,
   UnfoldLess as CollapseAllIcon,
@@ -49,6 +51,7 @@ import apiClient, { getAccessToken } from '../../api/client';
 import QuestionDisplay from '../../components/questions/QuestionDisplay';
 import QuestionEditor from '../../components/questions/QuestionEditor';
 import { getQuestionTypeLabel, normalizeQuestionType, TYPE_COLORS } from '../../components/questions/constants';
+import { buildCourseSelectionLabel, sortCoursesByRecent } from '../../utils/courseTitle';
 
 const DEFAULT_LIMIT = 20;
 const LIMIT_OPTIONS = [10, 20, 50];
@@ -61,8 +64,7 @@ function buildWebsocketUrl(token) {
   return `${protocol}://${window.location.host}/ws?token=${encodedToken}`;
 }
 
-function downloadTextFile(filename, content, mimeType = 'text/plain;charset=utf-8') {
-  const blob = new Blob([content], { type: mimeType });
+function downloadBlobFile(filename, blob) {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
@@ -71,6 +73,39 @@ function downloadTextFile(filename, content, mimeType = 'text/plain;charset=utf-
   anchor.click();
   document.body.removeChild(anchor);
   URL.revokeObjectURL(url);
+}
+
+function extractDownloadFilename(headers = {}, fallback = 'download.bin') {
+  const contentDisposition = headers?.['content-disposition'] || headers?.['Content-Disposition'] || '';
+  const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1]);
+    } catch {
+      return utf8Match[1];
+    }
+  }
+
+  const basicMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
+  if (basicMatch?.[1]) {
+    return basicMatch[1];
+  }
+  return fallback;
+}
+
+async function extractApiErrorMessage(err, fallbackMessage) {
+  const blobPayload = err?.response?.data;
+  if (blobPayload instanceof Blob) {
+    try {
+      const text = await blobPayload.text();
+      const parsed = JSON.parse(text);
+      return parsed?.message || parsed?.error || fallbackMessage;
+    } catch {
+      return fallbackMessage;
+    }
+  }
+
+  return err?.response?.data?.message || fallbackMessage;
 }
 
 function getTimestamp(value) {
@@ -279,6 +314,66 @@ function QuestionManagerExportDialog({
   );
 }
 
+function QuestionManagerCourseDialog({
+  open,
+  loading,
+  coursesLoading,
+  selectedCount,
+  courses,
+  selectedCourseIds,
+  onClose,
+  onSelectionChange,
+  onConfirm,
+}) {
+  const { t } = useTranslation();
+  const selectedCourses = courses.filter((course) => selectedCourseIds.includes(String(course?._id || '')));
+
+  return (
+    <Dialog open={open} onClose={loading ? undefined : onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>
+        {t('professor.questionManager.assignCoursesDialogTitle', {
+          count: selectedCount,
+          defaultValue: selectedCount === 1 ? 'Associate question with courses' : `Associate ${selectedCount} question groups with courses`,
+        })}
+      </DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={2}>
+          <Typography variant="body2" color="text.secondary">
+            {t('professor.questionManager.assignCoursesDialogDescription', {
+              defaultValue: 'Selected question-manager groups stay unchanged. Qlicker will create course-library copies for each selected course that is not already associated.',
+            })}
+          </Typography>
+
+          <Autocomplete
+            multiple
+            loading={coursesLoading}
+            options={courses}
+            value={selectedCourses}
+            isOptionEqualToValue={(option, value) => option._id === value._id}
+            getOptionLabel={(option) => buildCourseSelectionLabel(option)}
+            onChange={(_event, nextValue) => onSelectionChange(nextValue.map((course) => String(course?._id || '')))}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label={t('professor.questionManager.assignCoursesField', { defaultValue: 'Courses' })}
+                placeholder={t('professor.questionManager.assignCoursesPlaceholder', { defaultValue: 'Choose one or more courses' })}
+              />
+            )}
+          />
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={loading}>{t('common.cancel')}</Button>
+        <Button variant="contained" onClick={onConfirm} disabled={loading || selectedCourseIds.length === 0}>
+          {loading
+            ? t('common.loading')
+            : t('professor.questionManager.assignCoursesConfirm', { defaultValue: 'Create course copies' })}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 export default function QuestionManager() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -306,6 +401,8 @@ export default function QuestionManager() {
     creators: [],
     owners: [],
   });
+  const [manageableCourses, setManageableCourses] = useState([]);
+  const [coursesLoading, setCoursesLoading] = useState(false);
   const [selectedFingerprints, setSelectedFingerprints] = useState([]);
   const [expandedFingerprints, setExpandedFingerprints] = useState({});
   const [loading, setLoading] = useState(true);
@@ -321,6 +418,11 @@ export default function QuestionManager() {
   const [importFile, setImportFile] = useState(null);
   const [importIgnorePoints, setImportIgnorePoints] = useState(false);
   const [importTags, setImportTags] = useState([]);
+  const [courseDialogState, setCourseDialogState] = useState({
+    open: false,
+    fingerprints: [],
+    courseIds: [],
+  });
   const [exportDialogState, setExportDialogState] = useState({ open: false, fingerprints: [] });
   const [exportIncludePoints, setExportIncludePoints] = useState(true);
   const deferredSearch = useDeferredValue(filters.q);
@@ -396,6 +498,27 @@ export default function QuestionManager() {
   useEffect(() => {
     loadEntries();
   }, [loadEntries]);
+
+  useEffect(() => {
+    let active = true;
+    setCoursesLoading(true);
+    apiClient.get('/courses', { params: { limit: 500 } })
+      .then(({ data }) => {
+        if (!active) return;
+        setManageableCourses(sortCoursesByRecent(data?.courses || []));
+      })
+      .catch(() => {
+        if (!active) return;
+        setManageableCourses([]);
+      })
+      .finally(() => {
+        if (active) setCoursesLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const editingQuestionId = String(editingQuestion?._id || '');
 
@@ -521,6 +644,7 @@ export default function QuestionManager() {
   const allEntriesExpanded = entries.length > 0 && entries.every((entry) => (
     editingEntryFingerprint === entry.fingerprint || !!expandedFingerprints[entry.fingerprint]
   ));
+  const allVisibleSelected = entries.length > 0 && entries.every((entry) => selectedFingerprints.includes(entry.fingerprint));
 
   const updateFilter = useCallback((key, value) => {
     setFilters((current) => ({
@@ -667,6 +791,14 @@ export default function QuestionManager() {
     setExportDialogState({ open: true, fingerprints });
   }, []);
 
+  const handleOpenAssignCoursesDialog = useCallback((fingerprints) => {
+    setCourseDialogState({
+      open: true,
+      fingerprints,
+      courseIds: [],
+    });
+  }, []);
+
   const handleExportQuestions = useCallback(async () => {
     const exportEntries = entries.filter((entry) => exportDialogState.fingerprints.includes(entry.fingerprint));
     const questionIds = exportEntries.map(getEntryQuestionId).filter(Boolean);
@@ -674,30 +806,78 @@ export default function QuestionManager() {
 
     setActionBusyKey('export');
     try {
-      const { data } = await apiClient.post('/question-manager/questions/export-latex', {
+      const response = await apiClient.post('/question-manager/questions/export-latex', {
         questionIds,
         includePoints: exportIncludePoints,
+      }, {
+        responseType: 'blob',
       });
-      downloadTextFile(data?.filename || 'question-manager-export.tex', data?.content || '');
+      const filename = extractDownloadFilename(response.headers, 'question-manager-export.zip');
+      const blob = response.data instanceof Blob
+        ? response.data
+        : new Blob([response.data], {
+          type: response.headers?.['content-type'] || 'application/zip',
+        });
+      downloadBlobFile(filename, blob);
       setMessage({
         severity: 'success',
         text: t('professor.questionManager.exported', {
           count: questionIds.length,
-          defaultValue: questionIds.length === 1 ? 'Exported 1 question group.' : `Exported ${questionIds.length} question groups.`,
+          defaultValue: questionIds.length === 1 ? 'Downloaded 1 LaTeX bundle.' : `Downloaded ${questionIds.length} question groups as a LaTeX bundle.`,
         }),
       });
       setExportDialogState({ open: false, fingerprints: [] });
     } catch (err) {
       setMessage({
         severity: 'error',
-        text: err.response?.data?.message || t('professor.questionManager.failedExport', {
+        text: await extractApiErrorMessage(err, t('professor.questionManager.failedExport', {
           defaultValue: 'Failed to export the selected questions.',
-        }),
+        })),
       });
     } finally {
       setActionBusyKey('');
     }
   }, [entries, exportDialogState.fingerprints, exportIncludePoints, t]);
+
+  const handleAssignCourses = useCallback(async () => {
+    const assignEntries = entries.filter((entry) => courseDialogState.fingerprints.includes(entry.fingerprint));
+    const questionIds = assignEntries.map(getEntryQuestionId).filter(Boolean);
+    if (questionIds.length === 0 || courseDialogState.courseIds.length === 0) return;
+
+    setActionBusyKey('assign-courses');
+    try {
+      const { data } = await apiClient.post('/question-manager/questions/assign-courses', {
+        questionIds,
+        courseIds: courseDialogState.courseIds,
+      });
+      await loadEntries();
+      setCourseDialogState({ open: false, fingerprints: [], courseIds: [] });
+      const createdCount = Number(data?.createdCount || 0);
+      const skippedCount = Number(data?.skippedCount || 0);
+      setMessage({
+        severity: skippedCount > 0 ? 'info' : 'success',
+        text: skippedCount > 0
+          ? t('professor.questionManager.assignCoursesPartial', {
+            createdCount,
+            skippedCount,
+            defaultValue: `Created ${createdCount} course copies and skipped ${skippedCount} existing associations.`,
+          })
+          : t('professor.questionManager.assignCoursesSuccess', {
+            createdCount,
+            defaultValue: createdCount === 1 ? 'Created 1 course copy.' : `Created ${createdCount} course copies.`,
+          }),
+      });
+    } catch (err) {
+      setMessage({
+        severity: 'error',
+        text: await extractApiErrorMessage(err, t('professor.questionManager.failedAssignCourses', {
+          defaultValue: 'Failed to associate the selected questions with courses.',
+        })),
+      });
+    } finally {
+      setActionBusyKey('');
+    }
+  }, [courseDialogState.courseIds, courseDialogState.fingerprints, entries, loadEntries, t]);
 
   const handleImportQuestions = useCallback(async () => {
     if (!importFile) return;
@@ -779,6 +959,17 @@ export default function QuestionManager() {
       entries.map((entry) => [entry.fingerprint, nextExpanded])
     ));
   }, [allEntriesExpanded, entries]);
+
+  const handleToggleSelectAllVisible = useCallback(() => {
+    if (entries.length === 0) return;
+    const visibleFingerprints = entries.map((entry) => entry.fingerprint);
+    setSelectedFingerprints((current) => {
+      if (visibleFingerprints.every((fingerprint) => current.includes(fingerprint))) {
+        return current.filter((fingerprint) => !visibleFingerprints.includes(fingerprint));
+      }
+      return [...new Set([...current, ...visibleFingerprints])];
+    });
+  }, [entries]);
 
   useLayoutEffect(() => {
     const anchor = viewportAnchorRef.current;
@@ -873,8 +1064,26 @@ export default function QuestionManager() {
             >
               {t('professor.questionManager.exportLatex', { defaultValue: 'Export LaTeX' })}
             </Button>
+            <Button
+              variant="outlined"
+              startIcon={<AssignCoursesIcon />}
+              disabled={selectedCount === 0}
+              onClick={() => handleOpenAssignCoursesDialog(selectedFingerprints)}
+            >
+              {t('professor.questionManager.assignCourses', { defaultValue: 'Associate with courses' })}
+            </Button>
             <Button startIcon={<RefreshIcon />} onClick={handleRefreshNow}>
               {t('professor.questionManager.refresh', { defaultValue: 'Refresh' })}
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<SelectAllIcon />}
+              onClick={handleToggleSelectAllVisible}
+              disabled={entries.length === 0}
+            >
+              {allVisibleSelected
+                ? t('professor.questionManager.clearSelection', { defaultValue: 'Clear selection' })
+                : t('professor.questionManager.selectAll', { defaultValue: 'Select all' })}
             </Button>
             <Button
               variant="outlined"
@@ -1203,6 +1412,20 @@ export default function QuestionManager() {
                               </IconButton>
                             </span>
                           </Tooltip>
+                          <Tooltip title={t('professor.questionManager.assignCourses', { defaultValue: 'Associate with courses' })}>
+                            <span>
+                              <IconButton
+                                size="small"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleOpenAssignCoursesDialog([entry.fingerprint]);
+                                }}
+                                aria-label={t('professor.questionManager.assignCourses', { defaultValue: 'Associate with courses' })}
+                              >
+                                <AssignCoursesIcon fontSize="small" />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
                         </Stack>
                       </Stack>
 
@@ -1375,6 +1598,24 @@ export default function QuestionManager() {
         }}
         onIncludePointsChange={setExportIncludePoints}
         onConfirm={handleExportQuestions}
+      />
+
+      <QuestionManagerCourseDialog
+        open={courseDialogState.open}
+        loading={actionBusyKey === 'assign-courses'}
+        coursesLoading={coursesLoading}
+        selectedCount={courseDialogState.fingerprints.length}
+        courses={manageableCourses}
+        selectedCourseIds={courseDialogState.courseIds}
+        onClose={() => {
+          if (actionBusyKey === 'assign-courses') return;
+          setCourseDialogState({ open: false, fingerprints: [], courseIds: [] });
+        }}
+        onSelectionChange={(courseIds) => setCourseDialogState((current) => ({
+          ...current,
+          courseIds,
+        }))}
+        onConfirm={handleAssignCourses}
       />
     </Box>
   );

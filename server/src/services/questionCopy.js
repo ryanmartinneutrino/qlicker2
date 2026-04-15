@@ -82,3 +82,39 @@ export async function copyQuestionToSession({
 
   return copy;
 }
+
+export async function copyQuestionToLibrary({
+  sourceQuestion,
+  targetCourseId,
+  userId,
+  forceStudentCopy = false,
+}) {
+  if (!sourceQuestion) {
+    throw new Error('Source question is required');
+  }
+
+  const sourceObject = sourceQuestion.toObject ? sourceQuestion.toObject() : sourceQuestion;
+  const copiedPayload = { ...sourceObject };
+  delete copiedPayload._id;
+  delete copiedPayload.__v;
+  delete copiedPayload.updatedAt;
+  delete copiedPayload.sessionOptions;
+
+  return Question.create(applyQuestionManagerFingerprint({
+    ...copiedPayload,
+    creator: String(sourceObject.creator || userId),
+    owner: userId,
+    sessionId: '',
+    courseId: String(targetCourseId || sourceObject.courseId || ''),
+    originalQuestion: String(sourceObject.originalQuestion || sourceObject._id || ''),
+    originalCourse: String(sourceObject.originalCourse || sourceObject.courseId || targetCourseId || ''),
+    createdAt: new Date(),
+    lastEditedAt: new Date(),
+    public: forceStudentCopy ? false : !!sourceObject.public,
+    publicOnQlicker: forceStudentCopy ? false : !!sourceObject.publicOnQlicker,
+    publicOnQlickerForStudents: forceStudentCopy ? false : !!sourceObject.publicOnQlickerForStudents,
+    approved: forceStudentCopy ? false : true,
+    studentCreated: forceStudentCopy ? true : !!sourceObject.studentCreated,
+    studentCopyOfPublic: forceStudentCopy ? true : !!sourceObject.studentCopyOfPublic,
+  }, sourceObject.questionManager));
+}

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import JSZip from 'jszip';
 import {
   exportQuestionsToLatex,
+  exportQuestionsToLatexArchive,
   parseLatexQuestionSet,
   sanitizeLatexFigureMarkup,
 } from '../../src/services/questionLatex.js';
@@ -88,7 +90,7 @@ __QUESTION_MANAGER_FIGURE_1__
     expect(questions[0].tags.map((tag) => tag.value)).toEqual(expect.arrayContaining(['Imported', 'LaTeX', 'Midterm', 'Algebra']));
     expect(warnings).toEqual(expect.arrayContaining(['Question 2: attached figures were ignored during LaTeX import.']));
 
-    const exported = exportQuestionsToLatex(questions, { includePoints: false });
+    const exported = await exportQuestionsToLatex(questions, { includePoints: false });
     expect(exported).toContain('\\documentclass[12pt, oneside, addpoints]{exam}');
     expect(exported).toContain('\\begin{questions}');
     expect(exported).toContain('\\section*{Multiple Choice}');
@@ -159,5 +161,64 @@ Use Figure \ref{fig:attachment-demo}.
     expect(warnings).toEqual(expect.arrayContaining([
       'Question 1: attached figures were ignored during LaTeX import.',
     ]));
+  });
+
+  it('preserves surrounding body text when ignoring capfig attachment commands', async () => {
+    const latexWithCapfigCommand = String.raw`
+\documentclass[12pt, oneside, addpoints]{exam}
+\begin{document}
+\begin{questions}
+\question[3] Read the explanation before the picture.
+\capfig{0.4\textwidth}{figures/demo.png}{Experimental setup}
+Use the captioned setup to answer the question.
+\end{questions}
+\end{document}
+`;
+
+    const { questions, warnings } = await parseLatexQuestionSet(latexWithCapfigCommand, {
+      app: {},
+      userId: 'prof-1',
+    });
+
+    expect(questions).toHaveLength(1);
+    expect(questions[0].plainText).toContain('Read the explanation before the picture.');
+    expect(questions[0].plainText).toContain('Experimental setup');
+    expect(questions[0].plainText).toContain('Use the captioned setup to answer the question.');
+    expect(warnings).toEqual(expect.arrayContaining([
+      'Question 1: attached figures were ignored during LaTeX import.',
+    ]));
+  });
+
+  it('exports figures into a latex zip bundle with main.tex and a figures folder', async () => {
+    const archive = await exportQuestionsToLatexArchive([
+      {
+        _id: 'q-fig',
+        type: 2,
+        content: '<p>Use the diagram.</p><p><img src="/uploads/export-demo.png" alt="Free-body diagram" width="320" data-width="320"></p>',
+        plainText: 'Use the diagram.',
+        solution: '',
+        solution_plainText: '',
+        options: [],
+        sessionOptions: { points: 1 },
+      },
+    ], {
+      includePoints: false,
+      app: {
+        getFileObject: async () => ({
+          buffer: Buffer.from('png-bytes'),
+          contentType: 'image/png',
+        }),
+      },
+    });
+
+    expect(archive.filename).toBe('question-manager-export.zip');
+    const zip = await JSZip.loadAsync(archive.buffer);
+    const mainTex = await zip.file('main.tex').async('string');
+
+    expect(mainTex).toContain('\\begin{questions}');
+    expect(mainTex).toContain('Use the diagram.');
+    expect(mainTex).toContain('\\begin{capfig}{0.5\\textwidth}{figures/figure-1.png}{Free-body diagram}');
+    expect(zip.file('figures/figure-1.png')).toBeTruthy();
+    expect(await zip.file('figures/figure-1.png').async('nodebuffer')).toEqual(Buffer.from('png-bytes'));
   });
 });

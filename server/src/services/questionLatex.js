@@ -3,6 +3,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFile as execFileCallback } from 'node:child_process';
 import { promisify } from 'node:util';
+import { fileURLToPath } from 'node:url';
+import JSZip from 'jszip';
 import sharp from 'sharp';
 import Image from '../models/Image.js';
 import { mergeNormalizedTags, normalizeTags } from './questionImportExport.js';
@@ -10,15 +12,26 @@ import {
   applyQuestionManagerFingerprint,
   buildQuestionManagerImportMetadata,
 } from './questionManager.js';
+import {
+  extractStorageKeyFromUploadsUrl,
+  guessImageContentTypeFromKey,
+} from '../utils/storageUrls.js';
 
 const execFile = promisify(execFileCallback);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const LATEX_EXPORT_TEMPLATE_PATH = path.resolve(__dirname, '../../../qexample/mcquestions.tex');
 
 const TIKZ_BLOCK_REGEX = /\\begin\{tikzpicture\}[\s\S]*?\\end\{tikzpicture\}/g;
 const ALIGN_BLOCK_REGEX = /\\begin\{align\*?\}[\s\S]*?\\end\{align\*?\}/g;
-const ATTACHMENT_FIGURE_REGEX = /\\includegraphics(?:\[[^\]]*\])?\{[^}]+\}|\\capfig(?:\{[^}]*\}){3}|\\rwcapfig(?:\[[^\]]*\])?(?:\{[^}]*\}){3}/g;
 const FIGURE_MARKER_REGEX = /__QUESTION_MANAGER_FIGURE_\d+__|\\includegraphics(?:\[[^\]]*\])?\{[^}]+\}|\\capfig(?:\{[^}]*\}){3}|\\rwcapfig(?:\[[^\]]*\])?(?:\{[^}]*\}){3}|\\begin\{tikzpicture\}[\s\S]*?\\end\{tikzpicture\}/g;
 const FIGURE_REF_REGEX = /\\(?:auto)?ref\{([^}]+)\}/g;
 const FIGURE_LABEL_REGEX = /\\label\{([^}]+)\}/g;
+const CAPFIG_COMMAND_REGEX = /\\capfig\{[^}]*\}\{[^}]*\}\{([^}]*)\}/g;
+const RWCAPFIG_COMMAND_REGEX = /\\rwcapfig(?:\[[^\]]*\])?\{[^}]*\}\{[^}]*\}\{([^}]*)\}/g;
+const CAPFIG_ENVIRONMENT_REGEX = /\\begin\{capfig\}\{[^}]*\}\{[^}]*\}\{([^}]*)\}\\end\{capfig\}/g;
+const RWCAPFIG_ENVIRONMENT_REGEX = /\\begin\{rwcapfig\}(?:\[[^\]]*\])?\{[^}]*\}\{[^}]*\}\{([^}]*)\}\\end\{rwcapfig\}/g;
+const INCLUDE_GRAPHICS_REGEX = /\\includegraphics(?:\[[^\]]*\])?\{[^}]+\}/g;
+const IMAGE_TAG_REGEX = /<img\b[^>]*>/gi;
 const HTML_ENTITY_MAP = new Map([
   ['&nbsp;', ' '],
   ['&amp;', '&'],
@@ -100,6 +113,7 @@ const EXPORT_PREAMBLE = `%\\documentclass[12pt,answers, oneside, addpoints]{exam
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \\begin{questions}
 `;
+const EXPORT_TEMPLATE_FALLBACK = `${EXPORT_PREAMBLE}\n\\end{questions}\n\\end{document}\n`;
 
 const TIKZ_RENDER_PREAMBLE = `\\documentclass[12pt]{article}
 \\usepackage[paper=letterpaper, margin=0.3in]{geometry}
@@ -186,6 +200,15 @@ function stripHtmlForLatex(html, fallback = '') {
     .trim();
 }
 
+function normalizeLatexExportBlock(value) {
+  return String(value || '')
+    .replace(/\r\n/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 function wrapAlignBlocksForKatex(source) {
   return String(source || '').replace(ALIGN_BLOCK_REGEX, (match) => `$$\n${match.trim()}\n$$`);
 }
@@ -250,6 +273,36 @@ function replaceLatexCommandGroup(source, prefix, replacement = '') {
   }
 
   return result;
+}
+
+function stripIgnoredAttachmentFigures(source, {
+  warnings,
+  warningPrefix,
+} = {}) {
+  let nextSource = String(source || '');
+  let ignoredAttachmentFigure = false;
+
+  const preserveCaption = (caption = '') => {
+    ignoredAttachmentFigure = true;
+    const normalizedCaption = normalizeWhitespace(caption);
+    return normalizedCaption ? `\n${normalizedCaption}\n` : '\n';
+  };
+
+  nextSource = nextSource
+    .replace(CAPFIG_ENVIRONMENT_REGEX, (_match, caption) => preserveCaption(caption))
+    .replace(RWCAPFIG_ENVIRONMENT_REGEX, (_match, caption) => preserveCaption(caption))
+    .replace(CAPFIG_COMMAND_REGEX, (_match, caption) => preserveCaption(caption))
+    .replace(RWCAPFIG_COMMAND_REGEX, (_match, caption) => preserveCaption(caption))
+    .replace(INCLUDE_GRAPHICS_REGEX, () => {
+      ignoredAttachmentFigure = true;
+      return '';
+    });
+
+  if (ignoredAttachmentFigure && Array.isArray(warnings) && warningPrefix) {
+    warnings.push(`${warningPrefix}: attached figures were ignored during LaTeX import.`);
+  }
+
+  return nextSource;
 }
 
 function buildFigureReferenceContext(source) {
@@ -496,12 +549,7 @@ async function convertLatexFragmentToHtml(source, {
   referenceContext = null,
 }) {
   let nextSource = wrapAlignBlocksForKatex(stripLatexComments(source || ''));
-
-  const attachmentMatches = nextSource.match(ATTACHMENT_FIGURE_REGEX) || [];
-  if (attachmentMatches.length > 0) {
-    warnings.push(`${warningPrefix}: attached figures were ignored during LaTeX import.`);
-    nextSource = nextSource.replace(ATTACHMENT_FIGURE_REGEX, '').trim();
-  }
+  nextSource = stripIgnoredAttachmentFigures(nextSource, { warnings, warningPrefix });
 
   const figureTokens = [];
   const tikzMatches = [...nextSource.matchAll(TIKZ_BLOCK_REGEX)];
@@ -568,6 +616,183 @@ function buildLatexImportTags(section, extraTags = []) {
   const normalizedSection = normalizeWhitespace(section);
   if (!normalizedSection) return baseTags;
   return mergeNormalizedTags(baseTags, [{ value: normalizedSection, label: normalizedSection }]);
+}
+
+function extractHtmlAttribute(tag = '', attributeName = '') {
+  const expression = new RegExp(`${attributeName}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i');
+  const match = String(tag || '').match(expression);
+  if (!match) return '';
+  return decodeHtmlEntities(match[1] || match[2] || match[3] || '').trim();
+}
+
+function buildLatexFigureWidth(tag = '') {
+  const rawWidth = extractHtmlAttribute(tag, 'data-width')
+    || extractHtmlAttribute(tag, 'width')
+    || '';
+  if (!rawWidth) return '0.6\\textwidth';
+
+  const normalized = String(rawWidth).trim().toLowerCase();
+  let fraction = 0;
+
+  if (normalized.endsWith('%')) {
+    fraction = Number.parseFloat(normalized) / 100;
+  } else {
+    const numericWidth = Number.parseFloat(normalized.replace(/px$/, ''));
+    if (Number.isFinite(numericWidth) && numericWidth > 0) {
+      fraction = numericWidth > 1 ? numericWidth / 640 : numericWidth;
+    }
+  }
+
+  if (!Number.isFinite(fraction) || fraction <= 0) {
+    fraction = 0.6;
+  }
+
+  const clamped = Math.min(Math.max(fraction, 0.25), 0.85);
+  const compact = clamped.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+  return `${compact}\\textwidth`;
+}
+
+function escapeLatexFigureCaption(value = '') {
+  return normalizeLatexExportBlock(
+    decodeHtmlEntities(String(value || '').replace(/<[^>]+>/g, ''))
+  );
+}
+
+function buildCapfigLatex({
+  figurePath = '',
+  caption = '',
+  width = '0.6\\textwidth',
+}) {
+  return [
+    `\\begin{capfig}{${width}}{${figurePath}}{${caption}}`,
+    '\\end{capfig}',
+  ].join('\n');
+}
+
+function guessFileExtensionFromContentType(contentType = '') {
+  const normalized = String(contentType || '').trim().toLowerCase();
+  if (normalized === 'image/jpeg') return '.jpg';
+  if (normalized === 'image/png') return '.png';
+  if (normalized === 'image/gif') return '.gif';
+  if (normalized === 'image/webp') return '.webp';
+  if (normalized === 'image/svg+xml') return '.svg';
+  return '';
+}
+
+async function registerLatexExportFigure(tag, context) {
+  const src = extractHtmlAttribute(tag, 'src');
+  const caption = escapeLatexFigureCaption(
+    extractHtmlAttribute(tag, 'data-caption')
+    || extractHtmlAttribute(tag, 'alt')
+    || extractHtmlAttribute(tag, 'title')
+  );
+  const width = buildLatexFigureWidth(tag);
+  const key = extractStorageKeyFromUploadsUrl(src);
+
+  if (!key || typeof context?.app?.getFileObject !== 'function') {
+    return '% Figure omitted during export';
+  }
+
+  if (!context.assetsByKey.has(key)) {
+    const { buffer, contentType } = await context.app.getFileObject(key);
+    const extension = path.extname(key) || guessFileExtensionFromContentType(contentType) || '.png';
+    const fileName = `figure-${context.assets.length + 1}${extension}`;
+    context.assetsByKey.set(key, {
+      latexPath: `figures/${fileName}`,
+    });
+    context.assets.push({
+      path: `figures/${fileName}`,
+      buffer,
+      contentType: contentType || guessImageContentTypeFromKey(key),
+    });
+  }
+
+  return buildCapfigLatex({
+    figurePath: context.assetsByKey.get(key).latexPath,
+    caption,
+    width,
+  });
+}
+
+async function convertHtmlToLatexWithFigures(html, fallback = '', context, {
+  legacyImageSrc = '',
+} = {}) {
+  let source = String(html || '').trim();
+  const fallbackText = String(fallback || '').trim();
+
+  if (!source && !legacyImageSrc) {
+    return fallbackText;
+  }
+
+  const imageTokens = [];
+  source = source.replace(IMAGE_TAG_REGEX, (tag) => {
+    const token = `__QUESTION_MANAGER_EXPORT_FIGURE_${imageTokens.length}__`;
+    imageTokens.push({ token, tag });
+    return token;
+  });
+
+  if (legacyImageSrc && imageTokens.length === 0) {
+    const token = `__QUESTION_MANAGER_EXPORT_FIGURE_${imageTokens.length}__`;
+    imageTokens.push({
+      token,
+      tag: `<img src="${legacyImageSrc}" />`,
+    });
+    source = [source, token].filter(Boolean).join('\n\n');
+  }
+
+  let nextSource = source;
+  for (const image of imageTokens) {
+    // eslint-disable-next-line no-await-in-loop
+    const figureLatex = await registerLatexExportFigure(image.tag, context);
+    nextSource = nextSource.split(image.token).join(`\n\n${figureLatex}\n\n`);
+  }
+
+  if (!nextSource.trim()) {
+    return fallbackText;
+  }
+
+  return normalizeLatexExportBlock(
+    decodeHtmlEntities(
+      nextSource
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/p>/gi, '\n\n')
+        .replace(/<\/div>/gi, '\n')
+        .replace(/<\/figure>/gi, '\n\n')
+        .replace(/<\/figcaption>/gi, '\n')
+        .replace(/<\/li>/gi, '\n')
+        .replace(/<li[^>]*>/gi, '- ')
+        .replace(/<[^>]+>/g, '')
+    )
+  );
+}
+
+async function loadLatexExportTemplate(title = 'Questions from the course') {
+  let templateSource = EXPORT_TEMPLATE_FALLBACK;
+
+  try {
+    templateSource = await fs.readFile(LATEX_EXPORT_TEMPLATE_PATH, 'utf8');
+  } catch {
+    templateSource = EXPORT_TEMPLATE_FALLBACK;
+  }
+
+  const normalizedTitle = String(title || 'Questions from the course').trim() || 'Questions from the course';
+  let nextTemplate = templateSource.replace('\\textbf{Questions from the course}', `\\textbf{${normalizedTitle}}`);
+  if (nextTemplate === templateSource) {
+    nextTemplate = templateSource.replace(/\\textbf\{[^}]+\}/, `\\textbf{${normalizedTitle}}`);
+  }
+
+  const match = nextTemplate.match(/([\s\S]*?\\begin\{questions\})[\s\S]*?(\\end\{questions\}[\s\S]*)/);
+  if (!match) {
+    return {
+      prefix: EXPORT_PREAMBLE.replace('Questions from the course', normalizedTitle),
+      suffix: '\n\n\\end{questions}\n\\end{document}\n',
+    };
+  }
+
+  return {
+    prefix: `${match[1].trimEnd()}\n\n`,
+    suffix: `\n\n${match[2].trimStart()}`,
+  };
 }
 
 export async function parseLatexQuestionSet(source, {
@@ -714,41 +939,41 @@ function formatQuestionTypeSection(type) {
   return 'Questions';
 }
 
-function toLatexText(value) {
-  return normalizeWhitespace(String(value || ''));
-}
-
-function exportQuestionContentToLatex(question = {}) {
-  const sourceText = stripHtmlForLatex(question.content, question.plainText);
-  return toLatexText(sourceText);
-}
-
-function exportQuestionSolutionToLatex(question = {}) {
-  const sourceText = stripHtmlForLatex(question.solution, question.solution_plainText);
-  return toLatexText(sourceText);
-}
-
-function exportQuestionOptionsToLatex(question = {}) {
-  return (question.options || []).map((option) => {
-    const text = toLatexText(stripHtmlForLatex(option.content, option.plainText || option.answer));
-    return {
-      text,
-      correct: !!option.correct,
-    };
+async function exportQuestionContentToLatex(question = {}, context) {
+  return convertHtmlToLatexWithFigures(question.content, question.plainText, context, {
+    legacyImageSrc: question.imagePath || '',
   });
 }
 
-function buildQuestionLatexBlock(question = {}, includePoints = true) {
+async function exportQuestionSolutionToLatex(question = {}, context) {
+  return convertHtmlToLatexWithFigures(question.solution, question.solution_plainText, context);
+}
+
+async function exportQuestionOptionsToLatex(question = {}, context) {
+  const options = [];
+  for (const option of (question.options || [])) {
+    // eslint-disable-next-line no-await-in-loop
+    const text = await convertHtmlToLatexWithFigures(option.content, option.plainText || option.answer, context);
+    options.push({
+      text,
+      correct: !!option.correct,
+    });
+  }
+  return options;
+}
+
+async function buildQuestionLatexBlock(question = {}, includePoints = true, context) {
   const points = Number(question?.sessionOptions?.points);
   const pointSuffix = includePoints
     ? `[${Number.isFinite(points) && points > 0 ? points : 1}]`
     : '';
+  const questionContent = await exportQuestionContentToLatex(question, context);
   const lines = [
-    `\\question${pointSuffix} ${exportQuestionContentToLatex(question)}`.trim(),
+    `\\question${pointSuffix} ${questionContent}`.trim(),
   ];
 
   const normalizedType = Number(question?.type);
-  const options = exportQuestionOptionsToLatex(question);
+  const options = await exportQuestionOptionsToLatex(question, context);
   if (normalizedType === 0 || normalizedType === 1) {
     lines.push('\\begin{choices}');
     options.forEach((option) => {
@@ -763,7 +988,7 @@ function buildQuestionLatexBlock(question = {}, includePoints = true) {
     lines.push('\\end{checkboxes}');
   }
 
-  const solution = exportQuestionSolutionToLatex(question);
+  const solution = await exportQuestionSolutionToLatex(question, context);
   if (solution) {
     lines.push('\\begin{solution}');
     lines.push(solution);
@@ -773,10 +998,16 @@ function buildQuestionLatexBlock(question = {}, includePoints = true) {
   return lines.join('\n');
 }
 
-export function exportQuestionsToLatex(questions = [], {
+async function buildLatexExportDocument(questions = [], {
   includePoints = true,
   title = 'Questions from the course',
+  app = null,
 } = {}) {
+  const context = {
+    app,
+    assets: [],
+    assetsByKey: new Map(),
+  };
   const groupedQuestions = new Map();
   (questions || []).forEach((question) => {
     const section = formatQuestionTypeSection(Number(question?.type));
@@ -786,16 +1017,45 @@ export function exportQuestionsToLatex(questions = [], {
     groupedQuestions.get(section).push(question);
   });
 
-  const sections = [...groupedQuestions.entries()].map(([sectionTitle, sectionQuestions]) => {
-    const blocks = sectionQuestions.map((question) => buildQuestionLatexBlock(question, includePoints));
-    return [
+  const sections = [];
+  for (const [sectionTitle, sectionQuestions] of [...groupedQuestions.entries()]) {
+    const blocks = [];
+    for (const question of sectionQuestions) {
+      // eslint-disable-next-line no-await-in-loop
+      blocks.push(await buildQuestionLatexBlock(question, includePoints, context));
+    }
+    sections.push([
       `\\section*{${sectionTitle}}`,
       ...blocks,
-    ].join('\n\n');
-  }).join('\n\n');
+    ].join('\n\n'));
+  }
 
-  return EXPORT_PREAMBLE
-    .replace('Questions from the course', title)
-    + sections
-    + '\n\n\\end{questions}\n\\end{document}\n';
+  const template = await loadLatexExportTemplate(title);
+  return {
+    content: template.prefix + sections.join('\n\n') + template.suffix,
+    assets: context.assets,
+  };
+}
+
+export async function exportQuestionsToLatex(questions = [], options = {}) {
+  const { content } = await buildLatexExportDocument(questions, options);
+  return content;
+}
+
+export async function exportQuestionsToLatexArchive(questions = [], options = {}) {
+  const { content, assets } = await buildLatexExportDocument(questions, options);
+  const zip = new JSZip();
+  zip.file('main.tex', content);
+  assets.forEach((asset) => {
+    zip.file(asset.path, asset.buffer);
+  });
+
+  return {
+    filename: 'question-manager-export.zip',
+    contentType: 'application/zip',
+    buffer: await zip.generateAsync({
+      type: 'nodebuffer',
+      compression: 'DEFLATE',
+    }),
+  };
 }

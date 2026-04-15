@@ -7,7 +7,8 @@ import {
   buildDetachedQuestionManagerCopyPayload,
   buildQuestionManagerFingerprint,
 } from '../services/questionManager.js';
-import { exportQuestionsToLatex, parseLatexQuestionSet } from '../services/questionLatex.js';
+import { exportQuestionsToLatexArchive, parseLatexQuestionSet } from '../services/questionLatex.js';
+import { copyQuestionToLibrary } from '../services/questionCopy.js';
 import { notifyQuestionManagerChanged } from '../services/questionManagerRealtime.js';
 
 const QUESTION_MANAGER_LIST_SCHEMA = {
@@ -39,6 +40,26 @@ const EXPORT_LATEX_SCHEMA = {
         items: { type: 'string', minLength: 1 },
       },
       includePoints: { type: 'boolean' },
+    },
+    additionalProperties: false,
+  },
+};
+
+const ASSIGN_COURSES_SCHEMA = {
+  body: {
+    type: 'object',
+    required: ['questionIds', 'courseIds'],
+    properties: {
+      questionIds: {
+        type: 'array',
+        minItems: 1,
+        items: { type: 'string', minLength: 1 },
+      },
+      courseIds: {
+        type: 'array',
+        minItems: 1,
+        items: { type: 'string', minLength: 1 },
+      },
     },
     additionalProperties: false,
   },
@@ -435,6 +456,13 @@ async function getManagerQuestionsForUser(user) {
   });
 }
 
+async function getAllowedQuestionManagerQuestionIds(user) {
+  const entries = await getManagerQuestionsForUser(user);
+  return new Set(
+    entries.flatMap((entry) => [entry.sourceQuestionId, entry.editableQuestionId]).filter(Boolean)
+  );
+}
+
 export default async function questionManagerRoutes(app) {
   const { requireRole } = app;
 
@@ -524,6 +552,90 @@ export default async function questionManagerRoutes(app) {
   );
 
   app.post(
+    '/question-manager/questions/assign-courses',
+    {
+      preHandler: requireRole(['professor', 'admin']),
+      schema: ASSIGN_COURSES_SCHEMA,
+      config: {
+        rateLimit: { max: 20, timeWindow: '1 minute' },
+      },
+    },
+    async (request, reply) => {
+      const questionIds = [...new Set(request.body.questionIds.map((questionId) => String(questionId || '').trim()).filter(Boolean))];
+      const targetCourseIds = [...new Set(request.body.courseIds.map((courseId) => String(courseId || '').trim()).filter(Boolean))];
+
+      const [questions, allowedQuestionIds, managedCourseIds] = await Promise.all([
+        Question.find({ _id: { $in: questionIds } }),
+        getAllowedQuestionManagerQuestionIds(request.user),
+        getManagedCourseIdsForUser(request.user),
+      ]);
+
+      if (questions.length !== questionIds.length) {
+        return reply.code(404).send({ error: 'Not Found', message: 'One or more questions were not found' });
+      }
+
+      if (questionIds.some((questionId) => !allowedQuestionIds.has(questionId))) {
+        return reply.code(403).send({ error: 'Forbidden', message: 'Insufficient permissions' });
+      }
+
+      const targetCourses = await Course.find({ _id: { $in: targetCourseIds } })
+        .select('_id name deptCode courseNumber section semester instructors')
+        .lean();
+      if (targetCourses.length !== targetCourseIds.length) {
+        return reply.code(404).send({ error: 'Not Found', message: 'One or more courses were not found' });
+      }
+
+      if (targetCourseIds.some((courseId) => !managedCourseIds.includes(courseId))) {
+        return reply.code(403).send({ error: 'Forbidden', message: 'Insufficient permissions' });
+      }
+
+      const createdQuestions = [];
+      const skippedAssignments = [];
+      for (const question of questions) {
+        const fingerprint = String(question?.questionManager?.fingerprint || '').trim()
+          || buildQuestionManagerFingerprint(question.toObject?.() || question);
+
+        for (const courseId of targetCourseIds) {
+          // eslint-disable-next-line no-await-in-loop
+          const existingCourseCopy = await Question.findOne({
+            courseId,
+            sessionId: '',
+            'questionManager.fingerprint': fingerprint,
+          }).select('_id').lean();
+
+          if (existingCourseCopy) {
+            skippedAssignments.push({
+              questionId: String(question._id),
+              courseId,
+              reason: 'already-associated',
+            });
+            continue;
+          }
+
+          // eslint-disable-next-line no-await-in-loop
+          const copiedQuestion = await copyQuestionToLibrary({
+            sourceQuestion: question,
+            targetCourseId: courseId,
+            userId: request.user.userId,
+          });
+          createdQuestions.push(copiedQuestion);
+        }
+      }
+
+      if (createdQuestions.length > 0) {
+        await notifyQuestionManagerChanged(app, { questions: createdQuestions });
+      }
+
+      return {
+        createdCount: createdQuestions.length,
+        skippedCount: skippedAssignments.length,
+        createdQuestions: createdQuestions.map((question) => question.toObject()),
+        skippedAssignments,
+      };
+    }
+  );
+
+  app.post(
     '/question-manager/questions/import-latex',
     {
       preHandler: requireRole(['professor', 'admin']),
@@ -603,20 +715,18 @@ export default async function questionManagerRoutes(app) {
         return reply.code(404).send({ error: 'Not Found', message: 'One or more questions were not found' });
       }
 
-      const entries = await getManagerQuestionsForUser(request.user);
-      const allowedQuestionIds = new Set(
-        entries.flatMap((entry) => [entry.sourceQuestionId, entry.editableQuestionId]).filter(Boolean)
-      );
+      const allowedQuestionIds = await getAllowedQuestionManagerQuestionIds(request.user);
       if (questionIds.some((questionId) => !allowedQuestionIds.has(questionId))) {
         return reply.code(403).send({ error: 'Forbidden', message: 'Insufficient permissions' });
       }
 
-      return {
-        filename: 'question-manager-export.tex',
-        content: exportQuestionsToLatex(questions, {
-          includePoints: request.body.includePoints !== false,
-        }),
-      };
+      const archive = await exportQuestionsToLatexArchive(questions, {
+        app,
+        includePoints: request.body.includePoints !== false,
+      });
+
+      reply.header('Content-Disposition', `attachment; filename="${archive.filename}"`);
+      return reply.type(archive.contentType).send(archive.buffer);
     }
   );
 }

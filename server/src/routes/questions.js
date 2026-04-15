@@ -2,16 +2,14 @@ import Question from '../models/Question.js';
 import Session from '../models/Session.js';
 import Course from '../models/Course.js';
 import Response from '../models/Response.js';
-import { copyQuestionToSession } from '../services/questionCopy.js';
+import { copyQuestionToLibrary, copyQuestionToSession } from '../services/questionCopy.js';
 import {
   getNormalizedTagValue,
   normalizeTags,
   sanitizeExportedQuestion,
   sanitizeImportedQuestion,
 } from '../services/questionImportExport.js';
-import {
-  applyQuestionManagerFingerprint,
-} from '../services/questionManager.js';
+import { applyQuestionManagerFingerprint } from '../services/questionManager.js';
 import { notifyQuestionManagerChanged } from '../services/questionManagerRealtime.js';
 import { isQuestionResponseCollectionEnabled, normalizeQuestionType } from '../services/grading.js';
 import { computeWordFrequencies } from '../utils/wordFrequency.js';
@@ -451,38 +449,6 @@ function isQuestionOpenInLinkedQuiz(session, requestingUserId) {
   return extensionStart && extensionEnd
     ? nowMs >= extensionStart.getTime() && nowMs <= extensionEnd.getTime()
     : false;
-}
-
-async function createLibraryQuestionCopy({
-  sourceQuestion,
-  targetCourseId,
-  userId,
-  forceStudentCopy = false,
-}) {
-  const sourceObject = sourceQuestion.toObject ? sourceQuestion.toObject() : sourceQuestion;
-  const copiedPayload = { ...sourceObject };
-  delete copiedPayload._id;
-  delete copiedPayload.__v;
-  delete copiedPayload.updatedAt;
-  delete copiedPayload.sessionOptions;
-
-  return Question.create(applyQuestionManagerFingerprint({
-    ...copiedPayload,
-    creator: String(sourceObject.creator || userId),
-    owner: userId,
-    sessionId: '',
-    courseId: String(targetCourseId || sourceObject.courseId || ''),
-    originalQuestion: String(sourceObject.originalQuestion || sourceObject._id || ''),
-    originalCourse: String(sourceObject.originalCourse || sourceObject.courseId || targetCourseId || ''),
-    createdAt: new Date(),
-    lastEditedAt: new Date(),
-    public: forceStudentCopy ? false : !!sourceObject.public,
-    publicOnQlicker: forceStudentCopy ? false : !!sourceObject.publicOnQlicker,
-    publicOnQlickerForStudents: forceStudentCopy ? false : !!sourceObject.publicOnQlickerForStudents,
-    approved: forceStudentCopy ? false : true,
-    studentCreated: forceStudentCopy ? true : !!sourceObject.studentCreated,
-    studentCopyOfPublic: forceStudentCopy ? true : !!sourceObject.studentCopyOfPublic,
-  }, sourceObject.questionManager));
 }
 
 function countCorrectOptions(options = []) {
@@ -1439,7 +1405,7 @@ export default async function questionRoutes(app) {
         return reply.code(403).send({ error: 'Forbidden', message: 'Student questions are disabled for this course' });
       }
 
-      const copy = await createLibraryQuestionCopy({
+      const copy = await copyQuestionToLibrary({
         sourceQuestion: question,
         targetCourseId: String(question.courseId || ''),
         userId,
@@ -1596,7 +1562,7 @@ export default async function questionRoutes(app) {
           });
         } else {
           // eslint-disable-next-line no-await-in-loop
-          copy = await createLibraryQuestionCopy({
+          copy = await copyQuestionToLibrary({
             sourceQuestion: question,
             targetCourseId: String(targetCourse._id),
             userId: request.user.userId,
