@@ -742,6 +742,8 @@ CLIENT_IMAGE=ghcr.io/yourorg/qlicker-client:v2.0.0
 APP_VERSION=v2.0.0.b1
 ```
 
+For question-manager LaTeX import/export with TikZ rendering, the server image must include `pdflatex` and `pdftocairo`. Use a server image built from this repository revision or a newer published tag that includes the TeX/Poppler runtime.
+
 ---
 
 ## File Structure
