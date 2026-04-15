@@ -626,7 +626,14 @@
       "assignCoursesPartial": "Created {{createdCount}} course copies and skipped {{skippedCount}} existing associations.",
       "failedAssignCourses": "Failed to associate the selected questions with courses.",
       "selectAll": "Select all",
-      "clearSelection": "Clear selection"
+      "clearSelection": "Clear selection",
+      "selectVisible": "Select visible question groups",
+      "selectionSummary": "{{count}} matching question groups",
+      "deleteSelected": "Delete selected",
+      "deleteProtectedOnly": "The selected question groups only contain response-backed copies, so they cannot be deleted here.",
+      "deletedPartial": "Deleted {{deletedCount}} question copies. {{protectedCount}} response-backed copies were kept.",
+      "deletedSuccess": "Deleted {{deletedCount}} question copies.",
+      "failedDelete": "Failed to delete the selected question copies."
     },
     "course": {
       "myCourses": "Meine Kurse",

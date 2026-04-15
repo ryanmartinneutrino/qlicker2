@@ -278,6 +278,10 @@ async function buildQuestionManagerEntries({
       fingerprint,
       duplicateCount: groupedQuestions.length,
       responseBackedCount: groupedQuestions.filter((question) => question.hasResponses).length,
+      deletableQuestionIds: groupedQuestions
+        .filter((question) => !question.hasResponses)
+        .map((question) => String(question._id || '').trim())
+        .filter(Boolean),
       sessionLinkedCount: groupedQuestions.filter((question) => question.sessionLinked).length,
       standaloneCount: groupedQuestions.filter((question) => !String(question?.courseId || '').trim()).length,
       question: representativeQuestion,

@@ -52,6 +52,7 @@ const baseEntry = {
   sourceQuestionId: 'q-session',
   editableQuestionId: 'q-safe',
   requiresDetachedCopy: false,
+  deletableQuestionIds: ['q-safe'],
   lastEditedAt: '2026-04-13T15:00:00.000Z',
   question: {
     _id: 'q-session',
@@ -134,6 +135,13 @@ describe('QuestionManager page', () => {
           data: {
             questions: [{ _id: 'q-imported' }],
             warnings: [],
+          },
+        });
+      }
+      if (url === '/questions/bulk-delete') {
+        return Promise.resolve({
+          data: {
+            deletedQuestionIds: ['q-safe'],
           },
         });
       }
@@ -392,7 +400,7 @@ describe('QuestionManager page', () => {
     expect(formData.get('ignorePoints')).toBe('true');
   });
 
-  it('selects and clears all visible question groups from the toolbar', async () => {
+  it('selects visible question groups from the list header checkbox and deletes the selected copies', async () => {
     apiClientMock.get.mockImplementation((url) => {
       if (url === '/health') {
         return Promise.resolve({ data: { websocket: false } });
@@ -405,6 +413,7 @@ describe('QuestionManager page', () => {
             fingerprint: 'fp-2',
             sourceQuestionId: 'q-session-2',
             editableQuestionId: 'q-safe-2',
+            deletableQuestionIds: ['q-safe-2'],
             question: {
               ...baseEntry.question,
               _id: 'q-session-2',
@@ -423,15 +432,32 @@ describe('QuestionManager page', () => {
     renderPage();
 
     await screen.findAllByText(/Question content/);
-    fireEvent.click(screen.getByRole('button', { name: 'Select all' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select visible question groups' }));
 
-    const checkboxes = screen.getAllByRole('checkbox').slice(0, 2);
+    const checkboxes = screen.getAllByRole('checkbox').slice(1, 3);
     expect(checkboxes[0]).toBeChecked();
     expect(checkboxes[1]).toBeChecked();
     expect(screen.getByText('2 selected')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
-    expect(checkboxes[0]).not.toBeChecked();
-    expect(checkboxes[1]).not.toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete selected' }));
+
+    await waitFor(() => {
+      expect(apiClientMock.post).toHaveBeenCalledWith('/questions/bulk-delete', {
+        questionIds: ['q-safe', 'q-safe-2'],
+      });
+    });
+  });
+
+  it('deletes a single question-group card through its delete action', async () => {
+    renderPage();
+
+    await screen.findAllByText('Question content');
+    fireEvent.click(screen.getAllByRole('button', { name: 'common.delete' })[0]);
+
+    await waitFor(() => {
+      expect(apiClientMock.post).toHaveBeenCalledWith('/questions/bulk-delete', {
+        questionIds: ['q-safe'],
+      });
+    });
   });
 });

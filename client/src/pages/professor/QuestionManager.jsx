@@ -38,8 +38,8 @@ import {
   ArrowBack as ArrowBackIcon,
   CloudUpload as UploadIcon,
   Close as CloseIcon,
+  Delete as DeleteIcon,
   Download as DownloadIcon,
-  DoneAll as SelectAllIcon,
   Edit as EditIcon,
   LibraryAdd as AssignCoursesIcon,
   OpenInNew as OpenInNewIcon,
@@ -645,6 +645,15 @@ export default function QuestionManager() {
     editingEntryFingerprint === entry.fingerprint || !!expandedFingerprints[entry.fingerprint]
   ));
   const allVisibleSelected = entries.length > 0 && entries.every((entry) => selectedFingerprints.includes(entry.fingerprint));
+  const someVisibleSelected = entries.some((entry) => selectedFingerprints.includes(entry.fingerprint)) && !allVisibleSelected;
+  const selectedEntries = useMemo(() => entries.filter((entry) => selectedFingerprints.includes(entry.fingerprint)), [entries, selectedFingerprints]);
+  const selectedDeletableQuestionIds = useMemo(() => (
+    [...new Set(
+      selectedEntries.flatMap((entry) => (
+        Array.isArray(entry?.deletableQuestionIds) ? entry.deletableQuestionIds : []
+      )).map((questionId) => String(questionId || '').trim()).filter(Boolean)
+    )]
+  ), [selectedEntries]);
 
   const updateFilter = useCallback((key, value) => {
     setFilters((current) => ({
@@ -971,6 +980,58 @@ export default function QuestionManager() {
     });
   }, [entries]);
 
+  const handleDeleteEntries = useCallback(async (fingerprints) => {
+    const deleteEntries = entries.filter((entry) => fingerprints.includes(entry.fingerprint));
+    const questionIds = [...new Set(
+      deleteEntries.flatMap((entry) => (
+        Array.isArray(entry?.deletableQuestionIds) ? entry.deletableQuestionIds : []
+      )).map((questionId) => String(questionId || '').trim()).filter(Boolean)
+    )];
+    const protectedCopyCount = deleteEntries.reduce((count, entry) => (
+      count + Math.max(Number(entry?.duplicateCount || 0) - Number(entry?.deletableQuestionIds?.length || 0), 0)
+    ), 0);
+
+    if (questionIds.length === 0) {
+      setMessage({
+        severity: 'warning',
+        text: t('professor.questionManager.deleteProtectedOnly', {
+          defaultValue: 'The selected question groups only contain response-backed copies, so they cannot be deleted here.',
+        }),
+      });
+      return;
+    }
+
+    setActionBusyKey('delete');
+    try {
+      await apiClient.post('/questions/bulk-delete', { questionIds });
+      await loadEntries();
+      setMessage({
+        severity: protectedCopyCount > 0 ? 'info' : 'success',
+        text: protectedCopyCount > 0
+          ? t('professor.questionManager.deletedPartial', {
+            deletedCount: questionIds.length,
+            protectedCount: protectedCopyCount,
+            defaultValue: `Deleted ${questionIds.length} question copies. ${protectedCopyCount} response-backed copies were kept.`,
+          })
+          : t('professor.questionManager.deletedSuccess', {
+            deletedCount: questionIds.length,
+            defaultValue: questionIds.length === 1
+              ? 'Deleted 1 question copy.'
+              : `Deleted ${questionIds.length} question copies.`,
+          }),
+      });
+    } catch (err) {
+      setMessage({
+        severity: 'error',
+        text: err.response?.data?.message || t('professor.questionManager.failedDelete', {
+          defaultValue: 'Failed to delete the selected question copies.',
+        }),
+      });
+    } finally {
+      setActionBusyKey('');
+    }
+  }, [entries, loadEntries, t]);
+
   useLayoutEffect(() => {
     const anchor = viewportAnchorRef.current;
     if (!anchor) return;
@@ -1074,16 +1135,6 @@ export default function QuestionManager() {
             </Button>
             <Button startIcon={<RefreshIcon />} onClick={handleRefreshNow}>
               {t('professor.questionManager.refresh', { defaultValue: 'Refresh' })}
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<SelectAllIcon />}
-              onClick={handleToggleSelectAllVisible}
-              disabled={entries.length === 0}
-            >
-              {allVisibleSelected
-                ? t('professor.questionManager.clearSelection', { defaultValue: 'Clear selection' })
-                : t('professor.questionManager.selectAll', { defaultValue: 'Select all' })}
             </Button>
             <Button
               variant="outlined"
@@ -1231,6 +1282,42 @@ export default function QuestionManager() {
         </Box>
       ) : (
         <Stack spacing={1.5}>
+          {entries.length > 0 ? (
+            <Paper variant="outlined" sx={{ p: 1.5 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                  <Checkbox
+                    checked={allVisibleSelected}
+                    indeterminate={someVisibleSelected}
+                    onChange={handleToggleSelectAllVisible}
+                    inputProps={{
+                      'aria-label': t('professor.questionManager.selectVisible', {
+                        defaultValue: 'Select visible question groups',
+                      }),
+                    }}
+                  />
+                  <Typography variant="body2" color="text.secondary">
+                    {t('professor.questionManager.selectionSummary', {
+                      count: total,
+                      defaultValue: total === 1 ? '1 matching question group' : `${total} matching question groups`,
+                    })}
+                  </Typography>
+                </Box>
+                <Stack direction="row" spacing={1} flexWrap="wrap">
+                  <Button
+                    size="small"
+                    color="error"
+                    startIcon={<DeleteIcon />}
+                    disabled={selectedDeletableQuestionIds.length === 0 || actionBusyKey === 'delete'}
+                    onClick={() => handleDeleteEntries(selectedFingerprints)}
+                  >
+                    {t('professor.questionManager.deleteSelected', { defaultValue: 'Delete selected' })}
+                  </Button>
+                </Stack>
+              </Box>
+            </Paper>
+          ) : null}
+
           {creatingQuestion ? (
             <Paper variant="outlined" sx={{ p: 2.25 }}>
               <Stack spacing={2}>
@@ -1271,6 +1358,7 @@ export default function QuestionManager() {
               const editing = editingEntryFingerprint === entry.fingerprint && !!editingQuestion;
               const normalizedType = normalizeQuestionType(entry.question);
               const duplicateCount = Number(entry?.duplicateCount || 0);
+              const deletableCount = Array.isArray(entry?.deletableQuestionIds) ? entry.deletableQuestionIds.length : 0;
               const responseBackedCount = Number(entry?.responseBackedCount || 0);
               const sessionLinkedCount = Number(entry?.sessionLinkedCount || 0);
               const standaloneCount = Number(entry?.standaloneCount || 0);
@@ -1409,6 +1497,27 @@ export default function QuestionManager() {
                                 aria-label={t('professor.questionManager.exportLatex', { defaultValue: 'Export LaTeX' })}
                               >
                                 <DownloadIcon fontSize="small" />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                          <Tooltip title={deletableCount > 0
+                            ? t('common.delete')
+                            : t('professor.questionManager.deleteProtectedOnly', {
+                              defaultValue: 'The selected question groups only contain response-backed copies, so they cannot be deleted here.',
+                            })}
+                          >
+                            <span>
+                              <IconButton
+                                size="small"
+                                color="error"
+                                disabled={deletableCount === 0 || actionBusyKey === 'delete'}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleDeleteEntries([entry.fingerprint]);
+                                }}
+                                aria-label={t('common.delete')}
+                              >
+                                <DeleteIcon fontSize="small" />
                               </IconButton>
                             </span>
                           </Tooltip>
