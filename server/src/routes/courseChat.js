@@ -11,6 +11,10 @@ const COURSE_CHAT_NOTIFICATION_TITLE = 'New course chat messages';
 const COURSE_CHAT_NOTIFICATION_MESSAGE = 'There are unread messages in the course chat.';
 const COURSE_CHAT_NOTIFICATION_DURATION_MS = 1000 * 60 * 60 * 24 * 30;
 const DEFAULT_RETENTION_DAYS = 14;
+const COURSE_CHAT_READ_RATE_LIMIT = { max: 90, timeWindow: '1 minute' };
+const COURSE_CHAT_WRITE_RATE_LIMIT = { max: 40, timeWindow: '1 minute' };
+const COURSE_CHAT_ARCHIVE_RATE_LIMIT = { max: 30, timeWindow: '1 minute' };
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
 function normalizeText(value) {
   if (value === null || value === undefined) return '';
@@ -241,7 +245,7 @@ function buildCourseChatEventDelta(post, options = {}) {
 
 async function archiveExpiredCourseChatPosts(course) {
   const retentionDays = Math.max(1, Number(course?.courseChatRetentionDays) || DEFAULT_RETENTION_DAYS);
-  const cutoff = new Date(Date.now() - (retentionDays * 24 * 60 * 60 * 1000));
+  const cutoff = new Date(Date.now() - (retentionDays * DAY_IN_MS));
   await Post.updateMany({
     scopeType: 'course',
     courseId: String(course._id),
@@ -405,22 +409,19 @@ async function loadCourseChatPayload({ course, request }) {
 export default async function courseChatRoutes(app) {
   const { authenticate } = app;
   const courseChatReadRateLimitPreHandler = app.rateLimit({
-    max: 90,
-    timeWindow: '1 minute',
+    ...COURSE_CHAT_READ_RATE_LIMIT,
   });
   const courseChatWriteRateLimitPreHandler = app.rateLimit({
-    max: 40,
-    timeWindow: '1 minute',
+    ...COURSE_CHAT_WRITE_RATE_LIMIT,
   });
   const courseChatArchiveRateLimitPreHandler = app.rateLimit({
-    max: 30,
-    timeWindow: '1 minute',
+    ...COURSE_CHAT_ARCHIVE_RATE_LIMIT,
   });
 
   app.get('/courses/:id/chat', {
     preHandler: [authenticate, courseChatReadRateLimitPreHandler],
-    rateLimit: { max: 90, timeWindow: '1 minute' },
-    config: { rateLimit: { max: 90, timeWindow: '1 minute' } },
+    rateLimit: COURSE_CHAT_READ_RATE_LIMIT,
+    config: { rateLimit: COURSE_CHAT_READ_RATE_LIMIT },
   }, async (request, reply) => {
     const { course } = await loadCourseChatContext(request.params.id);
     if (!course) {
@@ -438,8 +439,8 @@ export default async function courseChatRoutes(app) {
 
   app.post('/courses/:id/chat/posts', {
     preHandler: [authenticate, courseChatWriteRateLimitPreHandler],
-    rateLimit: { max: 40, timeWindow: '1 minute' },
-    config: { rateLimit: { max: 40, timeWindow: '1 minute' } },
+    rateLimit: COURSE_CHAT_WRITE_RATE_LIMIT,
+    config: { rateLimit: COURSE_CHAT_WRITE_RATE_LIMIT },
     schema: {
       body: {
         type: 'object',
@@ -518,8 +519,8 @@ export default async function courseChatRoutes(app) {
 
   app.patch('/courses/:id/chat/posts/:postId/vote', {
     preHandler: [authenticate, courseChatWriteRateLimitPreHandler],
-    rateLimit: { max: 40, timeWindow: '1 minute' },
-    config: { rateLimit: { max: 40, timeWindow: '1 minute' } },
+    rateLimit: COURSE_CHAT_WRITE_RATE_LIMIT,
+    config: { rateLimit: COURSE_CHAT_WRITE_RATE_LIMIT },
     schema: {
       body: {
         type: 'object',
@@ -587,8 +588,8 @@ export default async function courseChatRoutes(app) {
 
   app.post('/courses/:id/chat/posts/:postId/comments', {
     preHandler: [authenticate, courseChatWriteRateLimitPreHandler],
-    rateLimit: { max: 40, timeWindow: '1 minute' },
-    config: { rateLimit: { max: 40, timeWindow: '1 minute' } },
+    rateLimit: COURSE_CHAT_WRITE_RATE_LIMIT,
+    config: { rateLimit: COURSE_CHAT_WRITE_RATE_LIMIT },
     schema: {
       body: {
         type: 'object',
@@ -657,8 +658,8 @@ export default async function courseChatRoutes(app) {
 
   app.patch('/courses/:id/chat/posts/:postId/comments/:commentId/vote', {
     preHandler: [authenticate, courseChatWriteRateLimitPreHandler],
-    rateLimit: { max: 40, timeWindow: '1 minute' },
-    config: { rateLimit: { max: 40, timeWindow: '1 minute' } },
+    rateLimit: COURSE_CHAT_WRITE_RATE_LIMIT,
+    config: { rateLimit: COURSE_CHAT_WRITE_RATE_LIMIT },
     schema: {
       body: {
         type: 'object',
@@ -742,8 +743,8 @@ export default async function courseChatRoutes(app) {
 
   app.patch('/courses/:id/chat/posts/:postId/archive', {
     preHandler: [authenticate, courseChatArchiveRateLimitPreHandler],
-    rateLimit: { max: 30, timeWindow: '1 minute' },
-    config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+    rateLimit: COURSE_CHAT_ARCHIVE_RATE_LIMIT,
+    config: { rateLimit: COURSE_CHAT_ARCHIVE_RATE_LIMIT },
   }, async (request, reply) => {
     const { course } = await loadCourseChatContext(request.params.id);
     if (!course) {
@@ -782,8 +783,8 @@ export default async function courseChatRoutes(app) {
 
   app.delete('/courses/:id/chat/posts/:postId', {
     preHandler: [authenticate, courseChatWriteRateLimitPreHandler],
-    rateLimit: { max: 40, timeWindow: '1 minute' },
-    config: { rateLimit: { max: 40, timeWindow: '1 minute' } },
+    rateLimit: COURSE_CHAT_WRITE_RATE_LIMIT,
+    config: { rateLimit: COURSE_CHAT_WRITE_RATE_LIMIT },
   }, async (request, reply) => {
     const { course } = await loadCourseChatContext(request.params.id);
     if (!course) {
@@ -819,8 +820,8 @@ export default async function courseChatRoutes(app) {
 
   app.delete('/courses/:id/chat/posts/:postId/comments/:commentId', {
     preHandler: [authenticate, courseChatWriteRateLimitPreHandler],
-    rateLimit: { max: 40, timeWindow: '1 minute' },
-    config: { rateLimit: { max: 40, timeWindow: '1 minute' } },
+    rateLimit: COURSE_CHAT_WRITE_RATE_LIMIT,
+    config: { rateLimit: COURSE_CHAT_WRITE_RATE_LIMIT },
   }, async (request, reply) => {
     const { course } = await loadCourseChatContext(request.params.id);
     if (!course) {
