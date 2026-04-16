@@ -386,9 +386,11 @@ export default function StudentCourseDetail() {
             || evt === 'session:feedback-updated'
             || evt === 'session:quiz-submitted') {
             refreshSingleSession(d?.sessionId).catch(() => {});
-          } else if (evt === 'course:chat-updated' && tab === chatTabIndex) {
-            setChatEvent((prev) => ({ id: (prev?.id || 0) + 1, ...d }));
+          } else if (evt === 'course:chat-updated') {
             setChatRefreshToken((prev) => prev + 1);
+            if (tab === chatTabIndex) {
+              setChatEvent((prev) => ({ id: (prev?.id || 0) + 1, ...d }));
+            }
           }
           if (evt === 'video:updated') {
             fetchCourse();

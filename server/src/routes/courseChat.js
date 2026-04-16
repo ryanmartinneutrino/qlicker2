@@ -302,7 +302,7 @@ async function loadActiveCourseChatNotification(courseId) {
 async function ensureCourseChatNotification(course, createdBy) {
   const now = new Date();
   const endAt = new Date(now.getTime() + COURSE_CHAT_NOTIFICATION_DURATION_MS);
-  const existing = await Notification.findOneAndUpdate({
+  const chatNotification = await Notification.findOneAndUpdate({
     scopeType: 'course',
     courseId: String(course._id),
     sourceKey: COURSE_CHAT_NOTIFICATION_SOURCE_KEY,
@@ -325,8 +325,8 @@ async function ensureCourseChatNotification(course, createdBy) {
     upsert: true,
   }).lean();
 
-  await NotificationDismissal.deleteMany({ notificationId: String(existing._id) });
-  return existing;
+  await NotificationDismissal.deleteMany({ notificationId: String(chatNotification._id) });
+  return chatNotification;
 }
 
 function sendToUsersById(app, userIds, event, payload) {
