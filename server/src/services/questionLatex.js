@@ -243,6 +243,44 @@ function readBalancedGroup(source, startIndex) {
   return null;
 }
 
+function readBalancedDelimited(source, startIndex, openChar, closeChar) {
+  if (source[startIndex] !== openChar) return null;
+
+  let depth = 0;
+  let content = '';
+  for (let index = startIndex; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === openChar) {
+      if (depth > 0) content += char;
+      depth += 1;
+      continue;
+    }
+    if (char === closeChar) {
+      depth -= 1;
+      if (depth === 0) {
+        return {
+          content,
+          endIndex: index + 1,
+        };
+      }
+      if (depth < 0) return null;
+      content += char;
+      continue;
+    }
+    content += char;
+  }
+
+  return null;
+}
+
+function skipWhitespace(source, startIndex) {
+  let index = startIndex;
+  while (index < source.length && /\s/.test(source[index])) {
+    index += 1;
+  }
+  return index;
+}
+
 function replaceLatexCommandGroup(source, prefix, replacement = '') {
   const input = String(source || '');
   let result = '';
@@ -273,6 +311,101 @@ function replaceLatexCommandGroup(source, prefix, replacement = '') {
   }
 
   return result;
+}
+
+function wrapInlineKatex(value) {
+  const normalized = normalizeWhitespace(value);
+  return normalized ? `$${normalized}$` : '';
+}
+
+function normalizeSiunitxUnitMath(source) {
+  let nextSource = normalizeWhitespace(source);
+  if (!nextSource) return '';
+
+  nextSource = nextSource
+    .replace(/\s*\\cdot\s*/g, '\\cdot ')
+    .replace(/\s*-\s*cdot\s*/g, '\\cdot ')
+    .replace(/\s*\\times\s*/g, '\\times ')
+    .replace(/\s*-\s*times\s*/g, '\\times ')
+    .replace(/\s*\\pm\s*/g, '\\pm ')
+    .replace(/\s*\\per\s*/g, '/')
+    .replace(/\s*\/\s*/g, '/')
+    .replace(/\{\s+/g, '{')
+    .replace(/\s+\}/g, '}')
+    .trim();
+
+  return nextSource.replace(/\s+/g, '\\,');
+}
+
+function formatSiunitxQuantity(numberSource, unitSource) {
+  const number = normalizeWhitespace(numberSource);
+  const unit = normalizeSiunitxUnitMath(unitSource);
+
+  if (!number && !unit) return '';
+  if (!unit) return wrapInlineKatex(number);
+  if (!number) return wrapInlineKatex(unit);
+  return wrapInlineKatex(`${number}\\;${unit}`);
+}
+
+function replaceLatexCommandWithGroups(source, commandName, groupCount, buildReplacement) {
+  const input = String(source || '');
+  let result = '';
+
+  for (let index = 0; index < input.length; index += 1) {
+    if (!input.startsWith(commandName, index)) {
+      result += input[index];
+      continue;
+    }
+
+    const nextChar = input[index + commandName.length];
+    if (nextChar && /[A-Za-z@]/.test(nextChar)) {
+      result += input[index];
+      continue;
+    }
+
+    let cursor = skipWhitespace(input, index + commandName.length);
+    if (input[cursor] === '[') {
+      const optionalGroup = readBalancedDelimited(input, cursor, '[', ']');
+      if (!optionalGroup) {
+        result += input[index];
+        continue;
+      }
+      cursor = skipWhitespace(input, optionalGroup.endIndex);
+    }
+
+    const groups = [];
+    let failed = false;
+    for (let groupIndex = 0; groupIndex < groupCount; groupIndex += 1) {
+      const group = readBalancedGroup(input, cursor);
+      if (!group) {
+        failed = true;
+        break;
+      }
+      groups.push(group.content);
+      cursor = skipWhitespace(input, group.endIndex);
+    }
+
+    if (failed) {
+      result += input[index];
+      continue;
+    }
+
+    result += buildReplacement(...groups);
+    index = cursor - 1;
+  }
+
+  return result;
+}
+
+function normalizeSiunitxCommands(source) {
+  let nextSource = String(source || '');
+  nextSource = replaceLatexCommandWithGroups(nextSource, '\\SI', 2, formatSiunitxQuantity);
+  nextSource = replaceLatexCommandWithGroups(nextSource, '\\qty', 2, formatSiunitxQuantity);
+  nextSource = replaceLatexCommandWithGroups(nextSource, '\\num', 1, (numberSource) => wrapInlineKatex(numberSource));
+  nextSource = replaceLatexCommandWithGroups(nextSource, '\\si', 1, (unitSource) => wrapInlineKatex(
+    normalizeSiunitxUnitMath(unitSource)
+  ));
+  return nextSource;
 }
 
 function stripIgnoredAttachmentFigures(source, {
@@ -548,7 +681,9 @@ async function convertLatexFragmentToHtml(source, {
   warningPrefix,
   referenceContext = null,
 }) {
-  let nextSource = wrapAlignBlocksForKatex(stripLatexComments(source || ''));
+  let nextSource = normalizeSiunitxCommands(
+    wrapAlignBlocksForKatex(stripLatexComments(source || ''))
+  );
   nextSource = stripIgnoredAttachmentFigures(nextSource, { warnings, warningPrefix });
 
   const figureTokens = [];

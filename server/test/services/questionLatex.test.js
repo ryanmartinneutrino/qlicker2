@@ -98,6 +98,52 @@ __QUESTION_MANAGER_FIGURE_1__
     expect(exported).toContain('\\begin{solution}');
   });
 
+  it('converts siunitx quantities into inline katex-friendly math during import', async () => {
+    const latexWithSiunitx = String.raw`
+\documentclass[12pt, oneside, addpoints]{exam}
+\begin{document}
+\begin{questions}
+\question[2] The pendulum length is \SI{50}{cm} and the inertia is \SI{25}{kg\cdot m^2}.
+\begin{solution}
+Report \num{25} with \si{kg\cdot m^2}.
+\end{solution}
+\end{questions}
+\end{document}
+`;
+
+    const { questions, warnings } = await parseLatexQuestionSet(latexWithSiunitx, {
+      app: {},
+      userId: 'prof-1',
+    });
+
+    expect(questions).toHaveLength(1);
+    expect(questions[0].content).toContain('$50\\;cm$');
+    expect(questions[0].content).toContain('$25\\;kg\\cdot\\,m^2$');
+    expect(questions[0].solution).toContain('$25$');
+    expect(questions[0].solution).toContain('$kg\\cdot\\,m^2$');
+    expect(warnings).toEqual([]);
+  });
+
+  it('supports siunitx unit arguments that use literal -cdot separators', async () => {
+    const latexWithLiteralCdot = String.raw`
+\documentclass[12pt, oneside, addpoints]{exam}
+\begin{document}
+\begin{questions}
+\question[2] The moment of inertia is \SI{25}{kg-cdot m^2}.
+\end{questions}
+\end{document}
+`;
+
+    const { questions, warnings } = await parseLatexQuestionSet(latexWithLiteralCdot, {
+      app: {},
+      userId: 'prof-1',
+    });
+
+    expect(questions).toHaveLength(1);
+    expect(questions[0].content).toContain('$25\\;kg\\cdot\\,m^2$');
+    expect(warnings).toEqual([]);
+  });
+
   it('cleans up centered attachment-figure wrappers and refs during import', async () => {
     const latexWithCenteredFigure = String.raw`
 \documentclass[12pt, oneside, addpoints]{exam}
