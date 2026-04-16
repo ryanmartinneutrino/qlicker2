@@ -57,6 +57,7 @@ On the course page you will typically see:
 - **Practice sessions** for self-study and rehearsal
 - **Question library** for visible study questions and question-based practice workflows
 - **Grades** for your own course and session results
+- **Course Chat** when your instructor enables course-wide discussion
 - **Video chat** when your course has Jitsi enabled
 
 If the instructor turns off **Allow students access to practice questions**, the **Practice sessions** and **Question library** tabs are hidden for that course. You can still review finished sessions and their released answers.
@@ -65,6 +66,7 @@ If a course has many sessions, the page shows the first batch of session cards q
 Search, status, page-size, and pagination controls now live inside a collapsible **Search sessions** area so the session cards remain easier to scan.
 When a course currently has a live activity, matching live tiles also appear above the tabs so you can jump into that course's active work immediately. Submitted live quizzes are excluded from that quick-access area.
 Quiz cards now show the relevant date and time directly on the course page: upcoming quizzes show when they start, live quizzes show when they end, and ended quizzes show when they ended.
+If your instructor enables course chat, the course page also gains a **Course Chat** tab with course-wide posts and comments.
 
 ### How to choose the right tab
 
@@ -144,6 +146,14 @@ Move one question at a time. Compare:
 2. what you submitted
 3. what the released answer or solution says
 4. what feedback tells you to improve next time
+
+## Participate in course chat
+
+- Use the course **Course Chat** tab to ask questions that are not tied to one live session.
+- New posts need a topic and can be tagged with the course topics chosen by your instructor.
+- Rich text posts and comments support images, equations, and video links.
+- Your posts and comments stay anonymous to other students, but instructors and TAs can still identify who wrote them.
+- You can upvote helpful posts and comments, and you can delete your own posts or comments later if needed.
 
 ## Build practice sessions
 
