@@ -12,6 +12,8 @@ const NotificationSchema = new mongoose.Schema(
     startAt: { type: Date, required: true },
     endAt: { type: Date, required: true },
     persistUntilDismissed: { type: Boolean, default: false },
+    sourceKey: { type: String, default: '' },
+    sourceRefId: { type: String, default: '' },
     createdBy: { type: String, required: true },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
@@ -24,6 +26,7 @@ const NotificationSchema = new mongoose.Schema(
 
 NotificationSchema.index({ scopeType: 1, recipientType: 1, startAt: -1, createdAt: -1 });
 NotificationSchema.index({ courseId: 1, recipientType: 1, startAt: -1, createdAt: -1 });
+NotificationSchema.index({ scopeType: 1, courseId: 1, sourceKey: 1, sourceRefId: 1 });
 NotificationSchema.index({ endAt: 1 });
 NotificationSchema.index({ createdBy: 1 });
 

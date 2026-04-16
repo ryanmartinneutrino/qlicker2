@@ -55,6 +55,8 @@ const createCourseSchema = {
       requireVerified: { type: 'boolean' },
       allowStudentQuestions: { type: 'boolean' },
       quizTimeFormat: { type: 'string', enum: ['inherit', '24h', '12h'] },
+      courseChatEnabled: { type: 'boolean' },
+      courseChatRetentionDays: { type: 'integer', minimum: 1, maximum: 365 },
       tags: {
         type: 'array',
         items: {
@@ -84,6 +86,8 @@ const updateCourseSchema = {
       requireVerified: { type: 'boolean' },
       allowStudentQuestions: { type: 'boolean' },
       quizTimeFormat: { type: 'string', enum: ['inherit', '24h', '12h'] },
+      courseChatEnabled: { type: 'boolean' },
+      courseChatRetentionDays: { type: 'integer', minimum: 1, maximum: 365 },
       tags: {
         type: 'array',
         items: {
@@ -320,7 +324,7 @@ export default async function courseRoutes(app) {
         return reply.code(403).send({ error: 'Forbidden', message: 'Insufficient permissions' });
       }
 
-      const allowed = ['name', 'deptCode', 'courseNumber', 'section', 'semester', 'inactive', 'requireVerified', 'allowStudentQuestions', 'quizTimeFormat', 'tags'];
+      const allowed = ['name', 'deptCode', 'courseNumber', 'section', 'semester', 'inactive', 'requireVerified', 'allowStudentQuestions', 'quizTimeFormat', 'courseChatEnabled', 'courseChatRetentionDays', 'tags'];
       const updates = {};
       for (const key of allowed) {
         if (request.body[key] !== undefined) {

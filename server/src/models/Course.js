@@ -67,6 +67,8 @@ const CourseSchema = new mongoose.Schema(
     requireVerified: { type: Boolean, default: false },
     allowStudentQuestions: { type: Boolean, default: false },
     quizTimeFormat: { type: String, enum: ['inherit', '24h', '12h'], default: 'inherit' },
+    courseChatEnabled: { type: Boolean, default: false },
+    courseChatRetentionDays: { type: Number, default: 14, min: 1, max: 365 },
     tags: { type: [TagSchema], default: [] },
     groupCategories: { type: [GroupCategorySchema], default: [] },
     videoChatOptions: { type: VideoChatOptionsSchema, default: undefined },
