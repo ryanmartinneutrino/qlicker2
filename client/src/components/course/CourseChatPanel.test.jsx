@@ -25,7 +25,23 @@ vi.mock('../questions/StudentRichTextEditor', () => ({
 }));
 
 vi.mock('../questions/richTextUtils', () => ({
-  extractPlainTextFromHtml: (html = '') => String(html).replace(/<[^>]*>/g, '').trim(),
+  extractPlainTextFromHtml: (html = '') => {
+    const input = String(html);
+    let insideTag = false;
+    let plain = '';
+    for (const character of input) {
+      if (character === '<') {
+        insideTag = true;
+        continue;
+      }
+      if (character === '>') {
+        insideTag = false;
+        continue;
+      }
+      if (!insideTag) plain += character;
+    }
+    return plain.trim();
+  },
   prepareRichTextInput: (html = '', fallback = '') => html || fallback || '',
   renderKatexInElement: () => {},
 }));
