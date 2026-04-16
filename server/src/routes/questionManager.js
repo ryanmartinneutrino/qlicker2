@@ -24,6 +24,7 @@ const QUESTION_MANAGER_LIST_SCHEMA = {
       ownerId: { type: 'string' },
       standalone: { type: 'string', enum: ['all', 'standalone', 'course'] },
       duplicates: { type: 'string', enum: ['all', 'duplicates'] },
+      all: { type: 'boolean' },
     },
     additionalProperties: false,
   },
@@ -482,15 +483,20 @@ export default async function questionManagerRoutes(app) {
     async (request) => {
       const page = Math.max(Number(request.query.page) || 1, 1);
       const limit = Math.min(Math.max(Number(request.query.limit) || 20, 1), 100);
+      const showAll = request.query.all === true;
       const allEntries = await getManagerQuestionsForUser(request.user);
       const filteredEntries = filterQuestionManagerEntries(allEntries, request.query);
       const startIndex = (page - 1) * limit;
+      const pagedEntries = showAll
+        ? filteredEntries
+        : filteredEntries.slice(startIndex, startIndex + limit);
 
       return {
-        entries: filteredEntries.slice(startIndex, startIndex + limit),
+        entries: pagedEntries,
         total: filteredEntries.length,
-        page,
-        limit,
+        page: showAll ? 1 : page,
+        limit: showAll ? filteredEntries.length : limit,
+        showingAll: showAll,
         filters: buildFilterOptions(allEntries),
       };
     }

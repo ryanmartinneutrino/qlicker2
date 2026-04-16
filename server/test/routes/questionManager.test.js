@@ -224,4 +224,40 @@ describe('question manager routes', () => {
     expect(questionCopies.filter((question) => String(question.courseId || '').trim()).map((question) => question.courseId).sort())
       .toEqual([firstCourse._id, secondCourse._id].sort());
   });
+
+  it('can return all matching question-manager groups in one response when requested', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+
+    const prof = await createTestUser({ email: 'qm-all-prof@example.com', roles: ['professor'] });
+    const profToken = await getAuthToken(app, prof);
+
+    await createQuestion(profToken, {
+      content: '<p>Question alpha</p>',
+      plainText: 'Question alpha',
+    });
+    await createQuestion(profToken, {
+      content: '<p>Question beta</p>',
+      plainText: 'Question beta',
+    });
+    await createQuestion(profToken, {
+      content: '<p>Question gamma</p>',
+      plainText: 'Question gamma',
+    });
+
+    const pagedRes = await authenticatedRequest(app, 'GET', '/api/v1/question-manager/questions?page=2&limit=1', {
+      token: profToken,
+    });
+    expect(pagedRes.statusCode).toBe(200);
+    expect(pagedRes.json().entries).toHaveLength(1);
+    expect(pagedRes.json().showingAll).toBe(false);
+
+    const allRes = await authenticatedRequest(app, 'GET', '/api/v1/question-manager/questions?page=2&limit=1&all=true', {
+      token: profToken,
+    });
+    expect(allRes.statusCode).toBe(200);
+    expect(allRes.json().entries).toHaveLength(3);
+    expect(allRes.json().total).toBe(3);
+    expect(allRes.json().page).toBe(1);
+    expect(allRes.json().showingAll).toBe(true);
+  });
 });

@@ -100,7 +100,13 @@ describe('QuestionManager page', () => {
         return Promise.resolve({ data: { websocket: false } });
       }
       if (url === '/question-manager/questions') {
-        return Promise.resolve(createListResponse());
+        return Promise.resolve({
+          ...createListResponse(),
+          data: {
+            ...createListResponse().data,
+            showingAll: false,
+          },
+        });
       }
       if (url === '/courses') {
         return Promise.resolve({
@@ -440,6 +446,7 @@ describe('QuestionManager page', () => {
     expect(screen.getByText('2 selected')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete selected' }));
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'common.delete' }));
 
     await waitFor(() => {
       expect(apiClientMock.post).toHaveBeenCalledWith('/questions/bulk-delete', {
@@ -448,11 +455,105 @@ describe('QuestionManager page', () => {
     });
   });
 
+  it('can expand the view and select all filtered question groups across pages', async () => {
+    apiClientMock.get.mockImplementation((url, config) => {
+      if (url === '/health') {
+        return Promise.resolve({ data: { websocket: false } });
+      }
+      if (url === '/question-manager/questions') {
+        const showingAll = config?.params?.all === true;
+        const entries = showingAll
+          ? [
+            baseEntry,
+            {
+              ...baseEntry,
+              fingerprint: 'fp-2',
+              sourceQuestionId: 'q-session-2',
+              editableQuestionId: 'q-safe-2',
+              deletableQuestionIds: ['q-safe-2'],
+              question: {
+                ...baseEntry.question,
+                _id: 'q-session-2',
+                content: '<p>Question content 2</p>',
+                plainText: 'Question content 2',
+              },
+            },
+            {
+              ...baseEntry,
+              fingerprint: 'fp-3',
+              sourceQuestionId: 'q-session-3',
+              editableQuestionId: 'q-safe-3',
+              deletableQuestionIds: ['q-safe-3'],
+              question: {
+                ...baseEntry.question,
+                _id: 'q-session-3',
+                content: '<p>Question content 3</p>',
+                plainText: 'Question content 3',
+              },
+            },
+          ]
+          : [
+            baseEntry,
+            {
+              ...baseEntry,
+              fingerprint: 'fp-2',
+              sourceQuestionId: 'q-session-2',
+              editableQuestionId: 'q-safe-2',
+              deletableQuestionIds: ['q-safe-2'],
+              question: {
+                ...baseEntry.question,
+                _id: 'q-session-2',
+                content: '<p>Question content 2</p>',
+                plainText: 'Question content 2',
+              },
+            },
+          ];
+
+        return Promise.resolve({
+          data: {
+            entries,
+            total: 3,
+            page: 1,
+            limit: showingAll ? 3 : 2,
+            showingAll,
+            filters: {
+              tags: [{ value: 'algebra', label: 'algebra', count: 3 }],
+              courses: [{ _id: 'course-1', label: 'CS 301 · 001', count: 3 }],
+              creators: [{ userId: 'prof-1', displayName: 'Prof One', email: 'prof1@example.com', count: 3 }],
+              owners: [{ userId: 'prof-1', displayName: 'Prof One', email: 'prof1@example.com', count: 3 }],
+            },
+          },
+        });
+      }
+      if (url === '/courses') {
+        return Promise.resolve({ data: { courses: [] } });
+      }
+      return Promise.reject(new Error(`Unexpected GET ${url}`));
+    });
+
+    renderPage();
+
+    await screen.findAllByText(/Question content/);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select visible question groups' }));
+
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Select all 3 matches' }));
+
+    await screen.findByText('Question content 3');
+    expect(screen.getByText('3 selected')).toBeInTheDocument();
+    expect(screen.getByText('Showing all 3 matching question groups')).toBeInTheDocument();
+    expect(screen.queryByText('Page 1 of 2')).not.toBeInTheDocument();
+    expect(apiClientMock.get).toHaveBeenCalledWith('/question-manager/questions', expect.objectContaining({
+      params: expect.objectContaining({ all: true }),
+    }));
+  });
+
   it('deletes a single question-group card through its delete action', async () => {
     renderPage();
 
     await screen.findAllByText('Question content');
     fireEvent.click(screen.getAllByRole('button', { name: 'common.delete' })[0]);
+    fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'common.delete' }));
 
     await waitFor(() => {
       expect(apiClientMock.post).toHaveBeenCalledWith('/questions/bulk-delete', {

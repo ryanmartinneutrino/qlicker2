@@ -163,7 +163,7 @@ function formatCompactImportLabel(entry, t) {
 }
 
 function buildManagerParams(filters) {
-  return {
+  const params = {
     page: filters.page,
     limit: filters.limit,
     q: filters.q,
@@ -173,6 +173,28 @@ function buildManagerParams(filters) {
     ownerId: filters.ownerId,
     standalone: filters.standalone,
     duplicates: filters.duplicates,
+  };
+  if (filters.all) {
+    params.all = true;
+  }
+  return params;
+}
+
+function summarizeDeletionForFingerprints(entries = [], fingerprints = []) {
+  const deleteEntries = entries.filter((entry) => fingerprints.includes(entry.fingerprint));
+  const questionIds = [...new Set(
+    deleteEntries.flatMap((entry) => (
+      Array.isArray(entry?.deletableQuestionIds) ? entry.deletableQuestionIds : []
+    )).map((questionId) => String(questionId || '').trim()).filter(Boolean)
+  )];
+  const protectedCopyCount = deleteEntries.reduce((count, entry) => (
+    count + Math.max(Number(entry?.duplicateCount || 0) - Number(entry?.deletableQuestionIds?.length || 0), 0)
+  ), 0);
+
+  return {
+    questionIds,
+    protectedCopyCount,
+    selectedGroupCount: deleteEntries.length,
   };
 }
 
@@ -374,6 +396,118 @@ function QuestionManagerCourseDialog({
   );
 }
 
+function QuestionManagerSelectAllDialog({
+  open,
+  total,
+  visibleCount,
+  onClose,
+  onSelectCurrentPage,
+  onSelectAllMatching,
+}) {
+  const { t } = useTranslation();
+  const remainingCount = Math.max(Number(total || 0) - Number(visibleCount || 0), 0);
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>
+        {t('professor.questionManager.selectAllDialogTitle', {
+          defaultValue: 'Select matching question groups?',
+        })}
+      </DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={1.5}>
+          <Typography variant="body2" color="text.secondary">
+            {t('professor.questionManager.selectAllDialogDescription', {
+              total,
+              visibleCount,
+              remainingCount,
+              defaultValue: `This page shows ${visibleCount} of ${total} matching question groups. You can select only the current page, or expand the list and select all ${total}.`,
+            })}
+          </Typography>
+          {remainingCount > 0 ? (
+            <Alert severity="info">
+              {t('professor.questionManager.selectAllDialogExpandHelp', {
+                total,
+                remainingCount,
+                defaultValue: `${remainingCount} matching question groups are on other pages. Selecting all will expand the view to show all ${total} groups.`,
+              })}
+            </Alert>
+          ) : null}
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>{t('common.cancel')}</Button>
+        <Button onClick={onSelectCurrentPage}>
+          {t('professor.questionManager.selectCurrentPageOnly', {
+            count: visibleCount,
+            defaultValue: visibleCount === 1 ? 'Select this page only' : `Select these ${visibleCount} only`,
+          })}
+        </Button>
+        <Button variant="contained" onClick={onSelectAllMatching}>
+          {t('professor.questionManager.selectAllMatching', {
+            count: total,
+            defaultValue: total === 1 ? 'Select all 1 match' : `Select all ${total} matches`,
+          })}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function QuestionManagerDeleteDialog({
+  open,
+  loading,
+  deleteCount,
+  protectedCopyCount,
+  selectedGroupCount,
+  onClose,
+  onConfirm,
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <Dialog open={open} onClose={loading ? undefined : onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>
+        {t('professor.questionManager.deleteDialogTitle', {
+          count: deleteCount,
+          defaultValue: deleteCount === 1 ? 'Delete question copy?' : `Delete ${deleteCount} question copies?`,
+        })}
+      </DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={1.5}>
+          <Typography variant="body2" color="text.secondary">
+            {t('professor.questionManager.deleteDialogDescription', {
+              deleteCount,
+              selectedGroupCount,
+              defaultValue: deleteCount === 1
+                ? 'This will permanently delete 1 editable question copy from the selected question-manager groups.'
+                : `This will permanently delete ${deleteCount} editable question copies from ${selectedGroupCount} selected question-manager groups.`,
+            })}
+          </Typography>
+          {protectedCopyCount > 0 ? (
+            <Alert severity="warning">
+              {t('professor.questionManager.deleteDialogProtectedHelp', {
+                protectedCount: protectedCopyCount,
+                defaultValue: protectedCopyCount === 1
+                  ? '1 response-backed or otherwise protected copy will be kept, so this question group may still remain visible afterward.'
+                  : `${protectedCopyCount} response-backed or otherwise protected copies will be kept, so some question groups may still remain visible afterward.`,
+              })}
+            </Alert>
+          ) : null}
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={loading}>{t('common.cancel')}</Button>
+        <Button variant="contained" color="error" onClick={onConfirm} disabled={loading}>
+          {loading
+            ? t('common.loading')
+            : t('common.delete')}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 export default function QuestionManager() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -381,6 +515,7 @@ export default function QuestionManager() {
   const viewportAnchorRef = useRef(null);
   const cardElementsRef = useRef(new Map());
   const inlineQuestionEditorRef = useRef(null);
+  const pendingSelectAllMatchingRef = useRef(false);
 
   const [filters, setFilters] = useState({
     q: '',
@@ -405,6 +540,7 @@ export default function QuestionManager() {
   const [coursesLoading, setCoursesLoading] = useState(false);
   const [selectedFingerprints, setSelectedFingerprints] = useState([]);
   const [expandedFingerprints, setExpandedFingerprints] = useState({});
+  const [showAllMatching, setShowAllMatching] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(null);
   const [syncTransport, setSyncTransport] = useState('manual');
@@ -418,19 +554,28 @@ export default function QuestionManager() {
   const [importFile, setImportFile] = useState(null);
   const [importIgnorePoints, setImportIgnorePoints] = useState(false);
   const [importTags, setImportTags] = useState([]);
+  const [selectAllDialogOpen, setSelectAllDialogOpen] = useState(false);
   const [courseDialogState, setCourseDialogState] = useState({
     open: false,
     fingerprints: [],
     courseIds: [],
   });
   const [exportDialogState, setExportDialogState] = useState({ open: false, fingerprints: [] });
+  const [deleteDialogState, setDeleteDialogState] = useState({
+    open: false,
+    fingerprints: [],
+    questionIds: [],
+    protectedCopyCount: 0,
+    selectedGroupCount: 0,
+  });
   const [exportIncludePoints, setExportIncludePoints] = useState(true);
   const deferredSearch = useDeferredValue(filters.q);
 
   const requestParams = useMemo(() => buildManagerParams({
     ...filters,
     q: deferredSearch || filters.q,
-  }), [deferredSearch, filters]);
+    all: showAllMatching,
+  }), [deferredSearch, filters, showAllMatching]);
 
   const loadEntries = useCallback(async ({ silent = false, focusQuestionId = '' } = {}) => {
     const requestId = requestIdRef.current + 1;
@@ -455,9 +600,15 @@ export default function QuestionManager() {
       });
       setPendingRefresh(false);
 
-      setSelectedFingerprints((current) => current.filter((fingerprint) => (
-        nextEntries.some((entry) => entry.fingerprint === fingerprint)
-      )));
+      setSelectedFingerprints((current) => {
+        if (pendingSelectAllMatchingRef.current) {
+          pendingSelectAllMatchingRef.current = false;
+          return nextEntries.map((entry) => entry.fingerprint);
+        }
+        return current.filter((fingerprint) => (
+          nextEntries.some((entry) => entry.fingerprint === fingerprint)
+        ));
+      });
       setExpandedFingerprints((current) => Object.fromEntries(
         Object.entries(current).filter(([fingerprint]) => (
           nextEntries.some((entry) => entry.fingerprint === fingerprint)
@@ -481,6 +632,7 @@ export default function QuestionManager() {
       return data;
     } catch (err) {
       if (requestId !== requestIdRef.current) return null;
+      pendingSelectAllMatchingRef.current = false;
       setMessage({
         severity: 'error',
         text: err.response?.data?.message || t('professor.questionManager.failedLoad', {
@@ -644,8 +796,8 @@ export default function QuestionManager() {
   const allEntriesExpanded = entries.length > 0 && entries.every((entry) => (
     editingEntryFingerprint === entry.fingerprint || !!expandedFingerprints[entry.fingerprint]
   ));
-  const allVisibleSelected = entries.length > 0 && entries.every((entry) => selectedFingerprints.includes(entry.fingerprint));
-  const someVisibleSelected = entries.some((entry) => selectedFingerprints.includes(entry.fingerprint)) && !allVisibleSelected;
+  const allDisplayedSelected = entries.length > 0 && entries.every((entry) => selectedFingerprints.includes(entry.fingerprint));
+  const someDisplayedSelected = entries.some((entry) => selectedFingerprints.includes(entry.fingerprint)) && !allDisplayedSelected;
   const selectedEntries = useMemo(() => entries.filter((entry) => selectedFingerprints.includes(entry.fingerprint)), [entries, selectedFingerprints]);
   const selectedDeletableQuestionIds = useMemo(() => (
     [...new Set(
@@ -656,6 +808,9 @@ export default function QuestionManager() {
   ), [selectedEntries]);
 
   const updateFilter = useCallback((key, value) => {
+    if (key === 'page' || key === 'limit') {
+      setShowAllMatching(false);
+    }
     setFilters((current) => ({
       ...current,
       [key]: value,
@@ -664,6 +819,7 @@ export default function QuestionManager() {
   }, []);
 
   const clearFilters = useCallback(() => {
+    setShowAllMatching(false);
     setFilters({
       q: '',
       tags: [],
@@ -969,7 +1125,7 @@ export default function QuestionManager() {
     ));
   }, [allEntriesExpanded, entries]);
 
-  const handleToggleSelectAllVisible = useCallback(() => {
+  const toggleDisplayedSelection = useCallback(() => {
     if (entries.length === 0) return;
     const visibleFingerprints = entries.map((entry) => entry.fingerprint);
     setSelectedFingerprints((current) => {
@@ -980,16 +1136,50 @@ export default function QuestionManager() {
     });
   }, [entries]);
 
-  const handleDeleteEntries = useCallback(async (fingerprints) => {
-    const deleteEntries = entries.filter((entry) => fingerprints.includes(entry.fingerprint));
-    const questionIds = [...new Set(
-      deleteEntries.flatMap((entry) => (
-        Array.isArray(entry?.deletableQuestionIds) ? entry.deletableQuestionIds : []
-      )).map((questionId) => String(questionId || '').trim()).filter(Boolean)
-    )];
-    const protectedCopyCount = deleteEntries.reduce((count, entry) => (
-      count + Math.max(Number(entry?.duplicateCount || 0) - Number(entry?.deletableQuestionIds?.length || 0), 0)
-    ), 0);
+  const handleHeaderSelectionToggle = useCallback((checked) => {
+    if (!checked) {
+      toggleDisplayedSelection();
+      return;
+    }
+
+    if (!showAllMatching && total > entries.length) {
+      setSelectAllDialogOpen(true);
+      return;
+    }
+
+    toggleDisplayedSelection();
+  }, [entries.length, showAllMatching, toggleDisplayedSelection, total]);
+
+  const handleSelectCurrentPageOnly = useCallback(() => {
+    setSelectAllDialogOpen(false);
+    toggleDisplayedSelection();
+  }, [toggleDisplayedSelection]);
+
+  const handleSelectAllMatching = useCallback(() => {
+    pendingSelectAllMatchingRef.current = true;
+    setSelectAllDialogOpen(false);
+    setShowAllMatching(true);
+    setFilters((current) => ({
+      ...current,
+      page: 1,
+    }));
+    setMessage({
+      severity: 'info',
+      text: t('professor.questionManager.expandedAllMatches', {
+        count: total,
+        defaultValue: total === 1
+          ? 'Expanded the list to show the only matching question group.'
+          : `Expanded the list to show all ${total} matching question groups.`,
+      }),
+    });
+  }, [t, total]);
+
+  const handleRequestDeleteEntries = useCallback((fingerprints) => {
+    const {
+      questionIds,
+      protectedCopyCount,
+      selectedGroupCount,
+    } = summarizeDeletionForFingerprints(entries, fingerprints);
 
     if (questionIds.length === 0) {
       setMessage({
@@ -1001,9 +1191,34 @@ export default function QuestionManager() {
       return;
     }
 
+    setDeleteDialogState({
+      open: true,
+      fingerprints,
+      questionIds,
+      protectedCopyCount,
+      selectedGroupCount,
+    });
+  }, [entries, t]);
+
+  const handleDeleteEntries = useCallback(async () => {
+    const {
+      fingerprints,
+      questionIds,
+      protectedCopyCount,
+    } = deleteDialogState;
+
+    if (questionIds.length === 0) return;
+
     setActionBusyKey('delete');
     try {
       await apiClient.post('/questions/bulk-delete', { questionIds });
+      setDeleteDialogState({
+        open: false,
+        fingerprints: [],
+        questionIds: [],
+        protectedCopyCount: 0,
+        selectedGroupCount: 0,
+      });
       await loadEntries();
       setMessage({
         severity: protectedCopyCount > 0 ? 'info' : 'success',
@@ -1020,6 +1235,7 @@ export default function QuestionManager() {
               : `Deleted ${questionIds.length} question copies.`,
           }),
       });
+      setSelectedFingerprints((current) => current.filter((fingerprint) => !fingerprints.includes(fingerprint)));
     } catch (err) {
       setMessage({
         severity: 'error',
@@ -1030,7 +1246,7 @@ export default function QuestionManager() {
     } finally {
       setActionBusyKey('');
     }
-  }, [entries, loadEntries, t]);
+  }, [deleteDialogState, loadEntries, t]);
 
   useLayoutEffect(() => {
     const anchor = viewportAnchorRef.current;
@@ -1136,6 +1352,19 @@ export default function QuestionManager() {
             <Button startIcon={<RefreshIcon />} onClick={handleRefreshNow}>
               {t('professor.questionManager.refresh', { defaultValue: 'Refresh' })}
             </Button>
+            {showAllMatching ? (
+              <Button
+                onClick={() => {
+                  setShowAllMatching(false);
+                  setFilters((current) => ({
+                    ...current,
+                    page: 1,
+                  }));
+                }}
+              >
+                {t('professor.questionManager.showPagedView', { defaultValue: 'Show paged view' })}
+              </Button>
+            ) : null}
             <Button
               variant="outlined"
               startIcon={allEntriesExpanded ? <CollapseAllIcon /> : <ExpandAllIcon />}
@@ -1287,9 +1516,9 @@ export default function QuestionManager() {
               <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                   <Checkbox
-                    checked={allVisibleSelected}
-                    indeterminate={someVisibleSelected}
-                    onChange={handleToggleSelectAllVisible}
+                    checked={allDisplayedSelected}
+                    indeterminate={someDisplayedSelected}
+                    onChange={(event) => handleHeaderSelectionToggle(event.target.checked)}
                     inputProps={{
                       'aria-label': t('professor.questionManager.selectVisible', {
                         defaultValue: 'Select visible question groups',
@@ -1297,9 +1526,13 @@ export default function QuestionManager() {
                     }}
                   />
                   <Typography variant="body2" color="text.secondary">
-                    {t('professor.questionManager.selectionSummary', {
+                    {t(showAllMatching
+                      ? 'professor.questionManager.selectionSummaryExpanded'
+                      : 'professor.questionManager.selectionSummary', {
                       count: total,
-                      defaultValue: total === 1 ? '1 matching question group' : `${total} matching question groups`,
+                      defaultValue: showAllMatching
+                        ? (total === 1 ? 'Showing all 1 matching question group' : `Showing all ${total} matching question groups`)
+                        : (total === 1 ? '1 matching question group' : `${total} matching question groups`),
                     })}
                   </Typography>
                 </Box>
@@ -1309,7 +1542,7 @@ export default function QuestionManager() {
                     color="error"
                     startIcon={<DeleteIcon />}
                     disabled={selectedDeletableQuestionIds.length === 0 || actionBusyKey === 'delete'}
-                    onClick={() => handleDeleteEntries(selectedFingerprints)}
+                    onClick={() => handleRequestDeleteEntries(selectedFingerprints)}
                   >
                     {t('professor.questionManager.deleteSelected', { defaultValue: 'Delete selected' })}
                   </Button>
@@ -1513,7 +1746,7 @@ export default function QuestionManager() {
                                 disabled={deletableCount === 0 || actionBusyKey === 'delete'}
                                 onClick={(event) => {
                                   event.stopPropagation();
-                                  handleDeleteEntries([entry.fingerprint]);
+                                  handleRequestDeleteEntries([entry.fingerprint]);
                                 }}
                                 aria-label={t('common.delete')}
                               >
@@ -1654,7 +1887,7 @@ export default function QuestionManager() {
               );
             })}
 
-            {entries.length > 0 ? (
+            {entries.length > 0 && !showAllMatching ? (
               <Paper variant="outlined" sx={{ p: 1.5 }}>
                 <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ xs: 'flex-start', md: 'center' }}>
                   <Typography variant="body2" color="text.secondary">
@@ -1696,6 +1929,15 @@ export default function QuestionManager() {
         onConfirm={handleImportQuestions}
       />
 
+      <QuestionManagerSelectAllDialog
+        open={selectAllDialogOpen}
+        total={total}
+        visibleCount={entries.length}
+        onClose={() => setSelectAllDialogOpen(false)}
+        onSelectCurrentPage={handleSelectCurrentPageOnly}
+        onSelectAllMatching={handleSelectAllMatching}
+      />
+
       <QuestionManagerExportDialog
         open={exportDialogState.open}
         loading={actionBusyKey === 'export'}
@@ -1725,6 +1967,25 @@ export default function QuestionManager() {
           courseIds,
         }))}
         onConfirm={handleAssignCourses}
+      />
+
+      <QuestionManagerDeleteDialog
+        open={deleteDialogState.open}
+        loading={actionBusyKey === 'delete'}
+        deleteCount={deleteDialogState.questionIds.length}
+        protectedCopyCount={deleteDialogState.protectedCopyCount}
+        selectedGroupCount={deleteDialogState.selectedGroupCount}
+        onClose={() => {
+          if (actionBusyKey === 'delete') return;
+          setDeleteDialogState({
+            open: false,
+            fingerprints: [],
+            questionIds: [],
+            protectedCopyCount: 0,
+            selectedGroupCount: 0,
+          });
+        }}
+        onConfirm={handleDeleteEntries}
       />
     </Box>
   );
