@@ -599,10 +599,6 @@ export default async function courseRoutes(app) {
     '/:id/instructors',
     {
       preHandler: [authenticate, courseWriteRateLimitPreHandler],
-      rateLimit: { max: 30, timeWindow: '1 minute' },
-      config: {
-        rateLimit: { max: 30, timeWindow: '1 minute' },
-      },
       schema: {
         body: {
           type: 'object',
@@ -638,15 +634,15 @@ export default async function courseRoutes(app) {
         return reply.code(404).send({ error: 'Not Found', message: 'User not found' });
       }
 
-       const newInstructorId = String(instructor._id);
+      const newInstructorId = String(instructor._id);
 
       if ((course.students || []).includes(newInstructorId)) {
         return reply.code(409).send({ error: 'Conflict', message: 'Student already enrolled in this course' });
       }
 
-       await Course.findByIdAndUpdate(course._id, {
-         $addToSet: { instructors: newInstructorId },
-       });
+      await Course.findByIdAndUpdate(course._id, {
+        $addToSet: { instructors: newInstructorId },
+      });
 
       invalidateAccessCache(newInstructorId);
 
