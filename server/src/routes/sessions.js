@@ -2954,7 +2954,14 @@ export default async function sessionRoutes(app) {
 
       const courseFilter = {};
       if (resolvedView === 'instructor') {
-        courseFilter.instructors = userId;
+        if (isAdmin) {
+          courseFilter.$or = [
+            { instructors: userId },
+            { owner: userId },
+          ];
+        } else {
+          courseFilter.instructors = userId;
+        }
       } else if (resolvedView === 'student') {
         courseFilter.students = userId;
         courseFilter.inactive = { $ne: true };

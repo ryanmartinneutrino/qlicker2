@@ -26,25 +26,25 @@ function getUserCourseIds(userOrId) {
  * seconds.  Entries auto-expire after CACHE_TTL_MS.
  */
 const CACHE_TTL_MS = 30_000;
-const instructorCache = new Map();
+const accessCache = new Map();
 
 function getCachedFlag(userId) {
-  const entry = instructorCache.get(userId);
+  const entry = accessCache.get(userId);
   if (!entry) return undefined;
   if (Date.now() - entry.ts > CACHE_TTL_MS) {
-    instructorCache.delete(userId);
+    accessCache.delete(userId);
     return undefined;
   }
   return entry.value;
 }
 
 function setCachedFlag(userId, value) {
-  instructorCache.set(userId, { value, ts: Date.now() });
+  accessCache.set(userId, { value, ts: Date.now() });
 }
 
 export function invalidateAccessCache(userId) {
   const id = normalizeUserId(userId);
-  if (id) instructorCache.delete(id);
+  if (id) accessCache.delete(id);
 }
 
 export async function getUserAccessFlags(userOrId, options = {}) {
@@ -53,21 +53,25 @@ export async function getUserAccessFlags(userOrId, options = {}) {
   const courseIds = getUserCourseIds(userOrId);
   const canAccessProfessorDashboard = roles.includes('professor');
   const forceInstructorLookup = options.forceInstructorLookup === true;
+  const forceStudentLookup = options.forceStudentLookup === true;
   const mayNeedInstructorCourseLookup = forceInstructorLookup
     || roles.includes('professor')
     || roles.includes('admin')
     || courseIds.length > 0;
+  const mayNeedStudentCourseLookup = forceStudentLookup || courseIds.length > 0;
 
   if (!userId) {
     return {
       hasInstructorCourses: false,
+      hasStudentCourses: false,
       canAccessProfessorDashboard,
     };
   }
 
-  if (!mayNeedInstructorCourseLookup) {
+  if (!mayNeedInstructorCourseLookup && !mayNeedStudentCourseLookup) {
     return {
       hasInstructorCourses: false,
+      hasStudentCourses: false,
       canAccessProfessorDashboard,
     };
   }
@@ -75,7 +79,8 @@ export async function getUserAccessFlags(userOrId, options = {}) {
   const cached = getCachedFlag(userId);
   if (cached !== undefined) {
     return {
-      hasInstructorCourses: cached,
+      hasInstructorCourses: !!cached.hasInstructorCourses,
+      hasStudentCourses: !!cached.hasStudentCourses,
       canAccessProfessorDashboard,
     };
   }
@@ -84,11 +89,22 @@ export async function getUserAccessFlags(userOrId, options = {}) {
   if (!forceInstructorLookup && courseIds.length > 0) {
     instructorFilter._id = { $in: courseIds };
   }
+  const studentFilter = { students: userId, inactive: { $ne: true } };
+  if (!forceStudentLookup && courseIds.length > 0) {
+    studentFilter._id = { $in: courseIds };
+  }
 
-  const hasInstructorCourses = !!(await Course.exists(instructorFilter));
-  setCachedFlag(userId, hasInstructorCourses);
+  const [hasInstructorCourses, hasStudentCourses] = await Promise.all([
+    mayNeedInstructorCourseLookup ? Course.exists(instructorFilter) : false,
+    mayNeedStudentCourseLookup ? Course.exists(studentFilter) : false,
+  ]);
+  setCachedFlag(userId, {
+    hasInstructorCourses: !!hasInstructorCourses,
+    hasStudentCourses: !!hasStudentCourses,
+  });
   return {
-    hasInstructorCourses,
+    hasInstructorCourses: !!hasInstructorCourses,
+    hasStudentCourses: !!hasStudentCourses,
     canAccessProfessorDashboard,
   };
 }

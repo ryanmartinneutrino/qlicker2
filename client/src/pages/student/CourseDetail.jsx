@@ -8,6 +8,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import apiClient, { getAccessToken } from '../../api/client';
 import { buildCourseTitle } from '../../utils/courseTitle';
+import { shouldRedirectStudentCourseToInstructorView } from '../../utils/courseAccess';
 import {
   getStudentSessionAction,
   isQuizSession,
@@ -491,12 +492,8 @@ export default function StudentCourseDetail() {
   // Redirect instructors/admins to the professor view of this course
   const shouldRedirectToInstructorView = useMemo(() => {
     if (!course) return false;
-    const userId = String(user?._id || '');
-    const isInstructor = (course.instructors || []).some(
-      (inst) => String(inst?._id || inst) === userId,
-    );
-    return isInstructor || (user?.profile?.roles || []).includes('admin');
-  }, [course, user?._id, user?.profile?.roles]);
+    return shouldRedirectStudentCourseToInstructorView(course, user);
+  }, [course, user]);
 
   useEffect(() => {
     if (!shouldRedirectToInstructorView) return;

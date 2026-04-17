@@ -11,6 +11,7 @@ import apiClient, { getAccessToken } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 import { buildCourseTitle } from '../../utils/courseTitle';
 import { fetchAllCourses } from '../../utils/fetchAllCourses';
+import { sortCoursesByRecentActivity } from '../../utils/courseSorting';
 import {
   getStudentSessionAction,
   isSubmittedLiveQuiz,
@@ -227,14 +228,7 @@ export default function StudentDashboard() {
     }
   };
 
-  const sortCourses = useCallback((items) => [...items].sort((a, b) => {
-    const aActive = a.inactive ? 1 : 0;
-    const bActive = b.inactive ? 1 : 0;
-    if (aActive !== bActive) return aActive - bActive;
-    const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-    const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-    return bTime - aTime;
-  }), []);
+  const sortCourses = useCallback((items) => sortCoursesByRecentActivity(items), []);
   const taCourseIds = useMemo(
     () => new Set(taCourses.map((course) => String(course._id))),
     [taCourses],

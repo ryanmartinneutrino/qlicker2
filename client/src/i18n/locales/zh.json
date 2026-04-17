@@ -504,6 +504,8 @@
       "myCourses": "My Courses",
       "taCourses": "TA Courses",
       "studentCourses": "Student Courses",
+      "enrollInCourseAsStudent": "Enroll in a Course as a Student",
+      "enrolledAsStudent": "Student",
       "searchCourses": "Search courses…",
       "createCourse": "Create Course",
       "noCoursesMatch": "No courses match your search",
@@ -529,7 +531,9 @@
       "enrollmentCodeCopied": "Enrollment code copied",
       "failedLoadCourses": "Failed to load courses",
       "courseCreated": "Course created",
-      "failedCreateCourse": "Failed to create course"
+      "failedCreateCourse": "Failed to create course",
+      "enrollSuccessAsStudent": "Successfully enrolled in course as a student",
+      "failedEnrollAsStudent": "Failed to enroll in course as a student"
     },
     "course": {
       "myCourses": "My Courses",

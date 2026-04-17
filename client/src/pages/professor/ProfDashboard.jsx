@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
@@ -20,6 +20,7 @@ import {
 } from '../../utils/courseSemester';
 import { buildCourseTitle } from '../../utils/courseTitle';
 import { fetchAllCourses } from '../../utils/fetchAllCourses';
+import { sortCoursesByRecentActivity } from '../../utils/courseSorting';
 import SessionListCard from '../../components/common/SessionListCard';
 
 const COMPACT_CHIP_SX = {
@@ -28,6 +29,8 @@ const COMPACT_CHIP_SX = {
     px: 1.15,
   },
 };
+
+const INACTIVE_COURSE_ERROR_CODE = 'COURSE_INACTIVE';
 
 const LIVE_SESSION_GRID_SX = {
   display: 'grid',
@@ -60,8 +63,9 @@ function getSuggestedSemester() {
 export default function ProfDashboard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loadUser } = useAuth();
   const [courses, setCourses] = useState([]);
+  const [studentCourses, setStudentCourses] = useState([]);
   const [liveSessions, setLiveSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -70,27 +74,40 @@ export default function ProfDashboard() {
   // Create course dialog
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [enrollOpen, setEnrollOpen] = useState(false);
+  const [enrollCode, setEnrollCode] = useState('');
+  const [enrolling, setEnrolling] = useState(false);
   const suggested = getSuggestedSemester();
   const yearOptions = getYearOptions();
   const [newCourse, setNewCourse] = useState({
     name: '', deptCode: '', courseNumber: '', section: '', season: suggested.season, year: suggested.year,
   });
 
+  const isInactiveCourseEnrollError = useCallback((error) => {
+    const response = error?.response;
+    const payload = response?.data || {};
+    if (payload.code === INACTIVE_COURSE_ERROR_CODE) return true;
+    if (response?.status !== 403) return false;
+    return String(payload.message || '').toLowerCase().includes('inactive');
+  }, []);
+
   const fetchCourses = useCallback(async () => {
     setLoading(true);
     try {
-      const [coursesRes, liveRes] = await Promise.all([
+      const [coursesRes, studentCoursesRes, liveRes] = await Promise.all([
         fetchAllCourses(apiClient, { view: 'instructor' }),
+        fetchAllCourses(apiClient, { view: 'student' }).catch(() => []),
         apiClient.get('/sessions/live', { params: { view: 'instructor' } }).catch(() => ({ data: { liveSessions: [] } })),
       ]);
       setCourses(coursesRes);
+      setStudentCourses(studentCoursesRes);
       setLiveSessions(liveRes.data.liveSessions || []);
     } catch {
       setMsg({ severity: 'error', text: t('professor.dashboard.failedLoadCourses') });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => { fetchCourses(); }, [fetchCourses]);
 
@@ -116,6 +133,34 @@ export default function ProfDashboard() {
     }
   };
 
+  const handleEnroll = async () => {
+    if (!enrollCode.trim()) return;
+    setEnrolling(true);
+    try {
+      await apiClient.post('/courses/enroll', { enrollmentCode: enrollCode.trim() });
+      setEnrollOpen(false);
+      setEnrollCode('');
+      await Promise.all([fetchCourses(), loadUser()]);
+      setMsg({ severity: 'success', text: t('professor.dashboard.enrollSuccessAsStudent') });
+    } catch (err) {
+      if (isInactiveCourseEnrollError(err)) {
+        setEnrollOpen(false);
+        setEnrollCode('');
+        setMsg({
+          severity: 'warning',
+          text: t('student.dashboard.inactiveCourseCannotEnroll'),
+        });
+      } else {
+        setMsg({
+          severity: 'error',
+          text: err.response?.data?.message || t('professor.dashboard.failedEnrollAsStudent'),
+        });
+      }
+    } finally {
+      setEnrolling(false);
+    }
+  };
+
   const copyCode = (code) => {
     navigator.clipboard.writeText(code);
     setMsg({ severity: 'success', text: t('professor.dashboard.enrollmentCodeCopied') });
@@ -123,7 +168,27 @@ export default function ProfDashboard() {
 
   const canCreateCourses = user?.profile?.roles?.includes('professor') || user?.profile?.roles?.includes('admin');
 
-  const filtered = courses.filter((c) => {
+  const studentCourseIds = useMemo(
+    () => new Set(studentCourses.map((course) => String(course._id))),
+    [studentCourses]
+  );
+  const instructorCourseIds = useMemo(
+    () => new Set(courses.map((course) => String(course._id))),
+    [courses]
+  );
+  const mergedCourses = useMemo(() => {
+    const byId = new Map();
+    courses.forEach((course) => {
+      byId.set(String(course._id), course);
+    });
+    studentCourses.forEach((course) => {
+      if (!byId.has(String(course._id))) {
+        byId.set(String(course._id), course);
+      }
+    });
+    return Array.from(byId.values());
+  }, [courses, studentCourses]);
+  const filtered = sortCoursesByRecentActivity(mergedCourses.filter((c) => {
     if (!search) return true;
     const q = search.toLowerCase();
     const searchable = [
@@ -136,24 +201,22 @@ export default function ProfDashboard() {
       .join(' ')
       .toLowerCase();
     return searchable.includes(q);
-  }).sort((a, b) => {
-    const aActive = a.inactive ? 1 : 0;
-    const bActive = b.inactive ? 1 : 0;
-    if (aActive !== bActive) return aActive - bActive;
-    const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-    const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-    return bTime - aTime;
-  });
+  }));
 
   return (
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
         <Typography variant="h4">{t('professor.dashboard.myCourses')}</Typography>
-        {canCreateCourses ? (
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
-            {t('professor.dashboard.createCourse')}
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          <Button variant="outlined" startIcon={<SchoolIcon />} onClick={() => setEnrollOpen(true)}>
+            {t('professor.dashboard.enrollInCourseAsStudent')}
           </Button>
-        ) : null}
+          {canCreateCourses ? (
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
+              {t('professor.dashboard.createCourse')}
+            </Button>
+          ) : null}
+        </Box>
       </Box>
 
       <TextField
@@ -214,7 +277,11 @@ export default function ProfDashboard() {
                 <Card
                   variant="outlined"
                   sx={{ height: '100%', display: 'flex', flexDirection: 'column', cursor: 'pointer', '&:hover': { boxShadow: 3 } }}
-                  onClick={() => navigate(`/prof/course/${course._id}`)}
+                  onClick={() => navigate(
+                    instructorCourseIds.has(String(course._id))
+                      ? `/prof/course/${course._id}`
+                      : `/student/course/${course._id}`
+                  )}
                 >
                   <CardContent sx={{ flexGrow: 1, minHeight: 160 }}>
                     <Typography variant="h6" sx={{ fontWeight: 700 }} noWrap>
@@ -238,6 +305,14 @@ export default function ProfDashboard() {
                         size="small"
                         sx={COMPACT_CHIP_SX}
                       />
+                      {studentCourseIds.has(String(course._id)) ? (
+                        <Chip
+                          label={t('professor.dashboard.enrolledAsStudent')}
+                          color="info"
+                          size="small"
+                          sx={COMPACT_CHIP_SX}
+                        />
+                      ) : null}
                     </Box>
                     {course.enrollmentCode && (
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 1 }}>
@@ -316,6 +391,36 @@ export default function ProfDashboard() {
             <Button onClick={() => setCreateOpen(false)}>{t('common.cancel')}</Button>
             <Button type="submit" variant="contained" disabled={creating || !newCourse.name || !newCourse.season || !newCourse.year}>
               {creating ? t('professor.dashboard.creating') : t('common.create')}
+            </Button>
+          </DialogActions>
+        </Box>
+      </Dialog>
+
+      <Dialog open={enrollOpen} onClose={() => setEnrollOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>{t('professor.dashboard.enrollInCourseAsStudent')}</DialogTitle>
+        <Box
+          component="form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            handleEnroll();
+          }}
+        >
+          <DialogContent sx={{ pt: '8px !important' }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              {t('student.dashboard.enrollmentCodeMessage')}
+            </Typography>
+            <TextField
+              label={t('student.dashboard.enrollmentCode')}
+              value={enrollCode}
+              onChange={(event) => setEnrollCode(event.target.value)}
+              fullWidth
+              autoFocus
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setEnrollOpen(false)}>{t('common.cancel')}</Button>
+            <Button type="submit" variant="contained" disabled={enrolling || !enrollCode.trim()}>
+              {enrolling ? t('student.dashboard.enrolling') : t('student.dashboard.enroll')}
             </Button>
           </DialogActions>
         </Box>
