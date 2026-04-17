@@ -121,6 +121,10 @@ const listCoursesSchema = {
 
 export default async function courseRoutes(app) {
   const { authenticate, requireRole } = app;
+  const courseWriteRateLimitPreHandler = app.rateLimit({
+    max: 30,
+    timeWindow: '1 minute',
+  });
 
   // POST / - Create a course (professor or admin only)
   app.post(
@@ -594,7 +598,7 @@ export default async function courseRoutes(app) {
   app.post(
     '/:id/instructors',
     {
-      preHandler: authenticate,
+      preHandler: [authenticate, courseWriteRateLimitPreHandler],
       rateLimit: { max: 30, timeWindow: '1 minute' },
       config: {
         rateLimit: { max: 30, timeWindow: '1 minute' },
