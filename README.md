@@ -11,7 +11,7 @@ This repository contains the current **Fastify + React** version of Qlicker. Mig
 - grading, review, and CSV export
 - course enrollment, TA/professor management, and groups
 - SAML SSO plus local email/password login where allowed
-- image uploads, rich text, math rendering, and Jitsi video chat
+- image uploads, rich text, math rendering, course/session chat, and Jitsi video chat
 - English/French UI, production deployment tooling, backups, and load testing
 
 ## Repository guide

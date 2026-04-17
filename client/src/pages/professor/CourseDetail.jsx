@@ -40,6 +40,7 @@ import { useTranslation } from 'react-i18next';
 import { toggleSessionReviewable } from '../../utils/reviewableToggle';
 
 const QuestionLibraryPanel = lazy(() => import('../../components/questions/QuestionLibraryPanel'));
+const CourseChatPanel = lazy(() => import('../../components/course/CourseChatPanel'));
 
 function buildWebsocketUrl(token) {
   const encodedToken = encodeURIComponent(token);
@@ -137,7 +138,7 @@ function buildProfessorSessionSubtitle(session, t) {
 }
 
 // Tab indices: 0=Interactive Sessions, 1=Quizzes, 2=Grades, 3=Students, 4=Instructors, 5=Groups, 6=Video?, 7=Settings, 8=Question Library
-const MAX_COURSE_TAB_INDEX = 8;
+const MAX_COURSE_TAB_INDEX = 9;
 
 function parseCourseTab(value) {
   const parsed = Number.parseInt(value, 10);
@@ -333,9 +334,16 @@ export default function CourseDetail() {
   const [copyingSessions, setCopyingSessions] = useState(false);
   const [instructorCourses, setInstructorCourses] = useState([]);
   const [sessionUpdatesInFlight, setSessionUpdatesInFlight] = useState({});
+  const [chatRefreshToken, setChatRefreshToken] = useState(0);
+  const [chatEvent, setChatEvent] = useState(null);
 
   // Video chat — check if Jitsi is enabled for this course
   const [videoEnabled, setVideoEnabled] = useState(false);
+  const courseChatEnabled = !!course?.courseChatEnabled;
+  const chatTabIndex = courseChatEnabled ? 6 : -1;
+  const videoTabIndex = videoEnabled ? (courseChatEnabled ? 7 : 6) : -1;
+  const settingsTabIndex = courseChatEnabled ? (videoEnabled ? 8 : 7) : (videoEnabled ? 7 : 6);
+  const questionLibraryTabIndex = settingsTabIndex + 1;
 
   useEffect(() => {
     let mounted = true;
@@ -658,6 +666,11 @@ export default function CourseDetail() {
             patchSingleSessionStatus(d?.sessionId, d?.status);
           } else if (evt === 'session:metadata-changed') {
             refreshSingleSession(d?.sessionId).catch(() => {});
+          } else if (evt === 'course:chat-updated') {
+            setChatRefreshToken((prev) => prev + 1);
+            if (tab === chatTabIndex) {
+              setChatEvent((prev) => ({ id: (prev?.id || 0) + 1, ...d }));
+            }
           }
           if (evt === 'video:updated') {
             fetchCourse();
@@ -689,7 +702,7 @@ export default function CourseDetail() {
         ws.close();
       }
     };
-  }, [patchSingleSessionStatus, refreshSingleSession, fetchCourse, id]);
+  }, [chatTabIndex, fetchCourse, id, patchSingleSessionStatus, refreshSingleSession, tab]);
 
   useEffect(() => {
     const urlTab = parseCourseTab(searchParams.get('tab'));
@@ -891,6 +904,30 @@ export default function CourseDetail() {
     }
   };
 
+  const handleCourseChatEnabledChange = async (event) => {
+    markSettingAutoSaveInProgress();
+    try {
+      await apiClient.patch(`/courses/${id}`, { courseChatEnabled: event.target.checked });
+      fetchCourse();
+      setSettingsAutoSaveStatus('success');
+    } catch (err) {
+      markSettingAutoSaveError(err, t('professor.course.failedUpdateSetting'));
+    }
+  };
+
+  const handleCourseChatRetentionChange = async (event) => {
+    const nextValue = Number(event.target.value);
+    if (!Number.isInteger(nextValue) || nextValue < 1 || nextValue > 365) return;
+    markSettingAutoSaveInProgress();
+    try {
+      await apiClient.patch(`/courses/${id}`, { courseChatRetentionDays: nextValue });
+      fetchCourse();
+      setSettingsAutoSaveStatus('success');
+    } catch (err) {
+      markSettingAutoSaveError(err, t('professor.course.failedUpdateSetting'));
+    }
+  };
+
   const handleRegenerateCode = async () => {
     try {
       await apiClient.post(`/courses/${id}/regenerate-code`);
@@ -1075,15 +1112,12 @@ export default function CourseDetail() {
     `${t('professor.course.students')} (${students.length})`,
     `${t('professor.course.instructors')} (${instructors.length})`,
     t('professor.course.groups'),
+    ...(courseChatEnabled ? [t('courseChat.title')] : []),
     ...(videoEnabled ? [t('professor.course.video')] : []),
     t('professor.course.settings'),
     t('questionLibrary.title', { defaultValue: 'Question Library' }),
   ];
 
-  // When video tab is hidden, settings tab shifts from index 7 to index 6
-  const videoTabIndex = videoEnabled ? 6 : -1;
-  const settingsTabIndex = videoEnabled ? 7 : 6;
-  const questionLibraryTabIndex = videoEnabled ? 8 : 7;
   const selectedCopySourceCourse = instructorCourses.find((courseItem) => String(courseItem._id) === String(copySessionsSourceCourseId))
     || instructorCourses.find((courseItem) => String(courseItem._id) === String(id))
     || null;
@@ -1691,6 +1725,21 @@ export default function CourseDetail() {
         <GroupManagementPanel courseId={id} students={students} />
       </TabPanel>
 
+      {courseChatEnabled && (
+        <TabPanel value={tab} index={chatTabIndex}>
+          <Suspense fallback={<Box sx={{ py: 4, display: 'flex', justifyContent: 'center' }}><CircularProgress /></Box>}>
+            <CourseChatPanel
+              courseId={id}
+              enabled={courseChatEnabled}
+              role="professor"
+              syncTransport="unknown"
+              refreshToken={chatRefreshToken}
+              chatEvent={chatEvent}
+            />
+          </Suspense>
+        </TabPanel>
+      )}
+
       {/* Video Tab (conditional) */}
       {videoEnabled && (
         <TabPanel value={tab} index={videoTabIndex}>
@@ -1761,6 +1810,31 @@ export default function CourseDetail() {
             <MenuItem value="24h">{t('professor.course.quizTimeFormatOptions.24h')}</MenuItem>
             <MenuItem value="12h">{t('professor.course.quizTimeFormatOptions.12h')}</MenuItem>
           </TextField>
+          <FormControlLabel
+            control={(
+              <Switch
+                checked={!!course.courseChatEnabled}
+                onChange={handleCourseChatEnabledChange}
+              />
+            )}
+            label={t('courseChat.enableCourseChat')}
+          />
+          {course.courseChatEnabled ? (
+            <TextField
+              select
+              size="small"
+              label={t('courseChat.retentionDays')}
+              value={String(course.courseChatRetentionDays || 14)}
+              onChange={handleCourseChatRetentionChange}
+              helperText={t('courseChat.retentionHelp')}
+            >
+              {[1, 3, 7, 14, 30, 60, 90, 180, 365].map((days) => (
+                <MenuItem key={`course-chat-retention-${days}`} value={String(days)}>
+                  {t('courseChat.retentionDaysValue', { count: days })}
+                </MenuItem>
+              ))}
+            </TextField>
+          ) : null}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Typography variant="body2">{t('professor.course.enrollmentCode', { code: course.enrollmentCode })}</Typography>
             <Button size="small" startIcon={<CopyIcon />} onClick={copyCode}>

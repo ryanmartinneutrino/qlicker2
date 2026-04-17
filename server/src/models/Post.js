@@ -12,6 +12,8 @@ const CommentSchema = new mongoose.Schema(
     },
     body: { type: String, default: '' },
     bodyWysiwyg: { type: String, default: '' },
+    upvoteUserIds: { type: [String], default: [] },
+    upvoteCount: { type: Number, default: 0 },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
   },
@@ -30,8 +32,10 @@ const PostSchema = new mongoose.Schema(
       enum: ['student', 'instructor', 'admin', 'system'],
       default: 'student',
     },
+    title: { type: String, default: '' },
     body: { type: String, default: '' },
     bodyWysiwyg: { type: String, default: '' },
+    tags: { type: [String], default: [] },
     isQuickPost: { type: Boolean, default: false },
     quickPostQuestionNumber: { type: Number, default: null },
     upvoteUserIds: { type: [String], default: [] },
@@ -39,6 +43,8 @@ const PostSchema = new mongoose.Schema(
     comments: { type: [CommentSchema], default: [] },
     dismissedAt: { type: Date, default: null },
     dismissedBy: { type: String, default: '' },
+    archivedAt: { type: Date, default: null },
+    archivedBy: { type: String, default: '' },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
   },
@@ -50,6 +56,7 @@ const PostSchema = new mongoose.Schema(
 
 PostSchema.index({ scopeType: 1, sessionId: 1, upvoteCount: -1, createdAt: 1 });
 PostSchema.index({ scopeType: 1, courseId: 1, createdAt: -1 });
+PostSchema.index({ scopeType: 1, courseId: 1, archivedAt: 1, createdAt: -1 });
 PostSchema.index(
   { scopeType: 1, sessionId: 1, isQuickPost: 1, quickPostQuestionNumber: 1 },
   {

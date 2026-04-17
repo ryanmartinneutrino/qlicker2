@@ -17,6 +17,7 @@ export default function StudentRichTextEditor({
   disabled = false,
   ariaLabel,
   showMathHint = true,
+  enableVideo = false,
 }) {
   const { t } = useTranslation();
   const resolvedPlaceholder = placeholder || t('questions.studentRichText.placeholder');
@@ -86,6 +87,7 @@ export default function StudentRichTextEditor({
         ariaLabel={resolvedAriaLabel}
         ariaDescribedBy={showMathHint ? mathHintId : undefined}
         onBlur={flushPendingChange}
+        enableVideo={enableVideo}
       />
       {showMathHint && (
         <Typography id={mathHintId} variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>

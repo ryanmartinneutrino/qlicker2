@@ -31,8 +31,9 @@ import VideoChatPanel from '../../components/video/VideoChatPanel';
 export { getStudentSessionAction, sortStudentSessions as sortSessions };
 
 const QuestionLibraryPanel = lazy(() => import('../../components/questions/QuestionLibraryPanel'));
+const CourseChatPanel = lazy(() => import('../../components/course/CourseChatPanel'));
 
-const MAX_STUDENT_TAB_INDEX = 6;
+const MAX_STUDENT_TAB_INDEX = 7;
 
 function parseCourseTab(value) {
   const parsed = Number.parseInt(value, 10);
@@ -125,12 +126,29 @@ export default function StudentCourseDetail() {
   const [sessionStatusFilters, setSessionStatusFilters] = useState({});
   const [sessionControlsExpanded, setSessionControlsExpanded] = useState({});
   const [tab, setTab] = useState(() => parseCourseTab(searchParams.get('tab')));
+  const [chatRefreshToken, setChatRefreshToken] = useState(0);
+  const [chatEvent, setChatEvent] = useState(null);
   const sessionFetchVersionRef = useRef(0);
   const sessionsFullyLoadedRef = useRef(false);
   const sessionsRef = useRef([]);
 
   // Video chat availability
   const [videoEnabled, setVideoEnabled] = useState(false);
+  const studentPracticeEnabled = !!course?.allowStudentQuestions;
+  const courseChatEnabled = !!course?.courseChatEnabled;
+  const courseHasVideo = videoEnabled && !!(
+    (course?.videoChatOptions && course.videoChatOptions.urlId)
+    || (course?.groupCategories || []).some((cat) => cat.catVideoChatOptions && cat.catVideoChatOptions.urlId)
+  );
+  let nextTabIndex = 0;
+  const lecturesTabIndex = nextTabIndex++;
+  const quizzesTabIndex = nextTabIndex++;
+  const practiceTabIndex = studentPracticeEnabled ? nextTabIndex++ : -1;
+  const questionLibraryTabIndex = studentPracticeEnabled ? nextTabIndex++ : -1;
+  const gradesTabIndex = nextTabIndex++;
+  const chatTabIndex = courseChatEnabled ? nextTabIndex++ : -1;
+  const videoTabIndex = courseHasVideo ? nextTabIndex++ : -1;
+  const settingsTabIndex = nextTabIndex++;
 
   useEffect(() => {
     let mounted = true;
@@ -368,6 +386,11 @@ export default function StudentCourseDetail() {
             || evt === 'session:feedback-updated'
             || evt === 'session:quiz-submitted') {
             refreshSingleSession(d?.sessionId).catch(() => {});
+          } else if (evt === 'course:chat-updated') {
+            setChatRefreshToken((prev) => prev + 1);
+            if (tab === chatTabIndex) {
+              setChatEvent((prev) => ({ id: (prev?.id || 0) + 1, ...d }));
+            }
           }
           if (evt === 'video:updated') {
             fetchCourse();
@@ -414,7 +437,7 @@ export default function StudentCourseDetail() {
       window.removeEventListener('focus', refreshSessions);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [fetchSessions, fetchCourse, id, patchSessionStatusLocally, refreshSingleSession]);
+  }, [chatTabIndex, fetchSessions, fetchCourse, id, patchSessionStatusLocally, refreshSingleSession, tab]);
 
   const handleUnenroll = async () => {
     setUnenrolling(true);
@@ -442,23 +465,6 @@ export default function StudentCourseDetail() {
     if (!shouldRedirectToInstructorView) return;
     navigate(`/prof/course/${id}`, { replace: true });
   }, [shouldRedirectToInstructorView, id, navigate]);
-
-  const studentPracticeEnabled = !!course?.allowStudentQuestions;
-
-  // Determine if video is available for this course based on course data
-  const courseHasVideo = videoEnabled && !!(
-    (course?.videoChatOptions && course.videoChatOptions.urlId) ||
-    (course?.groupCategories || []).some((cat) => cat.catVideoChatOptions && cat.catVideoChatOptions.urlId)
-  );
-
-  let nextTabIndex = 0;
-  const lecturesTabIndex = nextTabIndex++;
-  const quizzesTabIndex = nextTabIndex++;
-  const practiceTabIndex = studentPracticeEnabled ? nextTabIndex++ : -1;
-  const questionLibraryTabIndex = studentPracticeEnabled ? nextTabIndex++ : -1;
-  const gradesTabIndex = nextTabIndex++;
-  const videoTabIndex = courseHasVideo ? nextTabIndex++ : -1;
-  const settingsTabIndex = nextTabIndex++;
 
   useEffect(() => {
     if (!course) return;
@@ -865,6 +871,7 @@ export default function StudentCourseDetail() {
             { value: questionLibraryTabIndex, label: t('questionLibrary.title', { defaultValue: 'Question Library' }) },
           ] : []),
           { value: gradesTabIndex, label: t('student.course.grades') },
+          ...(courseChatEnabled ? [{ value: chatTabIndex, label: t('courseChat.title') }] : []),
           ...(courseHasVideo ? [{ value: videoTabIndex, label: t('student.course.video') }] : []),
           { value: settingsTabIndex, label: t('student.course.settings') },
         ]}
@@ -1051,6 +1058,21 @@ export default function StudentCourseDetail() {
           onOpenSession={(sessionReviewId) => navigate(`/student/course/${id}/session/${sessionReviewId}/review?returnTab=${gradesTabIndex}`)}
         />
       </TabPanel>
+
+      {courseChatEnabled && (
+        <TabPanel value={tab} index={chatTabIndex}>
+          <Suspense fallback={<Box sx={{ py: 4, display: 'flex', justifyContent: 'center' }}><CircularProgress /></Box>}>
+            <CourseChatPanel
+              courseId={id}
+              enabled={courseChatEnabled}
+              role="student"
+              syncTransport="unknown"
+              refreshToken={chatRefreshToken}
+              chatEvent={chatEvent}
+            />
+          </Suspense>
+        </TabPanel>
+      )}
 
       {courseHasVideo && (
         <TabPanel value={tab} index={videoTabIndex}>
