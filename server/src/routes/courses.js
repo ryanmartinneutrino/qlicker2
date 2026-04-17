@@ -1,4 +1,5 @@
 import Course from '../models/Course.js';
+import Session from '../models/Session.js';
 import User from '../models/User.js';
 import { normalizeTags } from '../services/questionImportExport.js';
 import { emailRegex } from '../utils/email.js';
@@ -229,8 +230,36 @@ export default async function courseRoutes(app) {
         Course.countDocuments(filter),
       ]);
 
+      const courseIds = courses.map((course) => String(course._id)).filter(Boolean);
+      const sessionActivity = courseIds.length > 0
+        ? await Session.aggregate([
+          { $match: { courseId: { $in: courseIds } } },
+          {
+            $group: {
+              _id: '$courseId',
+              lastSessionAt: { $max: '$createdAt' },
+            },
+          },
+        ])
+        : [];
+      const activityByCourseId = new Map(
+        sessionActivity.map((entry) => [String(entry._id), entry.lastSessionAt])
+      );
+      const coursesWithActivity = courses.map((course) => {
+        const lastSessionAt = activityByCourseId.get(String(course._id));
+        const courseCreatedAt = course.createdAt || null;
+        const lastActivityAt = [lastSessionAt, courseCreatedAt]
+          .filter(Boolean)
+          .map((value) => new Date(value))
+          .sort((a, b) => b.getTime() - a.getTime())[0] || null;
+        return {
+          ...course,
+          lastActivityAt: lastActivityAt ? lastActivityAt.toISOString() : null,
+        };
+      });
+
       return {
-        courses,
+        courses: coursesWithActivity,
         total,
         page,
         pages: Math.ceil(total / limit),
@@ -423,10 +452,6 @@ export default async function courseRoutes(app) {
             return reply.code(403).send({ error: 'Forbidden', message: 'Email verification required to enroll in this course' });
           }
         }
-      }
-
-      if (roles.includes('professor') || roles.includes('admin')) {
-        return reply.code(403).send({ error: 'Forbidden', message: "Professors and admins can't enroll as students" });
       }
 
       if ((course.instructors || []).includes(userId)) {

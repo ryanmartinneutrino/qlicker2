@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import mongoose from 'mongoose';
 import { createApp, createTestUser, getAuthToken, authenticatedRequest } from '../helpers.js';
 import Course from '../../src/models/Course.js';
+import Session from '../../src/models/Session.js';
 import Settings from '../../src/models/Settings.js';
 import User from '../../src/models/User.js';
 
@@ -136,6 +137,46 @@ describe('GET /api/v1/courses', () => {
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.courses.length).toBe(1);
+  });
+
+  it('professor can fetch student-view courses separately from instructor courses', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const owner = await createTestUser({ email: 'owner-prof@example.com', roles: ['professor'] });
+    const ownerToken = await getAuthToken(app, owner);
+    const courseRes = await createCourseAsProf(ownerToken, { name: 'Student View Course' });
+    const course = courseRes.json().course;
+
+    const enrolledProf = await createTestUser({ email: 'enrolled-prof@example.com', roles: ['professor'] });
+    const enrolledProfToken = await getAuthToken(app, enrolledProf);
+
+    const enrollRes = await authenticatedRequest(app, 'POST', '/api/v1/courses/enroll', {
+      token: enrolledProfToken,
+      payload: { enrollmentCode: course.enrollmentCode },
+    });
+    expect(enrollRes.statusCode).toBe(200);
+
+    await Session.create({
+      name: 'Recent Session',
+      courseId: course._id,
+      creator: owner._id.toString(),
+      status: 'done',
+      createdAt: new Date('2026-04-05T00:00:00.000Z'),
+    });
+
+    const instructorRes = await authenticatedRequest(app, 'GET', '/api/v1/courses?view=instructor', {
+      token: enrolledProfToken,
+    });
+    expect(instructorRes.statusCode).toBe(200);
+    expect(instructorRes.json().courses).toEqual([]);
+
+    const studentRes = await authenticatedRequest(app, 'GET', '/api/v1/courses?view=student', {
+      token: enrolledProfToken,
+    });
+
+    expect(studentRes.statusCode).toBe(200);
+    expect(studentRes.json().courses).toHaveLength(1);
+    expect(studentRes.json().courses[0]._id).toBe(course._id);
+    expect(studentRes.json().courses[0].lastActivityAt).toBe('2026-04-05T00:00:00.000Z');
   });
 
   it('student-only instructor accounts can fetch instructor courses explicitly', async (ctx) => {
@@ -402,9 +443,33 @@ describe('POST /api/v1/courses/enroll', () => {
     expect(body.course._id).toBe(course._id);
   });
 
-  it('professors cannot enroll as students', async (ctx) => {
+  it('professors can enroll as students in other courses', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
+    const owner = await createTestUser({ email: 'owner-prof-enroll@example.com', roles: ['professor'] });
+    const ownerToken = await getAuthToken(app, owner);
+    const createRes = await createCourseAsProf(ownerToken);
+    const course = createRes.json().course;
+
     const prof = await createTestUser({ email: 'prof-enroll@example.com', roles: ['professor'] });
+    const profToken = await getAuthToken(app, prof);
+
+    const res = await authenticatedRequest(app, 'POST', '/api/v1/courses/enroll', {
+      token: profToken,
+      payload: { enrollmentCode: course.enrollmentCode },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().course._id).toBe(course._id);
+
+    const storedCourse = await Course.findById(course._id).lean();
+    expect((storedCourse.students || []).map(String)).toContain(String(prof._id));
+    const storedUser = await User.findById(prof._id).lean();
+    expect((storedUser.profile.courses || []).map(String)).toContain(String(course._id));
+  });
+
+  it('rejects enrolling as a student when already an instructor in the course', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const prof = await createTestUser({ email: 'prof-own-course@example.com', roles: ['professor'] });
     const profToken = await getAuthToken(app, prof);
     const createRes = await createCourseAsProf(profToken);
     const course = createRes.json().course;
@@ -414,8 +479,8 @@ describe('POST /api/v1/courses/enroll', () => {
       payload: { enrollmentCode: course.enrollmentCode },
     });
 
-    expect(res.statusCode).toBe(403);
-    expect(res.json().message).toMatch(/can't enroll as students/i);
+    expect(res.statusCode).toBe(409);
+    expect(res.json().message).toMatch(/already enrolled as an instructor/i);
   });
 
   it('invalid code returns 404', async (ctx) => {
