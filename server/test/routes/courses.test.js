@@ -234,6 +234,19 @@ describe('GET /api/v1/courses', () => {
     const body = res.json();
     expect(body.courses.length).toBe(2);
   });
+
+  it('admin instructor-view includes courses they own', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const admin = await createTestUser({ email: 'admin-owned-course@example.com', roles: ['admin'] });
+    const adminToken = await getAuthToken(app, admin);
+    const createRes = await createCourseAsProf(adminToken, { name: 'Admin Owned Course' });
+    const course = createRes.json().course;
+
+    const res = await authenticatedRequest(app, 'GET', '/api/v1/courses?view=instructor', { token: adminToken });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().courses.map((entry) => String(entry._id))).toContain(String(course._id));
+  });
 });
 
 // ---------- GET /api/v1/courses/:id ----------
@@ -656,6 +669,36 @@ describe('POST /api/v1/courses/:id/instructors', () => {
 
     const updatedCourse = await Course.findById(course._id).lean();
     expect(updatedCourse.instructors).toContain(String(ssoInstructor._id));
+  });
+
+  it('rejects adding an instructor who is already enrolled as a student', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const prof = await createTestUser({ email: 'owner-student-conflict@example.com', roles: ['professor'] });
+    const profToken = await getAuthToken(app, prof);
+    const createRes = await createCourseAsProf(profToken);
+    const course = createRes.json().course;
+
+    const student = await createTestUser({ email: 'existing-student@example.com', roles: ['student'] });
+    const studentToken = await getAuthToken(app, student);
+    const enrollRes = await authenticatedRequest(app, 'POST', '/api/v1/courses/enroll', {
+      token: studentToken,
+      payload: { enrollmentCode: course.enrollmentCode },
+    });
+    expect(enrollRes.statusCode).toBe(200);
+
+    const res = await authenticatedRequest(
+      app,
+      'POST',
+      `/api/v1/courses/${course._id}/instructors`,
+      { token: profToken, payload: { userId: student._id.toString() } }
+    );
+
+    expect(res.statusCode).toBe(409);
+    expect(res.json().message).toMatch(/student already enrolled/i);
+
+    const updatedCourse = await Course.findById(course._id).lean();
+    expect((updatedCourse.students || []).map(String)).toContain(String(student._id));
+    expect((updatedCourse.instructors || []).map(String)).not.toContain(String(student._id));
   });
 });
 

@@ -13,6 +13,7 @@ const {
   apiClientMock,
   authState,
   fetchAllCoursesMock,
+  loadUserMock,
   navigateMock,
   tMock,
 } = vi.hoisted(() => ({
@@ -26,8 +27,10 @@ const {
         roles: ['professor'],
       },
     },
+    loadUser: vi.fn(),
   },
   fetchAllCoursesMock: vi.fn(),
+  loadUserMock: vi.fn(),
   navigateMock: vi.fn(),
   tMock: vi.fn((key, options) => options?.defaultValue ?? key),
 }));
@@ -53,7 +56,10 @@ vi.mock('../../api/client', () => ({
 }));
 
 vi.mock('../../contexts/AuthContext', () => ({
-  useAuth: () => authState,
+  useAuth: () => ({
+    ...authState,
+    loadUser: loadUserMock,
+  }),
 }));
 
 vi.mock('../../utils/fetchAllCourses', () => ({
@@ -67,7 +73,10 @@ describe('ProfDashboard', () => {
       profile: {
         roles: ['professor'],
       },
+      hasStudentCourses: false,
     };
+    loadUserMock.mockReset();
+    loadUserMock.mockResolvedValue(undefined);
     apiClientMock.get.mockImplementation((url) => {
       if (url === '/sessions/live') {
         return Promise.resolve({ data: { liveSessions: [] } });
@@ -87,6 +96,17 @@ describe('ProfDashboard', () => {
         },
       ])
       .mockResolvedValueOnce([
+        {
+          _id: 'course-student',
+          name: 'Student Course',
+          deptCode: 'CS',
+          courseNumber: '102',
+          section: '001',
+          semester: 'Fall 2026',
+          lastActivityAt: '2026-04-05T00:00:00.000Z',
+        },
+      ])
+      .mockResolvedValue([
         {
           _id: 'course-student',
           name: 'Student Course',
@@ -146,5 +166,6 @@ describe('ProfDashboard', () => {
     await waitFor(() => {
       expect(fetchAllCoursesMock).toHaveBeenCalledTimes(4);
     });
+    expect(loadUserMock).toHaveBeenCalled();
   });
 });

@@ -63,7 +63,7 @@ function getSuggestedSemester() {
 export default function ProfDashboard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loadUser } = useAuth();
   const [courses, setCourses] = useState([]);
   const [studentCourses, setStudentCourses] = useState([]);
   const [liveSessions, setLiveSessions] = useState([]);
@@ -107,7 +107,7 @@ export default function ProfDashboard() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => { fetchCourses(); }, [fetchCourses]);
 
@@ -140,7 +140,7 @@ export default function ProfDashboard() {
       await apiClient.post('/courses/enroll', { enrollmentCode: enrollCode.trim() });
       setEnrollOpen(false);
       setEnrollCode('');
-      await fetchCourses();
+      await Promise.all([fetchCourses(), loadUser()]);
       setMsg({ severity: 'success', text: t('professor.dashboard.enrollSuccessAsStudent') });
     } catch (err) {
       if (isInactiveCourseEnrollError(err)) {

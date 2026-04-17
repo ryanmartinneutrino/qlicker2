@@ -203,7 +203,14 @@ export default async function courseRoutes(app) {
             return reply.code(403).send({ error: 'Forbidden', message: 'Insufficient permissions' });
           }
         }
-        filter.instructors = userId;
+        if (isAdmin) {
+          filter.$or = [
+            { instructors: userId },
+            { owner: userId },
+          ];
+        } else {
+          filter.instructors = userId;
+        }
       } else {
         filter.students = userId;
         filter.inactive = { $ne: true };
@@ -211,13 +218,22 @@ export default async function courseRoutes(app) {
 
       if (search) {
         const regex = new RegExp(escapeForRegex(search), 'i');
-        filter.$or = [
+        const searchFilter = [
           { name: regex },
           { deptCode: regex },
           { courseNumber: regex },
           { section: regex },
           { semester: regex },
         ];
+        if (filter.$or) {
+          filter.$and = [
+            { $or: filter.$or },
+            { $or: searchFilter },
+          ];
+          delete filter.$or;
+        } else {
+          filter.$or = searchFilter;
+        }
       }
 
       const projection = { students: 0, groupCategories: 0 };
@@ -470,6 +486,8 @@ export default async function courseRoutes(app) {
         $addToSet: { 'profile.courses': course._id },
       });
 
+      invalidateAccessCache(userId);
+
       return { course };
     }
   );
@@ -502,6 +520,8 @@ export default async function courseRoutes(app) {
       await User.findByIdAndUpdate(studentId, {
         $pull: { 'profile.courses': course._id },
       });
+
+      invalidateAccessCache(studentId);
 
       return { success: true };
     }
@@ -564,6 +584,8 @@ export default async function courseRoutes(app) {
         $addToSet: { 'profile.courses': course._id },
       });
 
+      invalidateAccessCache(studentId);
+
       return { success: true };
     }
   );
@@ -608,12 +630,15 @@ export default async function courseRoutes(app) {
         return reply.code(404).send({ error: 'Not Found', message: 'User not found' });
       }
 
-      const newInstructorId = String(instructor._id);
+       const newInstructorId = String(instructor._id);
 
-      await Course.findByIdAndUpdate(course._id, {
-        $addToSet: { instructors: newInstructorId },
-        $pull: { students: newInstructorId },
-      });
+      if ((course.students || []).includes(newInstructorId)) {
+        return reply.code(409).send({ error: 'Conflict', message: 'Student already enrolled in this course' });
+      }
+
+       await Course.findByIdAndUpdate(course._id, {
+         $addToSet: { instructors: newInstructorId },
+       });
 
       invalidateAccessCache(newInstructorId);
 
