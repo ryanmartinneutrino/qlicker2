@@ -70,38 +70,40 @@ export async function buildApp(opts = {}) {
     secret: app.config.jwtSecret,
     sign: { expiresIn: '15m' },
   });
-  await app.register(swagger, {
-    openapi: {
-      info: {
-        title: 'Qlicker API',
-        description: 'Fastify API for the Qlicker migration project.',
-        version: app.config.appVersion,
-      },
-      servers: [
-        { url: app.config.rootUrl },
-      ],
-      components: {
-        securitySchemes: {
-          bearerAuth: {
-            type: 'http',
-            scheme: 'bearer',
-            bearerFormat: 'JWT',
+  if (app.config.enableApiDocs) {
+    await app.register(swagger, {
+      openapi: {
+        info: {
+          title: 'Qlicker API',
+          description: 'Fastify API for the Qlicker migration project.',
+          version: app.config.appVersion,
+        },
+        servers: [
+          { url: app.config.rootUrl },
+        ],
+        components: {
+          securitySchemes: {
+            bearerAuth: {
+              type: 'http',
+              scheme: 'bearer',
+              bearerFormat: 'JWT',
+            },
           },
         },
       },
-    },
-    transform: ({ schema, url, route }) => ({
-      schema: transformApiDocs({ schema, url, route }),
-      url,
-    }),
-  });
-  await app.register(swaggerUi, {
-    routePrefix: '/docs',
-    uiConfig: {
-      docExpansion: 'list',
-      deepLinking: false,
-    },
-  });
+      transform: ({ schema, url, route }) => ({
+        schema: transformApiDocs({ schema, url, route }),
+        url,
+      }),
+    });
+    await app.register(swaggerUi, {
+      routePrefix: '/docs',
+      uiConfig: {
+        docExpansion: 'list',
+        deepLinking: false,
+      },
+    });
+  }
 
   // Auth decorators
   app.decorate('authenticate', authenticate);

@@ -37,4 +37,18 @@ describe('API documentation', () => {
     ]));
     expect(body.paths['/api/v1/courses/{id}/video/api-options'].patch.tags).toContain('Video');
   });
+
+  it('disables API docs when explicitly turned off', async () => {
+    await app.close();
+    app = await createApp({
+      enableApiDocs: false,
+    });
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/docs/json',
+    });
+
+    expect(res.statusCode).toBe(404);
+  });
 });

@@ -1,7 +1,7 @@
 import { buildApp } from '../src/app.js';
 import User from '../src/models/User.js';
 
-export async function createApp() {
+export async function createApp(configOverrides = {}) {
   const app = await buildApp({
     logger: false,
     skipDb: true,
@@ -9,6 +9,7 @@ export async function createApp() {
       jwtSecret: 'test-secret',
       jwtRefreshSecret: 'test-refresh-secret',
       rootUrl: process.env.ROOT_URL || 'http://localhost:3000',
+      ...configOverrides,
     },
   });
   await app.ready();
