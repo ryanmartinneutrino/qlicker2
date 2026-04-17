@@ -32,9 +32,13 @@ const {
   tMock: vi.fn((key, options) => options?.defaultValue ?? key),
 }));
 
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: tMock }),
-}));
+vi.mock('react-i18next', async () => {
+  const actual = await vi.importActual('react-i18next');
+  return {
+    ...actual,
+    useTranslation: () => ({ t: tMock }),
+  };
+});
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
