@@ -52,7 +52,6 @@ describe('CourseChatPanel', () => {
     i18n.changeLanguage('en');
     apiClient.get.mockResolvedValue({
       data: {
-        notificationId: '',
         canPost: true,
         canVote: true,
         canDeleteOwnPost: true,
@@ -60,6 +59,7 @@ describe('CourseChatPanel', () => {
         canDeleteOwnComment: true,
         canDeleteAnyComment: false,
         canArchive: false,
+        canUnarchive: false,
         canViewNames: false,
         availableTags: [
           { value: 'homework', label: 'Homework' },
@@ -84,7 +84,7 @@ describe('CourseChatPanel', () => {
 
     expect(await screen.findByText('No posts yet.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'New post' }));
-    fireEvent.change(screen.getByLabelText('Topic'), { target: { value: 'Midterm help' } });
+    fireEvent.change(screen.getByLabelText('Post topic'), { target: { value: 'Midterm help' } });
     fireEvent.change(screen.getByLabelText('Course chat post editor'), { target: { value: '<p>Please review question 2</p>' } });
     fireEvent.click(screen.getByRole('button', { name: 'Publish post' }));
 
@@ -98,56 +98,106 @@ describe('CourseChatPanel', () => {
     });
   });
 
-  it('shows original-poster labels and dismisses the chat notification when opened', async () => {
+  it('keeps the professor composer hidden by default and hides course tags when none exist', async () => {
     apiClient.get.mockResolvedValueOnce({
       data: {
-        notificationId: 'notification-1',
         canPost: true,
-        canVote: true,
-        canDeleteOwnPost: true,
-        canDeleteAnyPost: false,
-        canDeleteOwnComment: true,
-        canDeleteAnyComment: false,
+        canVote: false,
+        canDeleteOwnPost: false,
+        canDeleteAnyPost: true,
+        canDeleteOwnComment: false,
+        canDeleteAnyComment: true,
         canArchive: false,
-        canViewNames: false,
+        canUnarchive: false,
+        canViewNames: true,
+        availableTags: [],
+        posts: [],
+      },
+    });
+
+    render(<CourseChatPanel courseId="course-1" enabled role="professor" refreshToken={0} />);
+
+    expect(await screen.findByText('No posts yet.')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Course chat post editor')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Course Tags')).not.toBeInTheDocument();
+    expect(screen.queryByText('Students see instructor messages as coming from the instructor role rather than by name.')).not.toBeInTheDocument();
+  });
+
+  it('sorts by time by default, can sort by upvotes, and reveals archived posts for professors', async () => {
+    apiClient.get.mockResolvedValue({
+      data: {
+        canPost: true,
+        canVote: false,
+        canDeleteOwnPost: false,
+        canDeleteAnyPost: true,
+        canDeleteOwnComment: false,
+        canDeleteAnyComment: true,
+        canArchive: true,
+        canUnarchive: true,
+        canViewNames: true,
         availableTags: [],
         posts: [
           {
-            _id: 'post-1',
-            title: 'Lab note',
-            body: 'Main body',
-            bodyWysiwyg: '<p>Main body</p>',
+            _id: 'post-new',
+            title: 'Newest post',
+            body: 'Body',
+            bodyWysiwyg: '<p>Body</p>',
             createdAt: '2026-04-10T10:00:00.000Z',
             upvoteCount: 1,
-            viewerHasUpvoted: false,
-            isOwnPost: true,
+            isOwnPost: false,
+            isArchived: false,
             authorRole: 'student',
-            comments: [
-              {
-                _id: 'comment-1',
-                body: 'Follow-up',
-                bodyWysiwyg: '<p>Follow-up</p>',
-                createdAt: '2026-04-10T10:01:00.000Z',
-                upvoteCount: 0,
-                viewerHasUpvoted: false,
-                isOwnComment: true,
-                isOriginalPoster: true,
-                authorRole: 'student',
-              },
-            ],
+            comments: [],
+          },
+          {
+            _id: 'post-top',
+            title: 'Top voted post',
+            body: 'Body',
+            bodyWysiwyg: '<p>Body</p>',
+            createdAt: '2026-04-09T10:00:00.000Z',
+            upvoteCount: 5,
+            isOwnPost: false,
+            isArchived: false,
+            authorRole: 'student',
+            comments: [],
+          },
+          {
+            _id: 'post-archived',
+            title: 'Archived post',
+            body: 'Body',
+            bodyWysiwyg: '<p>Body</p>',
+            createdAt: '2026-04-08T10:00:00.000Z',
+            upvoteCount: 2,
+            isOwnPost: false,
+            isArchived: true,
+            archivedAt: '2026-04-11T10:00:00.000Z',
+            authorRole: 'student',
+            comments: [],
           },
         ],
       },
     });
 
-    render(<CourseChatPanel courseId="course-1" enabled role="student" refreshToken={0} />);
+    const { container } = render(<CourseChatPanel courseId="course-1" enabled role="professor" refreshToken={0} />);
 
-    expect(await screen.findByText('Lab note')).toBeInTheDocument();
-    await waitFor(() => {
-      expect(apiClient.post).toHaveBeenCalledWith('/notifications/notification-1/dismiss');
-    });
+    expect(await screen.findByText('Newest post')).toBeInTheDocument();
+    expect(screen.queryByText('Archived post')).not.toBeInTheDocument();
+    expect([...container.querySelectorAll('h6')].map((node) => node.textContent)).toEqual([
+      'Course Chat',
+      'Newest post',
+      'Top voted post',
+    ]);
 
-    fireEvent.click(screen.getByRole('button', { name: '1 comment' }));
-    expect(await screen.findByText('Original poster')).toBeInTheDocument();
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Sort posts by' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Most upvotes' }));
+    expect([...container.querySelectorAll('h6')].map((node) => node.textContent)).toEqual([
+      'Course Chat',
+      'Top voted post',
+      'Newest post',
+    ]);
+
+    fireEvent.click(screen.getByLabelText('Show archived posts'));
+    expect(await screen.findByText('Archived post')).toBeInTheDocument();
+    expect(screen.getByLabelText('Unarchive post')).toBeInTheDocument();
   });
 });
