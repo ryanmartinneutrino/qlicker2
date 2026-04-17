@@ -1,15 +1,10 @@
 import Course from '../models/Course.js';
-import Notification from '../models/Notification.js';
-import NotificationDismissal from '../models/NotificationDismissal.js';
+import CourseChatView from '../models/CourseChatView.js';
 import Post from '../models/Post.js';
 import User from '../models/User.js';
 import { getNormalizedTagValue, normalizeTags } from '../services/questionImportExport.js';
 import { generateMeteorId } from '../utils/meteorId.js';
 
-const COURSE_CHAT_NOTIFICATION_SOURCE_KEY = 'course-chat-unread';
-const COURSE_CHAT_NOTIFICATION_TITLE = 'New course chat messages';
-const COURSE_CHAT_NOTIFICATION_MESSAGE = 'There are unread messages in the course chat.';
-const COURSE_CHAT_NOTIFICATION_DURATION_MS = 1000 * 60 * 60 * 24 * 30;
 const DEFAULT_RETENTION_DAYS = 14;
 const COURSE_CHAT_READ_RATE_LIMIT = { max: 90, timeWindow: '1 minute' };
 const COURSE_CHAT_WRITE_RATE_LIMIT = { max: 40, timeWindow: '1 minute' };
@@ -50,9 +45,11 @@ function getTimestampMs(value) {
 
 function sortCourseChatPosts(posts = []) {
   return [...posts].sort((a, b) => {
-    const createdDiff = getTimestampMs(a?.createdAt) - getTimestampMs(b?.createdAt);
+    const createdDiff = getTimestampMs(b?.createdAt) - getTimestampMs(a?.createdAt);
     if (createdDiff !== 0) return createdDiff;
-    return String(a?._id || '').localeCompare(String(b?._id || ''));
+    const upvoteDiff = Number(b?.upvoteCount || 0) - Number(a?.upvoteCount || 0);
+    if (upvoteDiff !== 0) return upvoteDiff;
+    return String(b?._id || '').localeCompare(String(a?._id || ''));
   });
 }
 
@@ -207,6 +204,8 @@ function serializeCourseChatPost(post, {
     tags: Array.isArray(post?.tags) ? post.tags.map(String).filter(Boolean) : [],
     createdAt: post?.createdAt || null,
     updatedAt: post?.updatedAt || null,
+    archivedAt: post?.archivedAt || null,
+    isArchived: !!post?.archivedAt,
     upvoteCount: Number.isFinite(Number(post?.upvoteCount)) ? Number(post.upvoteCount) : upvoteUserIds.length,
     viewerHasUpvoted: upvoteUserIds.includes(viewerUserId),
     isOwnPost: authorId && authorId === viewerUserId,
@@ -281,52 +280,73 @@ function normalizeCourseChatTags(tags = [], allowedTagValues = new Set()) {
   return unique;
 }
 
+function parseBooleanParam(value) {
+  if (typeof value === 'boolean') return value;
+  const normalized = normalizeText(value).toLowerCase();
+  return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on';
+}
+
+async function loadCourseChatView(courseId, userId) {
+  if (!courseId || !userId) return null;
+  return CourseChatView.findOne({
+    courseId: String(courseId),
+    userId: String(userId),
+  })
+    .select('lastViewedAt')
+    .lean();
+}
+
+async function markCourseChatViewed(courseId, userId) {
+  if (!courseId || !userId) return;
+  await CourseChatView.findOneAndUpdate({
+    courseId: String(courseId),
+    userId: String(userId),
+  }, {
+    $set: {
+      lastViewedAt: new Date(),
+    },
+  }, {
+    upsert: true,
+  });
+}
+
+async function countUnseenCourseChatMessages(courseId, userId, lastViewedAt) {
+  if (!courseId || !userId) return 0;
+
+  const posts = await Post.find({
+    scopeType: 'course',
+    courseId: String(courseId),
+    archivedAt: null,
+  })
+    .select('authorId createdAt comments')
+    .lean();
+
+  const cutoff = lastViewedAt ? getTimestampMs(lastViewedAt) : 0;
+  return posts.reduce((count, post) => {
+    let nextCount = count;
+    if (
+      String(post?.authorId || '') !== String(userId)
+      && getTimestampMs(post?.createdAt) > cutoff
+    ) {
+      nextCount += 1;
+    }
+
+    nextCount += (post?.comments || []).reduce((commentCount, comment) => (
+      String(comment?.authorId || '') !== String(userId)
+      && getTimestampMs(comment?.createdAt) > cutoff
+        ? commentCount + 1
+        : commentCount
+    ), 0);
+
+    return nextCount;
+  }, 0);
+}
+
 async function loadCourseChatContext(courseId) {
   const course = await Course.findById(courseId)
     .select('students instructors tags courseChatEnabled courseChatRetentionDays name deptCode courseNumber section semester')
     .lean();
   return { course };
-}
-
-async function loadActiveCourseChatNotification(courseId) {
-  return Notification.findOne({
-    scopeType: 'course',
-    courseId: String(courseId),
-    sourceKey: COURSE_CHAT_NOTIFICATION_SOURCE_KEY,
-  })
-    .select('_id')
-    .sort({ updatedAt: -1 })
-    .lean();
-}
-
-async function ensureCourseChatNotification(course, createdBy) {
-  const now = new Date();
-  const endAt = new Date(now.getTime() + COURSE_CHAT_NOTIFICATION_DURATION_MS);
-  const chatNotification = await Notification.findOneAndUpdate({
-    scopeType: 'course',
-    courseId: String(course._id),
-    sourceKey: COURSE_CHAT_NOTIFICATION_SOURCE_KEY,
-  }, {
-    $set: {
-      recipientType: 'all',
-      title: COURSE_CHAT_NOTIFICATION_TITLE,
-      message: COURSE_CHAT_NOTIFICATION_MESSAGE,
-      startAt: now,
-      endAt,
-      persistUntilDismissed: true,
-      updatedAt: now,
-      sourceRefId: String(course._id),
-    },
-    $setOnInsert: {
-      createdBy,
-    },
-  }, {
-    new: true,
-    upsert: true,
-  }).lean();
-
-  await NotificationDismissal.deleteMany({ notificationId: String(chatNotification._id) });
-  return chatNotification;
 }
 
 function sendToUsersById(app, userIds, event, payload) {
@@ -364,26 +384,24 @@ async function notifyCourseChatUpdated(app, course, payload = {}) {
   });
 }
 
-async function loadCourseChatPayload({ course, request }) {
+async function loadCourseChatPayload({ course, request, includeArchived = false }) {
   await archiveExpiredCourseChatPosts(course);
   const viewerUserId = String(request.user?.userId || '');
   const includeNames = isInstructorOrAdmin(course, request.user);
   const posts = await Post.find({
     scopeType: 'course',
     courseId: String(course._id),
-    archivedAt: null,
+    ...(includeArchived ? {} : { archivedAt: null }),
   })
     .select('authorId authorRole title body bodyWysiwyg tags upvoteUserIds upvoteCount comments archivedAt createdAt updatedAt')
     .lean();
 
   const visiblePosts = sortCourseChatPosts(posts);
   const authorMetadataMap = await buildAuthorMetadataMap(visiblePosts);
-  const activeNotification = await loadActiveCourseChatNotification(course._id);
 
   return {
     enabled: !!course?.courseChatEnabled,
     retentionDays: Math.max(1, Number(course?.courseChatRetentionDays) || DEFAULT_RETENTION_DAYS),
-    notificationId: activeNotification?._id ? String(activeNotification._id) : '',
     canPost: !!course?.courseChatEnabled,
     canComment: !!course?.courseChatEnabled,
     canVote: !!course?.courseChatEnabled && !includeNames,
@@ -392,6 +410,7 @@ async function loadCourseChatPayload({ course, request }) {
     canDeleteAnyPost: includeNames,
     canDeleteAnyComment: includeNames,
     canArchive: includeNames,
+    canUnarchive: includeNames,
     canViewNames: includeNames,
     availableTags: normalizeTags(course?.tags || []).map((tag) => ({
       value: normalizeText(tag?.value || tag?.label || tag),
@@ -434,7 +453,40 @@ export default async function courseChatRoutes(app) {
       return reply.code(403).send({ error: 'Forbidden', message: 'Course chat is not available' });
     }
 
-    return loadCourseChatPayload({ course, request });
+    const payload = await loadCourseChatPayload({
+      course,
+      request,
+      includeArchived: parseBooleanParam(request.query?.includeArchived),
+    });
+    await markCourseChatViewed(course._id, request.user?.userId);
+    return payload;
+  });
+
+  app.get('/courses/:id/chat/summary', {
+    preHandler: [authenticate, courseChatReadRateLimitPreHandler],
+    rateLimit: COURSE_CHAT_READ_RATE_LIMIT,
+    config: { rateLimit: COURSE_CHAT_READ_RATE_LIMIT },
+  }, async (request, reply) => {
+    const { course } = await loadCourseChatContext(request.params.id);
+    if (!course) {
+      return reply.code(404).send({ error: 'Not Found', message: 'Course not found' });
+    }
+    if (!isCourseMember(course, request.user)) {
+      return reply.code(403).send({ error: 'Forbidden', message: 'Not a member of this course' });
+    }
+    if (!course.courseChatEnabled) {
+      return reply.code(403).send({ error: 'Forbidden', message: 'Course chat is not available' });
+    }
+
+    await archiveExpiredCourseChatPosts(course);
+    const view = await loadCourseChatView(course._id, request.user?.userId);
+    const unseenCount = await countUnseenCourseChatMessages(
+      course._id,
+      request.user?.userId,
+      view?.lastViewedAt || null
+    );
+
+    return { unseenCount };
   });
 
   app.post('/courses/:id/chat/posts', {
@@ -507,7 +559,6 @@ export default async function courseChatRoutes(app) {
       updatedAt: new Date(),
     });
 
-    await ensureCourseChatNotification(course, String(request.user.userId));
     await notifyCourseChatUpdated(app, course, {
       changeType: 'post-created',
       postId: String(created._id),
@@ -646,7 +697,6 @@ export default async function courseChatRoutes(app) {
       $set: { updatedAt: new Date() },
     }, { returnDocument: 'after' }).lean();
 
-    await ensureCourseChatNotification(course, String(request.user.userId));
     await notifyCourseChatUpdated(app, course, {
       changeType: 'comment-added',
       postId: String(post._id),
@@ -776,6 +826,46 @@ export default async function courseChatRoutes(app) {
       changeType: 'post-archived',
       postId: String(post._id),
       post: null,
+    });
+
+    return { success: true, postId: String(post._id) };
+  });
+
+  app.patch('/courses/:id/chat/posts/:postId/unarchive', {
+    preHandler: [authenticate, courseChatArchiveRateLimitPreHandler],
+    rateLimit: COURSE_CHAT_ARCHIVE_RATE_LIMIT,
+    config: { rateLimit: COURSE_CHAT_ARCHIVE_RATE_LIMIT },
+  }, async (request, reply) => {
+    const { course } = await loadCourseChatContext(request.params.id);
+    if (!course) {
+      return reply.code(404).send({ error: 'Not Found', message: 'Course not found' });
+    }
+    if (!isInstructorOrAdmin(course, request.user)) {
+      return reply.code(403).send({ error: 'Forbidden', message: 'Insufficient permissions' });
+    }
+
+    const post = await Post.findOne({
+      _id: request.params.postId,
+      scopeType: 'course',
+      courseId: String(course._id),
+      archivedAt: { $ne: null },
+    }).lean();
+    if (!post) {
+      return reply.code(404).send({ error: 'Not Found', message: 'Archived post not found' });
+    }
+
+    const updated = await Post.findByIdAndUpdate(post._id, {
+      $set: {
+        archivedAt: null,
+        archivedBy: '',
+        updatedAt: new Date(),
+      },
+    }, { returnDocument: 'after' }).lean();
+
+    await notifyCourseChatUpdated(app, course, {
+      changeType: 'post-unarchived',
+      postId: String(post._id),
+      post: updated,
     });
 
     return { success: true, postId: String(post._id) };
