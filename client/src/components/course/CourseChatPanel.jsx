@@ -393,11 +393,16 @@ export default function CourseChatPanel({
     });
   }, [authorFilter, chatData?.posts, showArchived, sortOrder, tagFilter]);
 
-  const clearComposer = useCallback(() => {
+  const resetComposer = useCallback(() => {
     setTitleDraft('');
     setDraftHtml('');
     setSelectedTags([]);
   }, []);
+
+  const handleCancelComposer = useCallback(() => {
+    resetComposer();
+    setComposerOpen(false);
+  }, [resetComposer]);
 
   const handleSubmitPost = useCallback(async () => {
     if (!canCompose || !draftHasContent || !titleDraft.trim() || submittingPost) return;
@@ -409,7 +414,7 @@ export default function CourseChatPanel({
         bodyWysiwyg: draftHtml,
         tags: selectedTags,
       });
-      clearComposer();
+      resetComposer();
       setComposerOpen(role === 'professor');
       setError(null);
       if (shouldRefetchAfterStudentMutation) {
@@ -420,7 +425,7 @@ export default function CourseChatPanel({
     } finally {
       setSubmittingPost(false);
     }
-  }, [canCompose, clearComposer, courseId, draftHasContent, draftHtml, fetchChat, role, selectedTags, shouldRefetchAfterStudentMutation, submittingPost, t, titleDraft]);
+  }, [canCompose, courseId, draftHasContent, draftHtml, fetchChat, resetComposer, role, selectedTags, shouldRefetchAfterStudentMutation, submittingPost, t, titleDraft]);
 
   const handleVotePost = useCallback(async (postId, upvoted) => {
     try {
@@ -636,7 +641,7 @@ export default function CourseChatPanel({
                 enableVideo
               />
               <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, flexWrap: 'wrap' }}>
-                <Button onClick={clearComposer}>{t('common.cancel')}</Button>
+                <Button onClick={handleCancelComposer}>{t('common.cancel')}</Button>
                 <Button
                   variant="contained"
                   onClick={handleSubmitPost}
