@@ -1,4 +1,5 @@
 import Course from '../models/Course.js';
+import Session from '../models/Session.js';
 import User from '../models/User.js';
 import { normalizeTags } from '../services/questionImportExport.js';
 import { emailRegex } from '../utils/email.js';
@@ -55,6 +56,8 @@ const createCourseSchema = {
       requireVerified: { type: 'boolean' },
       allowStudentQuestions: { type: 'boolean' },
       quizTimeFormat: { type: 'string', enum: ['inherit', '24h', '12h'] },
+      courseChatEnabled: { type: 'boolean' },
+      courseChatRetentionDays: { type: 'integer', minimum: 1, maximum: 365 },
       tags: {
         type: 'array',
         items: {
@@ -84,6 +87,8 @@ const updateCourseSchema = {
       requireVerified: { type: 'boolean' },
       allowStudentQuestions: { type: 'boolean' },
       quizTimeFormat: { type: 'string', enum: ['inherit', '24h', '12h'] },
+      courseChatEnabled: { type: 'boolean' },
+      courseChatRetentionDays: { type: 'integer', minimum: 1, maximum: 365 },
       tags: {
         type: 'array',
         items: {
@@ -116,6 +121,10 @@ const listCoursesSchema = {
 
 export default async function courseRoutes(app) {
   const { authenticate, requireRole } = app;
+  const courseWriteRateLimitPreHandler = app.rateLimit({
+    max: 30,
+    timeWindow: '1 minute',
+  });
 
   // POST / - Create a course (professor or admin only)
   app.post(
@@ -198,7 +207,14 @@ export default async function courseRoutes(app) {
             return reply.code(403).send({ error: 'Forbidden', message: 'Insufficient permissions' });
           }
         }
-        filter.instructors = userId;
+        if (isAdmin) {
+          filter.$or = [
+            { instructors: userId },
+            { owner: userId },
+          ];
+        } else {
+          filter.instructors = userId;
+        }
       } else {
         filter.students = userId;
         filter.inactive = { $ne: true };
@@ -206,13 +222,22 @@ export default async function courseRoutes(app) {
 
       if (search) {
         const regex = new RegExp(escapeForRegex(search), 'i');
-        filter.$or = [
+        const searchFilter = [
           { name: regex },
           { deptCode: regex },
           { courseNumber: regex },
           { section: regex },
           { semester: regex },
         ];
+        if (filter.$or) {
+          filter.$and = [
+            { $or: filter.$or },
+            { $or: searchFilter },
+          ];
+          delete filter.$or;
+        } else {
+          filter.$or = searchFilter;
+        }
       }
 
       const projection = { students: 0, groupCategories: 0 };
@@ -225,8 +250,36 @@ export default async function courseRoutes(app) {
         Course.countDocuments(filter),
       ]);
 
+      const courseIds = courses.map((course) => String(course._id)).filter(Boolean);
+      const sessionActivity = courseIds.length > 0
+        ? await Session.aggregate([
+          { $match: { courseId: { $in: courseIds } } },
+          {
+            $group: {
+              _id: '$courseId',
+              lastSessionAt: { $max: '$createdAt' },
+            },
+          },
+        ])
+        : [];
+      const activityByCourseId = new Map(
+        sessionActivity.map((entry) => [String(entry._id), entry.lastSessionAt])
+      );
+      const coursesWithActivity = courses.map((course) => {
+        const lastSessionAt = activityByCourseId.get(String(course._id));
+        const courseCreatedAt = course.createdAt || null;
+        const lastActivityAt = [lastSessionAt, courseCreatedAt]
+          .filter(Boolean)
+          .map((value) => new Date(value))
+          .sort((a, b) => b.getTime() - a.getTime())[0] || null;
+        return {
+          ...course,
+          lastActivityAt: lastActivityAt ? lastActivityAt.toISOString() : null,
+        };
+      });
+
       return {
-        courses,
+        courses: coursesWithActivity,
         total,
         page,
         pages: Math.ceil(total / limit),
@@ -320,7 +373,7 @@ export default async function courseRoutes(app) {
         return reply.code(403).send({ error: 'Forbidden', message: 'Insufficient permissions' });
       }
 
-      const allowed = ['name', 'deptCode', 'courseNumber', 'section', 'semester', 'inactive', 'requireVerified', 'allowStudentQuestions', 'quizTimeFormat', 'tags'];
+      const allowed = ['name', 'deptCode', 'courseNumber', 'section', 'semester', 'inactive', 'requireVerified', 'allowStudentQuestions', 'quizTimeFormat', 'courseChatEnabled', 'courseChatRetentionDays', 'tags'];
       const updates = {};
       for (const key of allowed) {
         if (request.body[key] !== undefined) {
@@ -421,10 +474,6 @@ export default async function courseRoutes(app) {
         }
       }
 
-      if (roles.includes('professor') || roles.includes('admin')) {
-        return reply.code(403).send({ error: 'Forbidden', message: "Professors and admins can't enroll as students" });
-      }
-
       if ((course.instructors || []).includes(userId)) {
         return reply.code(409).send({ error: 'Conflict', message: 'Already enrolled as an instructor in this course' });
       }
@@ -440,6 +489,8 @@ export default async function courseRoutes(app) {
       await User.findByIdAndUpdate(userId, {
         $addToSet: { 'profile.courses': course._id },
       });
+
+      invalidateAccessCache(userId);
 
       return { course };
     }
@@ -473,6 +524,8 @@ export default async function courseRoutes(app) {
       await User.findByIdAndUpdate(studentId, {
         $pull: { 'profile.courses': course._id },
       });
+
+      invalidateAccessCache(studentId);
 
       return { success: true };
     }
@@ -535,6 +588,8 @@ export default async function courseRoutes(app) {
         $addToSet: { 'profile.courses': course._id },
       });
 
+      invalidateAccessCache(studentId);
+
       return { success: true };
     }
   );
@@ -543,7 +598,7 @@ export default async function courseRoutes(app) {
   app.post(
     '/:id/instructors',
     {
-      preHandler: authenticate,
+      preHandler: [authenticate, courseWriteRateLimitPreHandler],
       schema: {
         body: {
           type: 'object',
@@ -581,9 +636,12 @@ export default async function courseRoutes(app) {
 
       const newInstructorId = String(instructor._id);
 
+      if ((course.students || []).includes(newInstructorId)) {
+        return reply.code(409).send({ error: 'Conflict', message: 'Student already enrolled in this course' });
+      }
+
       await Course.findByIdAndUpdate(course._id, {
         $addToSet: { instructors: newInstructorId },
-        $pull: { students: newInstructorId },
       });
 
       invalidateAccessCache(newInstructorId);

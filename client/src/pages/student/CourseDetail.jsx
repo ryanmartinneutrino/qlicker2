@@ -1,13 +1,14 @@
 import { Suspense, lazy, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Box, Typography, Button, Paper, Alert, Snackbar, CircularProgress, Chip,
+  Badge, Box, Typography, Button, Paper, Alert, Snackbar, CircularProgress, Chip,
   List, ListItem, ListItemButton, ListItemText, Divider, IconButton, Tooltip,
   Dialog, DialogTitle, DialogContent, DialogActions, Stack, TextField, MenuItem,
 } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
 import apiClient, { getAccessToken } from '../../api/client';
 import { buildCourseTitle } from '../../utils/courseTitle';
+import { shouldRedirectStudentCourseToInstructorView } from '../../utils/courseAccess';
 import {
   getStudentSessionAction,
   isQuizSession,
@@ -28,11 +29,13 @@ import ResponsiveTabsNavigation from '../../components/common/ResponsiveTabsNavi
 import { useTranslation } from 'react-i18next';
 import CourseGradesPanel from '../../components/grades/CourseGradesPanel';
 import VideoChatPanel from '../../components/video/VideoChatPanel';
+import { getCourseChatEventUnseenDelta } from '../../utils/courseChat';
 export { getStudentSessionAction, sortStudentSessions as sortSessions };
 
 const QuestionLibraryPanel = lazy(() => import('../../components/questions/QuestionLibraryPanel'));
+const CourseChatPanel = lazy(() => import('../../components/course/CourseChatPanel'));
 
-const MAX_STUDENT_TAB_INDEX = 6;
+const MAX_STUDENT_TAB_INDEX = 7;
 
 function parseCourseTab(value) {
   const parsed = Number.parseInt(value, 10);
@@ -125,12 +128,30 @@ export default function StudentCourseDetail() {
   const [sessionStatusFilters, setSessionStatusFilters] = useState({});
   const [sessionControlsExpanded, setSessionControlsExpanded] = useState({});
   const [tab, setTab] = useState(() => parseCourseTab(searchParams.get('tab')));
+  const [chatRefreshToken, setChatRefreshToken] = useState(0);
+  const [chatEvent, setChatEvent] = useState(null);
+  const [chatUnseenCount, setChatUnseenCount] = useState(0);
   const sessionFetchVersionRef = useRef(0);
   const sessionsFullyLoadedRef = useRef(false);
   const sessionsRef = useRef([]);
 
   // Video chat availability
   const [videoEnabled, setVideoEnabled] = useState(false);
+  const studentPracticeEnabled = !!course?.allowStudentQuestions;
+  const courseChatEnabled = !!course?.courseChatEnabled;
+  const courseHasVideo = videoEnabled && !!(
+    (course?.videoChatOptions && course.videoChatOptions.urlId)
+    || (course?.groupCategories || []).some((cat) => cat.catVideoChatOptions && cat.catVideoChatOptions.urlId)
+  );
+  let nextTabIndex = 0;
+  const lecturesTabIndex = nextTabIndex++;
+  const quizzesTabIndex = nextTabIndex++;
+  const practiceTabIndex = studentPracticeEnabled ? nextTabIndex++ : -1;
+  const questionLibraryTabIndex = studentPracticeEnabled ? nextTabIndex++ : -1;
+  const gradesTabIndex = nextTabIndex++;
+  const chatTabIndex = courseChatEnabled ? nextTabIndex++ : -1;
+  const videoTabIndex = courseHasVideo ? nextTabIndex++ : -1;
+  const settingsTabIndex = nextTabIndex++;
 
   useEffect(() => {
     let mounted = true;
@@ -153,7 +174,32 @@ export default function StudentCourseDetail() {
     }
   }, [id]);
 
+  const setCourseTab = useCallback((nextTab) => {
+    setTab(nextTab);
+    const nextParams = new URLSearchParams(searchParams);
+    if (nextTab === lecturesTabIndex) {
+      nextParams.delete('tab');
+    } else {
+      nextParams.set('tab', String(nextTab));
+    }
+    setSearchParams(nextParams, { replace: true });
+  }, [lecturesTabIndex, searchParams, setSearchParams]);
+
+  const fetchChatSummary = useCallback(async () => {
+    if (!courseChatEnabled || tab === chatTabIndex) {
+      setChatUnseenCount(0);
+      return;
+    }
+    try {
+      const { data } = await apiClient.get(`/courses/${id}/chat/summary`);
+      setChatUnseenCount(Math.max(0, Number(data?.unseenCount || 0)));
+    } catch {
+      setChatUnseenCount(0);
+    }
+  }, [chatTabIndex, courseChatEnabled, id, tab]);
+
   useEffect(() => { fetchCourse(); }, [fetchCourse]);
+  useEffect(() => { fetchChatSummary(); }, [fetchChatSummary]);
 
   const fetchSessionsPage = useCallback(async (page, limit = SESSION_PAGE_SIZE) => {
     const { data } = await apiClient.get(`/courses/${id}/sessions`, {
@@ -313,6 +359,12 @@ export default function StudentCourseDetail() {
   }, [searchParams]);
 
   useEffect(() => {
+    if (!courseChatEnabled || tab === chatTabIndex) {
+      setChatUnseenCount(0);
+    }
+  }, [chatTabIndex, courseChatEnabled, tab]);
+
+  useEffect(() => {
     let ws = null;
     let reconnectTimer = null;
     let pollingTimer = null;
@@ -321,6 +373,7 @@ export default function StudentCourseDetail() {
     const refreshSessions = () => {
       if (document.visibilityState !== 'visible') return;
       fetchSessions();
+      fetchChatSummary();
     };
 
     const startPolling = () => {
@@ -368,6 +421,14 @@ export default function StudentCourseDetail() {
             || evt === 'session:feedback-updated'
             || evt === 'session:quiz-submitted') {
             refreshSingleSession(d?.sessionId).catch(() => {});
+          } else if (evt === 'course:chat-updated') {
+            setChatRefreshToken((prev) => prev + 1);
+            if (tab === chatTabIndex) {
+              setChatUnseenCount(0);
+              setChatEvent((prev) => ({ id: (prev?.id || 0) + 1, ...d }));
+            } else {
+              setChatUnseenCount((prev) => prev + getCourseChatEventUnseenDelta(d));
+            }
           }
           if (evt === 'video:updated') {
             fetchCourse();
@@ -414,7 +475,7 @@ export default function StudentCourseDetail() {
       window.removeEventListener('focus', refreshSessions);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [fetchSessions, fetchCourse, id, patchSessionStatusLocally, refreshSingleSession]);
+  }, [chatTabIndex, fetchSessions, fetchCourse, fetchChatSummary, id, patchSessionStatusLocally, refreshSingleSession, tab]);
 
   const handleUnenroll = async () => {
     setUnenrolling(true);
@@ -431,47 +492,19 @@ export default function StudentCourseDetail() {
   // Redirect instructors/admins to the professor view of this course
   const shouldRedirectToInstructorView = useMemo(() => {
     if (!course) return false;
-    const userId = String(user?._id || '');
-    const isInstructor = (course.instructors || []).some(
-      (inst) => String(inst?._id || inst) === userId,
-    );
-    return isInstructor || (user?.profile?.roles || []).includes('admin');
-  }, [course, user?._id, user?.profile?.roles]);
+    return shouldRedirectStudentCourseToInstructorView(course, user);
+  }, [course, user]);
 
   useEffect(() => {
     if (!shouldRedirectToInstructorView) return;
     navigate(`/prof/course/${id}`, { replace: true });
   }, [shouldRedirectToInstructorView, id, navigate]);
 
-  const studentPracticeEnabled = !!course?.allowStudentQuestions;
-
-  // Determine if video is available for this course based on course data
-  const courseHasVideo = videoEnabled && !!(
-    (course?.videoChatOptions && course.videoChatOptions.urlId) ||
-    (course?.groupCategories || []).some((cat) => cat.catVideoChatOptions && cat.catVideoChatOptions.urlId)
-  );
-
-  let nextTabIndex = 0;
-  const lecturesTabIndex = nextTabIndex++;
-  const quizzesTabIndex = nextTabIndex++;
-  const practiceTabIndex = studentPracticeEnabled ? nextTabIndex++ : -1;
-  const questionLibraryTabIndex = studentPracticeEnabled ? nextTabIndex++ : -1;
-  const gradesTabIndex = nextTabIndex++;
-  const videoTabIndex = courseHasVideo ? nextTabIndex++ : -1;
-  const settingsTabIndex = nextTabIndex++;
-
   useEffect(() => {
     if (!course) return;
     if (tab <= settingsTabIndex) return;
-    setTab(settingsTabIndex);
-    const nextParams = new URLSearchParams(searchParams);
-    if (settingsTabIndex === lecturesTabIndex) {
-      nextParams.delete('tab');
-    } else {
-      nextParams.set('tab', String(settingsTabIndex));
-    }
-    setSearchParams(nextParams, { replace: true });
-  }, [course, lecturesTabIndex, searchParams, setSearchParams, settingsTabIndex, tab]);
+    setCourseTab(settingsTabIndex);
+  }, [course, setCourseTab, settingsTabIndex, tab]);
 
   if (loading) return <Box sx={{ p: 3 }}><CircularProgress /></Box>;
   if (shouldRedirectToInstructorView) return <Box sx={{ p: 3 }}><CircularProgress aria-label={t('common.redirecting')} /></Box>;
@@ -845,14 +878,7 @@ export default function StudentCourseDetail() {
       <ResponsiveTabsNavigation
         value={tab}
         onChange={(nextTab) => {
-          setTab(nextTab);
-          const nextParams = new URLSearchParams(searchParams);
-          if (nextTab === lecturesTabIndex) {
-            nextParams.delete('tab');
-          } else {
-            nextParams.set('tab', String(nextTab));
-          }
-          setSearchParams(nextParams, { replace: true });
+          setCourseTab(nextTab);
         }}
         ariaLabel={t('common.view')}
         dropdownLabel={t('common.view')}
@@ -865,6 +891,22 @@ export default function StudentCourseDetail() {
             { value: questionLibraryTabIndex, label: t('questionLibrary.title', { defaultValue: 'Question Library' }) },
           ] : []),
           { value: gradesTabIndex, label: t('student.course.grades') },
+          ...(courseChatEnabled ? [{
+            value: chatTabIndex,
+            label: (
+              <Badge color="error" badgeContent={chatUnseenCount} invisible={chatUnseenCount <= 0}>
+                <span>{t('courseChat.title')}</span>
+              </Badge>
+            ),
+            menuLabel: chatUnseenCount > 0
+              ? t('courseChat.titleWithUnseen', { count: chatUnseenCount })
+              : t('courseChat.title'),
+            tabProps: {
+              'aria-label': chatUnseenCount > 0
+                ? t('courseChat.titleWithUnseen', { count: chatUnseenCount })
+                : t('courseChat.title'),
+            },
+          }] : []),
           ...(courseHasVideo ? [{ value: videoTabIndex, label: t('student.course.video') }] : []),
           { value: settingsTabIndex, label: t('student.course.settings') },
         ]}
@@ -1051,6 +1093,21 @@ export default function StudentCourseDetail() {
           onOpenSession={(sessionReviewId) => navigate(`/student/course/${id}/session/${sessionReviewId}/review?returnTab=${gradesTabIndex}`)}
         />
       </TabPanel>
+
+      {courseChatEnabled && (
+        <TabPanel value={tab} index={chatTabIndex}>
+          <Suspense fallback={<Box sx={{ py: 4, display: 'flex', justifyContent: 'center' }}><CircularProgress /></Box>}>
+            <CourseChatPanel
+              courseId={id}
+              enabled={courseChatEnabled}
+              role="student"
+              syncTransport="unknown"
+              refreshToken={chatRefreshToken}
+              chatEvent={chatEvent}
+            />
+          </Suspense>
+        </TabPanel>
+      )}
 
       {courseHasVideo && (
         <TabPanel value={tab} index={videoTabIndex}>

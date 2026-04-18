@@ -11,7 +11,6 @@ import QlickerWordmark from '../common/QlickerWordmark';
 import { getManualPath, getPreferredManualRole } from '../../utils/userManuals';
 import { getDashboardPath } from '../../utils/dashboard';
 import NotificationsDialog from '../notifications/NotificationsDialog';
-import { APP_VERSION } from '../../utils/version';
 
 export default function AppLayout() {
   const { t } = useTranslation();
@@ -164,13 +163,6 @@ export default function AppLayout() {
                 style={{ color: 'currentColor' }}
               />
             </Button>
-            <Typography
-              component="span"
-              variant="caption"
-              sx={{ ml: 1, opacity: 0.9, fontWeight: 600, letterSpacing: 0.2 }}
-            >
-              {APP_VERSION}
-            </Typography>
           </Box>
           <Box sx={{ flexGrow: 1 }} />
           <Tooltip title={t('nav.openAccountMenuTooltip')} arrow>

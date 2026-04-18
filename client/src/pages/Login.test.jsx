@@ -2,6 +2,7 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Login from './Login';
+import { APP_VERSION } from '../utils/version';
 
 const {
   apiClientMock,
@@ -215,5 +216,22 @@ describe('Login', () => {
     });
 
     expect(screen.getByRole('link', { name: 'Go to the Qlicker landing page' })).toHaveAttribute('href', '/');
+  });
+
+  it('does not show the app version on the login page', async () => {
+    apiClientMock.get.mockResolvedValue({
+      data: {
+        SSO_enabled: false,
+        registrationDisabled: false,
+      },
+    });
+
+    render(<Login />);
+
+    await waitFor(() => {
+      expect(apiClientMock.get).toHaveBeenCalledWith('/settings/public');
+    });
+
+    expect(screen.queryByText(APP_VERSION)).not.toBeInTheDocument();
   });
 });

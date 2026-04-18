@@ -537,7 +537,7 @@ describe('QuestionManager page', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select visible question groups' }));
 
     const dialog = await screen.findByRole('dialog');
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Select all 3 matches' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Select all filtered' }));
 
     await screen.findByText('Question content 3');
     expect(screen.getByText('3 selected')).toBeInTheDocument();

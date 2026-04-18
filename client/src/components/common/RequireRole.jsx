@@ -7,13 +7,16 @@ export default function RequireRole({
   children,
   allowAdmin = true,
   allowInstructorCourses = role === 'professor',
+  allowStudentCourses = role === 'student',
 }) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const roles = user?.profile?.roles || [];
   const hasRole = role === 'professor'
     ? roles.includes('professor') || (allowInstructorCourses && !!user?.hasInstructorCourses)
-    : roles.includes(role);
+    : role === 'student'
+      ? roles.includes('student') || (allowStudentCourses && !!user?.hasStudentCourses)
+      : roles.includes(role);
   const hasAdmin = roles.includes('admin');
 
   if (!hasRole && !(allowAdmin && hasAdmin)) {

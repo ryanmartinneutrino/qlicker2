@@ -58,6 +58,7 @@ The course workspace combines:
 - review and grade access
 - student and instructor management
 - groups
+- course chat when enabled
 - video settings when enabled
 - course settings
 - the course question library
@@ -69,7 +70,7 @@ If the course currently has running activities, matching live tiles appear above
 
 1. Confirm the title, code, section, and semester.
 2. Add course topics so questions can be tagged consistently.
-3. Review course settings such as enrollment rules, active state, and whether students should have access to practice questions, practice sessions, and the course question library.
+3. Review course settings such as enrollment rules, active state, course chat retention, and whether students should have access to practice questions, practice sessions, and the course question library.
 4. Share the current enrollment code with students.
 5. Add instructors or TAs before the term begins.
 
@@ -80,6 +81,7 @@ If the course currently has running activities, matching live tiles appear above
 | Enrollment code | Students need it to join the correct course |
 | Active state | Inactive courses confuse students and hide workflows you may expect to see |
 | Allow students access to practice questions | Controls whether students can see the course question library or build practice sessions |
+| Course chat | Controls whether the course page shows a persistent course-wide discussion tab and how long posts stay visible before auto-archive |
 | Topic list | Affects tagging, search, and reuse across the course |
 | Video availability | Controls whether Jitsi/video workflows appear in the course |
 
@@ -214,6 +216,16 @@ Interactive sessions are designed for instructor-paced teaching.
 - Student posts stay anonymous to the class, but the professor view and the session review tab still show the student names.
 - Students can use quick posts for **I didn't understand question i** on earlier questions; repeated quick posts raise the same post's upvote count instead of creating duplicates.
 - In the professor chat tab, use **Dismiss** to remove a post from the student and presentation views while still keeping it in the professor-only session review tab.
+
+### Course chat on the course page
+
+- In the course **Settings** tab, enable **Course Chat** when you want a persistent discussion space outside individual live sessions.
+- Once enabled, the course page gains a **Course Chat** tab for instructors, students, and TAs.
+- Each post needs a topic, can include course tags, and supports rich text with images, equations, and video embeds.
+- Students stay anonymous to other students, while the professor/TA view shows the student avatar, name, and email for posts and comments.
+- Use the tag filter to narrow the list, and in the instructor view you can also filter by the student who created the post.
+- Students can delete only their own posts/comments, while instructors can archive or delete posts and can delete any comment.
+- Comments from the same person who created the post are marked as **Original poster**.
 
 ### Live teaching tips
 

@@ -410,9 +410,7 @@ function QuestionManagerSelectAllDialog({
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>
-        {t('professor.questionManager.selectAllDialogTitle', {
-          defaultValue: 'Select matching question groups?',
-        })}
+        {t('questionLibrary.bulk.selectAllFiltered', { defaultValue: 'Select all filtered' })}
       </DialogTitle>
       <DialogContent dividers>
         <Stack spacing={1.5}>
@@ -438,16 +436,13 @@ function QuestionManagerSelectAllDialog({
       <DialogActions>
         <Button onClick={onClose}>{t('common.cancel')}</Button>
         <Button onClick={onSelectCurrentPage}>
-          {t('professor.questionManager.selectCurrentPageOnly', {
+          {t('questionLibrary.bulk.selectAll', {
             count: visibleCount,
-            defaultValue: visibleCount === 1 ? 'Select this page only' : `Select these ${visibleCount} only`,
+            defaultValue: `Select all (${visibleCount})`,
           })}
         </Button>
         <Button variant="contained" onClick={onSelectAllMatching}>
-          {t('professor.questionManager.selectAllMatching', {
-            count: total,
-            defaultValue: total === 1 ? 'Select all 1 match' : `Select all ${total} matches`,
-          })}
+          {t('questionLibrary.bulk.selectAllFiltered', { defaultValue: 'Select all filtered' })}
         </Button>
       </DialogActions>
     </Dialog>
@@ -1163,16 +1158,7 @@ export default function QuestionManager() {
       ...current,
       page: 1,
     }));
-    setMessage({
-      severity: 'info',
-      text: t('professor.questionManager.expandedAllMatches', {
-        count: total,
-        defaultValue: total === 1
-          ? 'Expanded the list to show the only matching question group.'
-          : `Expanded the list to show all ${total} matching question groups.`,
-      }),
-    });
-  }, [t, total]);
+  }, []);
 
   const handleRequestDeleteEntries = useCallback((fingerprints) => {
     const {
@@ -1535,6 +1521,16 @@ export default function QuestionManager() {
                         : (total === 1 ? '1 matching question group' : `${total} matching question groups`),
                     })}
                   </Typography>
+                  {!showAllMatching && total > entries.length ? (
+                    <Button size="small" onClick={() => setSelectAllDialogOpen(true)}>
+                      {t('questionLibrary.bulk.selectAllFiltered', { defaultValue: 'Select all filtered' })}
+                    </Button>
+                  ) : null}
+                  {selectedCount > 0 ? (
+                    <Button size="small" onClick={() => setSelectedFingerprints([])}>
+                      {t('questionLibrary.bulk.clearSelection', { defaultValue: 'Clear selection' })}
+                    </Button>
+                  ) : null}
                 </Box>
                 <Stack direction="row" spacing={1} flexWrap="wrap">
                   <Button

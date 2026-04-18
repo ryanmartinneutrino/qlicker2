@@ -523,7 +523,9 @@
       "failedLoadCourses": "Kurse konnten nicht geladen werden",
       "courseCreated": "Kurs erstellt",
       "failedCreateCourse": "Kurs konnte nicht erstellt werden",
-      "questionManager": "Question Manager"
+      "questionManager": "Question Manager",
+      "enrollSuccessAsStudent": "Successfully enrolled in course as a student",
+      "failedEnrollAsStudent": "Failed to enroll in course as a student"
     },
     "questionManager": {
       "title": "Question Manager",
@@ -625,8 +627,6 @@
       "assignCoursesSuccess": "Created {{createdCount}} course copies.",
       "assignCoursesPartial": "Created {{createdCount}} course copies and skipped {{skippedCount}} existing associations.",
       "failedAssignCourses": "Failed to associate the selected questions with courses.",
-      "selectAll": "Select all",
-      "clearSelection": "Clear selection",
       "selectVisible": "Select visible question groups",
       "selectionSummary": "{{count}} matching question groups",
       "deleteSelected": "Delete selected",
