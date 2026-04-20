@@ -81,6 +81,7 @@ export default function PracticeSessionEditor() {
   const { courseId, sessionId } = useParams();
   const navigate = useNavigate();
   const libraryPanelRef = useRef(null);
+  const inlineQuestionEditorRef = useRef(null);
   const [course, setCourse] = useState(null);
   const [session, setSession] = useState(null);
   const [selectedQuestions, setSelectedQuestions] = useState([]);
@@ -97,6 +98,15 @@ export default function PracticeSessionEditor() {
   const [sessionTags, setSessionTags] = useState([]);
   const [editingQuestionId, setEditingQuestionId] = useState('');
   const [applyingSessionTags, setApplyingSessionTags] = useState(false);
+
+  const requestInlineEditorClose = useCallback(() => {
+    const requestClose = inlineQuestionEditorRef.current?.requestClose;
+    if (typeof requestClose === 'function') {
+      requestClose();
+      return;
+    }
+    setEditingQuestionId('');
+  }, []);
 
   const selectedQuestionIds = useMemo(
     () => selectedQuestions.map((question) => normalizeQuestionId(question)).filter(Boolean),
@@ -536,7 +546,13 @@ export default function PracticeSessionEditor() {
                                   <IconButton
                                     size="small"
                                     aria-label={editingQuestionId === questionId ? t('professor.sessionEditor.closeEditor') : t('common.edit')}
-                                    onClick={() => setEditingQuestionId((previous) => (previous === questionId ? '' : questionId))}
+                                    onClick={() => {
+                                      if (editingQuestionId === questionId) {
+                                        requestInlineEditorClose();
+                                        return;
+                                      }
+                                      setEditingQuestionId(questionId);
+                                    }}
                                   >
                                     {editingQuestionId === questionId ? <CloseIcon fontSize="small" /> : <EditIcon fontSize="small" />}
                                   </IconButton>
@@ -558,6 +574,7 @@ export default function PracticeSessionEditor() {
                           </Box>
                           {editingQuestionId === questionId ? (
                             <QuestionEditor
+                              ref={inlineQuestionEditorRef}
                               open
                               inline
                               initial={question}

@@ -6,6 +6,7 @@ import PracticeSessionEditor from './PracticeSessionEditor';
 
 const {
   apiClientMock,
+  requestCloseMock,
   tMock,
   questionEditorPropsMock,
   questionLibraryPanelPropsMock,
@@ -17,6 +18,7 @@ const {
     post: vi.fn(),
     patch: vi.fn(),
   },
+  requestCloseMock: vi.fn(),
   tMock: vi.fn((key, options) => options?.defaultValue ?? key),
   questionEditorPropsMock: vi.fn(),
   questionLibraryPanelPropsMock: vi.fn(),
@@ -43,7 +45,7 @@ vi.mock('../../components/questions/QuestionDisplay', () => ({
 vi.mock('../../components/questions/QuestionEditor', () => ({
   default: function MockQuestionEditor({ ref, ...props }) {
     React.useImperativeHandle(ref, () => ({
-      requestClose: vi.fn(),
+      requestClose: requestCloseMock,
     }));
     questionEditorPropsMock(props);
     return <div>Mock Question Editor</div>;
@@ -81,6 +83,7 @@ function renderEditor(initialEntry = '/student/course/course-1/practice-sessions
 describe('PracticeSessionEditor', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    requestCloseMock.mockReset();
 
     apiClientMock.get.mockImplementation((url) => {
       if (url === '/courses/course-1') {
@@ -178,6 +181,22 @@ describe('PracticeSessionEditor', () => {
     });
 
     expect(await screen.findByText('Review destination')).toBeInTheDocument();
+  });
+
+  it('turns the edit button into a close action for inline practice-question editing', async () => {
+    renderEditor('/student/course/course-1/practice-sessions/session-1');
+
+    expect(await screen.findByText('Question One')).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'common.edit' })[0]);
+
+    expect(await screen.findByText('Mock Question Editor')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'professor.sessionEditor.closeEditor' }));
+
+    await waitFor(() => {
+      expect(requestCloseMock).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('applies practice-session tags to every question in the session', async () => {
