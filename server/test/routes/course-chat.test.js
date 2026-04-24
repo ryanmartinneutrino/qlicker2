@@ -221,4 +221,48 @@ describe('course chat routes', () => {
     expect(refreshedPost?.archivedAt).toBeNull();
     expect(refreshedPost?.archivedBy).toBe('');
   });
+
+  it('does not let students include archived posts', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const prof = await createTestUser({ email: 'chat-prof-5@example.com', roles: ['professor'] });
+    const profToken = await getAuthToken(app, prof);
+    const course = await createCourse(profToken, { courseChatEnabled: true });
+
+    const student = await createTestUser({ email: 'chat-student-3@example.com', roles: ['student'] });
+    const studentToken = await getAuthToken(app, student);
+
+    await authenticatedRequest(app, 'POST', '/api/v1/courses/enroll', {
+      token: studentToken,
+      payload: { enrollmentCode: course.enrollmentCode },
+    });
+
+    await Course.findByIdAndUpdate(course._id, {
+      $set: { courseChatEnabled: true },
+    });
+
+    await Post.create({
+      scopeType: 'course',
+      courseId: String(course._id),
+      authorId: String(prof._id),
+      authorRole: 'instructor',
+      title: 'Archived instructor note',
+      body: 'Body',
+      bodyWysiwyg: '<p>Body</p>',
+      tags: [],
+      comments: [],
+      upvoteUserIds: [],
+      upvoteCount: 0,
+      archivedAt: new Date('2026-04-10T12:00:00.000Z'),
+      archivedBy: String(prof._id),
+      createdAt: new Date('2026-04-10T10:00:00.000Z'),
+      updatedAt: new Date('2026-04-10T12:00:00.000Z'),
+    });
+
+    const res = await authenticatedRequest(app, 'GET', `/api/v1/courses/${course._id}/chat?includeArchived=true`, {
+      token: studentToken,
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().posts).toHaveLength(0);
+  });
 });

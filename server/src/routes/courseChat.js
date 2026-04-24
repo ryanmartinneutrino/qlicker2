@@ -388,10 +388,11 @@ async function loadCourseChatPayload({ course, request, includeArchived = false 
   await archiveExpiredCourseChatPosts(course);
   const viewerUserId = String(request.user?.userId || '');
   const includeNames = isInstructorOrAdmin(course, request.user);
+  const canIncludeArchived = includeNames && includeArchived;
   const posts = await Post.find({
     scopeType: 'course',
     courseId: String(course._id),
-    ...(includeArchived ? {} : { archivedAt: null }),
+    ...(canIncludeArchived ? {} : { archivedAt: null }),
   })
     .select('authorId authorRole title body bodyWysiwyg tags upvoteUserIds upvoteCount comments archivedAt createdAt updatedAt')
     .lean();
