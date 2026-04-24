@@ -244,8 +244,8 @@ describe('WebSocket without Redis (single-instance fallback)', () => {
   it('health endpoint reports redis: false when Redis is not configured', async () => {
     const res = await app.inject({ method: 'GET', url: '/api/v1/health' });
     const body = JSON.parse(res.body);
+    expect(body.status).toBe('ok');
     expect(body.redis).toBe(false);
-    expect(typeof body.version).toBe('string');
-    expect(body.version.length).toBeGreaterThan(0);
+    expect(body.version).toBeUndefined();
   });
 });
