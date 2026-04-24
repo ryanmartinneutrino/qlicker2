@@ -476,6 +476,45 @@ describe('POST /api/v1/users/me/image/thumbnail', () => {
     }
   });
 
+  it('blocks recropping remote profile images on private IPv6 hosts', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const user = await createTestUser({ email: 'legacy-private-ipv6-avatar@example.com' });
+    const token = await getAuthToken(app, user);
+    const sourceUrl = 'http://[fd00::1]:8080/avatar.png';
+    const originalFetch = globalThis.fetch;
+    let fetchCalled = false;
+
+    globalThis.fetch = async () => {
+      fetchCalled = true;
+      throw new Error('fetch should not be called for private IPv6 hosts');
+    };
+
+    try {
+      await User.findByIdAndUpdate(user._id, {
+        $set: {
+          'profile.profileImage': sourceUrl,
+          'profile.profileThumbnail': sourceUrl,
+        },
+      });
+
+      const res = await authenticatedRequest(app, 'POST', '/api/v1/users/me/image/thumbnail', {
+        token,
+        payload: {
+          rotation: 0,
+          cropX: 0,
+          cropY: 0,
+          cropSize: 1,
+        },
+      });
+
+      expect(fetchCalled).toBe(false);
+      expect(res.statusCode).toBe(400);
+      expect(res.json().message).toMatch(/could not be loaded/i);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   it('accepts decimal crop coordinates from drag interactions', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
     const user = await createTestUser({ email: 'decimal-avatar@example.com' });
