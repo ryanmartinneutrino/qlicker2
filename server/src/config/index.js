@@ -19,6 +19,18 @@ function parseBooleanEnv(value) {
   return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
 }
 
+function parseOptionalBooleanEnv(value, fallback) {
+  if (typeof value !== 'string') return fallback;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on') {
+    return true;
+  }
+  if (normalized === '0' || normalized === 'false' || normalized === 'no' || normalized === 'off') {
+    return false;
+  }
+  return fallback;
+}
+
 function parseNonNegativeIntEnv(value, fallback) {
   const parsed = Number.parseInt(value || '', 10);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
@@ -65,6 +77,7 @@ export default {
   mailUrl: process.env.MAIL_URL || '',
   redisUrl: process.env.REDIS_URL || '',
   appVersion,
+  enableApiDocs: parseOptionalBooleanEnv(process.env.ENABLE_API_DOCS, nodeEnv !== 'production'),
   mongoMaxPoolSize: parseNonNegativeIntEnv(process.env.MONGO_MAX_POOL_SIZE, 25),
   mongoMinPoolSize: parseNonNegativeIntEnv(process.env.MONGO_MIN_POOL_SIZE, 0),
   mongoServerSelectionTimeoutMs: parseNonNegativeIntEnv(

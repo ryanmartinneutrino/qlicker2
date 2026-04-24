@@ -99,6 +99,7 @@ services:
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET must be set}
       - ROOT_URL=${ROOT_URL:-https://localhost}
+      - ENABLE_API_DOCS=${ENABLE_API_DOCS:-false}
       - MAIL_URL=${MAIL_URL:-}
       - NODE_ENV=production
       - APP_VERSION=${APP_VERSION:-v2.0.0.b1}
