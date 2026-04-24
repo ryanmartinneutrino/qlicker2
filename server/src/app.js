@@ -162,7 +162,6 @@ export async function buildApp(opts = {}) {
           type: 'object',
           properties: {
             status: { type: 'string' },
-            version: { type: 'string' },
             timestamp: { type: 'string', format: 'date-time' },
             websocket: { type: 'boolean' },
             redis: { type: 'boolean' },
@@ -172,7 +171,6 @@ export async function buildApp(opts = {}) {
     },
   }, async () => ({
     status: 'ok',
-    version: app.config.appVersion,
     timestamp: new Date().toISOString(),
     websocket: typeof app.wsSendToUser === 'function',
     redis: typeof app.redis !== 'undefined' && app.redis !== null,
