@@ -49,6 +49,10 @@ function safeDecodeURIComponent(value) {
   }
 }
 
+function escapeRegExp(value = '') {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function encodeStorageKey(key = '') {
   return encodeURIComponent(String(key || '')).replace(/%2F/g, '/');
 }
@@ -110,12 +114,16 @@ function extractConfiguredS3Key(value, config) {
 
   const bucketLower = bucket.toLowerCase();
   const hostLower = parsed.hostname.toLowerCase();
+  const escapedBucket = escapeRegExp(bucketLower);
+  const virtualHostedAwsPattern = new RegExp(`^${escapedBucket}\\.s3(?:[.-][a-z0-9-]+)*\\.amazonaws\\.com$`);
+  const websiteHostedAwsPattern = new RegExp(`^${escapedBucket}\\.s3-website(?:[.-][a-z0-9-]+)*\\.amazonaws\\.com$`);
+  const pathStyleAwsPattern = /^s3(?:[.-][a-z0-9-]+)*\.amazonaws\.com$/;
 
-  if (hostLower === `${bucketLower}.s3.amazonaws.com` || (hostLower.startsWith(`${bucketLower}.s3.`) && hostLower.endsWith('.amazonaws.com'))) {
+  if (virtualHostedAwsPattern.test(hostLower) || websiteHostedAwsPattern.test(hostLower)) {
     return pathSegments.join('/');
   }
 
-  if ((hostLower === 's3.amazonaws.com' || (hostLower.startsWith('s3.') && hostLower.endsWith('.amazonaws.com'))) && pathSegments[0]?.toLowerCase() === bucketLower) {
+  if (pathStyleAwsPattern.test(hostLower) && pathSegments[0]?.toLowerCase() === bucketLower) {
     return pathSegments.slice(1).join('/');
   }
 
