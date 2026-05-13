@@ -17,7 +17,7 @@ import {
   ExpandLess as ExpandLessIcon,
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import apiClient, { getAccessToken } from '../../api/client';
+import apiClient, { getUsableAccessToken } from '../../api/client';
 import { buildCourseSelectionLabel, buildCourseTitle, sortCoursesByRecent } from '../../utils/courseTitle';
 import {
   getProfessorSessionPrimaryPath,
@@ -675,14 +675,14 @@ export default function CourseDetail() {
     let reconnectTimer = null;
     let closed = false;
 
-    const connect = () => {
+    const connect = async () => {
       if (closed) return;
-      const latestToken = getAccessToken();
+      const latestToken = await getUsableAccessToken({ refreshIfMissing: true, refreshIfExpiring: true });
       if (!latestToken) return;
       try {
         ws = new WebSocket(buildWebsocketUrl(latestToken));
       } catch {
-        reconnectTimer = setTimeout(connect, 2500);
+        reconnectTimer = setTimeout(() => { void connect(); }, 2500);
         return;
       }
 
@@ -715,14 +715,14 @@ export default function CourseDetail() {
 
       ws.onclose = () => {
         if (closed) return;
-        reconnectTimer = setTimeout(connect, 2500);
+        reconnectTimer = setTimeout(() => { void connect(); }, 2500);
       };
     };
 
     const init = async () => {
       try {
         const { data } = await apiClient.get('/health');
-        if (data?.websocket === true) { connect(); }
+        if (data?.websocket === true) { void connect(); }
       } catch { /* WebSocket not available — polling still active */ }
     };
 

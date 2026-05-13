@@ -6,7 +6,7 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions, Stack, TextField, MenuItem,
 } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
-import apiClient, { getAccessToken } from '../../api/client';
+import apiClient, { getUsableAccessToken } from '../../api/client';
 import { buildCourseTitle } from '../../utils/courseTitle';
 import { shouldRedirectStudentCourseToInstructorView } from '../../utils/courseAccess';
 import {
@@ -387,15 +387,15 @@ export default function StudentCourseDetail() {
       pollingTimer = null;
     };
 
-    const connect = () => {
+    const connect = async () => {
       if (closed) return;
-      const latestToken = getAccessToken();
+      const latestToken = await getUsableAccessToken({ refreshIfMissing: true, refreshIfExpiring: true });
       if (!latestToken) return;
       try {
         ws = new WebSocket(buildWebsocketUrl(latestToken));
       } catch {
         startPolling();
-        reconnectTimer = setTimeout(connect, 2500);
+        reconnectTimer = setTimeout(() => { void connect(); }, 2500);
         return;
       }
 
@@ -441,7 +441,7 @@ export default function StudentCourseDetail() {
       ws.onclose = () => {
         if (closed) return;
         startPolling();
-        reconnectTimer = setTimeout(connect, 2500);
+        reconnectTimer = setTimeout(() => { void connect(); }, 2500);
       };
     };
 
@@ -453,7 +453,7 @@ export default function StudentCourseDetail() {
           startPolling();
           return;
         }
-        connect();
+        void connect();
       } catch {
         startPolling();
       }

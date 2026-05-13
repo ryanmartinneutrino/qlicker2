@@ -7,7 +7,7 @@ import {
 } from '@mui/material';
 import { Add as AddIcon, School as SchoolIcon, PlayCircle as LiveIcon } from '@mui/icons-material';
 import { useTranslation } from 'react-i18next';
-import apiClient, { getAccessToken } from '../../api/client';
+import apiClient, { getUsableAccessToken } from '../../api/client';
 import { useAuth } from '../../contexts/AuthContext';
 import { buildCourseTitle } from '../../utils/courseTitle';
 import { fetchAllCourses } from '../../utils/fetchAllCourses';
@@ -134,15 +134,15 @@ export default function StudentDashboard() {
       pollingTimer = null;
     };
 
-    const connect = () => {
+    const connect = async () => {
       if (closed) return;
-      const latestToken = getAccessToken();
+      const latestToken = await getUsableAccessToken({ refreshIfMissing: true, refreshIfExpiring: true });
       if (!latestToken) return;
       try {
         ws = new WebSocket(buildWebsocketUrl(latestToken));
       } catch {
         startPolling();
-        reconnectTimer = setTimeout(connect, 2500);
+        reconnectTimer = setTimeout(() => { void connect(); }, 2500);
         return;
       }
 
@@ -169,7 +169,7 @@ export default function StudentDashboard() {
       ws.onclose = () => {
         if (closed) return;
         startPolling();
-        reconnectTimer = setTimeout(connect, 2500);
+        reconnectTimer = setTimeout(() => { void connect(); }, 2500);
       };
     };
 
@@ -177,7 +177,7 @@ export default function StudentDashboard() {
       try {
         const { data } = await apiClient.get('/health');
         if (data?.websocket === true) {
-          connect();
+          void connect();
           return;
         }
         startPolling();
