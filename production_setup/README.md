@@ -811,7 +811,9 @@ Storage backend selection and cloud credentials are **not** read from environmen
 
 The one storage-related maintenance exception is [`sanitize-s3.js`](./sanitize-s3.js) / [`sanitize-s3.sh`](./sanitize-s3.sh): they resolve S3 settings from the database first and accept `AWS_*` variables as overrides when needed.
 
-From the internet, the production stack exposes only Nginx on ports **80/443**. The API containers stay internal to the Docker network, and authenticated API calls are still enforced by the application itself with JWT bearer tokens, refresh cookies, CSRF header checks, CORS, and per-route rate limits. Direct browser calls to `/api/*` are therefore expected; the main hardening recommendation is to keep public documentation endpoints disabled unless you need them.
+From the internet, the production stack exposes only Nginx on ports **80/443**. The API containers stay internal to the Docker network, and authenticated API calls are still enforced by the application itself with JWT bearer tokens, refresh cookies, CSRF header checks, CORS, and per-route Fastify rate limits. Direct browser calls to `/api/*` are therefore expected; the main hardening recommendation is to keep public documentation endpoints disabled unless you need them.
+
+The bundled Nginx config intentionally does **not** place a blanket rate limit on all `/api` traffic. Qlicker is a browser SPA and normal navigation can produce short bursts of parallel authenticated API requests; broad edge throttling can therefore create false "server unavailable" failures for real users. Instead, the bundled edge rate limits target the abuse-prone public auth endpoints (`/api/v1/auth/login`, `/register`, `/forgot-password`, and `/reset-password`) while the application keeps per-route limits on sensitive server handlers.
 
 ---
 
