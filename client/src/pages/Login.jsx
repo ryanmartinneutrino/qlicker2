@@ -23,6 +23,8 @@ export default function Login() {
   const [ssoInstitutionName, setSsoInstitutionName] = useState('SSO');
   const [registrationDisabled, setRegistrationDisabled] = useState(false);
   const [showEmailLogin, setShowEmailLogin] = useState(false);
+  const [publicSettingsLoading, setPublicSettingsLoading] = useState(true);
+  const [publicSettingsError, setPublicSettingsError] = useState(false);
   const [forgotOpen, setForgotOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotMsg, setForgotMsg] = useState(null);
@@ -38,6 +40,9 @@ export default function Login() {
   useEffect(() => {
     let active = true;
 
+    setPublicSettingsLoading(true);
+    setPublicSettingsError(false);
+
     apiClient.get('/settings/public').then(({ data }) => {
       if (!active) return;
       const enabled = !!data.SSO_enabled;
@@ -47,12 +52,11 @@ export default function Login() {
       setSsoInstitutionName(institution || 'SSO');
       setShowEmailLogin(!enabled);
       if (!!data.registrationDisabled) setTab(0);
+      setPublicSettingsLoading(false);
     }).catch(() => {
       if (!active) return;
-      setSsoEnabled(false);
-      setRegistrationDisabled(false);
-      setSsoInstitutionName('SSO');
-      setShowEmailLogin(true);
+      setPublicSettingsError(true);
+      setPublicSettingsLoading(false);
     });
 
     return () => {
@@ -153,7 +157,11 @@ export default function Login() {
     </Box>
   );
 
-  if (authLoading) {
+  if (user) {
+    return <Navigate to={getDashboardPath(user)} replace />;
+  }
+
+  if (authLoading || publicSettingsLoading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
         <CircularProgress />
@@ -161,8 +169,36 @@ export default function Login() {
     );
   }
 
-  if (user) {
-    return <Navigate to={getDashboardPath(user)} replace />;
+  if (publicSettingsError) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh" bgcolor="background.default">
+        <Card sx={{ maxWidth: 450, width: '100%', mx: 2 }}>
+          <CardContent>
+            <Box
+              component={Link}
+              to="/"
+              aria-label={t('auth.goToLandingPage')}
+              sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                m: 0,
+                mb: 2,
+                color: 'primary.main',
+                textDecoration: 'none',
+              }}
+            >
+              <QlickerWordmark height={42} title={t('common.appName')} />
+            </Box>
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              {t('auth.loadingLoginOptions', { defaultValue: 'Qlicker is still loading sign-in options. Please try again in a moment.' })}
+            </Alert>
+            <Button fullWidth variant="contained" onClick={() => window.location.reload()}>
+              {t('common.retry', { defaultValue: 'Retry' })}
+            </Button>
+          </CardContent>
+        </Card>
+      </Box>
+    );
   }
 
   return (

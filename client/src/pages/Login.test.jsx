@@ -81,6 +81,29 @@ describe('Login', () => {
     navigateMock.mockReset();
   });
 
+  it('waits for public auth settings before showing a login mode', async () => {
+    let resolveSettings;
+    apiClientMock.get.mockReturnValue(new Promise((resolve) => {
+      resolveSettings = resolve;
+    }));
+
+    render(<Login />);
+
+    expect(screen.getByRole('progressbar')).toBeInTheDocument();
+    expect(screen.queryByRole('form', { name: 'Login' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Register' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Login through/i })).not.toBeInTheDocument();
+
+    resolveSettings({
+      data: {
+        SSO_enabled: true,
+        SSO_institutionName: 'Example University',
+      },
+    });
+
+    expect(await screen.findByRole('button', { name: 'Login through Example University' })).toBeInTheDocument();
+  });
+
   it('uses standard login field names and autocomplete tokens for email login when SSO is enabled', async () => {
     apiClientMock.get.mockResolvedValue({
       data: {
