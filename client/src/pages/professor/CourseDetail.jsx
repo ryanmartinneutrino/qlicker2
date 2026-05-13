@@ -1752,10 +1752,12 @@ export default function CourseDetail() {
                     <ListItemAvatar>
                       <Avatar
                         alt={`${inst.profile?.firstname || ''} ${inst.profile?.lastname || ''}`.trim() || 'Instructor avatar'}
-                        src={inst.profile?.profileImage || inst.profile?.profileThumbnail || ''}
+                        src={inst.profile?.profileThumbnail || inst.profile?.profileImage || ''}
                         slotProps={{
                           img: {
                             alt: `${inst.profile?.firstname || ''} ${inst.profile?.lastname || ''}`.trim() || 'Instructor avatar',
+                            loading: 'lazy',
+                            decoding: 'async',
                           },
                         }}
                         sx={{ width: 36, height: 36, cursor: (inst.profile?.profileImage) ? 'pointer' : 'default' }}

@@ -496,6 +496,8 @@ const GradingTableRow = memo(function GradingTableRow({
             slotProps={{
               img: {
                 alt: row.displayName,
+                loading: 'lazy',
+                decoding: 'async',
               },
             }}
             sx={{

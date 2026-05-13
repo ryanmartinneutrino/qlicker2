@@ -36,6 +36,7 @@ describe('GET /uploads/*', () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.headers['content-type']).toMatch(/image\/png/);
+    expect(res.headers['cache-control']).toBe('public, max-age=31536000, immutable');
     expect(getFileObject).toHaveBeenCalledWith('legacy-folder/my image.png');
   });
 

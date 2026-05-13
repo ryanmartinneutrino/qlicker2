@@ -179,7 +179,7 @@ export async function buildApp(opts = {}) {
   // Serve uploaded images from the configured storage backend through a stable app URL.
   app.get('/uploads/*', {
     config: {
-      rateLimit: { max: 120, timeWindow: '1 minute' },
+      rateLimit: { max: 600, timeWindow: '1 minute' },
     },
     schema: {
       params: {
@@ -199,6 +199,7 @@ export async function buildApp(opts = {}) {
 
     try {
       const { buffer, contentType } = await app.getFileObject(key);
+      reply.header('Cache-Control', 'public, max-age=31536000, immutable');
       return reply.type(contentType || guessImageContentTypeFromKey(key)).send(buffer);
     } catch (err) {
       request.log.warn({ err, key }, 'Failed to serve uploaded image');

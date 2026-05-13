@@ -141,7 +141,7 @@ export default function StudentInfoModal({
   const lastname = student?.profile?.lastname || '';
   const displayName = `${firstname} ${lastname}`.trim() || 'Unknown';
   const email = student?.emails?.[0]?.address || student?.email || '';
-  const avatarSrc = student?.profile?.profileImage || student?.profile?.profileThumbnail || '';
+  const avatarSrc = student?.profile?.profileThumbnail || student?.profile?.profileImage || '';
 
   const memberships = useMemo(
     () => buildGroupMemberships(course, student?._id),
@@ -203,6 +203,8 @@ export default function StudentInfoModal({
               slotProps={{
                 img: {
                   alt: displayName,
+                  loading: 'lazy',
+                  decoding: 'async',
                 },
               }}
               sx={{ width: 64, height: 64 }}

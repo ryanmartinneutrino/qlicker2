@@ -12,7 +12,7 @@ vi.mock('react-i18next', () => ({
 }));
 
 describe('StudentIdentity', () => {
-  it('opens the full-size profile image dialog from the avatar keyboard control', () => {
+  it('uses the thumbnail for the avatar and opens the full-size profile image dialog', () => {
     render(
       <StudentIdentity
         student={{
@@ -27,11 +27,13 @@ describe('StudentIdentity', () => {
       />
     );
 
+    expect(screen.getByAltText('Ada Lovelace')).toHaveAttribute('src', '/uploads/ada-thumb.jpg');
+
     const avatarButton = screen.getByRole('button', { name: 'Ada Lovelace' });
     fireEvent.keyDown(avatarButton, { key: 'Enter' });
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: 'Ada Lovelace' })).toHaveAttribute('src', '/uploads/ada-full.jpg');
+    expect(screen.getAllByRole('img', { name: 'Ada Lovelace' }).at(-1)).toHaveAttribute('src', '/uploads/ada-full.jpg');
 
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     return waitFor(() => {

@@ -27,6 +27,13 @@ async function uploadPlugin(fastify) {
 
   let s3ModulePromise = null;
   let azureModulePromise = null;
+  let cachedStorageConfig = null;
+  let cachedStorageConfigExpiresAt = 0;
+  let cachedS3Client = null;
+  let cachedS3ClientKey = '';
+  let cachedAzureBlobServiceClient = null;
+  let cachedAzureBlobServiceClientKey = '';
+  const STORAGE_CONFIG_CACHE_TTL_MS = 5000;
 
   function asBool(value, fallback = false) {
     if (typeof value === 'boolean') return value;
@@ -79,7 +86,32 @@ async function uploadPlugin(fastify) {
   }
 
   async function getStorageConfig() {
-    const settings = await getOrCreateSettingsDocument({ lean: true });
+    if (cachedStorageConfig && Date.now() < cachedStorageConfigExpiresAt) {
+      return cachedStorageConfig;
+    }
+
+    const settings = await getOrCreateSettingsDocument({
+      lean: true,
+      select: [
+        'storageType',
+        'AWS_bucket',
+        'AWS_region',
+        'AWS_accessKeyId',
+        'AWS_accessKey',
+        'AWS_secretAccessKey',
+        'AWS_secret',
+        'AWS_endpoint',
+        'S3_endpoint',
+        'AWS_forcePathStyle',
+        'S3_forcePathStyle',
+        'Azure_storageAccount',
+        'Azure_accountName',
+        'Azure_storageAccessKey',
+        'Azure_accountKey',
+        'Azure_storageContainer',
+        'Azure_containerName',
+      ].join(' '),
+    });
     const storageType = normalizeStorageType(
       settings?.storageType || 'local'
     );
@@ -94,7 +126,7 @@ async function uploadPlugin(fastify) {
       ? defaultPathStyleForEndpoint
       : asBool(rawForcePathStyle, defaultPathStyleForEndpoint);
 
-    return {
+    cachedStorageConfig = {
       storageType,
       AWS_bucket: settings?.AWS_bucket || '',
       AWS_region: settings?.AWS_region || 'us-east-1',
@@ -116,6 +148,8 @@ async function uploadPlugin(fastify) {
         || settings?.Azure_containerName
         || '',
     };
+    cachedStorageConfigExpiresAt = Date.now() + STORAGE_CONFIG_CACHE_TTL_MS;
+    return cachedStorageConfig;
   }
 
   async function loadS3Module() {
@@ -130,6 +164,62 @@ async function uploadPlugin(fastify) {
       azureModulePromise = import('@azure/storage-blob');
     }
     return azureModulePromise;
+  }
+
+  function getS3ClientCacheKey(config) {
+    return JSON.stringify({
+      region: config.AWS_region || 'us-east-1',
+      accessKeyId: config.AWS_accessKeyId || '',
+      secretAccessKey: config.AWS_secretAccessKey || '',
+      endpoint: config.AWS_endpoint || '',
+      forcePathStyle: !!config.AWS_forcePathStyle,
+    });
+  }
+
+  async function getS3Client(config) {
+    const cacheKey = getS3ClientCacheKey(config);
+    if (cachedS3Client && cachedS3ClientKey === cacheKey) {
+      return cachedS3Client;
+    }
+
+    const { S3Client } = await loadS3Module();
+    cachedS3Client = new S3Client({
+      region: config.AWS_region || 'us-east-1',
+      credentials: {
+        accessKeyId: config.AWS_accessKeyId,
+        secretAccessKey: config.AWS_secretAccessKey,
+      },
+      endpoint: config.AWS_endpoint || undefined,
+      forcePathStyle: config.AWS_forcePathStyle,
+    });
+    cachedS3ClientKey = cacheKey;
+    return cachedS3Client;
+  }
+
+  function getAzureBlobServiceClientCacheKey(config) {
+    return JSON.stringify({
+      account: config.Azure_storageAccount || '',
+      accessKey: config.Azure_storageAccessKey || '',
+    });
+  }
+
+  async function getAzureBlobServiceClient(config) {
+    const cacheKey = getAzureBlobServiceClientCacheKey(config);
+    if (cachedAzureBlobServiceClient && cachedAzureBlobServiceClientKey === cacheKey) {
+      return cachedAzureBlobServiceClient;
+    }
+
+    const { StorageSharedKeyCredential, BlobServiceClient } = await loadAzureModule();
+    const credential = new StorageSharedKeyCredential(
+      config.Azure_storageAccount,
+      config.Azure_storageAccessKey
+    );
+    cachedAzureBlobServiceClient = new BlobServiceClient(
+      `https://${config.Azure_storageAccount}.blob.core.windows.net`,
+      credential
+    );
+    cachedAzureBlobServiceClientKey = cacheKey;
+    return cachedAzureBlobServiceClient;
   }
 
   async function uploadFile(fileBuffer, filename, mimetype) {
@@ -149,16 +239,8 @@ async function uploadPlugin(fastify) {
         ensureRequired(config.AWS_accessKeyId, 'S3 storage requires AWS access key ID.');
         ensureRequired(config.AWS_secretAccessKey, 'S3 storage requires AWS secret access key.');
 
-        const { S3Client, PutObjectCommand } = await loadS3Module();
-        const client = new S3Client({
-          region: config.AWS_region || 'us-east-1',
-          credentials: {
-            accessKeyId: config.AWS_accessKeyId,
-            secretAccessKey: config.AWS_secretAccessKey,
-          },
-          endpoint: config.AWS_endpoint || undefined,
-          forcePathStyle: config.AWS_forcePathStyle,
-        });
+        const { PutObjectCommand } = await loadS3Module();
+        const client = await getS3Client(config);
         await client.send(new PutObjectCommand({
           Bucket: config.AWS_bucket,
           Key: key,
@@ -174,15 +256,7 @@ async function uploadPlugin(fastify) {
         ensureRequired(config.Azure_storageAccessKey, 'Azure storage requires account key.');
         ensureRequired(config.Azure_storageContainer, 'Azure storage requires container.');
 
-        const { StorageSharedKeyCredential, BlobServiceClient } = await loadAzureModule();
-        const credential = new StorageSharedKeyCredential(
-          config.Azure_storageAccount,
-          config.Azure_storageAccessKey
-        );
-        const blobServiceClient = new BlobServiceClient(
-          `https://${config.Azure_storageAccount}.blob.core.windows.net`,
-          credential
-        );
+        const blobServiceClient = await getAzureBlobServiceClient(config);
         const containerClient = blobServiceClient.getContainerClient(config.Azure_storageContainer);
         await containerClient.createIfNotExists();
 
@@ -217,16 +291,8 @@ async function uploadPlugin(fastify) {
         ensureRequired(config.AWS_accessKeyId, 'S3 storage requires AWS access key ID.');
         ensureRequired(config.AWS_secretAccessKey, 'S3 storage requires AWS secret access key.');
 
-        const { S3Client, DeleteObjectCommand } = await loadS3Module();
-        const client = new S3Client({
-          region: config.AWS_region || 'us-east-1',
-          credentials: {
-            accessKeyId: config.AWS_accessKeyId,
-            secretAccessKey: config.AWS_secretAccessKey,
-          },
-          endpoint: config.AWS_endpoint || undefined,
-          forcePathStyle: config.AWS_forcePathStyle,
-        });
+        const { DeleteObjectCommand } = await loadS3Module();
+        const client = await getS3Client(config);
         await client.send(new DeleteObjectCommand({
           Bucket: config.AWS_bucket,
           Key: key,
@@ -238,15 +304,7 @@ async function uploadPlugin(fastify) {
         ensureRequired(config.Azure_storageAccessKey, 'Azure storage requires account key.');
         ensureRequired(config.Azure_storageContainer, 'Azure storage requires container.');
 
-        const { StorageSharedKeyCredential, BlobServiceClient } = await loadAzureModule();
-        const credential = new StorageSharedKeyCredential(
-          config.Azure_storageAccount,
-          config.Azure_storageAccessKey
-        );
-        const blobServiceClient = new BlobServiceClient(
-          `https://${config.Azure_storageAccount}.blob.core.windows.net`,
-          credential
-        );
+        const blobServiceClient = await getAzureBlobServiceClient(config);
         const containerClient = blobServiceClient.getContainerClient(config.Azure_storageContainer);
         const blockBlobClient = containerClient.getBlockBlobClient(key);
         await blockBlobClient.deleteIfExists();
@@ -277,16 +335,8 @@ async function uploadPlugin(fastify) {
         ensureRequired(config.AWS_accessKeyId, 'S3 storage requires AWS access key ID.');
         ensureRequired(config.AWS_secretAccessKey, 'S3 storage requires AWS secret access key.');
 
-        const { S3Client, GetObjectCommand } = await loadS3Module();
-        const client = new S3Client({
-          region: config.AWS_region || 'us-east-1',
-          credentials: {
-            accessKeyId: config.AWS_accessKeyId,
-            secretAccessKey: config.AWS_secretAccessKey,
-          },
-          endpoint: config.AWS_endpoint || undefined,
-          forcePathStyle: config.AWS_forcePathStyle,
-        });
+        const { GetObjectCommand } = await loadS3Module();
+        const client = await getS3Client(config);
         const response = await client.send(new GetObjectCommand({
           Bucket: config.AWS_bucket,
           Key: key,
@@ -301,15 +351,7 @@ async function uploadPlugin(fastify) {
         ensureRequired(config.Azure_storageAccessKey, 'Azure storage requires account key.');
         ensureRequired(config.Azure_storageContainer, 'Azure storage requires container.');
 
-        const { StorageSharedKeyCredential, BlobServiceClient } = await loadAzureModule();
-        const credential = new StorageSharedKeyCredential(
-          config.Azure_storageAccount,
-          config.Azure_storageAccessKey
-        );
-        const blobServiceClient = new BlobServiceClient(
-          `https://${config.Azure_storageAccount}.blob.core.windows.net`,
-          credential
-        );
+        const blobServiceClient = await getAzureBlobServiceClient(config);
         const containerClient = blobServiceClient.getContainerClient(config.Azure_storageContainer);
         const blockBlobClient = containerClient.getBlockBlobClient(key);
         const response = await blockBlobClient.download();

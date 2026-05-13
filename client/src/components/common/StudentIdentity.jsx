@@ -36,12 +36,19 @@ export default function StudentIdentity({
     return fullName || normalizeValue(student?.displayName) || email || t('common.unknown');
   }, [email, firstname, lastname, student?.displayName, t]);
   const avatarSrc = normalizeValue(
-    student?.profile?.profileImage
+    student?.avatarSrc
       || student?.profile?.profileThumbnail
+      || student?.profileThumbnail
+      || student?.profile?.profileImage
       || student?.profileImage
+  );
+  const fullImageSrc = normalizeValue(
+    student?.fullImageSrc
+      || student?.profile?.profileImage
+      || student?.profileImage
+      || student?.profile?.profileThumbnail
       || student?.profileThumbnail
   );
-  const fullImageSrc = normalizeValue(student?.profile?.profileImage || student?.profileImage || avatarSrc);
   const initials = `${firstname.charAt(0)}${lastname.charAt(0)}`.trim()
     || email.charAt(0)
     || '?';
@@ -71,6 +78,8 @@ export default function StudentIdentity({
           slotProps={{
             img: {
               alt: displayName,
+              loading: 'lazy',
+              decoding: 'async',
             },
           }}
           sx={{
