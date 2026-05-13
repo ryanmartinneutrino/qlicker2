@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import apiClient, { getAccessToken } from '../api/client';
+import apiClient, { getUsableAccessToken } from '../api/client';
 
 const LiveSessionWebSocketContext = createContext(null);
 
@@ -47,11 +47,12 @@ export function LiveSessionWebSocketProvider({ sessionId, children }) {
       pollingTimer = null;
     };
 
-    const connect = () => {
+    const connect = async () => {
       if (closed) return;
-      const latestToken = getAccessToken();
+      const latestToken = await getUsableAccessToken({ refreshIfMissing: true, refreshIfExpiring: true });
       if (!latestToken) {
         startPolling();
+        reconnectTimer = setTimeout(() => { void connect(); }, 2500);
         return;
       }
 
@@ -59,7 +60,7 @@ export function LiveSessionWebSocketProvider({ sessionId, children }) {
         ws = new WebSocket(buildWebsocketUrl(latestToken));
       } catch {
         startPolling();
-        reconnectTimer = setTimeout(connect, 2500);
+        reconnectTimer = setTimeout(() => { void connect(); }, 2500);
         return;
       }
 
@@ -92,7 +93,7 @@ export function LiveSessionWebSocketProvider({ sessionId, children }) {
       ws.onclose = () => {
         if (closed) return;
         startPolling();
-        reconnectTimer = setTimeout(connect, 2500);
+        reconnectTimer = setTimeout(() => { void connect(); }, 2500);
       };
     };
 
@@ -100,7 +101,7 @@ export function LiveSessionWebSocketProvider({ sessionId, children }) {
       try {
         const { data } = await apiClient.get('/health');
         if (data?.websocket === true) {
-          connect();
+          void connect();
           return;
         }
       } catch {

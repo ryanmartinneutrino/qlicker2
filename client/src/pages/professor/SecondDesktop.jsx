@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import {
   Box, Typography, Paper, Alert, CircularProgress, Chip, Button,
 } from '@mui/material';
-import apiClient, { getAccessToken } from '../../api/client';
+import apiClient, { getUsableAccessToken } from '../../api/client';
 import {
   QUESTION_TYPES,
   TYPE_COLORS,
@@ -354,9 +354,9 @@ export default function PresentationWindow() {
       pollingTimer = null;
     };
 
-    const connect = () => {
+    const connect = async () => {
       if (closed) return;
-      const latestToken = getAccessToken();
+      const latestToken = await getUsableAccessToken({ refreshIfMissing: true, refreshIfExpiring: true });
       if (!latestToken) {
         setLiveTransport('unknown');
         return;
@@ -365,7 +365,7 @@ export default function PresentationWindow() {
         ws = new WebSocket(buildWebsocketUrl(latestToken));
       } catch {
         startPolling();
-        reconnectTimer = setTimeout(connect, 2500);
+        reconnectTimer = setTimeout(() => { void connect(); }, 2500);
         return;
       }
 
@@ -497,14 +497,14 @@ export default function PresentationWindow() {
       ws.onclose = () => {
         if (closed) return;
         startPolling();
-        reconnectTimer = setTimeout(connect, 2500);
+        reconnectTimer = setTimeout(() => { void connect(); }, 2500);
       };
     };
 
     const init = async () => {
       try {
         const { data } = await apiClient.get('/health');
-        if (data?.websocket === true) { connect(); return; }
+        if (data?.websocket === true) { void connect(); return; }
       } catch { /* fall through */ }
       startPolling();
     };
