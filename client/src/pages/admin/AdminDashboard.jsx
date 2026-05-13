@@ -26,6 +26,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { formatDisplayDateTime } from '../../utils/date';
 import { buildCourseTitle } from '../../utils/courseTitle';
 import { fetchAllCourses } from '../../utils/fetchAllCourses';
+import { isRequestCanceled } from '../../utils/requestCancellation';
 import {
   approximate16x9JpegSizeBytes,
   approximateSquareJpegSizeBytes,
@@ -2257,11 +2258,13 @@ function CoursesTab() {
 
   useEffect(() => {
     let mounted = true;
-    fetchAllCourses(apiClient, { view: 'all' }).then((allCourses) => {
+    const controller = new AbortController();
+    fetchAllCourses(apiClient, { view: 'all' }, { signal: controller.signal }).then((allCourses) => {
       if (mounted) {
         setCourses(allCourses);
       }
     }).catch((error) => {
+      if (isRequestCanceled(error)) return;
       if (mounted) {
         setMessage(error.response?.data?.message || t('admin.courses.failedLoadCourses'));
       }
@@ -2270,6 +2273,7 @@ function CoursesTab() {
     });
     return () => {
       mounted = false;
+      controller.abort();
     };
   }, [t]);
 

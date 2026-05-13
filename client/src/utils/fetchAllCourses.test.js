@@ -37,4 +37,25 @@ describe('fetchAllCourses', () => {
       params: { view: 'student', page: 2, limit: 500 },
     });
   });
+
+  it('forwards an abort signal to every paginated request', async () => {
+    const signal = new AbortController().signal;
+    const apiClient = {
+      get: vi.fn().mockResolvedValue({
+        data: {
+          courses: [{ _id: 'course-1' }],
+          total: 1,
+          page: 1,
+          pages: 1,
+        },
+      }),
+    };
+
+    await fetchAllCourses(apiClient, { view: 'instructor' }, { signal });
+
+    expect(apiClient.get).toHaveBeenCalledWith('/courses', {
+      params: { view: 'instructor', page: 1, limit: 500 },
+      signal,
+    });
+  });
 });

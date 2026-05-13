@@ -39,6 +39,7 @@ import VideoChatPanel from '../../components/video/VideoChatPanel';
 import { useTranslation } from 'react-i18next';
 import { toggleSessionReviewable } from '../../utils/reviewableToggle';
 import { getCourseChatEventUnseenDelta } from '../../utils/courseChat';
+import { isRequestCanceled } from '../../utils/requestCancellation';
 
 const QuestionLibraryPanel = lazy(() => import('../../components/questions/QuestionLibraryPanel'));
 const CourseChatPanel = lazy(() => import('../../components/course/CourseChatPanel'));
@@ -360,6 +361,7 @@ export default function CourseDetail() {
   // Polling ref for auto-refresh
   const pollingRef = useRef(null);
   const sessionFetchVersionRef = useRef(0);
+  const sessionsAbortControllerRef = useRef(null);
   const settingsHydratedRef = useRef(false);
   const lastSavedEditFieldsHashRef = useRef('');
   const settingsSaveInFlightRef = useRef(false);
@@ -370,6 +372,7 @@ export default function CourseDetail() {
   const fetchSessionGradeSummaries = useCallback(async (sessionItems, {
     merge = false,
     fetchVersion = null,
+    signal = undefined,
   } = {}) => {
     const sessionIds = [...new Set(
       (sessionItems || []).map((session) => session?._id).filter(Boolean)
@@ -385,6 +388,7 @@ export default function CourseDetail() {
     try {
       const gradeSummaryRes = await apiClient.get(`/courses/${id}/grades`, {
         params: { sessionIds: sessionIds.join(',') },
+        signal,
       });
       if (fetchVersion !== null && sessionFetchVersionRef.current !== fetchVersion) return;
 
@@ -399,7 +403,8 @@ export default function CourseDetail() {
       setGradingSummaryBySessionId((previousSummaries) => (
         merge ? { ...previousSummaries, ...summaryMap } : summaryMap
       ));
-    } catch {
+    } catch (err) {
+      if (isRequestCanceled(err) || signal?.aborted) return;
       if (fetchVersion !== null && sessionFetchVersionRef.current !== fetchVersion) return;
       if (!merge) {
         setGradingSummaryBySessionId({});
@@ -407,9 +412,10 @@ export default function CourseDetail() {
     }
   }, [id]);
 
-  const fetchSessionsPage = useCallback(async (page, limit = SESSION_PAGE_SIZE) => {
+  const fetchSessionsPage = useCallback(async (page, limit = SESSION_PAGE_SIZE, { signal } = {}) => {
     const { data } = await apiClient.get(`/courses/${id}/sessions`, {
       params: { page, limit },
+      signal,
     });
     return data;
   }, [id]);
@@ -441,9 +447,12 @@ export default function CourseDetail() {
     sessionFetchVersionRef.current = fetchVersion;
     setSessionsLoading(true);
     setSessionsBackgroundLoading(false);
+    sessionsAbortControllerRef.current?.abort();
+    const controller = new AbortController();
+    sessionsAbortControllerRef.current = controller;
 
     try {
-      const firstPageData = await fetchSessionsPage(1);
+      const firstPageData = await fetchSessionsPage(1, SESSION_PAGE_SIZE, { signal: controller.signal });
       if (sessionFetchVersionRef.current !== fetchVersion) return;
 
       const initialSessions = firstPageData.sessions || [];
@@ -461,7 +470,11 @@ export default function CourseDetail() {
       setSessionTypeCounts(nextSessionTypeCounts);
       setSessionsLoading(false);
 
-      await fetchSessionGradeSummaries(initialSessions, { fetchVersion, merge: false });
+      await fetchSessionGradeSummaries(initialSessions, {
+        fetchVersion,
+        merge: false,
+        signal: controller.signal,
+      });
       if (sessionFetchVersionRef.current !== fetchVersion) return;
 
       if (totalPages <= 1) {
@@ -475,7 +488,9 @@ export default function CourseDetail() {
 
       for (let index = 0; index < remainingPages.length; index += SESSION_BACKGROUND_BATCH_SIZE) {
         const pageBatch = remainingPages.slice(index, index + SESSION_BACKGROUND_BATCH_SIZE);
-        const batchResults = await Promise.all(pageBatch.map((page) => fetchSessionsPage(page)));
+        const batchResults = await Promise.all(
+          pageBatch.map((page) => fetchSessionsPage(page, SESSION_PAGE_SIZE, { signal: controller.signal }))
+        );
         if (sessionFetchVersionRef.current !== fetchVersion) return;
 
         const batchSessions = batchResults.flatMap((result) => result.sessions || []);
@@ -483,18 +498,27 @@ export default function CourseDetail() {
 
         allLoadedSessions.push(...batchSessions);
         setSessions([...allLoadedSessions]);
-        await fetchSessionGradeSummaries(batchSessions, { fetchVersion, merge: true });
+        await fetchSessionGradeSummaries(batchSessions, {
+          fetchVersion,
+          merge: true,
+          signal: controller.signal,
+        });
         if (sessionFetchVersionRef.current !== fetchVersion) return;
       }
 
       setSessionsBackgroundLoading(false);
-    } catch {
+    } catch (err) {
+      if (isRequestCanceled(err) || controller.signal.aborted) return;
       if (sessionFetchVersionRef.current !== fetchVersion) return;
       setGradingSummaryBySessionId({});
       setSessionTotalCount(0);
       setSessionTypeCounts({ interactive: 0, quizzes: 0 });
       setSessionsLoading(false);
       setSessionsBackgroundLoading(false);
+    } finally {
+      if (sessionsAbortControllerRef.current === controller) {
+        sessionsAbortControllerRef.current = null;
+      }
     }
   }, [fetchSessionGradeSummaries, fetchSessionsPage]);
 
@@ -596,7 +620,14 @@ export default function CourseDetail() {
     };
   }, []);
 
-  useEffect(() => { fetchCourse(); fetchSessions(); }, [fetchCourse, fetchSessions]);
+  useEffect(() => {
+    fetchCourse();
+    fetchSessions();
+    return () => {
+      sessionsAbortControllerRef.current?.abort();
+      sessionsAbortControllerRef.current = null;
+    };
+  }, [fetchCourse, fetchSessions]);
   useEffect(() => {
     if (tab === 0 || tab === 1) {
       fetchSessions();

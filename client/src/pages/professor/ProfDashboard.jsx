@@ -21,6 +21,7 @@ import {
 import { buildCourseTitle } from '../../utils/courseTitle';
 import { fetchAllCourses } from '../../utils/fetchAllCourses';
 import { sortCoursesByRecentActivity } from '../../utils/courseSorting';
+import { isRequestCanceled } from '../../utils/requestCancellation';
 import SessionListCard from '../../components/common/SessionListCard';
 
 const COMPACT_CHIP_SX = {
@@ -91,25 +92,38 @@ export default function ProfDashboard() {
     return String(payload.message || '').toLowerCase().includes('inactive');
   }, []);
 
-  const fetchCourses = useCallback(async () => {
+  const fetchCourses = useCallback(async ({ signal } = {}) => {
     setLoading(true);
     try {
       const [coursesRes, studentCoursesRes, liveRes] = await Promise.all([
-        fetchAllCourses(apiClient, { view: 'instructor' }),
-        fetchAllCourses(apiClient, { view: 'student' }).catch(() => []),
-        apiClient.get('/sessions/live', { params: { view: 'instructor' } }).catch(() => ({ data: { liveSessions: [] } })),
+        fetchAllCourses(apiClient, { view: 'instructor' }, { signal }),
+        fetchAllCourses(apiClient, { view: 'student' }, { signal }).catch((err) => {
+          if (isRequestCanceled(err)) throw err;
+          return [];
+        }),
+        apiClient.get('/sessions/live', { params: { view: 'instructor' }, signal }).catch((err) => {
+          if (isRequestCanceled(err)) throw err;
+          return { data: { liveSessions: [] } };
+        }),
       ]);
       setCourses(coursesRes);
       setStudentCourses(studentCoursesRes);
       setLiveSessions(liveRes.data.liveSessions || []);
-    } catch {
+    } catch (err) {
+      if (isRequestCanceled(err)) return;
       setMsg({ severity: 'error', text: t('professor.dashboard.failedLoadCourses') });
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) {
+        setLoading(false);
+      }
     }
   }, [t]);
 
-  useEffect(() => { fetchCourses(); }, [fetchCourses]);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchCourses({ signal: controller.signal });
+    return () => controller.abort();
+  }, [fetchCourses]);
 
   const handleCreate = async () => {
     setCreating(true);
