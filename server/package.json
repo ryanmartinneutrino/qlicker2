@@ -42,7 +42,7 @@
   },
   "overrides": {
     "@fastify/static": "9.1.1",
-    "@xmldom/xmldom": "0.9.9",
+    "@xmldom/xmldom": "0.8.11",
     "brace-expansion": "5.0.5",
     "fast-xml-parser": ">=5.5.6",
     "follow-redirects": "1.16.0",
