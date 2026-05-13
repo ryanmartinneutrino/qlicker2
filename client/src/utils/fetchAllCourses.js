@@ -23,10 +23,12 @@ function getTotalPages(data, limit, courseCount) {
 
 export async function fetchAllCourses(apiClient, params = {}, options = {}) {
   const limit = Math.min(COURSES_PAGE_SIZE, Math.max(1, Number(options.pageSize) || COURSES_PAGE_SIZE));
+  const { signal } = options;
 
   const fetchPage = async (page) => {
     const { data } = await apiClient.get('/courses', {
       params: buildPageParams(params, page, limit),
+      signal,
     });
     return data || {};
   };

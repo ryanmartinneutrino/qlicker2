@@ -12,6 +12,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { buildCourseTitle } from '../../utils/courseTitle';
 import { fetchAllCourses } from '../../utils/fetchAllCourses';
 import { sortCoursesByRecentActivity } from '../../utils/courseSorting';
+import { isRequestCanceled } from '../../utils/requestCancellation';
 import {
   getStudentSessionAction,
   isSubmittedLiveQuiz,
@@ -62,45 +63,49 @@ export default function StudentDashboard() {
   const [enrollCode, setEnrollCode] = useState('');
   const [enrolling, setEnrolling] = useState(false);
 
-  const fetchLiveSessions = useCallback(async () => {
+  const fetchLiveSessions = useCallback(async ({ signal } = {}) => {
     try {
-      const liveRes = await apiClient.get('/sessions/live', { params: { view: 'student' } });
+      const liveRes = await apiClient.get('/sessions/live', { params: { view: 'student' }, signal });
       setLiveSessions(liveRes.data.liveSessions || []);
-    } catch {
+    } catch (err) {
+      if (isRequestCanceled(err)) return;
       setLiveSessions([]);
     }
   }, []);
 
-  const fetchCourses = useCallback(async () => {
+  const fetchCourses = useCallback(async ({ signal } = {}) => {
     try {
-      const nextCourses = await fetchAllCourses(apiClient, { view: 'student' });
+      const nextCourses = await fetchAllCourses(apiClient, { view: 'student' }, { signal });
       setCourses(nextCourses);
-    } catch {
+    } catch (err) {
+      if (isRequestCanceled(err)) return;
       setMsg({ severity: 'error', text: t('student.dashboard.failedLoadCourses') });
     }
   }, [t]);
 
-  const fetchTaCourses = useCallback(async () => {
+  const fetchTaCourses = useCallback(async ({ signal } = {}) => {
     if (!user?.hasInstructorCourses) {
       setTaCourses([]);
       return;
     }
     try {
-      const nextCourses = await fetchAllCourses(apiClient, { view: 'instructor' });
+      const nextCourses = await fetchAllCourses(apiClient, { view: 'instructor' }, { signal });
       setTaCourses(nextCourses);
-    } catch {
+    } catch (err) {
+      if (isRequestCanceled(err)) return;
       setTaCourses([]);
     }
   }, [user?.hasInstructorCourses]);
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
     const load = async () => {
       setLoading(true);
       await Promise.all([
-        fetchCourses(),
-        fetchTaCourses(),
-        fetchLiveSessions(),
+        fetchCourses({ signal: controller.signal }),
+        fetchTaCourses({ signal: controller.signal }),
+        fetchLiveSessions({ signal: controller.signal }),
       ]);
       if (!cancelled) {
         setLoading(false);
@@ -109,6 +114,7 @@ export default function StudentDashboard() {
     load();
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [fetchCourses, fetchTaCourses, fetchLiveSessions]);
 

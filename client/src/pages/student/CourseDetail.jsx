@@ -30,6 +30,7 @@ import { useTranslation } from 'react-i18next';
 import CourseGradesPanel from '../../components/grades/CourseGradesPanel';
 import VideoChatPanel from '../../components/video/VideoChatPanel';
 import { getCourseChatEventUnseenDelta } from '../../utils/courseChat';
+import { isRequestCanceled } from '../../utils/requestCancellation';
 export { getStudentSessionAction, sortStudentSessions as sortSessions };
 
 const QuestionLibraryPanel = lazy(() => import('../../components/questions/QuestionLibraryPanel'));
@@ -134,6 +135,7 @@ export default function StudentCourseDetail() {
   const sessionFetchVersionRef = useRef(0);
   const sessionsFullyLoadedRef = useRef(false);
   const sessionsRef = useRef([]);
+  const sessionsAbortControllerRef = useRef(null);
 
   // Video chat availability
   const [videoEnabled, setVideoEnabled] = useState(false);
@@ -201,9 +203,10 @@ export default function StudentCourseDetail() {
   useEffect(() => { fetchCourse(); }, [fetchCourse]);
   useEffect(() => { fetchChatSummary(); }, [fetchChatSummary]);
 
-  const fetchSessionsPage = useCallback(async (page, limit = SESSION_PAGE_SIZE) => {
+  const fetchSessionsPage = useCallback(async (page, limit = SESSION_PAGE_SIZE, { signal } = {}) => {
     const { data } = await apiClient.get(`/courses/${id}/sessions`, {
       params: { page, limit },
+      signal,
     });
     return data;
   }, [id]);
@@ -291,9 +294,12 @@ export default function StudentCourseDetail() {
     sessionsFullyLoadedRef.current = false;
     setSessionsLoading(true);
     setSessionsBackgroundLoading(false);
+    sessionsAbortControllerRef.current?.abort();
+    const controller = new AbortController();
+    sessionsAbortControllerRef.current = controller;
 
     try {
-      const firstPageData = await fetchSessionsPage(1);
+      const firstPageData = await fetchSessionsPage(1, SESSION_PAGE_SIZE, { signal: controller.signal });
       if (sessionFetchVersionRef.current !== fetchVersion) return;
 
       const initialSessions = firstPageData.sessions || [];
@@ -324,7 +330,9 @@ export default function StudentCourseDetail() {
 
       for (let index = 0; index < remainingPages.length; index += SESSION_BACKGROUND_BATCH_SIZE) {
         const pageBatch = remainingPages.slice(index, index + SESSION_BACKGROUND_BATCH_SIZE);
-        const batchResults = await Promise.all(pageBatch.map((page) => fetchSessionsPage(page)));
+        const batchResults = await Promise.all(
+          pageBatch.map((page) => fetchSessionsPage(page, SESSION_PAGE_SIZE, { signal: controller.signal }))
+        );
         if (sessionFetchVersionRef.current !== fetchVersion) return;
 
         const batchSessions = batchResults.flatMap((result) => result.sessions || []);
@@ -337,17 +345,28 @@ export default function StudentCourseDetail() {
       if (sessionFetchVersionRef.current !== fetchVersion) return;
       sessionsFullyLoadedRef.current = true;
       setSessionsBackgroundLoading(false);
-    } catch {
+    } catch (err) {
+      if (isRequestCanceled(err) || controller.signal.aborted) return;
       if (sessionFetchVersionRef.current !== fetchVersion) return;
       sessionsFullyLoadedRef.current = false;
       setSessionTotalCount(0);
       setSessionTypeCounts({ interactive: 0, quizzes: 0, practice: 0 });
       setSessionsLoading(false);
       setSessionsBackgroundLoading(false);
+    } finally {
+      if (sessionsAbortControllerRef.current === controller) {
+        sessionsAbortControllerRef.current = null;
+      }
     }
   }, [fetchSessionsPage]);
 
-  useEffect(() => { fetchSessions(); }, [fetchSessions]);
+  useEffect(() => {
+    fetchSessions();
+    return () => {
+      sessionsAbortControllerRef.current?.abort();
+      sessionsAbortControllerRef.current = null;
+    };
+  }, [fetchSessions]);
 
   useEffect(() => {
     sessionsRef.current = sessions;
