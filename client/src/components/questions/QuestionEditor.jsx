@@ -139,6 +139,15 @@ const COMPACT_FIELD_SX = {
   },
 };
 
+const EMPHASIZED_SECTION_SX = {
+  mb: 2,
+  p: 1.5,
+  borderRadius: 2,
+  border: '1px solid',
+  borderColor: 'divider',
+  bgcolor: 'background.paper',
+};
+
 function buildQuestionPayload(form, options = {}) {
   const effectiveVisibility = options.visibilityState || extractVisibilityState(form);
   const content = normalizeStoredHtml(form.content, { allowVideoEmbeds: true });
@@ -572,8 +581,22 @@ function QuestionEditor({
     <>
         {(() => {
           const slideMode = isSlideType(form.type);
-          const questionTextLabel = slideMode ? t('questions.editor.slideText') : t('questions.editor.questionText');
-          const questionPlaceholder = slideMode ? t('questions.editor.slidePlaceholder') : t('questions.editor.questionPlaceholder');
+          const questionPlaceholder = slideMode
+            ? t('questions.editor.slidePlaceholderWithHelp', {
+              defaultValue: 'Write the slide content here...\nUse LaTeX like $...$. Drag, paste, or upload images with the toolbar.',
+            })
+            : t('questions.editor.questionPlaceholderWithHelp', {
+              defaultValue: 'Write the question here...\nUse LaTeX like $...$. Drag, paste, or upload images with the toolbar.',
+            });
+          const tagPlaceholder = noCourseTagSuggestionsAvailable
+            ? t('questions.editor.tagsUnavailableInCourseSettings', {
+              defaultValue: 'No tags defined in course settings yet',
+            })
+            : tagsLockedToCourseTopics
+              ? t('questions.editor.tagsCourseSettingsPlaceholder', {
+                defaultValue: 'Choose from tags defined in course settings',
+              })
+              : t('questions.editor.tagsPlaceholder', { defaultValue: 'Add a tag' });
 
           return (
             <>
@@ -675,25 +698,12 @@ function QuestionEditor({
             <TextField
               {...params}
               label={t('questions.editor.tags', { defaultValue: 'Tags' })}
-              placeholder={noCourseTagSuggestionsAvailable
-                ? t('questions.editor.tagsUnavailablePlaceholder', { defaultValue: 'No course topics available' })
-                : t('questions.editor.tagsPlaceholder', { defaultValue: 'Add a tag' })}
+              placeholder={tagPlaceholder}
               size="small"
             />
           )}
           sx={{ mb: 2 }}
         />
-        {showCourseTagSettingsHint && tagsLockedToCourseTopics ? (
-          <Alert severity={hasCourseTagSuggestions ? 'info' : 'warning'} sx={{ mb: 2 }}>
-            {hasCourseTagSuggestions
-              ? t('questions.editor.courseTagsOnly', {
-                defaultValue: 'Only course topics can be used as tags for questions.',
-              })
-              : t('questions.editor.courseTagsUnavailable', {
-                defaultValue: 'Only course-related topics can be added as question tags. Add course topics in Course Settings to enable tagging.',
-              })}
-          </Alert>
-        ) : null}
 
         {showVisibilityControls ? (
           <>
@@ -764,32 +774,21 @@ function QuestionEditor({
           </>
         ) : null}
 
-        <Box sx={{ mb: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.75, minHeight: 24 }}>
-            <Typography variant="subtitle2">{questionTextLabel}</Typography>
-            {hasChangesSinceOpen ? (
-              <Button
-                size="small"
-                onClick={handleUndoAllChanges}
-                disabled={closing}
-              >
-                {t('questions.editor.undoAllChanges')}
-              </Button>
-            ) : null}
-          </Box>
+        <Paper variant="outlined" sx={EMPHASIZED_SECTION_SX}>
           <RichTextEditor
             value={form.content}
             onChange={({ html }) => updateForm((prev) => ({ ...prev, content: html }))}
             placeholder={questionPlaceholder}
-            minHeight={26}
+            minHeight={56}
             resizable
-            showTip
+            showTip={false}
             enableVideo
+            borderEmphasis="strong"
           />
-        </Box>
+        </Paper>
 
         {isOptionBasedQuestionType(form.type) && (
-          <Box sx={{ mb: 2 }}>
+          <Paper variant="outlined" sx={EMPHASIZED_SECTION_SX}>
             <Typography variant="subtitle2" sx={{ mb: 1 }}>
               {form.type === QUESTION_TYPES.MULTI_SELECT ? t('questions.editor.optionsSelectAll') : t('questions.editor.optionsSelectOne')}
             </Typography>
@@ -812,6 +811,7 @@ function QuestionEditor({
                     placeholder={t('questions.editor.optionPlaceholder', { number: i + 1 })}
                     minHeight={30}
                     compact
+                    borderEmphasis="strong"
                   />
                 </Box>
                 {form.options.length > 2 && (
@@ -820,11 +820,11 @@ function QuestionEditor({
               </Box>
             ))}
             <Button size="small" startIcon={<AddIcon />} onClick={addOption} disabled={disableOptionCountChanges}>{t('questions.editor.addOption')}</Button>
-          </Box>
+          </Paper>
         )}
 
         {form.type === QUESTION_TYPES.TRUE_FALSE && (
-          <Box sx={{ mb: 2 }}>
+          <Paper variant="outlined" sx={EMPHASIZED_SECTION_SX}>
             <Typography variant="subtitle2" sx={{ mb: 1 }}>{t('questions.editor.correctAnswer')}</Typography>
             <FormGroup row>
               <FormControlLabel
@@ -840,11 +840,12 @@ function QuestionEditor({
                 label={t('questions.editor.false')}
               />
             </FormGroup>
-          </Box>
+          </Paper>
         )}
 
         {form.type === QUESTION_TYPES.NUMERICAL && (
-          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+          <Paper variant="outlined" sx={EMPHASIZED_SECTION_SX}>
+            <Box sx={{ display: 'flex', gap: 2 }}>
             <TextField
               label={t('questions.editor.correctAnswer')}
               type="number"
@@ -859,24 +860,28 @@ function QuestionEditor({
               value={form.toleranceNumerical}
               onChange={e => updateForm((prev) => ({ ...prev, toleranceNumerical: e.target.value }))}
             />
-          </Box>
+            </Box>
+          </Paper>
         )}
 
         {!slideMode && (
           <>
             <Divider sx={{ my: 2 }} />
 
-            <RichTextEditor
-              label={t('questions.editor.solutionLabel')}
-              value={form.solution}
-              onChange={({ html }) => updateForm((prev) => ({ ...prev, solution: html }))}
-              placeholder={t('questions.editor.solutionPlaceholder')}
-              minHeight={26}
-              resizable
-            />
+            <Paper variant="outlined" sx={EMPHASIZED_SECTION_SX}>
+              <RichTextEditor
+                label={t('questions.editor.solutionLabel')}
+                value={form.solution}
+                onChange={({ html }) => updateForm((prev) => ({ ...prev, solution: html }))}
+                placeholder={t('questions.editor.solutionPlaceholder')}
+                minHeight={40}
+                resizable
+                borderEmphasis="strong"
+              />
+            </Paper>
           </>
         )}
-        <Divider sx={{ my: 2 }} />
+        <Divider sx={{ my: 2.5, borderColor: 'text.primary', opacity: 0.28, borderBottomWidth: 2 }} />
         <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
           {t('questions.editor.livePreview')}
         </Typography>

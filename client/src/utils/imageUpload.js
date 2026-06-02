@@ -240,6 +240,9 @@ export async function createAvatarThumbnailFile(source, crop, {
     throw new Error('Failed to prepare avatar image');
   }
   drawRotatedImageToCanvas(rotatedCtx, image, safeCrop.rotation);
+  if (!canvasHasVisiblePixels(rotatedCanvas, rotatedCtx)) {
+    throw new Error('Failed to prepare avatar image');
+  }
 
   const outputCanvas = document.createElement('canvas');
   outputCanvas.width = outputSize;
@@ -259,6 +262,9 @@ export async function createAvatarThumbnailFile(source, crop, {
     outputSize,
     outputSize,
   );
+  if (!canvasHasVisiblePixels(outputCanvas, outputCtx)) {
+    throw new Error('Failed to prepare avatar thumbnail');
+  }
 
   const outputBlob = await canvasToBlob(outputCanvas, type, quality);
   return new File([outputBlob], fileName, {
