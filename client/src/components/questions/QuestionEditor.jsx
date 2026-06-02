@@ -67,6 +67,24 @@ function hasAnyOptionContent(options = []) {
   return (options || []).some((option) => hasRichTextContent(option?.content || ''));
 }
 
+function hasDraftContent(form = {}) {
+  if (normalizeStoredHtml(form.content, { allowVideoEmbeds: true })) return true;
+
+  const normalizedType = Number(form?.type);
+  if (isSlideType(normalizedType)) return false;
+
+  if (isOptionBasedQuestionType(normalizedType) || normalizedType === QUESTION_TYPES.TRUE_FALSE) {
+    return hasAnyOptionContent(form.options);
+  }
+
+  if (normalizedType === QUESTION_TYPES.NUMERICAL) {
+    return String(form.correctNumerical ?? '').trim() !== ''
+      || String(form.toleranceNumerical ?? '').trim() !== '';
+  }
+
+  return hasRichTextContent(form.solution || '');
+}
+
 const emptyForm = () => ({
   type: QUESTION_TYPES.MULTIPLE_CHOICE,
   content: '',
@@ -390,7 +408,7 @@ function QuestionEditor({
 
   useEffect(() => {
     if (!open || hydratingRef.current) return;
-    if (!hasRichTextContent(form.content, { allowVideoEmbeds: true }) && !questionIdRef.current) return;
+    if (!questionIdRef.current && !hasDraftContent(form)) return;
 
     const payload = buildEditorPayload(form);
     const payloadHash = JSON.stringify(payload);
@@ -401,7 +419,7 @@ function QuestionEditor({
     }, 700);
 
     return () => clearTimeout(autosaveTimer);
-  }, [buildEditorPayload, open, form, persistPayload]);
+  }, [buildEditorPayload, initialSnapshotHash, open, form, persistPayload]);
 
   const currentPayloadHash = useMemo(() => JSON.stringify(buildEditorPayload(form)), [buildEditorPayload, form]);
   const deferredPreviewForm = useDeferredValue(form);
@@ -522,10 +540,10 @@ function QuestionEditor({
     setClosing(true);
     try {
       const latestForm = latestFormRef.current;
-      const shouldAttemptSave = hasRichTextContent(latestForm.content, { allowVideoEmbeds: true }) || !!questionIdRef.current;
+      const payload = buildEditorPayload(latestForm);
+      const payloadHash = JSON.stringify(payload);
+      const shouldAttemptSave = !!questionIdRef.current || hasDraftContent(latestForm);
       if (shouldAttemptSave) {
-        const payload = buildEditorPayload(latestForm);
-        const payloadHash = JSON.stringify(payload);
         if (payloadHash !== lastSavedHashRef.current || saveInFlightRef.current || queuedSaveRef.current) {
           await persistPayload(payload, payloadHash);
         }
@@ -538,7 +556,7 @@ function QuestionEditor({
     } finally {
       setClosing(false);
     }
-  }, [closing, onClose, persistPayload, waitForSaveDrain]);
+  }, [buildEditorPayload, closing, initialSnapshotHash, onClose, persistPayload, waitForSaveDrain]);
 
   useImperativeHandle(ref, () => ({
     requestClose: handleCloseRequest,

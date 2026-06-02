@@ -1861,6 +1861,38 @@ export default async function questionRoutes(app) {
       if (!question) {
         return reply.code(404).send({ error: 'Not Found', message: 'Question not found' });
       }
+
+      const normalizedSessionQuestionId = String(question.sessionId || '').trim();
+      const normalizedSessionId = String(session._id);
+      const normalizedCourseId = String(course._id);
+
+      if (
+        normalizedSessionQuestionId === normalizedSessionId
+        && String(question.courseId || '').trim() === normalizedCourseId
+      ) {
+        const nextQuestionIds = [...new Set([
+          ...((session.questions || []).map((existingQuestionId) => String(existingQuestionId))),
+          String(question._id),
+        ])];
+        const responseTracking = buildSessionResponseTracking(
+          nextQuestionIds,
+          session.questionResponseCounts
+        );
+        const updated = await Session.findByIdAndUpdate(
+          session._id,
+          {
+            $set: {
+              questions: nextQuestionIds,
+              hasResponses: responseTracking.hasResponses,
+              questionResponseCounts: responseTracking.questionResponseCounts,
+            },
+          },
+          { returnDocument: 'after' }
+        ).lean();
+
+        return { session: updated, copiedQuestionId: String(question._id) };
+      }
+
       const copy = await copyQuestionToSession({
         sourceQuestion: question,
         targetSessionId: String(session._id),

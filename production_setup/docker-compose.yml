@@ -102,7 +102,7 @@ services:
       - ENABLE_API_DOCS=${ENABLE_API_DOCS:-false}
       - MAIL_URL=${MAIL_URL:-}
       - NODE_ENV=production
-      - APP_VERSION=${APP_VERSION:-v2.0.0.b1}
+      - APP_VERSION=${APP_VERSION:-v2.0.0.b4}
       - DISABLE_RATE_LIMITS=${DISABLE_RATE_LIMITS:-false}
       - REDIS_URL=${REDIS_URL:?Set REDIS_URL in .env}
     volumes:

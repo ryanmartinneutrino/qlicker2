@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createApp } from '../helpers.js';
+import { createApp, createTestUser, getAuthToken } from '../helpers.js';
 
 let app;
 
@@ -15,10 +15,25 @@ afterEach(async () => {
 });
 
 describe('API documentation', () => {
-  it('serves the generated OpenAPI document with inferred route metadata', async () => {
+  it('requires admin auth for the generated OpenAPI document', async () => {
+    const unauthenticated = await app.inject({
+      method: 'GET',
+      url: '/docs/json',
+    });
+
+    expect(unauthenticated.statusCode).toBe(401);
+  });
+
+  it('serves the generated OpenAPI document with inferred route metadata for admins', async () => {
+    const admin = await createTestUser({ email: 'admin@example.com', roles: ['admin'] });
+    const token = await getAuthToken(app, admin);
+
     const res = await app.inject({
       method: 'GET',
       url: '/docs/json',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
     });
 
     expect(res.statusCode).toBe(200);

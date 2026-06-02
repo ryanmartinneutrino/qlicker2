@@ -12,7 +12,13 @@ vi.mock('react-i18next', () => ({
 }));
 
 vi.mock('./RichTextEditor', () => ({
-  default: ({ placeholder }) => <div>{placeholder}</div>,
+  default: ({ label, placeholder, value = '', onChange }) => (
+    <textarea
+      aria-label={label || placeholder || 'Rich text editor'}
+      value={value}
+      onChange={(event) => onChange?.({ html: event.target.value })}
+    />
+  ),
 }));
 
 vi.mock('../common/AutoSaveStatus', () => ({
@@ -127,6 +133,52 @@ describe('QuestionEditor', () => {
       publicOnQlickerForStudents: true,
       sessionOptions: { points: 2 },
     }), 'question-1');
+
+    vi.useRealTimers();
+  });
+
+  it('persists a new slide on close when the content is structural HTML only', async () => {
+    vi.useFakeTimers();
+    const onAutoSave = vi.fn().mockResolvedValue({ _id: 'slide-1' });
+    const onClose = vi.fn();
+
+    render(
+      <QuestionEditor
+        open
+        inline
+        initial={{
+          type: 6,
+          content: '',
+          plainText: '',
+          options: [],
+          sessionOptions: { points: 0 },
+        }}
+        onAutoSave={onAutoSave}
+        onClose={onClose}
+        showVisibilityControls={false}
+      />
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    fireEvent.change(screen.getByLabelText('questions.editor.slidePlaceholder'), {
+      target: { value: '<table><tbody><tr><td></td></tr></tbody></table>' },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'common.close' }));
+      await Promise.resolve();
+    });
+
+    expect(onAutoSave).toHaveBeenCalledWith(expect.objectContaining({
+      type: 6,
+      content: '<table><tbody><tr><td></td></tr></tbody></table>',
+      plainText: '',
+      sessionOptions: { points: 0 },
+    }), null);
+    expect(onClose).toHaveBeenCalledWith({ persistedQuestionId: 'slide-1' });
 
     vi.useRealTimers();
   });

@@ -213,7 +213,6 @@ export default function RichTextEditor({
         },
         handleDOMEvents: {
           blur: () => {
-            emitEditorChange(editor);
             onBlurRef.current?.();
             return false;
           },
@@ -241,7 +240,6 @@ export default function RichTextEditor({
         const html = normalizeStoredHtml(createdEditor.getHTML(), { allowVideoEmbeds });
         lastEditorHtmlRef.current = html;
         lastPropHtmlRef.current = preparedValue || '';
-        onChangeRef.current?.({ html, plainText: extractPlainTextFromHtml(html) });
       },
       onUpdate: ({ editor: updatedEditor }) => {
         emitEditorChange(updatedEditor);

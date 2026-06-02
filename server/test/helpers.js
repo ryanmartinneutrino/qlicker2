@@ -1,10 +1,20 @@
 import { buildApp } from '../src/app.js';
 import User from '../src/models/User.js';
 
-export async function createApp(configOverrides = {}) {
+export async function createApp(configOverrides = {}, appOverrides = {}) {
+  const {
+    logger = false,
+    skipDb = true,
+    skipRedis = true,
+    skipWs = false,
+    ...extraAppOptions
+  } = appOverrides;
   const app = await buildApp({
-    logger: false,
-    skipDb: true,
+    logger,
+    skipDb,
+    skipRedis,
+    skipWs,
+    ...extraAppOptions,
     config: {
       jwtSecret: 'test-secret',
       jwtRefreshSecret: 'test-refresh-secret',

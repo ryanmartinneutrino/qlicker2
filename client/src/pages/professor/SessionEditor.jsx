@@ -786,8 +786,6 @@ export default function SessionEditor() {
       const insertIndex = inlineEditor?.mode === 'insert' ? inlineEditor.index : questions.length;
       const { data } = await apiClient.post('/questions', { ...payload, sessionId, courseId });
       const created = data.question || data;
-      await apiClient.post(`/sessions/${sessionId}/questions`, { questionId: created._id });
-
       const currentIds = (session?.questions || questions.map(q => q._id)).filter((id) => id !== created._id);
       const orderedIds = [...currentIds];
       const clampedIndex = Math.max(0, Math.min(insertIndex, orderedIds.length));

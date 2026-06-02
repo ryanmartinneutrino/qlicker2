@@ -266,6 +266,32 @@ describe('POST /api/v1/questions', () => {
     expect(body.question.sessionOptions.points).toBe(0);
     expect(body.question.sessionOptions.hidden).toBe(false);
   });
+
+  it('preserves slide content when the saved question is fetched again', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const { profToken, course, session } = await setupCourseAndSession();
+
+    const createRes = await createQuestionAsProf(profToken, {
+      type: 6,
+      content: '<p>Slide content</p>',
+      plainText: 'Slide content',
+      sessionId: session._id,
+      courseId: course._id,
+      sessionOptions: { points: 0 },
+    });
+
+    expect(createRes.statusCode).toBe(201);
+    const questionId = createRes.json().question._id;
+
+    const fetchRes = await authenticatedRequest(app, 'GET', `/api/v1/questions/${questionId}`, {
+      token: profToken,
+    });
+
+    expect(fetchRes.statusCode).toBe(200);
+    expect(fetchRes.json().question.type).toBe(6);
+    expect(fetchRes.json().question.content).toBe('<p>Slide content</p>');
+    expect(fetchRes.json().question.plainText).toBe('Slide content');
+  });
 });
 
 // ---------- GET /api/v1/questions/:id ----------
@@ -523,6 +549,37 @@ describe('PATCH /api/v1/questions/:id', () => {
     const body = res.json();
     expect(body.question.content).toBe('Updated content');
     expect(body.question.solution).toBe('The answer is 42');
+  });
+
+  it('preserves slide content when a slide question is updated', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const { profToken, course, session } = await setupCourseAndSession();
+    const createRes = await createQuestionAsProf(profToken, {
+      type: 6,
+      content: '<p>Original slide</p>',
+      plainText: 'Original slide',
+      sessionId: session._id,
+      courseId: course._id,
+      sessionOptions: { points: 0 },
+    });
+    expect(createRes.statusCode).toBe(201);
+    const questionId = createRes.json().question._id;
+
+    const updateRes = await authenticatedRequest(app, 'PATCH', `/api/v1/questions/${questionId}`, {
+      token: profToken,
+      payload: {
+        type: 6,
+        content: '<p>Updated slide</p>',
+        plainText: 'Updated slide',
+        sessionOptions: { points: 0 },
+      },
+    });
+
+    expect(updateRes.statusCode).toBe(200);
+    expect(updateRes.json().question.type).toBe(6);
+    expect(updateRes.json().question.content).toBe('<p>Updated slide</p>');
+    expect(updateRes.json().question.plainText).toBe('Updated slide');
+    expect(updateRes.json().question.solution).toBe('');
   });
 
   it('non-creator/non-admin gets 403', async (ctx) => {
@@ -1854,6 +1911,35 @@ describe('POST /api/v1/sessions/:sessionId/questions', () => {
     expect(String(copiedQuestion.originalQuestion)).toBe(String(libraryQuestion._id));
     expect(String(copiedQuestion.sessionId)).toBe(String(session._id));
     expect(body.session.activities).toBeUndefined();
+  });
+
+  it('reuses a question already created for the target session instead of copying it again', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const { profToken, course, session } = await setupCourseAndSession();
+
+    const sourceRes = await createQuestionAsProf(profToken, {
+      type: 6,
+      content: '<p>Slide content</p>',
+      plainText: 'Slide content',
+      sessionId: session._id,
+      courseId: course._id,
+      sessionOptions: { points: 0 },
+    });
+    expect(sourceRes.statusCode).toBe(201);
+    const sourceQuestion = sourceRes.json().question;
+
+    const addRes = await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/questions`, {
+      token: profToken,
+      payload: { questionId: sourceQuestion._id },
+    });
+
+    expect(addRes.statusCode).toBe(200);
+    const body = addRes.json();
+    expect(body.copiedQuestionId).toBe(String(sourceQuestion._id));
+    expect(body.session.questions).toContain(String(sourceQuestion._id));
+
+    const matchingQuestions = await Question.find({ originalQuestion: sourceQuestion._id }).lean();
+    expect(matchingQuestions).toHaveLength(0);
   });
 
   it('non-instructor gets 403', async (ctx) => {
