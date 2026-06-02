@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SessionEditor from './SessionEditor';
 
@@ -187,6 +187,55 @@ describe('SessionEditor inline close behavior', () => {
     await waitFor(() => {
       expect(requestCloseMock).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('creates a new session-authored question once and inserts it into the session order directly', async () => {
+    apiClientMock.post.mockImplementation((url, payload) => {
+      if (url === '/questions') {
+        return Promise.resolve({
+          data: {
+            question: {
+              _id: 'source-q2',
+              type: 6,
+              content: '<p>Slide draft</p>',
+              plainText: 'Slide draft',
+              options: [],
+              sessionOptions: { points: 0 },
+            },
+          },
+        });
+      }
+
+      return Promise.reject(new Error(`Unexpected POST ${url}`));
+    });
+
+    apiClientMock.patch.mockImplementation((url, payload) => {
+      if (url === '/sessions/session-1/questions/order') {
+        expect(payload).toEqual({ questions: ['q1', 'source-q2'] });
+        return Promise.resolve({ data: { success: true } });
+      }
+      return Promise.reject(new Error(`Unexpected PATCH ${url}`));
+    });
+
+    render(<SessionEditor />);
+
+    fireEvent.click((await screen.findAllByRole('button', { name: 'common.edit' }))[0]);
+
+    let saved;
+    await act(async () => {
+      saved = await lastQuestionEditorProps.current.onAutoSave({
+        type: 6,
+        content: '<p>Slide draft</p>',
+        plainText: 'Slide draft',
+        sessionOptions: { points: 0 },
+      }, null);
+    });
+
+    expect(saved._id).toBe('source-q2');
+    expect(apiClientMock.patch).toHaveBeenCalledWith('/sessions/session-1/questions/order', {
+      questions: ['q1', 'source-q2'],
+    });
+    expect(apiClientMock.post).toHaveBeenCalledTimes(1);
   });
 
   it('exports session JSON from the export dialog', async () => {

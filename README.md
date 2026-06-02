@@ -28,7 +28,7 @@ This repository contains the current **Fastify + React** version of Qlicker. Mig
 ## Release versioning
 
 - The canonical app release string lives in [`VERSION`](VERSION).
-- Current release: `v2.0.0.b1`.
+- Current release: `v2.0.0.b4`.
 - The backend exposes this value via `GET /api/v1/health` as `version`.
 - Docker image builds default to this value as the image tag and bake it into runtime metadata.
 

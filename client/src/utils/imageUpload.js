@@ -40,6 +40,28 @@ function canvasToBlob(canvas, type, quality) {
   });
 }
 
+function canvasHasVisiblePixels(canvas, ctx) {
+  const width = Number(canvas?.width) || 0;
+  const height = Number(canvas?.height) || 0;
+  if (!width || !height || !ctx?.getImageData) return true;
+
+  const sampleColumns = Math.min(8, width);
+  const sampleRows = Math.min(8, height);
+
+  for (let row = 0; row < sampleRows; row += 1) {
+    const y = Math.min(height - 1, Math.floor((row * height) / sampleRows));
+    for (let col = 0; col < sampleColumns; col += 1) {
+      const x = Math.min(width - 1, Math.floor((col * width) / sampleColumns));
+      const pixel = ctx.getImageData(x, y, 1, 1).data;
+      if ((pixel?.[3] || 0) > 0) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 export async function normalizeImageFile(file, {
   maxWidth,
   quality = 0.92,
@@ -82,6 +104,17 @@ export async function normalizeImageFile(file, {
     };
   }
   ctx.drawImage(sourceImage, 0, 0, targetWidth, targetHeight);
+
+  // Some browser/image combinations can produce an all-transparent canvas
+  // during client-side resizing even when the original file is valid.
+  // Fall back to the original file rather than uploading a blank image.
+  if (!canvasHasVisiblePixels(canvas, ctx)) {
+    return {
+      file,
+      width: sourceWidth || undefined,
+      height: sourceHeight || undefined,
+    };
+  }
 
   const resizedBlob = await canvasToBlob(canvas, file.type, quality);
   return {

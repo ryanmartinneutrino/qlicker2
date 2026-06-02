@@ -13,7 +13,12 @@ import uploadPlugin from './plugins/upload.js';
 import samlPlugin from './plugins/saml.js';
 import redisPlugin from './plugins/redis.js';
 import websocketPlugin from './plugins/websocket.js';
-import { authenticate, requireRole } from './middleware/auth.js';
+import {
+  authenticate,
+  authenticateAccessTokenOrRefreshCookie,
+  requireRole,
+  requireRoleFromAccessTokenOrRefreshCookie,
+} from './middleware/auth.js';
 import authRoutes, { legacySamlRoutes } from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import settingsRoutes from './routes/settings.js';
@@ -102,6 +107,9 @@ export async function buildApp(opts = {}) {
         docExpansion: 'list',
         deepLinking: false,
       },
+      uiHooks: {
+        onRequest: requireRoleFromAccessTokenOrRefreshCookie(['admin']),
+      },
     });
   }
 
@@ -178,6 +186,7 @@ export async function buildApp(opts = {}) {
 
   // Serve uploaded images from the configured storage backend through a stable app URL.
   app.get('/uploads/*', {
+    preHandler: authenticateAccessTokenOrRefreshCookie,
     config: {
       rateLimit: { max: 600, timeWindow: '1 minute' },
     },
@@ -199,7 +208,7 @@ export async function buildApp(opts = {}) {
 
     try {
       const { buffer, contentType } = await app.getFileObject(key);
-      reply.header('Cache-Control', 'public, max-age=31536000, immutable');
+      reply.header('Cache-Control', 'private, max-age=31536000, immutable');
       return reply.type(contentType || guessImageContentTypeFromKey(key)).send(buffer);
     } catch (err) {
       request.log.warn({ err, key }, 'Failed to serve uploaded image');
