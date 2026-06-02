@@ -119,7 +119,7 @@ It will prompt for:
 |---------|-------------|---------|
 | Domain | Your server's FQDN | `qlicker.example.com` |
 | Server/client image tags | Tags applied to existing image repositories | `latest` (or current `.env` values) |
-| App version label | Runtime release string shown in health checks and UI | `v2.0.0.b1` (or current `.env` value) |
+| App version label | Runtime release string shown in health checks and UI | `v2.0.0.b4` (or current `.env` value) |
 | TLS certificate path | Path to fullchain.pem | `./certs/fullchain.pem` |
 | TLS key path | Path to privkey.pem | `./certs/privkey.pem` |
 | Let's Encrypt auto-renew | Whether certbot auto-renew runs in Docker | `false` (or current `.env` value) |
@@ -706,7 +706,7 @@ Recommended maintenance-window procedure:
    ```
 5. Keep the generated backup archive and the `backups/auth-migration-<timestamp>/` directory until you are satisfied with the migration.
 
-The bundled CSP allowlist covers Qlicker itself, the default Jitsi SaaS domains (`meet.jit.si`, `*.jit.si`), and the built-in rich-text video embed providers. If you use a self-hosted Jitsi deployment or another external iframe/script source, extend `nginx/nginx.conf` before redeploying.
+The bundled CSP allowlist covers Qlicker itself, the default Jitsi SaaS domains (`meet.jit.si`, `*.jit.si`), the current Jitsi inline bootstrap hash required by the hosted widget, and the built-in rich-text video embed providers. If you use a self-hosted Jitsi deployment or another external iframe/script source, extend `nginx/nginx.conf` before redeploying.
 
 If the migration is interrupted, use the saved `.env` / `docker-compose.yml` snapshots plus the fresh backup archive noted by the script to recover manually.
 
@@ -739,7 +739,7 @@ From the repository root (where you have the source code):
 ```env
 SERVER_IMAGE=ghcr.io/yourorg/qlicker-server:v2.0.0
 CLIENT_IMAGE=ghcr.io/yourorg/qlicker-client:v2.0.0
-APP_VERSION=v2.0.0.b1
+APP_VERSION=v2.0.0.b4
 ENABLE_API_DOCS=false
 ```
 

@@ -106,16 +106,52 @@ function shouldFallbackToServerThumbnailGeneration(error) {
   );
 }
 
-async function loadExistingImageAsDataUrl(sourceUrl) {
-  const response = await fetch(sourceUrl, {
-    credentials: 'include',
-    mode: 'cors',
-  });
-  if (!response.ok) {
-    throw new Error(`Failed to load existing profile image: ${response.status}`);
+function isDataUrl(value = '') {
+  return /^data:/i.test(String(value || '').trim());
+}
+
+function isBlobUrl(value = '') {
+  return /^blob:/i.test(String(value || '').trim());
+}
+
+function dataUrlToBlob(sourceUrl) {
+  const normalizedUrl = String(sourceUrl || '').trim();
+  const commaIndex = normalizedUrl.indexOf(',');
+  if (commaIndex < 0) {
+    throw new Error('Invalid data URL');
   }
 
-  const blob = await response.blob();
+  const header = normalizedUrl.slice(0, commaIndex);
+  const payload = normalizedUrl.slice(commaIndex + 1);
+  const mimeMatch = header.match(/^data:([^;,]+)/i);
+  const mimeType = mimeMatch?.[1] || 'application/octet-stream';
+
+  if (/;base64/i.test(header)) {
+    const binary = window.atob(payload);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+    return new Blob([bytes], { type: mimeType });
+  }
+
+  return new Blob([decodeURIComponent(payload)], { type: mimeType });
+}
+
+async function loadExistingImageAsDataUrl(sourceUrl) {
+  const normalizedUrl = String(sourceUrl || '').trim();
+  const blob = isDataUrl(normalizedUrl)
+    ? dataUrlToBlob(normalizedUrl)
+    : await (async () => {
+        const response = await fetch(normalizedUrl, isBlobUrl(normalizedUrl)
+          ? undefined
+          : { credentials: 'include' });
+        if (!response.ok) {
+          throw new Error(`Failed to load existing profile image: ${response.status}`);
+        }
+        return response.blob();
+      })();
+
   const file = new File(
     [blob],
     buildImageFileNameFromUrl(sourceUrl),
@@ -595,22 +631,39 @@ export default function Profile() {
     try {
       let updatedUser = null;
       if (imageEditorState.isNewUpload && imageEditorState.file) {
-        const thumbnailFile = await createAvatarThumbnailFile(
-          imageEditorState.source,
-          imageEditorState,
-          {
-            fileName: buildThumbnailFileName(imageEditorState.fileName),
-            outputSize: publicSettings.avatarThumbnailSize,
-          },
-        );
-
         const profileImageUrl = await uploadSingleImage(imageEditorState.file);
-        const profileThumbnailUrl = await uploadSingleImage(thumbnailFile);
-        const { data } = await apiClient.patch('/users/me/image', {
-          profileImage: profileImageUrl,
-          profileThumbnail: profileThumbnailUrl,
-        });
-        updatedUser = data;
+
+        let thumbnailFile;
+        try {
+          thumbnailFile = await createAvatarThumbnailFile(
+            imageEditorState.source,
+            imageEditorState,
+            {
+              fileName: buildThumbnailFileName(imageEditorState.fileName),
+              outputSize: publicSettings.avatarThumbnailSize,
+            },
+          );
+        } catch (thumbErr) {
+          if (!shouldFallbackToServerThumbnailGeneration(thumbErr)) {
+            throw thumbErr;
+          }
+        }
+
+        if (thumbnailFile) {
+          const profileThumbnailUrl = await uploadSingleImage(thumbnailFile);
+          const { data } = await apiClient.patch('/users/me/image', {
+            profileImage: profileImageUrl,
+            profileThumbnail: profileThumbnailUrl,
+          });
+          updatedUser = data;
+        } else {
+          await apiClient.patch('/users/me/image', {
+            profileImage: profileImageUrl,
+            profileThumbnail: profileImageUrl,
+          });
+          const { data } = await apiClient.post('/users/me/image/thumbnail', buildRoundedCropPayload(imageEditorState));
+          updatedUser = data;
+        }
       } else {
         let thumbnailFile;
         try {

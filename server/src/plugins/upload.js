@@ -85,6 +85,20 @@ async function uploadPlugin(fastify) {
     }
   }
 
+  function hasStaticS3Credentials(config) {
+    return Boolean(config.AWS_accessKeyId || config.AWS_secretAccessKey);
+  }
+
+  function validateS3Configuration(config) {
+    ensureRequired(config.AWS_bucket, 'S3 storage requires AWS bucket.');
+
+    const hasAccessKeyId = Boolean(String(config.AWS_accessKeyId || '').trim());
+    const hasSecretAccessKey = Boolean(String(config.AWS_secretAccessKey || '').trim());
+    if (hasAccessKeyId !== hasSecretAccessKey) {
+      throw createStorageConfigError('S3 storage requires both AWS access key ID and secret access key when using static credentials.');
+    }
+  }
+
   async function getStorageConfig() {
     if (cachedStorageConfig && Date.now() < cachedStorageConfigExpiresAt) {
       return cachedStorageConfig;
@@ -169,6 +183,7 @@ async function uploadPlugin(fastify) {
   function getS3ClientCacheKey(config) {
     return JSON.stringify({
       region: config.AWS_region || 'us-east-1',
+      credentialsMode: hasStaticS3Credentials(config) ? 'static' : 'default',
       accessKeyId: config.AWS_accessKeyId || '',
       secretAccessKey: config.AWS_secretAccessKey || '',
       endpoint: config.AWS_endpoint || '',
@@ -183,14 +198,20 @@ async function uploadPlugin(fastify) {
     }
 
     const { S3Client } = await loadS3Module();
-    cachedS3Client = new S3Client({
+    const clientOptions = {
       region: config.AWS_region || 'us-east-1',
-      credentials: {
-        accessKeyId: config.AWS_accessKeyId,
-        secretAccessKey: config.AWS_secretAccessKey,
-      },
       endpoint: config.AWS_endpoint || undefined,
       forcePathStyle: config.AWS_forcePathStyle,
+    };
+    if (hasStaticS3Credentials(config)) {
+      clientOptions.credentials = {
+        accessKeyId: config.AWS_accessKeyId,
+        secretAccessKey: config.AWS_secretAccessKey,
+      };
+    }
+
+    cachedS3Client = new S3Client({
+      ...clientOptions,
     });
     cachedS3ClientKey = cacheKey;
     return cachedS3Client;
@@ -235,9 +256,7 @@ async function uploadPlugin(fastify) {
         return { url, key };
       }
       case 's3': {
-        ensureRequired(config.AWS_bucket, 'S3 storage requires AWS bucket.');
-        ensureRequired(config.AWS_accessKeyId, 'S3 storage requires AWS access key ID.');
-        ensureRequired(config.AWS_secretAccessKey, 'S3 storage requires AWS secret access key.');
+        validateS3Configuration(config);
 
         const { PutObjectCommand } = await loadS3Module();
         const client = await getS3Client(config);
@@ -287,9 +306,7 @@ async function uploadPlugin(fastify) {
         return;
       }
       case 's3': {
-        ensureRequired(config.AWS_bucket, 'S3 storage requires AWS bucket.');
-        ensureRequired(config.AWS_accessKeyId, 'S3 storage requires AWS access key ID.');
-        ensureRequired(config.AWS_secretAccessKey, 'S3 storage requires AWS secret access key.');
+        validateS3Configuration(config);
 
         const { DeleteObjectCommand } = await loadS3Module();
         const client = await getS3Client(config);
@@ -331,9 +348,7 @@ async function uploadPlugin(fastify) {
         };
       }
       case 's3': {
-        ensureRequired(config.AWS_bucket, 'S3 storage requires AWS bucket.');
-        ensureRequired(config.AWS_accessKeyId, 'S3 storage requires AWS access key ID.');
-        ensureRequired(config.AWS_secretAccessKey, 'S3 storage requires AWS secret access key.');
+        validateS3Configuration(config);
 
         const { GetObjectCommand } = await loadS3Module();
         const client = await getS3Client(config);

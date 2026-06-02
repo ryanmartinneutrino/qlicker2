@@ -84,6 +84,7 @@ export default function RichTextEditor({
   ariaDescribedBy,
   onBlur,
   enableVideo = false,
+  borderEmphasis = 'normal',
 }) {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
@@ -353,14 +354,20 @@ export default function RichTextEditor({
       <Paper
         variant="outlined"
         sx={{
+          '--editor-border-color': borderEmphasis === 'strong' ? 'rgba(25, 118, 210, 0.38)' : 'divider',
+          '--editor-border-width': borderEmphasis === 'strong' ? '2px' : '1px',
           display: 'flex',
           flexDirection: 'column',
           borderRadius: 1.5,
           px: 1.25,
           py: toolbarExpanded ? 1.25 : 0.85,
           minHeight: minHeight + (toolbarExpanded ? 84 : 0),
-          borderColor: 'divider',
-          '&:focus-within': { borderColor: 'primary.main', boxShadow: theme => `0 0 0 1px ${theme.palette.primary.main}` },
+          borderColor: 'var(--editor-border-color)',
+          borderWidth: 'var(--editor-border-width)',
+          '&:focus-within': {
+            borderColor: 'primary.main',
+            boxShadow: theme => `0 0 0 2px ${theme.palette.primary.light}`,
+          },
           '& .editor-toolbar-controls': {
             order: -1,
             position: 'sticky',
@@ -402,6 +409,7 @@ export default function RichTextEditor({
               float: 'left',
               pointerEvents: 'none',
               height: 0,
+              whiteSpace: 'pre-line',
             },
           },
         }}

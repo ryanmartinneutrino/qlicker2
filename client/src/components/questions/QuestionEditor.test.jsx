@@ -15,6 +15,7 @@ vi.mock('./RichTextEditor', () => ({
   default: ({ label, placeholder, value = '', onChange }) => (
     <textarea
       aria-label={label || placeholder || 'Rich text editor'}
+      placeholder={placeholder || ''}
       value={value}
       onChange={(event) => onChange?.({ html: event.target.value })}
     />
@@ -26,7 +27,7 @@ vi.mock('../common/AutoSaveStatus', () => ({
 }));
 
 describe('QuestionEditor', () => {
-  it('disables tags and shows course-settings guidance when no course topics exist', () => {
+  it('disables tags and keeps the course-tag guidance inside the tag field when no topics exist', () => {
     render(
       <QuestionEditor
         open
@@ -41,7 +42,23 @@ describe('QuestionEditor', () => {
     );
 
     expect(screen.getByLabelText('Tags')).toBeDisabled();
-    expect(screen.getByText('Only course-related topics can be added as question tags. Add course topics in Course Settings to enable tagging.')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('No tags defined in course settings yet')).toBeInTheDocument();
+    expect(screen.queryByText('Only course-related topics can be added as question tags. Add course topics in Course Settings to enable tagging.')).not.toBeInTheDocument();
+  });
+
+  it('uses in-editor guidance instead of a separate Question Text label', () => {
+    render(
+      <QuestionEditor
+        open
+        inline
+        initial={null}
+        onAutoSave={vi.fn()}
+        showVisibilityControls={false}
+      />
+    );
+
+    expect(screen.queryByText('questions.editor.questionText')).not.toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: /Write the question here/ })).toBeInTheDocument();
   });
 
   it('allows removing existing legacy tags when no course topics exist', async () => {
@@ -163,7 +180,7 @@ describe('QuestionEditor', () => {
       await vi.advanceTimersByTimeAsync(0);
     });
 
-    fireEvent.change(screen.getByLabelText('questions.editor.slidePlaceholder'), {
+    fireEvent.change(screen.getByRole('textbox', { name: /Write the slide content here/ }), {
       target: { value: '<table><tbody><tr><td></td></tr></tbody></table>' },
     });
 

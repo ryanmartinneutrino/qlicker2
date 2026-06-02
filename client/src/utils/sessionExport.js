@@ -99,7 +99,7 @@ export async function downloadPdf(filename, htmlContent) {
         backgroundColor: '#ffffff',
         logging: false,
         scale: 2,
-        useCORS: true,
+        useCORS: false,
         windowWidth: 816,
       },
       jsPDF: {
