@@ -162,7 +162,7 @@ Running `./setup.sh` again will detect the existing `.env` and offer to keep cur
 
 ### How certificates reach nginx
 
-At container start (and periodically afterwards, every `TLS_RELOAD_CHECK_SECONDS`, default 1 hour), `nginx/tls-certs.sh` links the best available certificate pair into the paths nginx serves from:
+At container start (and periodically afterwards, every `TLS_RELOAD_CHECK_SECONDS`, default 60 seconds), `nginx/tls-certs.sh` links the best available certificate pair into the paths nginx serves from:
 
 1. **Let's Encrypt certificates** from the shared `certbot-conf` Docker volume — used when `CERTBOT_AUTORENEW=true`
 2. **Operator-provided files** from `TLS_CERT_PATH`/`TLS_KEY_PATH` in `.env`
@@ -793,7 +793,7 @@ production_setup/
 | `TLS_CERT_PATH` | Yes | `./certs/fullchain.pem` | Operator-provided TLS certificate path (fallback when Let's Encrypt is not used) |
 | `TLS_KEY_PATH` | Yes | `./certs/privkey.pem` | Operator-provided TLS private key path |
 | `CERTBOT_AUTORENEW` | No | `false` | If `true`, certbot renews Let's Encrypt certificates and nginx serves them directly from the shared volume |
-| `TLS_RELOAD_CHECK_SECONDS` | No | `3600` | How often nginx checks for a changed certificate and reloads |
+| `TLS_RELOAD_CHECK_SECONDS` | No | `60` | How often nginx checks for a changed certificate and reloads |
 | `SERVER_IMAGE` | No | `qlicker/qlicker-server:latest` | API server image reference |
 | `CLIENT_IMAGE` | No | `qlicker/qlicker-client:latest` | Client image reference |
 | `SERVER_REPLICAS` | No | `2` | Number of API server replicas |

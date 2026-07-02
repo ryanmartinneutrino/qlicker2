@@ -142,7 +142,7 @@ services:
     environment:
       - DOMAIN=${DOMAIN:-localhost}
       - CERTBOT_AUTORENEW=${CERTBOT_AUTORENEW:-false}
-      - TLS_RELOAD_CHECK_SECONDS=${TLS_RELOAD_CHECK_SECONDS:-3600}
+      - TLS_RELOAD_CHECK_SECONDS=${TLS_RELOAD_CHECK_SECONDS:-60}
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/templates/default.conf.template:ro
       - ./nginx/tls-certs.sh:/docker-entrypoint.d/40-tls-certs.sh:ro

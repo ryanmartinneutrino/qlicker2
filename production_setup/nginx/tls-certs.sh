@@ -24,7 +24,7 @@ SSL_DIR=/etc/nginx/ssl
 LE_DIR="/etc/letsencrypt/live/${DOMAIN:-localhost}"
 PROVIDED_DIR=/etc/nginx/provided-certs
 SELF_SIGNED_DIR=/etc/nginx/self-signed
-CHECK_INTERVAL="${TLS_RELOAD_CHECK_SECONDS:-3600}"
+CHECK_INTERVAL="${TLS_RELOAD_CHECK_SECONDS:-60}"
 
 log() { echo "[tls-certs] $*" >&2; }
 
