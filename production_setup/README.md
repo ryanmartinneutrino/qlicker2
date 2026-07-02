@@ -122,7 +122,7 @@ It will prompt for:
 | App version label | Runtime release string shown in health checks and UI | `v2.0.0.b4` (or current `.env` value) |
 | TLS certificate path | Path to fullchain.pem | `./certs/fullchain.pem` |
 | TLS key path | Path to privkey.pem | `./certs/privkey.pem` |
-| Let's Encrypt auto-renew | Whether certbot auto-renew runs in Docker | `false` (or current `.env` value) |
+| Let's Encrypt auto-renew | Whether certs are Let's Encrypt-managed (renewed by certbot, served from the shared volume) | `false` (or current `.env` value) |
 | Server replicas | Number of API server instances | `2` |
 | JWT secrets | Auto-generated cryptographic secrets | (generated) |
 | MAIL_URL | SMTP connection string | (none) |
@@ -160,6 +160,16 @@ Running `./setup.sh` again will detect the existing `.env` and offer to keep cur
 
 ## TLS Certificates
 
+### How certificates reach nginx
+
+At container start (and periodically afterwards, every `TLS_RELOAD_CHECK_SECONDS`, default 1 hour), `nginx/tls-certs.sh` links the best available certificate pair into the paths nginx serves from:
+
+1. **Let's Encrypt certificates** from the shared `certbot-conf` Docker volume — used when `CERTBOT_AUTORENEW=true`
+2. **Operator-provided files** from `TLS_CERT_PATH`/`TLS_KEY_PATH` in `.env`
+3. **A self-signed placeholder** generated on the fly, so nginx can always boot (e.g. before the first ACME issuance)
+
+When the `certbot` container renews a certificate into the shared volume, the watcher in the nginx container detects the change and gracefully reloads nginx. Renewal is fully automatic — no copy steps, restarts, or cron jobs needed.
+
 ### Option 1: Let's Encrypt (Recommended)
 
 ```bash
@@ -172,12 +182,11 @@ Running `./setup.sh` again will detect the existing `.env` and offer to keep cur
 ```
 
 This will:
-1. Create a temporary self-signed certificate
-2. Start Nginx to handle the ACME challenge
-3. Run Certbot to obtain the real certificate
-4. Overwrite `./certs/fullchain.pem` and `./certs/privkey.pem` with the Let's Encrypt certificate files (setup warns before overwrite)
-5. Keep `.env` paths set to `./certs/fullchain.pem` and `./certs/privkey.pem`
-6. Optionally enable `CERTBOT_AUTORENEW=true` so the `certbot` service checks renewal every 12 hours
+1. Start Nginx (with a self-signed placeholder if no certificate exists yet) to handle the ACME challenge
+2. Run Certbot to obtain the real certificate into the shared `certbot-conf` volume
+3. Set `CERTBOT_AUTORENEW=true` in `.env` and recreate nginx so it serves the new certificate
+
+From then on the `certbot` service checks for renewal every 12 hours and nginx picks up renewed certificates automatically.
 
 ### Option 2: Bring Your Own Certificate
 
@@ -188,7 +197,7 @@ During setup, choose:
 ```
 
 If `./certs/fullchain.pem` and `./certs/privkey.pem` already exist, setup offers to use them automatically. Otherwise it prompts for certificate/key paths.
-When using `./certs/*`, setup also asks whether Let's Encrypt auto-renew should stay enabled.
+Keep `CERTBOT_AUTORENEW=false` for this option so nginx uses your files instead of the certbot volume; renewing/replacing the files is then your responsibility (nginx picks up in-place changes within `TLS_RELOAD_CHECK_SECONDS`).
 
 You can also place files in `./certs/` manually:
 
@@ -763,8 +772,9 @@ production_setup/
 ├── manage-user.sh          # User management CLI
 ├── README.md               # This file
 ├── nginx/
-│   └── nginx.conf          # Nginx TLS + reverse proxy configuration
-├── certs/                  # TLS certificates (created during setup)
+│   ├── nginx.conf          # Nginx TLS + reverse proxy configuration
+│   └── tls-certs.sh        # Certificate selection + auto-reload on renewal
+├── certs/                  # Operator-provided/placeholder TLS certificates
 │   ├── fullchain.pem
 │   └── privkey.pem
 ├── backups/                # MongoDB backups (or symlink to BACKUP_HOST_PATH)
@@ -780,9 +790,10 @@ production_setup/
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `DOMAIN` | Yes | `qlicker.example.com` | Server domain name |
-| `TLS_CERT_PATH` | Yes | `./certs/fullchain.pem` | TLS certificate path |
-| `TLS_KEY_PATH` | Yes | `./certs/privkey.pem` | TLS private key path |
-| `CERTBOT_AUTORENEW` | No | `false` | If `true`, certbot periodically runs `certbot renew` |
+| `TLS_CERT_PATH` | Yes | `./certs/fullchain.pem` | Operator-provided TLS certificate path (fallback when Let's Encrypt is not used) |
+| `TLS_KEY_PATH` | Yes | `./certs/privkey.pem` | Operator-provided TLS private key path |
+| `CERTBOT_AUTORENEW` | No | `false` | If `true`, certbot renews Let's Encrypt certificates and nginx serves them directly from the shared volume |
+| `TLS_RELOAD_CHECK_SECONDS` | No | `3600` | How often nginx checks for a changed certificate and reloads |
 | `SERVER_IMAGE` | No | `qlicker/qlicker-server:latest` | API server image reference |
 | `CLIENT_IMAGE` | No | `qlicker/qlicker-client:latest` | Client image reference |
 | `SERVER_REPLICAS` | No | `2` | Number of API server replicas |
@@ -879,6 +890,16 @@ docker compose logs nginx
 Ensure your domain's DNS A record points to the server. Check Certbot logs:
 ```bash
 docker compose logs certbot
+```
+
+To see which certificate nginx selected and whether renewals are being picked up, check for `[tls-certs]` lines in the nginx logs:
+```bash
+docker compose logs nginx | grep tls-certs
+```
+
+If the site serves a stale or self-signed certificate with Let's Encrypt in use, verify `CERTBOT_AUTORENEW=true` in `.env` and that the certificate exists in the shared volume:
+```bash
+docker compose run --rm --entrypoint sh certbot -c "ls -l /etc/letsencrypt/live"
 ```
 
 ### WebSocket connection failures

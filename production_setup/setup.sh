@@ -213,26 +213,19 @@ local_certs_exist() {
   [ -f "$SCRIPT_DIR/certs/fullchain.pem" ] && [ -f "$SCRIPT_DIR/certs/privkey.pem" ]
 }
 
-any_local_cert_exists() {
-  [ -f "$SCRIPT_DIR/certs/fullchain.pem" ] || [ -f "$SCRIPT_DIR/certs/privkey.pem" ]
-}
-
-write_tls_paths_to_env() {
-  local cert_path="$1" key_path="$2" tmp_env
+set_env_var() {
+  local name="$1" value="$2" tmp_env
   tmp_env="$(mktemp)"
 
-  awk -v cert="$cert_path" -v key="$key_path" '
-    BEGIN { cert_set=0; key_set=0 }
-    /^TLS_CERT_PATH=/ { print "TLS_CERT_PATH=" cert; cert_set=1; next }
-    /^TLS_KEY_PATH=/  { print "TLS_KEY_PATH=" key; key_set=1; next }
+  awk -v name="$name" -v value="$value" '
+    BEGIN { done=0 }
+    index($0, name "=") == 1 { print name "=" value; done=1; next }
     { print }
-    END {
-      if (!cert_set) print "TLS_CERT_PATH=" cert
-      if (!key_set) print "TLS_KEY_PATH=" key
-    }
+    END { if (!done) print name "=" value }
   ' "$ENV_FILE" > "$tmp_env"
 
   mv "$tmp_env" "$ENV_FILE"
+  chmod 600 "$ENV_FILE" 2>/dev/null || true
 }
 
 http_get() {
@@ -316,26 +309,20 @@ init_certs() {
 
   info "Obtaining certificate for $DOMAIN ..."
 
-  if any_local_cert_exists; then
-    warn "Existing files in ./certs/ will be overwritten with new Let's Encrypt certificates."
-    read -r -p "Continue and overwrite ./certs/fullchain.pem and ./certs/privkey.pem? [y/N]: " OVERWRITE_CERTS
-    if [[ ! "${OVERWRITE_CERTS:-N}" =~ ^[Yy]$ ]]; then
-      warn "Keeping existing files in ./certs/. Let's Encrypt initialization cancelled."
-      return 1
-    fi
-  fi
-
-  # Start nginx temporarily for the ACME challenge
-  mkdir -p "$SCRIPT_DIR/certs"
-  # Create a temporary self-signed cert so nginx can start
-  if [ ! -f "$SCRIPT_DIR/certs/fullchain.pem" ] || [ ! -f "$SCRIPT_DIR/certs/privkey.pem" ]; then
+  # The nginx container falls back to a self-signed placeholder when no real
+  # certificate exists yet, but the TLS_CERT_PATH/TLS_KEY_PATH bind mounts
+  # need actual files on the host (Docker would otherwise create directories
+  # in their place). Create placeholders if the files are missing.
+  if ! local_certs_exist && [[ "${TLS_CERT_PATH:-./certs/fullchain.pem}" == ./certs/* ]]; then
+    mkdir -p "$SCRIPT_DIR/certs"
     openssl req -x509 -nodes -days 1 -newkey rsa:2048 \
       -keyout "$SCRIPT_DIR/certs/privkey.pem" \
       -out "$SCRIPT_DIR/certs/fullchain.pem" \
       -subj "/CN=$DOMAIN" 2>/dev/null
-    info "Created temporary self-signed certificate for initial ACME challenge."
+    info "Created placeholder self-signed certificate so nginx can start."
   fi
 
+  # Start nginx for the ACME challenge
   docker compose -f "$SCRIPT_DIR/docker-compose.yml" up -d nginx
 
   info "Running HTTP-01 preflight for $DOMAIN ..."
@@ -372,36 +359,23 @@ init_certs() {
     return 1
   fi
 
-  local cert_tmp key_tmp
-  cert_tmp="$(mktemp)"
-  key_tmp="$(mktemp)"
-
-  docker compose -f "$SCRIPT_DIR/docker-compose.yml" run --rm --entrypoint /bin/sh certbot \
-    -c "cat /etc/letsencrypt/live/$DOMAIN/fullchain.pem" > "$cert_tmp"
-  docker compose -f "$SCRIPT_DIR/docker-compose.yml" run --rm --entrypoint /bin/sh certbot \
-    -c "cat /etc/letsencrypt/live/$DOMAIN/privkey.pem" > "$key_tmp"
-
-  if [ ! -s "$cert_tmp" ] || [ ! -s "$key_tmp" ]; then
-    rm -f "$cert_tmp" "$key_tmp"
-    error "Failed to export Let's Encrypt certificates from certbot."
-    return 1
+  # The certificate now lives in the shared certbot-conf volume, which nginx
+  # reads directly. CERTBOT_AUTORENEW=true makes nginx prefer those certs and
+  # makes the certbot container renew them, so it must be on for Let's Encrypt.
+  if ! is_truthy "${CERTBOT_AUTORENEW:-false}"; then
+    info "Enabling CERTBOT_AUTORENEW=true in .env (required for Let's Encrypt certificates)."
+    set_env_var CERTBOT_AUTORENEW true
+    # The sourced .env is in our environment and would override the file
+    # during compose interpolation, so update it here too.
+    export CERTBOT_AUTORENEW=true
   fi
 
-  cp "$cert_tmp" "$SCRIPT_DIR/certs/fullchain.pem"
-  cp "$key_tmp" "$SCRIPT_DIR/certs/privkey.pem"
-  chmod 644 "$SCRIPT_DIR/certs/fullchain.pem"
-  chmod 600 "$SCRIPT_DIR/certs/privkey.pem"
-  rm -f "$cert_tmp" "$key_tmp"
+  # Recreate nginx and certbot so they re-select certificates with the new
+  # environment; nginx then picks up future renewals on its own.
+  docker compose -f "$SCRIPT_DIR/docker-compose.yml" up -d --force-recreate nginx certbot
 
-  info "Updated ./certs/fullchain.pem and ./certs/privkey.pem with Let's Encrypt certificates."
-
-  # Update .env to point at local cert paths used by nginx volume mounts
-  write_tls_paths_to_env "./certs/fullchain.pem" "./certs/privkey.pem"
-
-  # Restart nginx with real certs
-  docker compose -f "$SCRIPT_DIR/docker-compose.yml" restart nginx
-
-  info "Certificate obtained! The certbot service will auto-renew."
+  info "Certificate obtained! nginx serves it from the shared certbot volume and"
+  info "the certbot service renews it automatically — no further action needed."
   return 0
 }
 
@@ -567,25 +541,20 @@ while true; do
         fi
       fi
 
-      CERTBOT_AUTORENEW_DEFAULT="$DEFAULT_CERTBOT_AUTORENEW"
-      if ! is_truthy "$CERTBOT_AUTORENEW_DEFAULT"; then
-        if [[ "$TLS_CERT_PATH" == ./certs/* && "$TLS_KEY_PATH" == ./certs/* ]]; then
-          CERTBOT_AUTORENEW_DEFAULT=true
-        elif [[ "$TLS_CERT_PATH" == *letsencrypt* || "$TLS_KEY_PATH" == *letsencrypt* ]]; then
-          CERTBOT_AUTORENEW_DEFAULT=true
-        fi
-      fi
       echo ""
-      echo "  If these files are managed by Let's Encrypt, enable auto-renew to keep certs current."
-      prompt_yes_no "Enable automatic Let's Encrypt renewal?" "$CERTBOT_AUTORENEW_DEFAULT" CERTBOT_AUTORENEW
+      echo "  Enable auto-renew only if this deployment previously obtained certificates"
+      echo "  via Let's Encrypt (option 2 / --init-certs). nginx then serves the renewed"
+      echo "  certificates from the certbot volume and the files above act as fallback."
+      prompt_yes_no "Enable automatic Let's Encrypt renewal?" "$DEFAULT_CERTBOT_AUTORENEW" CERTBOT_AUTORENEW
       break
       ;;
     2)
       TLS_CERT_PATH="$LOCAL_TLS_CERT"
       TLS_KEY_PATH="$LOCAL_TLS_KEY"
       REQUEST_LE_CERTS=true
-      prompt_yes_no "Enable automatic Let's Encrypt renewal after setup?" "true" CERTBOT_AUTORENEW
-      info "Let's Encrypt selected. setup.sh will run certificate initialization after writing .env."
+      CERTBOT_AUTORENEW=true
+      info "Let's Encrypt selected. setup.sh will run certificate initialization after writing .env,"
+      info "and certificates will renew automatically from then on."
       break
       ;;
     3)
@@ -807,10 +776,11 @@ echo "  Next steps:"
 echo "    1. Review and edit .env if needed"
 if [[ "$TLS_CERT_PATH" == ./certs/* ]]; then
 if [ "$CERTBOT_AUTORENEW" = true ]; then
-echo "    2. Let's Encrypt auto-renew is enabled."
+echo "    2. Let's Encrypt auto-renew is enabled: nginx serves certificates from"
+echo "       the certbot volume and reloads automatically after each renewal."
 echo "       If you have not issued certs yet: ./setup.sh --init-certs"
 else
-echo "    2. For real TLS: ./setup.sh --init-certs  (Let's Encrypt)"
+echo "    2. For real TLS: ./setup.sh --init-certs  (Let's Encrypt, auto-renewing)"
 echo "       Or replace ./certs/ files with your own certificate"
 fi
 fi

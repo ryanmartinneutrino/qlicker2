@@ -127,6 +127,12 @@ services:
   # ---------------------------------------------------------------------------
   # Nginx — TLS termination & reverse proxy (the only service exposed to host)
   # ---------------------------------------------------------------------------
+  # TLS certificates: nginx/tls-certs.sh runs at container start and links the
+  # best available certificate into /etc/nginx/ssl — Let's Encrypt certs from
+  # the shared certbot volume (when CERTBOT_AUTORENEW=true), else the
+  # operator-provided TLS_CERT_PATH/TLS_KEY_PATH files, else a self-signed
+  # placeholder. A background watcher then reloads nginx whenever the
+  # certificate changes, so certbot renewals are picked up automatically.
   nginx:
     image: nginx:1.29.7-alpine
     restart: unless-stopped
@@ -135,10 +141,14 @@ services:
       - "443:443"
     environment:
       - DOMAIN=${DOMAIN:-localhost}
+      - CERTBOT_AUTORENEW=${CERTBOT_AUTORENEW:-false}
+      - TLS_RELOAD_CHECK_SECONDS=${TLS_RELOAD_CHECK_SECONDS:-3600}
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/templates/default.conf.template:ro
-      - ${TLS_CERT_PATH:-./certs/fullchain.pem}:/etc/nginx/ssl/fullchain.pem:ro
-      - ${TLS_KEY_PATH:-./certs/privkey.pem}:/etc/nginx/ssl/privkey.pem:ro
+      - ./nginx/tls-certs.sh:/docker-entrypoint.d/40-tls-certs.sh:ro
+      - ${TLS_CERT_PATH:-./certs/fullchain.pem}:/etc/nginx/provided-certs/fullchain.pem:ro
+      - ${TLS_KEY_PATH:-./certs/privkey.pem}:/etc/nginx/provided-certs/privkey.pem:ro
+      - certbot-conf:/etc/letsencrypt:ro
       - certbot-webroot:/var/www/certbot:ro
     depends_on:
       - server
@@ -154,6 +164,8 @@ services:
   # ---------------------------------------------------------------------------
   # On first run, use setup.sh --init-certs to obtain the initial certificate.
   # Renewal behavior is controlled by CERTBOT_AUTORENEW in .env.
+  # Renewed certificates land in the shared certbot-conf volume, which nginx
+  # reads directly (see the nginx service above) — no copy step is needed.
   certbot:
     image: certbot/certbot:v5.4.0
     restart: unless-stopped
