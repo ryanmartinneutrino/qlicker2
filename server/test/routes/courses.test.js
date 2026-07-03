@@ -155,6 +155,13 @@ describe('GET /api/v1/courses', () => {
     });
     expect(enrollRes.statusCode).toBe(200);
 
+    // Pin the course creation time before the session so lastActivityAt (the
+    // max of course.createdAt and the latest session) resolves to the session
+    // rather than to "now" once real time moves past the seeded dates.
+    await Course.findByIdAndUpdate(course._id, {
+      $set: { createdAt: new Date('2026-01-01T00:00:00.000Z') },
+    });
+
     await Session.create({
       name: 'Recent Session',
       courseId: course._id,

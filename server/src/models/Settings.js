@@ -40,7 +40,10 @@ const SettingsSchema = new mongoose.Schema(
     SSO_institutionName: { type: String, default: '' },
     SSO_roleIdentifier: { type: String, default: '' },
     SSO_roleProfName: { type: String, default: '' },
-    SSO_wantAssertionsSigned: { type: Boolean, default: false },
+    // Secure-by-default for new deployments: require signed SAML assertions.
+    // Existing settings documents keep whatever value they already stored, so
+    // this does not change behaviour for a deployment that is already live.
+    SSO_wantAssertionsSigned: { type: Boolean, default: true },
     SSO_wantAuthnResponseSigned: { type: Boolean, default: false },
     SSO_acceptedClockSkewMs: { type: Number, default: 60 * 1000 },
     SSO_disableRequestedAuthnContext: { type: Boolean, default: true },

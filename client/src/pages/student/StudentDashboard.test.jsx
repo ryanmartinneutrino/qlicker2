@@ -79,8 +79,8 @@ describe('StudentDashboard', () => {
       expect(fetchAllCoursesMock).toHaveBeenCalledTimes(1);
     });
 
-    expect(fetchAllCoursesMock).toHaveBeenCalledWith(apiClientMock, { view: 'student' });
-    expect(fetchAllCoursesMock).not.toHaveBeenCalledWith(apiClientMock, { view: 'instructor' });
+    expect(fetchAllCoursesMock).toHaveBeenCalledWith(apiClientMock, { view: 'student' }, expect.objectContaining({ signal: expect.anything() }));
+    expect(fetchAllCoursesMock).not.toHaveBeenCalledWith(apiClientMock, { view: 'instructor' }, expect.anything());
   });
 
   it('fetches instructor courses when the user has instructor-course access', async () => {
@@ -112,7 +112,7 @@ describe('StudentDashboard', () => {
       expect(fetchAllCoursesMock).toHaveBeenCalledTimes(2);
     });
 
-    expect(fetchAllCoursesMock).toHaveBeenNthCalledWith(1, apiClientMock, { view: 'student' });
-    expect(fetchAllCoursesMock).toHaveBeenNthCalledWith(2, apiClientMock, { view: 'instructor' });
+    expect(fetchAllCoursesMock).toHaveBeenNthCalledWith(1, apiClientMock, { view: 'student' }, expect.objectContaining({ signal: expect.anything() }));
+    expect(fetchAllCoursesMock).toHaveBeenNthCalledWith(2, apiClientMock, { view: 'instructor' }, expect.objectContaining({ signal: expect.anything() }));
   });
 });

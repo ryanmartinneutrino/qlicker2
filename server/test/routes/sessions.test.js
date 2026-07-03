@@ -3735,8 +3735,10 @@ describe('session import/export endpoints', () => {
     expect(body.session).not.toHaveProperty('quizEnd');
     expect(body.session.questions).toHaveLength(2);
     expect(body.session.questions[0].plainText).toBe('Second question');
+    // questionB was created without sessionOptions.hidden, so it defaults to
+    // false and is intentionally omitted from the export (hidden is only
+    // exported when explicitly true).
     expect(body.session.questions[0].sessionOptions).toEqual({
-      hidden: true,
       points: 5,
       maxAttempts: 2,
       attemptWeights: [1, 0.5],

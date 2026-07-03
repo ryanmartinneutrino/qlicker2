@@ -134,8 +134,8 @@ describe('ProfDashboard', () => {
       expect(fetchAllCoursesMock).toHaveBeenCalledTimes(2);
     });
 
-    expect(fetchAllCoursesMock).toHaveBeenNthCalledWith(1, apiClientMock, { view: 'instructor' });
-    expect(fetchAllCoursesMock).toHaveBeenNthCalledWith(2, apiClientMock, { view: 'student' });
+    expect(fetchAllCoursesMock).toHaveBeenNthCalledWith(1, apiClientMock, { view: 'instructor' }, expect.objectContaining({ signal: expect.anything() }));
+    expect(fetchAllCoursesMock).toHaveBeenNthCalledWith(2, apiClientMock, { view: 'student' }, expect.objectContaining({ signal: expect.anything() }));
 
     const studentCourseCard = screen.getByText('CS 102').closest('.MuiCard-root');
     expect(studentCourseCard).not.toBeNull();

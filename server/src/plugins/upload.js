@@ -54,9 +54,14 @@ async function uploadPlugin(fastify) {
   }
 
   function getFileExtension(filename, mimetype) {
+    // Pin the stored extension to the validated content type so a client cannot
+    // choose the served Content-Type (e.g. naming a raster upload ".svg" or
+    // ".html"). Only fall back to the filename for types we don't map.
+    const fromMime = IMAGE_EXTENSIONS_BY_TYPE[mimetype];
+    if (fromMime) return fromMime;
     const fromName = path.extname(filename || '').toLowerCase();
     if (fromName && fromName.length <= 8) return fromName;
-    return IMAGE_EXTENSIONS_BY_TYPE[mimetype] || '';
+    return '';
   }
 
   function createStorageConfigError(message) {

@@ -216,6 +216,9 @@ export async function buildApp(opts = {}) {
     try {
       const { buffer, contentType } = await app.getFileObject(key);
       reply.header('Cache-Control', 'private, max-age=31536000, immutable');
+      // Prevent MIME sniffing so a stored file is only ever interpreted as its
+      // declared image content type, never executed as HTML/SVG/script.
+      reply.header('X-Content-Type-Options', 'nosniff');
       return reply.type(contentType || guessImageContentTypeFromKey(key)).send(buffer);
     } catch (err) {
       request.log.warn({ err, key }, 'Failed to serve uploaded image');

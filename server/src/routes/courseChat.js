@@ -105,12 +105,14 @@ function normalizeAuthorSummary(user) {
   };
 }
 
-function shouldExposeAuthorName({ includeNames, viewerUserId, authorId, authorRole, authorMetadataMap }) {
+function shouldExposeAuthorName({ includeNames, viewerUserId, authorId }) {
+  // Course chat is an anonymised forum. Instructors/admins see every name via
+  // includeNames; everyone else only ever sees their own name. Author roles
+  // (student/instructor) are surfaced separately, so instructor posts are
+  // labelled as such without revealing the individual's identity to students.
   if (includeNames) return true;
   if (!authorId) return false;
-  if (authorId === viewerUserId) return true;
-  if (authorRole === 'student') return false;
-  return !!authorMetadataMap.get(authorId)?.canExposeName;
+  return authorId === viewerUserId;
 }
 
 async function buildAuthorMetadataMap(posts = []) {

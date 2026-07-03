@@ -144,6 +144,8 @@ export default async function courseRoutes(app) {
         requireVerified,
         allowStudentQuestions,
         quizTimeFormat,
+        courseChatEnabled,
+        courseChatRetentionDays,
         tags,
       } = request.body;
       const userId = request.user.userId;
@@ -162,6 +164,8 @@ export default async function courseRoutes(app) {
         requireVerified: requireVerified === undefined ? undefined : !!requireVerified,
         allowStudentQuestions: allowStudentQuestions === undefined ? undefined : !!allowStudentQuestions,
         quizTimeFormat: quizTimeFormat === undefined ? undefined : quizTimeFormat,
+        courseChatEnabled: courseChatEnabled === undefined ? undefined : !!courseChatEnabled,
+        courseChatRetentionDays: courseChatRetentionDays === undefined ? undefined : courseChatRetentionDays,
         tags: tags === undefined ? undefined : normalizeTags(tags),
         owner: userId,
         enrollmentCode,

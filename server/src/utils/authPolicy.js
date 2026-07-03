@@ -220,7 +220,12 @@ export function parseAuthnContext(value) {
 
 export function getSamlAdvancedSettings(settings = {}) {
   return {
-    wantAssertionsSigned: normalizeBoolean(settings?.SSO_wantAssertionsSigned, false),
+    // Secure-by-default: require a valid signature on the SAML assertion (the
+    // node-saml / passport-saml default). This prevents forged, unsigned
+    // assertions from being accepted since SSO attributes grant roles. Response
+    // envelope signing stays optional so IdPs that only sign the assertion still
+    // work; deployments can opt into it explicitly.
+    wantAssertionsSigned: normalizeBoolean(settings?.SSO_wantAssertionsSigned, true),
     wantAuthnResponseSigned: normalizeBoolean(settings?.SSO_wantAuthnResponseSigned, false),
     acceptedClockSkewMs: normalizeSsoClockSkewMs(settings?.SSO_acceptedClockSkewMs),
     disableRequestedAuthnContext: normalizeBoolean(settings?.SSO_disableRequestedAuthnContext, true),
@@ -270,7 +275,7 @@ export function normalizeSettingsPayload(settings = {}) {
     backupManagerHostPath: backupManagerHealth.hostPath,
     backupManagerIsStale: backupManagerHealth.isStale,
     SSO_routeMode: normalizeSsoRouteMode(settings?.SSO_routeMode),
-    SSO_wantAssertionsSigned: normalizeBoolean(settings?.SSO_wantAssertionsSigned, false),
+    SSO_wantAssertionsSigned: normalizeBoolean(settings?.SSO_wantAssertionsSigned, true),
     SSO_wantAuthnResponseSigned: normalizeBoolean(settings?.SSO_wantAuthnResponseSigned, false),
     SSO_acceptedClockSkewMs: normalizeSsoClockSkewMs(settings?.SSO_acceptedClockSkewMs),
     SSO_disableRequestedAuthnContext: normalizeBoolean(settings?.SSO_disableRequestedAuthnContext, true),

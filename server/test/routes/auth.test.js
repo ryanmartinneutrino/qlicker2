@@ -1306,7 +1306,8 @@ describe('GET /api/v1/auth/sso/login', () => {
     const saml = await app.getSamlProvider();
 
     expect(saml).toBeTruthy();
-    expect(saml.options.wantAssertionsSigned).toBe(false);
+    // Secure-by-default: assertions must be signed unless explicitly disabled.
+    expect(saml.options.wantAssertionsSigned).toBe(true);
     expect(saml.options.wantAuthnResponseSigned).toBe(false);
     expect(saml.options.acceptedClockSkewMs).toBe(60 * 1000);
   });

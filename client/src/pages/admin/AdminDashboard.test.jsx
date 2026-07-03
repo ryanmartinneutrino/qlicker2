@@ -684,12 +684,12 @@ describe('AdminDashboard', () => {
     fireEvent.click(await screen.findByRole('tab', { name: /^Courses$/i }));
 
     await waitFor(() => {
-      expect(apiClientMock.get).toHaveBeenCalledWith('/courses', {
+      expect(apiClientMock.get).toHaveBeenCalledWith('/courses', expect.objectContaining({
         params: { view: 'all', page: 1, limit: 500 },
-      });
-      expect(apiClientMock.get).toHaveBeenCalledWith('/courses', {
+      }));
+      expect(apiClientMock.get).toHaveBeenCalledWith('/courses', expect.objectContaining({
         params: { view: 'all', page: 2, limit: 500 },
-      });
+      }));
     });
 
     expect(await screen.findByText(/501 course\(s\)/i)).toBeInTheDocument();

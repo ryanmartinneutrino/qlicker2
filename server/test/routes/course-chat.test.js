@@ -115,10 +115,16 @@ describe('course chat routes', () => {
       payload: { enrollmentCode: course.enrollmentCode },
     });
 
+    // Use timestamps relative to now so the seeded post stays inside the chat
+    // retention window (and is not auto-archived) regardless of the wall clock.
+    const viewedAt = new Date(Date.now() - 3 * 60 * 60 * 1000);
+    const postCreatedAt = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    const commentCreatedAt = new Date(Date.now() - 1 * 60 * 60 * 1000);
+
     await CourseChatView.create({
       courseId: String(course._id),
       userId: String(student._id),
-      lastViewedAt: new Date('2026-04-10T09:00:00.000Z'),
+      lastViewedAt: viewedAt,
     });
 
     const post = await Post.create({
@@ -138,14 +144,14 @@ describe('course chat routes', () => {
         bodyWysiwyg: '<p>Follow-up</p>',
         upvoteUserIds: [],
         upvoteCount: 0,
-        createdAt: new Date('2026-04-10T11:00:00.000Z'),
-        updatedAt: new Date('2026-04-10T11:00:00.000Z'),
+        createdAt: commentCreatedAt,
+        updatedAt: commentCreatedAt,
       }],
       upvoteUserIds: [],
       upvoteCount: 0,
       archivedAt: null,
-      createdAt: new Date('2026-04-10T10:00:00.000Z'),
-      updatedAt: new Date('2026-04-10T11:00:00.000Z'),
+      createdAt: postCreatedAt,
+      updatedAt: commentCreatedAt,
     });
 
     const summaryRes = await authenticatedRequest(app, 'GET', `/api/v1/courses/${course._id}/chat/summary`, {
