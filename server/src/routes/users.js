@@ -285,13 +285,17 @@ const userIdParamsSchema = {
   params: stringParamsSchema(['id']),
 };
 
+// The only assignable account roles. `admin` may only ever be granted by an
+// existing admin; canPromote professors are limited to student <-> professor.
+const VALID_ROLES = ['student', 'professor', 'admin'];
+
 const updateRoleSchema = {
   ...userIdParamsSchema,
   body: {
     type: 'object',
     required: ['role'],
     properties: {
-      role: { type: 'string', minLength: 1 },
+      role: { type: 'string', enum: VALID_ROLES },
     },
     additionalProperties: false,
   },
@@ -794,30 +798,41 @@ export default async function userRoutes(app) {
     }
   );
 
-  // PATCH /:id/role (admin or canPromote professor)
+  // PATCH /:id/role
+  // Admins may set any role. A professor explicitly granted canPromote may only
+  // move accounts between student and professor — never to admin, and never
+  // their own account. Granting admin is strictly an admin-only operation and is
+  // deliberately kept separate from canPromote.
   app.patch(
     '/:id/role',
       { preHandler: authenticate, schema: updateRoleSchema },
     async (request, reply) => {
       const { role } = request.body || {};
-      if (!role) {
-        return reply.code(400).send({ error: 'Bad Request', message: 'Role is required' });
+      if (!VALID_ROLES.includes(role)) {
+        return reply.code(400).send({ error: 'Bad Request', message: 'A valid role is required' });
+      }
+
+      // No one may change their own role — this prevents a canPromote professor
+      // from self-escalating and stops an admin from accidentally locking
+      // themselves out of admin access.
+      if (request.params.id === request.user.userId) {
+        return reply.code(403).send({ error: 'Forbidden', message: 'You cannot change your own role' });
       }
 
       const callerRoles = request.user.roles || [];
       const isAdmin = callerRoles.includes('admin');
 
       if (!isAdmin) {
-        // Check if caller is a professor with canPromote
+        // Only an admin can ever grant the admin role.
+        if (role === 'admin') {
+          return reply.code(403).send({ error: 'Forbidden', message: 'Only an admin can grant the admin role' });
+        }
+        // Otherwise the caller must be a professor explicitly granted canPromote,
+        // and is limited to student <-> professor changes (enforced above).
         const caller = await User.findById(request.user.userId);
         if (!caller || !callerRoles.includes('professor') || !caller.profile?.canPromote) {
           return reply.code(403).send({ error: 'Forbidden', message: 'Insufficient permissions' });
         }
-      }
-
-      // Admins cannot change their own role to prevent losing all admin access
-      if (isAdmin && request.params.id === request.user.userId) {
-        return reply.code(403).send({ error: 'Forbidden', message: 'Admins cannot change their own role' });
       }
 
       const roleUpdates = { 'profile.roles': [role] };

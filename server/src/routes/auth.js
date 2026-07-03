@@ -22,6 +22,17 @@ import { getOrCreateSettingsDocument } from '../utils/settingsSingleton.js';
 
 const LOGIN_LOCKOUT_THRESHOLD = 5;
 const LOGIN_LOCKOUT_DURATION_MS = 15 * 60 * 1000;
+// Single-use email tokens must expire. A reset token grants account takeover, so
+// keep it short; verification is lower-risk but should still not live forever.
+const PASSWORD_RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
+const EMAIL_VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+function isTimestampWithinTtl(when, ttlMs) {
+  const whenMs = when ? new Date(when).getTime() : NaN;
+  if (!Number.isFinite(whenMs)) return false;
+  const ageMs = Date.now() - whenMs;
+  return ageMs >= 0 && ageMs <= ttlMs;
+}
 const LEGACY_REFRESH_VERSION_QUERY = {
   $or: [
     { refreshTokenVersion: { $exists: false } },
@@ -897,6 +908,14 @@ export default async function authRoutes(app) {
       if (!user) {
         return reply.code(400).send({ error: 'Bad Request', message: 'Invalid or expired token' });
       }
+
+      // Reject (and clear) reset tokens that are missing a timestamp or past TTL.
+      if (!isTimestampWithinTtl(user.services?.resetPassword?.when, PASSWORD_RESET_TOKEN_TTL_MS)) {
+        user.set('services.resetPassword', undefined);
+        await user.save();
+        return reply.code(400).send({ error: 'Bad Request', message: 'Invalid or expired token' });
+      }
+
       if (isUserDisabled(user)) {
         return reply.code(403).send({
           error: 'Forbidden',
@@ -949,11 +968,21 @@ export default async function authRoutes(app) {
 
       // Find the token entry to get the address
       const tokenEntry = user.services.email.verificationTokens.find((t) => t.token === token);
-      if (tokenEntry) {
-        const emailEntry = user.emails.find((e) => e.address === tokenEntry.address);
-        if (emailEntry) {
-          emailEntry.verified = true;
+
+      // Reject (and prune) tokens that are missing a timestamp or past TTL.
+      if (!tokenEntry || !isTimestampWithinTtl(tokenEntry.when, EMAIL_VERIFICATION_TOKEN_TTL_MS)) {
+        if (tokenEntry) {
+          user.services.email.verificationTokens = user.services.email.verificationTokens.filter(
+            (t) => t.token !== token
+          );
+          await user.save();
         }
+        return reply.code(400).send({ error: 'Bad Request', message: 'Invalid or expired token' });
+      }
+
+      const emailEntry = user.emails.find((e) => e.address === tokenEntry.address);
+      if (emailEntry) {
+        emailEntry.verified = true;
       }
 
       // Remove used token

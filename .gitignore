@@ -33,6 +33,12 @@ logs/
 *.log
 npm-debug.log*
 
+# HAR captures — contain live session cookies, auth tokens, and student PII
+*.har
+
+# Security audit working notes (not for the public repo)
+sec_audit.md
+
 # Coverage
 coverage/
 client/test-results/

@@ -1875,6 +1875,81 @@ describe('PATCH /api/v1/users/:id/role', () => {
 
     expect(res.statusCode).toBe(403);
     const body = res.json();
-    expect(body.message).toMatch(/cannot change their own role/i);
+    expect(body.message).toMatch(/cannot change your own role/i);
+  });
+
+  async function createCanPromoteProfessor(email) {
+    const professor = await createTestUser({ email, roles: ['professor'] });
+    await User.updateOne({ _id: professor._id }, { $set: { 'profile.canPromote': true } });
+    return professor;
+  }
+
+  it('rejects a canPromote professor granting the admin role', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const professor = await createCanPromoteProfessor('promoter@example.com');
+    const student = await createTestUser({ email: 'target@example.com', roles: ['student'] });
+    const token = await getAuthToken(app, professor);
+
+    const res = await authenticatedRequest(
+      app,
+      'PATCH',
+      `/api/v1/users/${student._id}/role`,
+      { token, payload: { role: 'admin' } }
+    );
+
+    expect(res.statusCode).toBe(403);
+    expect(res.json().message).toMatch(/only an admin can grant the admin role/i);
+    const updated = await User.findById(student._id).lean();
+    expect(updated.profile.roles).not.toContain('admin');
+  });
+
+  it('prevents a canPromote professor from self-escalating to admin', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const professor = await createCanPromoteProfessor('selfpromoter@example.com');
+    const token = await getAuthToken(app, professor);
+
+    const res = await authenticatedRequest(
+      app,
+      'PATCH',
+      `/api/v1/users/${professor._id}/role`,
+      { token, payload: { role: 'admin' } }
+    );
+
+    expect(res.statusCode).toBe(403);
+    const updated = await User.findById(professor._id).lean();
+    expect(updated.profile.roles).not.toContain('admin');
+  });
+
+  it('lets a canPromote professor promote a student to professor', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const professor = await createCanPromoteProfessor('goodpromoter@example.com');
+    const student = await createTestUser({ email: 'risingstar@example.com', roles: ['student'] });
+    const token = await getAuthToken(app, professor);
+
+    const res = await authenticatedRequest(
+      app,
+      'PATCH',
+      `/api/v1/users/${student._id}/role`,
+      { token, payload: { role: 'professor' } }
+    );
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().profile.roles).toContain('professor');
+  });
+
+  it('rejects an unknown role value', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const admin = await createTestUser({ email: 'admin-badrole@example.com', roles: ['admin'] });
+    const student = await createTestUser({ email: 'badrole-target@example.com', roles: ['student'] });
+    const token = await getAuthToken(app, admin);
+
+    const res = await authenticatedRequest(
+      app,
+      'PATCH',
+      `/api/v1/users/${student._id}/role`,
+      { token, payload: { role: 'superadmin' } }
+    );
+
+    expect(res.statusCode).toBe(400);
   });
 });

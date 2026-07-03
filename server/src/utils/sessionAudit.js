@@ -36,19 +36,10 @@ export function normalizeIpAddress(value) {
 }
 
 export function getRequestIp(request) {
-  const forwardedFor = request?.headers?.['x-forwarded-for'];
-  if (typeof forwardedFor === 'string' && forwardedFor.trim()) {
-    return normalizeIpAddress(forwardedFor);
-  }
-  if (Array.isArray(forwardedFor) && forwardedFor.length > 0) {
-    return normalizeIpAddress(forwardedFor[0]);
-  }
-
-  const realIp = request?.headers?.['x-real-ip'];
-  if (typeof realIp === 'string' && realIp.trim()) {
-    return normalizeIpAddress(realIp);
-  }
-
+  // Prefer request.ip: when the app is configured with trustProxy it already
+  // resolves the real client from X-Forwarded-For, and when it is not it stays
+  // the direct socket address. Reading the forwarding headers directly here
+  // would trust an unauthenticated, client-spoofable value, so we don't.
   return normalizeIpAddress(
     request?.ip
       || request?.socket?.remoteAddress

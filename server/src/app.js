@@ -36,13 +36,20 @@ import { guessImageContentTypeFromKey, normalizeRequestedStorageKey } from './ut
 import { ensureSettingsSingleton } from './utils/settingsSingleton.js';
 
 export async function buildApp(opts = {}) {
+  // Resolve config early so proxy trust can be applied at construction time.
+  const resolvedConfig = { ...config, ...opts.config };
+
   const app = Fastify({
     logger: opts.logger !== undefined ? opts.logger : true,
+    // Make request.ip reflect the real client behind the reverse proxy so per-IP
+    // rate limiting and audit logging are accurate and not X-Forwarded-For
+    // spoofable. Configurable via TRUST_PROXY (see config).
+    trustProxy: resolvedConfig.trustProxy,
     ...opts,
   });
 
   // Config
-  app.decorate('config', { ...config, ...opts.config });
+  app.decorate('config', resolvedConfig);
 
   // Plugins
   await app.register(cors, {

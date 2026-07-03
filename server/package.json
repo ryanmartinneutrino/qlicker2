@@ -33,7 +33,7 @@
     "ioredis": "^5.10.1",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.4.1",
-    "nodemailer": "^8.0.5",
+    "nodemailer": "^9.0.3",
     "sharp": "^0.34.5"
   },
   "devDependencies": {
@@ -42,9 +42,9 @@
   },
   "overrides": {
     "@fastify/static": "9.1.1",
-    "@xmldom/xmldom": "0.8.11",
-    "brace-expansion": "5.0.5",
-    "fast-xml-parser": ">=5.5.6",
+    "@xmldom/xmldom": "0.9.10",
+    "brace-expansion": "5.0.7",
+    "fast-xml-parser": ">=5.7.0",
     "follow-redirects": "1.16.0",
     "yaml": "2.8.3"
   }

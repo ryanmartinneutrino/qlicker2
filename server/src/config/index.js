@@ -36,6 +36,25 @@ function parseNonNegativeIntEnv(value, fallback) {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
+// Controls Fastify's proxy trust. Accepts `true`/`false`, a hop count (e.g. `1`
+// for a single reverse proxy such as nginx), or a comma-separated IP/subnet
+// allowlist. Defaults to trusting one hop, which is correct for the standard
+// single-nginx deployment and makes request.ip reflect the real client (so
+// per-IP rate limits and audit logging work and cannot be spoofed via a forged
+// X-Forwarded-For). Set TRUST_PROXY=false if the app is exposed directly.
+function parseTrustProxyEnv(value, fallback) {
+  if (value === undefined || value === null || String(value).trim() === '') {
+    return fallback;
+  }
+  const raw = String(value).trim();
+  const lower = raw.toLowerCase();
+  if (lower === 'true') return true;
+  if (lower === 'false') return false;
+  const asInt = Number(raw);
+  if (Number.isInteger(asInt) && asInt >= 0) return asInt;
+  return raw;
+}
+
 function readVersionFromFile(filePath) {
   try {
     const value = readFileSync(filePath, 'utf8').trim();
@@ -88,6 +107,7 @@ export default {
   mongoConnectRetries: parseNonNegativeIntEnv(process.env.MONGO_CONNECT_RETRIES, 6),
   mongoConnectRetryDelayMs: parseNonNegativeIntEnv(process.env.MONGO_CONNECT_RETRY_DELAY_MS, 2000),
   nodeEnv,
+  trustProxy: parseTrustProxyEnv(process.env.TRUST_PROXY, 1),
   disableRateLimits: parseBooleanEnv(process.env.DISABLE_RATE_LIMITS)
     || parseBooleanEnv(process.env.RATE_LIMIT_DISABLED),
 };

@@ -35,7 +35,9 @@ if (typeof window !== 'undefined') {
   DOMPurify.addHook('uponSanitizeElement', (node, data) => {
     if (data.tagName === 'iframe') {
       if (!allowVideoEmbedsForCurrentSanitize) {
-        node.remove();
+        // iframe is not in the allowlist in default mode, so DOMPurify already
+        // strips it. Detaching it here as well double-removes the node, which
+        // DOMPurify 3.4.11+ rejects ("refusing to sanitize in place").
         return;
       }
       const normalizedSrc = toEmbedUrl(node.getAttribute('src') || '');
