@@ -18,6 +18,7 @@ import {
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import apiClient, { getUsableAccessToken } from '../../api/client';
+import { closeWebSocketQuietly } from '../../utils/liveSocket';
 import { buildCourseSelectionLabel, buildCourseTitle, sortCoursesByRecent } from '../../utils/courseTitle';
 import {
   getProfessorSessionPrimaryPath,
@@ -700,6 +701,31 @@ export default function CourseDetail() {
     });
   }, [copySessionsDialogOpen, copySessionsSourceCourseId, fetchCopySessionsSource, t]);
 
+  // Latest-handler ref so the websocket effect below doesn't tear down and
+  // reconnect the socket every time a callback identity or the active tab
+  // changes — that mid-handshake close surfaced as a browser console error
+  // on every course-page load.
+  const handleWsEventRef = useRef(() => {});
+  handleWsEventRef.current = (evt, d) => {
+    if (String(d?.courseId || '') !== String(id)) return;
+    if (evt === 'session:status-changed') {
+      patchSingleSessionStatus(d?.sessionId, d?.status);
+    } else if (evt === 'session:metadata-changed') {
+      refreshSingleSession(d?.sessionId).catch(() => {});
+    } else if (evt === 'course:chat-updated') {
+      setChatRefreshToken((prev) => prev + 1);
+      if (tab === chatTabIndex) {
+        setChatUnseenCount(0);
+        setChatEvent((prev) => ({ id: (prev?.id || 0) + 1, ...d }));
+      } else {
+        setChatUnseenCount((prev) => prev + getCourseChatEventUnseenDelta(d));
+      }
+    }
+    if (evt === 'video:updated') {
+      fetchCourse();
+    }
+  };
+
   // WebSocket push for session status changes (replaces session-list polling)
   useEffect(() => {
     let ws = null;
@@ -720,25 +746,8 @@ export default function CourseDetail() {
       ws.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
-          const evt = message?.event;
-          const d = message?.data;
-          if (String(d?.courseId || '') !== String(id)) return;
-          if (evt === 'session:status-changed') {
-            patchSingleSessionStatus(d?.sessionId, d?.status);
-          } else if (evt === 'session:metadata-changed') {
-            refreshSingleSession(d?.sessionId).catch(() => {});
-          } else if (evt === 'course:chat-updated') {
-            setChatRefreshToken((prev) => prev + 1);
-            if (tab === chatTabIndex) {
-              setChatUnseenCount(0);
-              setChatEvent((prev) => ({ id: (prev?.id || 0) + 1, ...d }));
-            } else {
-              setChatUnseenCount((prev) => prev + getCourseChatEventUnseenDelta(d));
-            }
-          }
-          if (evt === 'video:updated') {
-            fetchCourse();
-          }
+          if (!message?.event) return;
+          handleWsEventRef.current(message.event, message.data);
         } catch {
           // Ignore malformed payloads
         }
@@ -762,11 +771,9 @@ export default function CourseDetail() {
     return () => {
       closed = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
-      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
-        ws.close();
-      }
+      closeWebSocketQuietly(ws);
     };
-  }, [chatTabIndex, fetchCourse, id, patchSingleSessionStatus, refreshSingleSession, tab]);
+  }, [id]);
 
   useEffect(() => {
     const urlTab = parseCourseTab(searchParams.get('tab'));

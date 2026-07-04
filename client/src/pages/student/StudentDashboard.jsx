@@ -8,6 +8,7 @@ import {
 import { Add as AddIcon, School as SchoolIcon, PlayCircle as LiveIcon } from '@mui/icons-material';
 import { useTranslation } from 'react-i18next';
 import apiClient, { getUsableAccessToken } from '../../api/client';
+import { closeWebSocketQuietly } from '../../utils/liveSocket';
 import { useAuth } from '../../contexts/AuthContext';
 import { buildCourseTitle } from '../../utils/courseTitle';
 import { fetchAllCourses } from '../../utils/fetchAllCourses';
@@ -201,9 +202,7 @@ export default function StudentDashboard() {
       closed = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
       stopPolling();
-      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
-        ws.close();
-      }
+      closeWebSocketQuietly(ws);
       window.removeEventListener('focus', refreshLiveSessions);
       document.removeEventListener('visibilitychange', refreshLiveSessions);
     };

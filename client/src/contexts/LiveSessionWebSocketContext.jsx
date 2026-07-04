@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import apiClient, { getUsableAccessToken } from '../api/client';
+import { closeWebSocketQuietly } from '../utils/liveSocket';
 
 const LiveSessionWebSocketContext = createContext(null);
 
@@ -120,9 +121,7 @@ export function LiveSessionWebSocketProvider({ sessionId, children }) {
       closed = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
       stopPolling();
-      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
-        ws.close();
-      }
+      closeWebSocketQuietly(ws);
       window.removeEventListener('focus', refresh);
       document.removeEventListener('visibilitychange', handleVisibility);
     };

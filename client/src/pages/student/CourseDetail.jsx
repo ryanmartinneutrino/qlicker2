@@ -7,6 +7,7 @@ import {
 } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
 import apiClient, { getUsableAccessToken } from '../../api/client';
+import { closeWebSocketQuietly } from '../../utils/liveSocket';
 import { buildCourseTitle } from '../../utils/courseTitle';
 import { shouldRedirectStudentCourseToInstructorView } from '../../utils/courseAccess';
 import {
@@ -383,6 +384,44 @@ export default function StudentCourseDetail() {
     }
   }, [chatTabIndex, courseChatEnabled, tab]);
 
+  // Latest-handler refs so the websocket effect below doesn't tear down and
+  // reconnect the socket every time a callback identity or the active tab
+  // changes — that mid-handshake close surfaced as a browser console error
+  // on every course-page load.
+  const handleWsEventRef = useRef(() => {});
+  handleWsEventRef.current = (evt, d) => {
+    if (String(d?.courseId || '') !== String(id)) return;
+    if (evt === 'session:status-changed') {
+      const hasSessionLoaded = sessionsRef.current
+        .some((session) => String(session?._id || '') === String(d?.sessionId || ''));
+      if (hasSessionLoaded) {
+        patchSessionStatusLocally(d?.sessionId, d?.status);
+      } else if (d?.status && d.status !== 'hidden') {
+        refreshSingleSession(d?.sessionId).catch(() => {});
+      }
+    } else if (evt === 'session:metadata-changed'
+      || evt === 'session:feedback-updated'
+      || evt === 'session:quiz-submitted') {
+      refreshSingleSession(d?.sessionId).catch(() => {});
+    } else if (evt === 'course:chat-updated') {
+      setChatRefreshToken((prev) => prev + 1);
+      if (tab === chatTabIndex) {
+        setChatUnseenCount(0);
+        setChatEvent((prev) => ({ id: (prev?.id || 0) + 1, ...d }));
+      } else {
+        setChatUnseenCount((prev) => prev + getCourseChatEventUnseenDelta(d));
+      }
+    }
+    if (evt === 'video:updated') {
+      fetchCourse();
+    }
+  };
+  const refreshSessionsRef = useRef(() => {});
+  refreshSessionsRef.current = () => {
+    fetchSessions();
+    fetchChatSummary();
+  };
+
   useEffect(() => {
     let ws = null;
     let reconnectTimer = null;
@@ -391,8 +430,7 @@ export default function StudentCourseDetail() {
 
     const refreshSessions = () => {
       if (document.visibilityState !== 'visible') return;
-      fetchSessions();
-      fetchChatSummary();
+      refreshSessionsRef.current();
     };
 
     const startPolling = () => {
@@ -425,33 +463,8 @@ export default function StudentCourseDetail() {
       ws.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
-          const evt = message?.event;
-          const d = message?.data;
-          if (String(d?.courseId || '') !== String(id)) return;
-          if (evt === 'session:status-changed') {
-            const hasSessionLoaded = sessionsRef.current
-              .some((session) => String(session?._id || '') === String(d?.sessionId || ''));
-            if (hasSessionLoaded) {
-              patchSessionStatusLocally(d?.sessionId, d?.status);
-            } else if (d?.status && d.status !== 'hidden') {
-              refreshSingleSession(d?.sessionId).catch(() => {});
-            }
-          } else if (evt === 'session:metadata-changed'
-            || evt === 'session:feedback-updated'
-            || evt === 'session:quiz-submitted') {
-            refreshSingleSession(d?.sessionId).catch(() => {});
-          } else if (evt === 'course:chat-updated') {
-            setChatRefreshToken((prev) => prev + 1);
-            if (tab === chatTabIndex) {
-              setChatUnseenCount(0);
-              setChatEvent((prev) => ({ id: (prev?.id || 0) + 1, ...d }));
-            } else {
-              setChatUnseenCount((prev) => prev + getCourseChatEventUnseenDelta(d));
-            }
-          }
-          if (evt === 'video:updated') {
-            fetchCourse();
-          }
+          if (!message?.event) return;
+          handleWsEventRef.current(message.event, message.data);
         } catch {
           // Ignore malformed websocket payloads.
         }
@@ -488,13 +501,11 @@ export default function StudentCourseDetail() {
       closed = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
       stopPolling();
-      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
-        ws.close();
-      }
+      closeWebSocketQuietly(ws);
       window.removeEventListener('focus', refreshSessions);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [chatTabIndex, fetchSessions, fetchCourse, fetchChatSummary, id, patchSessionStatusLocally, refreshSingleSession, tab]);
+  }, [id]);
 
   const handleUnenroll = async () => {
     setUnenrolling(true);

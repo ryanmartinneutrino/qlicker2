@@ -5,6 +5,7 @@ import {
   Box, Typography, Paper, Alert, CircularProgress, Chip, Button,
 } from '@mui/material';
 import apiClient, { getUsableAccessToken } from '../../api/client';
+import { closeWebSocketQuietly } from '../../utils/liveSocket';
 import {
   QUESTION_TYPES,
   TYPE_COLORS,
@@ -521,9 +522,7 @@ export default function PresentationWindow() {
       if (fetchThrottleRef.current) clearTimeout(fetchThrottleRef.current);
       fetchThrottleRef.current = null;
       stopPolling();
-      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
-        ws.close();
-      }
+      closeWebSocketQuietly(ws);
       window.removeEventListener('focus', refresh);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
