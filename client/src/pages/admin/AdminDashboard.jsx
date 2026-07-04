@@ -1743,6 +1743,7 @@ function StorageTab() {
     AWS_forcePathStyle: false,
   });
   const [azure, setAzure] = useState({ Azure_storageAccount: '', Azure_storageAccessKey: '', Azure_storageContainer: '' });
+  const [secretsSet, setSecretsSet] = useState({ aws: false, azure: false });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState('idle');
@@ -1760,14 +1761,19 @@ function StorageTab() {
         AWS_bucket: data.AWS_bucket ?? '',
         AWS_region: data.AWS_region ?? '',
         AWS_accessKeyId: data.resolvedAWSAccessKeyId ?? data.AWS_accessKeyId ?? data.AWS_accessKey ?? '',
-        AWS_secretAccessKey: data.resolvedAWSSecretAccessKey ?? data.AWS_secretAccessKey ?? data.AWS_secret ?? '',
+        // Secrets are write-only: the API masks them, an empty save keeps the stored value.
+        AWS_secretAccessKey: '',
         AWS_endpoint: data.AWS_endpoint ?? data.S3_endpoint ?? '',
         AWS_forcePathStyle: !!(data.AWS_forcePathStyle ?? data.S3_forcePathStyle ?? false),
       });
       setAzure({
         Azure_storageAccount: data.resolvedAzureStorageAccount ?? data.Azure_storageAccount ?? data.Azure_accountName ?? '',
-        Azure_storageAccessKey: data.resolvedAzureStorageAccessKey ?? data.Azure_storageAccessKey ?? data.Azure_accountKey ?? '',
+        Azure_storageAccessKey: '',
         Azure_storageContainer: data.resolvedAzureStorageContainer ?? data.Azure_storageContainer ?? data.Azure_containerName ?? '',
+      });
+      setSecretsSet({
+        aws: !!data.AWS_secretAccessKeySet,
+        azure: !!data.Azure_storageAccessKeySet,
       });
     }).catch(() => {
       if (mounted) {
@@ -1805,6 +1811,10 @@ function StorageTab() {
         if (storageType === 'azure') Object.assign(payload, azure);
         await apiClient.patch('/settings', payload);
         clearPublicSettingsCache();
+        setSecretsSet((current) => ({
+          aws: current.aws || !!s3.AWS_secretAccessKey.trim(),
+          azure: current.azure || !!azure.Azure_storageAccessKey.trim(),
+        }));
         setSaveStatus('success');
       } catch (err) {
         setSaveStatus('error');
@@ -1863,7 +1873,14 @@ function StorageTab() {
           <TextField label={t('admin.storage.bucket')} value={s3.AWS_bucket} onChange={(e) => setS3((s) => ({ ...s, AWS_bucket: e.target.value }))} fullWidth />
           <TextField label={t('admin.storage.region')} value={s3.AWS_region} onChange={(e) => setS3((s) => ({ ...s, AWS_region: e.target.value }))} fullWidth />
           <TextField label={t('admin.storage.accessKeyId')} value={s3.AWS_accessKeyId} onChange={(e) => setS3((s) => ({ ...s, AWS_accessKeyId: e.target.value }))} fullWidth />
-          <TextField label={t('admin.storage.secretAccessKey')} type="password" value={s3.AWS_secretAccessKey} onChange={(e) => setS3((s) => ({ ...s, AWS_secretAccessKey: e.target.value }))} fullWidth />
+          <TextField
+            label={t('admin.storage.secretAccessKey')}
+            type="password"
+            value={s3.AWS_secretAccessKey}
+            onChange={(e) => setS3((s) => ({ ...s, AWS_secretAccessKey: e.target.value }))}
+            helperText={secretsSet.aws && !s3.AWS_secretAccessKey ? t('admin.storage.secretConfiguredHelp') : undefined}
+            fullWidth
+          />
           <TextField
             label={t('admin.storage.endpoint')}
             value={s3.AWS_endpoint}
@@ -1880,7 +1897,14 @@ function StorageTab() {
       {storageType === 'azure' && (
         <>
           <TextField label={t('admin.storage.storageAccount')} value={azure.Azure_storageAccount} onChange={(e) => setAzure((s) => ({ ...s, Azure_storageAccount: e.target.value }))} fullWidth />
-          <TextField label={t('admin.storage.storageAccessKey')} type="password" value={azure.Azure_storageAccessKey} onChange={(e) => setAzure((s) => ({ ...s, Azure_storageAccessKey: e.target.value }))} fullWidth />
+          <TextField
+            label={t('admin.storage.storageAccessKey')}
+            type="password"
+            value={azure.Azure_storageAccessKey}
+            onChange={(e) => setAzure((s) => ({ ...s, Azure_storageAccessKey: e.target.value }))}
+            helperText={secretsSet.azure && !azure.Azure_storageAccessKey ? t('admin.storage.secretConfiguredHelp') : undefined}
+            fullWidth
+          />
           <TextField label={t('admin.storage.storageContainer')} value={azure.Azure_storageContainer} onChange={(e) => setAzure((s) => ({ ...s, Azure_storageContainer: e.target.value }))} fullWidth />
         </>
       )}
@@ -1892,6 +1916,7 @@ function StorageTab() {
 function SSOTab() {
   const { t } = useTranslation();
   const [settings, setSettings] = useState(DEFAULT_SSO_SETTINGS);
+  const [privKeySet, setPrivKeySet] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState('idle');
@@ -1904,6 +1929,7 @@ function SSOTab() {
     apiClient.get('/settings').then(({ data }) => {
       if (!mounted) return;
       setSettings(buildSsoSettingsState(data));
+      setPrivKeySet(!!data.SSO_privKeySet);
     }).catch(() => {
       if (mounted) {
         setSaveStatus('error');
@@ -1937,6 +1963,7 @@ function SSOTab() {
           ...payload,
           SSO_acceptedClockSkewMs: Number.isFinite(parsedClockSkew) ? parsedClockSkew : 60000,
         });
+        setPrivKeySet((current) => current || !!String(settings.SSO_privKey || '').trim());
         setSaveStatus('success');
       } catch (err) {
         setSaveStatus('error');
@@ -1977,6 +2004,11 @@ function SSOTab() {
     }
 
     if (field.type === 'textarea') {
+      // The private key is write-only: the API never returns it, so an empty
+      // field means "keep the stored key" rather than "no key configured".
+      const secretHelp = field.key === 'SSO_privKey' && privKeySet && !settings.SSO_privKey
+        ? t('admin.sso.privKeyConfiguredHelp')
+        : undefined;
       return (
         <TextField
           key={field.key}
@@ -1985,7 +2017,7 @@ function SSOTab() {
           onChange={(event) => setSettings((current) => ({ ...current, [field.key]: event.target.value }))}
           multiline
           minRows={field.key === 'SSO_authnContext' ? 2 : 4}
-          helperText={field.helpKey ? t(field.helpKey) : undefined}
+          helperText={secretHelp ?? (field.helpKey ? t(field.helpKey) : undefined)}
           fullWidth
         />
       );

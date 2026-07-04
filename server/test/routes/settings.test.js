@@ -150,6 +150,117 @@ describe('PATCH /api/v1/settings', () => {
   });
 });
 
+describe('settings secret masking (write-only secrets)', () => {
+  async function createAdminToken(email) {
+    const admin = await createTestUser({ email, roles: ['admin'] });
+    return getAuthToken(app, admin);
+  }
+
+  it('masks SSO private key and storage secrets in GET responses', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+
+    await Settings.findOneAndUpdate(
+      { _id: 'settings' },
+      {
+        $set: {
+          SSO_privKey: '-----BEGIN PRIVATE KEY-----abc-----END PRIVATE KEY-----',
+          AWS_secretAccessKey: 'super-secret-aws',
+          Azure_storageAccessKey: 'super-secret-azure',
+        },
+      },
+      { upsert: true, returnDocument: 'after' }
+    );
+
+    const token = await createAdminToken('admin-secret-mask@example.com');
+    const res = await authenticatedRequest(app, 'GET', '/api/v1/settings', { token });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.SSO_privKey).toBe('');
+    expect(body.AWS_secretAccessKey).toBe('');
+    expect(body.Azure_storageAccessKey).toBe('');
+    expect(body.resolvedAWSSecretAccessKey).toBe('');
+    expect(body.resolvedAzureStorageAccessKey).toBe('');
+    expect(body.SSO_privKeySet).toBe(true);
+    expect(body.AWS_secretAccessKeySet).toBe(true);
+    expect(body.Azure_storageAccessKeySet).toBe(true);
+    expect(JSON.stringify(body)).not.toContain('super-secret');
+    expect(JSON.stringify(body)).not.toContain('BEGIN PRIVATE KEY');
+  });
+
+  it('reports unset secrets with false flags', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+
+    const token = await createAdminToken('admin-secret-unset@example.com');
+    const res = await authenticatedRequest(app, 'GET', '/api/v1/settings', { token });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().SSO_privKeySet).toBe(false);
+    expect(res.json().AWS_secretAccessKeySet).toBe(false);
+    expect(res.json().Azure_storageAccessKeySet).toBe(false);
+  });
+
+  it('keeps stored secrets when a PATCH round-trips blank values', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+
+    await Settings.findOneAndUpdate(
+      { _id: 'settings' },
+      {
+        $set: {
+          SSO_privKey: 'stored-priv-key',
+          AWS_secretAccessKey: 'stored-aws-secret',
+          Azure_storageAccessKey: 'stored-azure-secret',
+        },
+      },
+      { upsert: true, returnDocument: 'after' }
+    );
+
+    const token = await createAdminToken('admin-secret-keep@example.com');
+    const res = await authenticatedRequest(app, 'PATCH', '/api/v1/settings', {
+      token,
+      payload: {
+        storageType: 's3',
+        AWS_bucket: 'new-bucket',
+        SSO_privKey: '',
+        AWS_secretAccessKey: '',
+        Azure_storageAccessKey: '   ',
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().AWS_bucket).toBe('new-bucket');
+    expect(res.json().SSO_privKeySet).toBe(true);
+
+    const stored = await Settings.collection.findOne({ _id: 'settings' });
+    expect(stored.SSO_privKey).toBe('stored-priv-key');
+    expect(stored.AWS_secretAccessKey).toBe('stored-aws-secret');
+    expect(stored.Azure_storageAccessKey).toBe('stored-azure-secret');
+  });
+
+  it('replaces stored secrets when a PATCH provides new values', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+
+    await Settings.findOneAndUpdate(
+      { _id: 'settings' },
+      { $set: { AWS_secretAccessKey: 'old-aws-secret' } },
+      { upsert: true, returnDocument: 'after' }
+    );
+
+    const token = await createAdminToken('admin-secret-replace@example.com');
+    const res = await authenticatedRequest(app, 'PATCH', '/api/v1/settings', {
+      token,
+      payload: { AWS_secretAccessKey: 'new-aws-secret' },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().AWS_secretAccessKey).toBe('');
+    expect(res.json().AWS_secretAccessKeySet).toBe(true);
+
+    const stored = await Settings.collection.findOne({ _id: 'settings' });
+    expect(stored.AWS_secretAccessKey).toBe('new-aws-secret');
+  });
+});
+
 describe('settings singleton hardening', () => {
   it('removes duplicate settings documents on app startup', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
@@ -229,17 +340,20 @@ describe('settings singleton hardening', () => {
     expect(res.json().AWS_bucket).toBe('legacy-backup-bucket');
     expect(res.json().AWS_region).toBe('us-east-1');
     expect(res.json().AWS_accessKey).toBe('legacy-access-key');
-    expect(res.json().AWS_secret).toBe('legacy-secret-key');
     expect(res.json().AWS_endpoint).toBe('https://nyc3.example-storage.local');
     expect(res.json().AWS_forcePathStyle).toBe(true);
     expect(res.json().resolvedAWSAccessKeyId).toBe('legacy-access-key');
-    expect(res.json().resolvedAWSSecretAccessKey).toBe('legacy-secret-key');
     expect(res.json().Azure_accountName).toBe('legacy-azure-account');
-    expect(res.json().Azure_accountKey).toBe('legacy-azure-key');
     expect(res.json().Azure_containerName).toBe('legacy-azure-container');
     expect(res.json().resolvedAzureStorageAccount).toBe('legacy-azure-account');
-    expect(res.json().resolvedAzureStorageAccessKey).toBe('legacy-azure-key');
     expect(res.json().resolvedAzureStorageContainer).toBe('legacy-azure-container');
+    // Secrets are masked in API responses; companion flags report presence.
+    expect(res.json().AWS_secret).toBe('');
+    expect(res.json().resolvedAWSSecretAccessKey).toBe('');
+    expect(res.json().Azure_accountKey).toBe('');
+    expect(res.json().resolvedAzureStorageAccessKey).toBe('');
+    expect(res.json().AWS_secretAccessKeySet).toBe(true);
+    expect(res.json().Azure_storageAccessKeySet).toBe(true);
 
     const canonical = await Settings.collection.findOne({ _id: 'settings' });
     const extras = await Settings.collection.countDocuments({ _id: { $ne: 'settings' } });
@@ -294,7 +408,8 @@ describe('settings singleton hardening', () => {
     expect(res.json().storageType).toBe('s3');
     expect(res.json().AWS_bucket).toBe('legacy-bucket');
     expect(res.json().resolvedAWSAccessKeyId).toBe('legacy-access-key');
-    expect(res.json().resolvedAWSSecretAccessKey).toBe('legacy-secret-key');
+    expect(res.json().resolvedAWSSecretAccessKey).toBe('');
+    expect(res.json().AWS_secretAccessKeySet).toBe(true);
 
     const canonical = await Settings.collection.findOne({ _id: 'settings' });
     const extras = await Settings.collection.countDocuments({ _id: { $ne: 'settings' } });

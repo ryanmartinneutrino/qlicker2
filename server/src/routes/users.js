@@ -768,6 +768,11 @@ export default async function userRoutes(app) {
       if (!user) {
         return reply.code(404).send({ error: 'Not Found', message: 'User not found' });
       }
+      // Disabling revokes refresh sessions above; also drop any live WebSocket
+      // connections so the account stops receiving pushes immediately.
+      if (request.body?.disabled === true && typeof app.wsCloseUser === 'function') {
+        app.wsCloseUser(request.params.id);
+      }
       return buildAdminUserPayload(user, settings);
     }
   );

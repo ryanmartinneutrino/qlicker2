@@ -27,7 +27,7 @@ export async function authenticate(request, reply) {
   try {
     await request.jwtVerify();
     const user = await User.findById(request.user?.userId)
-      .select('_id disabled')
+      .select('_id disabled profile.roles')
       .lean();
     if (!user || user.disabled === true) {
       reply.code(403).send({
@@ -35,7 +35,11 @@ export async function authenticate(request, reply) {
         code: 'ACCOUNT_DISABLED',
         message: 'This account has been disabled. Please contact an administrator.',
       });
+      return;
     }
+    // Authorization roles come from the database, not the token payload, so
+    // demotions/role removals take effect immediately instead of at token expiry.
+    request.user = buildRequestUser(user);
   } catch (err) {
     reply.code(401).send({ error: 'Unauthorized', message: 'Invalid or missing token' });
   }
@@ -45,7 +49,7 @@ export async function authenticateAccessTokenOrRefreshCookie(request, reply) {
   try {
     await request.jwtVerify();
     const user = await User.findById(request.user?.userId)
-      .select('_id disabled')
+      .select('_id disabled profile.roles')
       .lean();
     if (!user || user.disabled === true) {
       reply.code(403).send({
@@ -53,7 +57,9 @@ export async function authenticateAccessTokenOrRefreshCookie(request, reply) {
         code: 'ACCOUNT_DISABLED',
         message: 'This account has been disabled. Please contact an administrator.',
       });
+      return;
     }
+    request.user = buildRequestUser(user);
     return;
   } catch {
     // Fall back to the same-origin refresh cookie for asset requests such as <img>.

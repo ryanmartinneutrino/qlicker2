@@ -550,6 +550,23 @@ describe('POST /api/v1/users/me/image/thumbnail', () => {
 });
 
 // ---------- Admin user management ----------
+describe('Authorization roles are resolved from the database', () => {
+  it('a demoted admin loses admin access immediately, before token expiry', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const admin = await createTestUser({ email: 'admin-demoted@example.com', roles: ['admin'] });
+    const token = await getAuthToken(app, admin);
+
+    // Token still says admin, but the DB is the source of truth.
+    const before = await authenticatedRequest(app, 'GET', '/api/v1/users', { token });
+    expect(before.statusCode).toBe(200);
+
+    await User.findByIdAndUpdate(admin._id, { $set: { 'profile.roles': ['student'] } });
+
+    const after = await authenticatedRequest(app, 'GET', '/api/v1/users', { token });
+    expect(after.statusCode).toBe(403);
+  });
+});
+
 describe('Admin user management', () => {
   it('admin can list users', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();

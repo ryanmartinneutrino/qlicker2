@@ -168,6 +168,18 @@ describe('WebSocket with Redis pub/sub', () => {
     socket2.close();
   });
 
+  it('closes a user\'s sockets on every instance via the closeUser envelope', async () => {
+    const token = app.jwt.sign({ userId: 'redis-user-close', roles: ['student'] }, { expiresIn: '15m' });
+    const socket = new WebSocket(`${baseUrl}/ws?token=${encodeURIComponent(token)}`);
+    await once(socket, 'open');
+
+    const closePromise = once(socket, 'close');
+    app.wsCloseUser('redis-user-close');
+
+    const [code] = await closePromise;
+    expect(code).toBe(4403);
+  });
+
   it('does not deliver targeted messages to other users', async () => {
     const token1 = app.jwt.sign({ userId: 'redis-user-5', roles: ['student'] }, { expiresIn: '15m' });
     const token2 = app.jwt.sign({ userId: 'redis-user-6', roles: ['student'] }, { expiresIn: '15m' });
