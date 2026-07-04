@@ -1,7 +1,7 @@
 const RESIZABLE_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const APPROXIMATE_JPEG_BYTES_PER_PIXEL = 0.22;
 export const DEFAULT_AVATAR_THUMBNAIL_SIZE_PX = 512;
-export const IMAGE_PREPARE_TIMEOUT_MS = 20000;
+export const IMAGE_PREPARE_TIMEOUT_MS = 12000;
 export const IMAGE_UPLOAD_TIMEOUT_MS = 90000;
 
 export function withTimeout(promise, timeoutMs, message) {
@@ -72,6 +72,41 @@ function canvasHasVisiblePixels(canvas, ctx) {
   return false;
 }
 
+// Decoding via createImageBitmap avoids the FileReader + data-URL <img> path
+// entirely — some Firefox 152.x installs never complete that path for picked
+// or dropped files, which used to stall uploads. The FileReader route stays
+// as the fallback for browsers or files createImageBitmap cannot handle.
+const IMAGE_DECODE_TIMEOUT_MS = 5000;
+
+async function decodeImageForResize(file) {
+  if (typeof createImageBitmap === 'function') {
+    try {
+      const bitmap = await withTimeout(
+        createImageBitmap(file, { imageOrientation: 'from-image' }),
+        IMAGE_DECODE_TIMEOUT_MS,
+        'Timed out decoding image via createImageBitmap',
+      );
+      return {
+        source: bitmap,
+        width: bitmap.width || 0,
+        height: bitmap.height || 0,
+        close: () => bitmap.close?.(),
+      };
+    } catch {
+      // Fall through to the FileReader path.
+    }
+  }
+
+  const sourceDataUrl = await readFileAsDataUrl(file);
+  const sourceImage = await loadImage(sourceDataUrl);
+  return {
+    source: sourceImage,
+    width: sourceImage.naturalWidth || 0,
+    height: sourceImage.naturalHeight || 0,
+    close: () => {},
+  };
+}
+
 export async function normalizeImageFile(file, {
   maxWidth,
   quality = 0.92,
@@ -84,57 +119,60 @@ export async function normalizeImageFile(file, {
     return { file, width: undefined, height: undefined };
   }
 
-  const sourceDataUrl = await readFileAsDataUrl(file);
-  const sourceImage = await loadImage(sourceDataUrl);
-  const sourceWidth = sourceImage.naturalWidth || 0;
-  const sourceHeight = sourceImage.naturalHeight || 0;
+  const decoded = await decodeImageForResize(file);
+  try {
+    const sourceWidth = decoded.width || 0;
+    const sourceHeight = decoded.height || 0;
 
-  if (!sourceWidth || !sourceHeight || sourceWidth <= safeMaxWidth) {
+    if (!sourceWidth || !sourceHeight || sourceWidth <= safeMaxWidth) {
+      return {
+        file,
+        width: sourceWidth || undefined,
+        height: sourceHeight || undefined,
+      };
+    }
+
+    const scale = safeMaxWidth / sourceWidth;
+    const targetWidth = Math.max(1, Math.round(sourceWidth * scale));
+    const targetHeight = Math.max(1, Math.round(sourceHeight * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      return {
+        file,
+        width: sourceWidth || undefined,
+        height: sourceHeight || undefined,
+      };
+    }
+    ctx.drawImage(decoded.source, 0, 0, targetWidth, targetHeight);
+
+    // Some browser/image combinations can produce an all-transparent canvas
+    // during client-side resizing even when the original file is valid.
+    // Fall back to the original file rather than uploading a blank image.
+    if (!canvasHasVisiblePixels(canvas, ctx)) {
+      return {
+        file,
+        width: sourceWidth || undefined,
+        height: sourceHeight || undefined,
+      };
+    }
+
+    const resizedBlob = await canvasToBlob(canvas, file.type, quality);
     return {
-      file,
-      width: sourceWidth || undefined,
-      height: sourceHeight || undefined,
+      file: new File([resizedBlob], file.name, {
+        type: file.type,
+        lastModified: Date.now(),
+      }),
+      width: targetWidth,
+      height: targetHeight,
     };
+  } finally {
+    decoded.close();
   }
-
-  const scale = safeMaxWidth / sourceWidth;
-  const targetWidth = Math.max(1, Math.round(sourceWidth * scale));
-  const targetHeight = Math.max(1, Math.round(sourceHeight * scale));
-
-  const canvas = document.createElement('canvas');
-  canvas.width = targetWidth;
-  canvas.height = targetHeight;
-
-  const ctx = canvas.getContext('2d');
-  if (!ctx) {
-    return {
-      file,
-      width: sourceWidth || undefined,
-      height: sourceHeight || undefined,
-    };
-  }
-  ctx.drawImage(sourceImage, 0, 0, targetWidth, targetHeight);
-
-  // Some browser/image combinations can produce an all-transparent canvas
-  // during client-side resizing even when the original file is valid.
-  // Fall back to the original file rather than uploading a blank image.
-  if (!canvasHasVisiblePixels(canvas, ctx)) {
-    return {
-      file,
-      width: sourceWidth || undefined,
-      height: sourceHeight || undefined,
-    };
-  }
-
-  const resizedBlob = await canvasToBlob(canvas, file.type, quality);
-  return {
-    file: new File([resizedBlob], file.name, {
-      type: file.type,
-      lastModified: Date.now(),
-    }),
-    width: targetWidth,
-    height: targetHeight,
-  };
 }
 
 export async function prepareImageFileForUpload(file, {
