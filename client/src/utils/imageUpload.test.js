@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   approximate16x9JpegSizeBytes,
   approximateSquareJpegSizeBytes,
@@ -8,6 +8,8 @@ import {
   getAvatarPreviewLayout,
   getRotatedDimensions,
   normalizeQuarterTurnRotation,
+  prepareImageFileForUpload,
+  withTimeout,
 } from './imageUpload';
 
 describe('imageUpload helpers', () => {
@@ -60,5 +62,34 @@ describe('imageUpload helpers', () => {
     expect(approxSquareBytes).toBeGreaterThan(50000);
     expect(formatApproximateFileSize(approxBytes)).toMatch(/KB|MB/);
     expect(formatApproximateFileSize(0)).toBe('0 KB');
+  });
+
+  it('withTimeout rejects once the deadline passes and settles with the promise otherwise', async () => {
+    await expect(withTimeout(Promise.resolve('ok'), 1000)).resolves.toBe('ok');
+    const never = new Promise(() => {});
+    await expect(withTimeout(never, 10, 'stalled')).rejects.toThrow('stalled');
+  });
+
+  it('prepareImageFileForUpload returns the original file untouched for non-resizable types', async () => {
+    const file = new File(['gif-bytes'], 'a.gif', { type: 'image/gif' });
+    await expect(prepareImageFileForUpload(file, { maxWidth: 100 })).resolves.toEqual({
+      file,
+      width: undefined,
+      height: undefined,
+    });
+  });
+
+  it('prepareImageFileForUpload falls back to the original file when resizing stalls', async () => {
+    // jsdom never fires Image onload for data URLs, so normalizeImageFile
+    // stalls here exactly like a browser whose file reading hangs.
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const file = new File(['png-bytes'], 'a.png', { type: 'image/png' });
+      const result = await prepareImageFileForUpload(file, { maxWidth: 100, timeoutMs: 50 });
+      expect(result.file).toBe(file);
+      expect(consoleError).toHaveBeenCalled();
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 });

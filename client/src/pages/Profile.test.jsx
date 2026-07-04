@@ -76,6 +76,7 @@ vi.mock('../utils/imageUpload', async () => {
     createAvatarThumbnailFile: createAvatarThumbnailFileMock,
     loadImage: loadImageMock,
     normalizeImageFile: normalizeImageFileMock,
+    prepareImageFileForUpload: normalizeImageFileMock,
     readFileAsDataUrl: readFileAsDataUrlMock,
   };
 });
@@ -230,7 +231,7 @@ describe('Profile', () => {
       expect(createAvatarThumbnailFileMock).toHaveBeenCalled();
     });
     await waitFor(() => {
-      expect(apiClientMock.post).toHaveBeenCalledWith('/images', expect.any(FormData));
+      expect(apiClientMock.post).toHaveBeenCalledWith('/images', expect.any(FormData), expect.objectContaining({ timeout: expect.any(Number) }));
     });
     await waitFor(() => {
       expect(apiClientMock.patch).toHaveBeenCalledWith('/users/me/image', {

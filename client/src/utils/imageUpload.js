@@ -1,6 +1,16 @@
 const RESIZABLE_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const APPROXIMATE_JPEG_BYTES_PER_PIXEL = 0.22;
 export const DEFAULT_AVATAR_THUMBNAIL_SIZE_PX = 512;
+export const IMAGE_PREPARE_TIMEOUT_MS = 20000;
+export const IMAGE_UPLOAD_TIMEOUT_MS = 90000;
+
+export function withTimeout(promise, timeoutMs, message) {
+  let timer = null;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message || `Timed out after ${timeoutMs}ms`)), timeoutMs);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -125,6 +135,26 @@ export async function normalizeImageFile(file, {
     width: targetWidth,
     height: targetHeight,
   };
+}
+
+export async function prepareImageFileForUpload(file, {
+  maxWidth,
+  quality,
+  timeoutMs = IMAGE_PREPARE_TIMEOUT_MS,
+} = {}) {
+  try {
+    return await withTimeout(
+      normalizeImageFile(file, { maxWidth, quality }),
+      timeoutMs,
+      `Timed out preparing image "${file?.name || ''}" for upload`,
+    );
+  } catch (err) {
+    // A stalled or failed client-side resize must degrade to uploading the
+    // original file, not hang the upload UI (some browser builds never
+    // complete FileReader/decode on picked or dropped files).
+    console.error('Client-side image resize failed; uploading the original file instead.', err);
+    return { file, width: undefined, height: undefined };
+  }
 }
 
 export function normalizeQuarterTurnRotation(value) {

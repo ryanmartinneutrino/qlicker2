@@ -34,6 +34,8 @@ async function uploadPlugin(fastify) {
   let cachedAzureBlobServiceClient = null;
   let cachedAzureBlobServiceClientKey = '';
   const STORAGE_CONFIG_CACHE_TTL_MS = 5000;
+  // S3 closes idle connections after ~20s, so probe often enough to stay warm.
+  const STORAGE_KEEP_WARM_INTERVAL_MS = 15000;
 
   function asBool(value, fallback = false) {
     if (typeof value === 'boolean') return value;
@@ -395,6 +397,37 @@ async function uploadPlugin(fastify) {
   fastify.decorate('getFileObject', getFileObject);
   fastify.decorate('getFileBuffer', getFileBuffer);
   fastify.decorate('uploadsDir', UPLOADS_DIR);
+
+  // Fresh TLS handshakes to S3 can be very slow on some networks (a constant
+  // ~3s per handshake was measured on the production host), so every cold
+  // upload or image fetch paid that cost. Keep one pooled connection warm per
+  // process so requests reuse an established socket instead.
+  async function warmStorageConnection() {
+    const config = await getStorageConfig();
+    if (config.storageType !== 's3') return;
+    validateS3Configuration(config);
+    const { HeadBucketCommand } = await loadS3Module();
+    const client = await getS3Client(config);
+    // Any response (including an auth error) leaves the TLS session warm.
+    await client.send(new HeadBucketCommand({ Bucket: config.AWS_bucket })).catch(() => {});
+  }
+
+  if (fastify.config?.nodeEnv !== 'test') {
+    let keepWarmTimer = null;
+    const warm = () => {
+      warmStorageConnection().catch((err) => {
+        fastify.log.debug({ err }, 'Storage keep-warm probe failed');
+      });
+    };
+    fastify.addHook('onReady', async () => {
+      warm();
+      keepWarmTimer = setInterval(warm, STORAGE_KEEP_WARM_INTERVAL_MS);
+      keepWarmTimer.unref?.();
+    });
+    fastify.addHook('onClose', async () => {
+      if (keepWarmTimer) clearInterval(keepWarmTimer);
+    });
+  }
 }
 
 export default fp(uploadPlugin, { name: 'upload' });
