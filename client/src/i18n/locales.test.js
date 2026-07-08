@@ -52,4 +52,19 @@ describe('locale files', () => {
     expect(getNestedValue(enLocale, 'questionLibrary.filters.sessionsButton')).toBe('Sessions');
     expect(getNestedValue(enLocale, 'questionLibrary.filters.sessionsDialogTitle')).toBe('Filter by sessions');
   });
+
+  it('has full key parity with English across every locale', () => {
+    const englishKeys = flattenKeys(enLocale).sort();
+
+    Object.entries(LOCALES).forEach(([localeCode, localeMessages]) => {
+      if (localeCode === 'en') {
+        return;
+      }
+      const localeKeys = flattenKeys(localeMessages).sort();
+      const missing = englishKeys.filter((key) => !localeKeys.includes(key));
+      const extra = localeKeys.filter((key) => !englishKeys.includes(key));
+      expect(missing, `Keys missing from ${localeCode}: ${missing.join(', ')}`).toEqual([]);
+      expect(extra, `Unexpected keys in ${localeCode}: ${extra.join(', ')}`).toEqual([]);
+    });
+  });
 });
