@@ -34,8 +34,11 @@ import {
   createCenteredAvatarCrop,
   getAvatarPreviewLayout,
   loadImage,
-  normalizeImageFile,
+  prepareImageFileForUpload,
   readFileAsDataUrl,
+  withTimeout,
+  IMAGE_PREPARE_TIMEOUT_MS,
+  IMAGE_UPLOAD_TIMEOUT_MS,
 } from '../utils/imageUpload';
 import {
   getDefaultAvatarThumbnailSize,
@@ -540,10 +543,14 @@ export default function Profile() {
     setImageBusy(true);
     setMsg(null);
     try {
-      const normalizedUpload = await normalizeImageFile(file, {
+      const normalizedUpload = await prepareImageFileForUpload(file, {
         maxWidth: publicSettings.maxImageWidth,
       });
-      const source = await readFileAsDataUrl(normalizedUpload.file);
+      const source = await withTimeout(
+        readFileAsDataUrl(normalizedUpload.file),
+        IMAGE_PREPARE_TIMEOUT_MS,
+        'Timed out reading the selected image',
+      );
       await prepareEditorState({
         source,
         file: normalizedUpload.file,
@@ -620,7 +627,7 @@ export default function Profile() {
   const uploadSingleImage = async (file) => {
     const formData = new FormData();
     formData.append('file', file);
-    const { data } = await apiClient.post('/images', formData);
+    const { data } = await apiClient.post('/images', formData, { timeout: IMAGE_UPLOAD_TIMEOUT_MS });
     return data?.image?.url || '';
   };
 

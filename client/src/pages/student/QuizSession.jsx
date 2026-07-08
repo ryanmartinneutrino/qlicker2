@@ -18,6 +18,7 @@ import {
   Divider,
 } from '@mui/material';
 import apiClient, { getUsableAccessToken } from '../../api/client';
+import { closeWebSocketQuietly } from '../../utils/liveSocket';
 import StudentRichTextEditor, { MathPreview } from '../../components/questions/StudentRichTextEditor';
 import BackLinkButton from '../../components/common/BackLinkButton';
 import {
@@ -334,9 +335,7 @@ export default function QuizSession() {
       closed = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
       stopPolling();
-      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
-        ws.close();
-      }
+      closeWebSocketQuietly(ws);
       window.removeEventListener('focus', refresh);
       document.removeEventListener('visibilitychange', handleVisibility);
     };

@@ -34,7 +34,7 @@ import {
 } from '@mui/icons-material';
 import { useTranslation } from 'react-i18next';
 import apiClient from '../../api/client';
-import { normalizeImageFile } from '../../utils/imageUpload';
+import { prepareImageFileForUpload, IMAGE_UPLOAD_TIMEOUT_MS } from '../../utils/imageUpload';
 import { getPublicSettings } from '../../utils/publicSettings';
 import {
   extractPlainTextFromHtml,
@@ -131,10 +131,10 @@ export default function RichTextEditor({
     const effectiveMaxWidth = configuredMaxWidth > 0 && maxEditorImageWidth > 0
       ? Math.min(configuredMaxWidth, maxEditorImageWidth)
       : configuredMaxWidth || maxEditorImageWidth || undefined;
-    const preparedUpload = await normalizeImageFile(file, { maxWidth: effectiveMaxWidth });
+    const preparedUpload = await prepareImageFileForUpload(file, { maxWidth: effectiveMaxWidth });
     const formData = new FormData();
     formData.append('file', preparedUpload.file);
-    const { data } = await apiClient.post('/images', formData);
+    const { data } = await apiClient.post('/images', formData, { timeout: IMAGE_UPLOAD_TIMEOUT_MS });
     return {
       url: data?.image?.url || '',
       width: preparedUpload.width,
@@ -162,7 +162,8 @@ export default function RichTextEditor({
         pos += imageNode.nodeSize;
       });
       view.dispatch(tr);
-    } catch {
+    } catch (err) {
+      console.error('Image upload failed', err);
       setUploadError(t('questions.richText.uploadFailed'));
     } finally {
       setUploading(false);

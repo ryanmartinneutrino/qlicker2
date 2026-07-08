@@ -42,6 +42,41 @@ const ALLOWED_SETTINGS_FIELDS = new Set([
   'maxImageSize', 'maxImageWidth', 'avatarThumbnailSize',
 ]);
 
+// Write-only secret fields. They are never returned by the API (masked to ''
+// with a companion `<name>Set` boolean) and an empty/blank value in a PATCH
+// means "keep the stored secret" so the auto-saving admin forms cannot wipe
+// them by round-tripping the masked response.
+const SECRET_SETTINGS_FIELDS = new Set([
+  'SSO_privKey',
+  'AWS_secretAccessKey', 'AWS_secret',
+  'Azure_storageAccessKey', 'Azure_accountKey',
+]);
+// Mongoose virtuals that resolve the secrets above (new-or-legacy fallbacks).
+const SECRET_SETTINGS_VIRTUALS = [
+  'resolvedAWSSecretAccessKey',
+  'resolvedAzureStorageAccessKey',
+];
+
+function hasStoredValue(value) {
+  return String(value || '').trim().length > 0;
+}
+
+function maskSettingsSecrets(payload = {}) {
+  const masked = { ...payload };
+  masked.SSO_privKeySet = hasStoredValue(payload.SSO_privKey);
+  masked.AWS_secretAccessKeySet = hasStoredValue(payload.AWS_secretAccessKey)
+    || hasStoredValue(payload.AWS_secret);
+  masked.Azure_storageAccessKeySet = hasStoredValue(payload.Azure_storageAccessKey)
+    || hasStoredValue(payload.Azure_accountKey);
+  for (const field of SECRET_SETTINGS_FIELDS) {
+    if (field in masked) masked[field] = '';
+  }
+  for (const field of SECRET_SETTINGS_VIRTUALS) {
+    if (field in masked) masked[field] = '';
+  }
+  return masked;
+}
+
 function sanitizeSettingsPatchPayload(payload) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
     return {};
@@ -49,9 +84,10 @@ function sanitizeSettingsPatchPayload(payload) {
 
   const filtered = {};
   for (const key of Object.keys(payload)) {
-    if (ALLOWED_SETTINGS_FIELDS.has(key)) {
-      filtered[key] = payload[key];
-    }
+    if (!ALLOWED_SETTINGS_FIELDS.has(key)) continue;
+    // Blank secrets mean "leave the stored secret unchanged".
+    if (SECRET_SETTINGS_FIELDS.has(key) && !hasStoredValue(payload[key])) continue;
+    filtered[key] = payload[key];
   }
   return filtered;
 }
@@ -129,7 +165,7 @@ const courseIdParamsSchema = {
 
 function buildSettingsResponse(settings = {}) {
   return {
-    ...normalizeSettingsPayload(settings),
+    ...maskSettingsSecrets(normalizeSettingsPayload(settings)),
     emailDeliveryStatus: getMailConfigurationStatus(),
   };
 }
