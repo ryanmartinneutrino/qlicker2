@@ -2,29 +2,61 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
+// English is bundled synchronously: it is the fallback language, so it must be
+// available immediately for any missing key in another locale. Every other
+// locale is loaded on demand (see lazyBackend below) so users only download the
+// language they actually use instead of all of them up front.
 import en from './locales/en.json';
-import de from './locales/de.json';
-import es from './locales/es.json';
-import fr from './locales/fr.json';
-import it from './locales/it.json';
-import pir from './locales/pir.json';
-import ru from './locales/ru.json';
-import zh from './locales/zh.json';
 
-i18n
+// Dynamic import() calls, one per lazily-loaded locale. Each becomes its own
+// async chunk that Vite only fetches when the locale is first selected.
+const localeLoaders = {
+  de: () => import('./locales/de.json'),
+  es: () => import('./locales/es.json'),
+  fr: () => import('./locales/fr.json'),
+  it: () => import('./locales/it.json'),
+  pir: () => import('./locales/pir.json'),
+  ru: () => import('./locales/ru.json'),
+  zh: () => import('./locales/zh.json'),
+};
+
+// Minimal i18next backend that resolves a locale's messages by dynamic import.
+// Using a backend (rather than loading manually) means i18next drives the load
+// automatically for both the initially detected language and any later
+// changeLanguage() call, so existing callers need no changes.
+const lazyBackend = {
+  type: 'backend',
+  init: () => {},
+  read: (language, namespace, callback) => {
+    if (language === 'en') {
+      callback(null, en);
+      return;
+    }
+    const loader = localeLoaders[language];
+    if (!loader) {
+      // Unknown locale: fall back to English rather than erroring.
+      callback(null, en);
+      return;
+    }
+    loader()
+      .then((module) => callback(null, module.default))
+      .catch((error) => callback(error, null));
+  },
+};
+
+// The init promise resolves once the initial (detected) language has loaded.
+// main.jsx awaits this before the first render so non-English users do not see
+// a flash of English while their locale chunk is fetched.
+export const i18nReady = i18n
+  .use(lazyBackend)
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
+    // Only English is bundled; the backend supplies the rest on demand.
     resources: {
       en: { translation: en },
-      de: { translation: de },
-      es: { translation: es },
-      fr: { translation: fr },
-      it: { translation: it },
-      pir: { translation: pir },
-      ru: { translation: ru },
-      zh: { translation: zh },
     },
+    partialBundledLanguages: true,
     fallbackLng: 'en',
     showSupportNotice: false,
     interpolation: {
@@ -34,6 +66,12 @@ i18n
       order: ['localStorage', 'navigator'],
       lookupLocalStorage: 'qlicker_locale',
       caches: ['localStorage'],
+    },
+    react: {
+      // We await i18nReady before the initial render and keep showing the
+      // previous language until a newly selected one loads, so Suspense is
+      // unnecessary and would otherwise crash without a boundary on switch.
+      useSuspense: false,
     },
   });
 

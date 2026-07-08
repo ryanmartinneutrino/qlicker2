@@ -54,22 +54,47 @@ export default defineConfig(({ mode }) => {
             if (id.includes('@tiptap/') || id.includes('katex')) {
               return 'vendor-editor';
             }
-            if (id.includes('html2pdf.js') || id.includes('html2canvas') || id.includes('jspdf')) {
-              return 'vendor-pdf';
+            // PDF export libraries. All of these are loaded on demand via a
+            // dynamic import() in sessionExport.js, so they never touch the
+            // initial page load. html2canvas is a separate module and gets its
+            // own chunk; html2pdf.js ships a single pre-bundled dist with jspdf
+            // and its codecs (fflate/fast-png) inlined, so it is one indivisible
+            // module that cannot be split further via manualChunks.
+            if (id.includes('html2canvas')) {
+              return 'vendor-html2canvas';
+            }
+            if (id.includes('jspdf') || id.includes('html2pdf.js')) {
+              return 'vendor-jspdf';
             }
             if (id.includes('i18next') || id.includes('react-i18next')) {
               return 'vendor-i18n';
             }
-            if (id.includes('react-router-dom')) {
+            if (id.includes('react-router')) {
               return 'vendor-router';
             }
             if (id.includes('axios')) {
               return 'vendor-network';
             }
+            // React runtime split out of the catch-all so vendor-core stays
+            // under the size warning threshold.
+            if (
+              id.includes('/react-dom/') ||
+              id.includes('/react/') ||
+              id.includes('/scheduler/')
+            ) {
+              return 'vendor-react';
+            }
             return 'vendor-core';
           },
         },
       },
+      // Every eagerly-loaded chunk is now well under 500 kB. The only chunk that
+      // exceeds it is vendor-jspdf (~736 kB): the pre-bundled html2pdf.js/jspdf
+      // PDF exporter, which is a single indivisible third-party module and is
+      // loaded on demand only when a user exports a PDF. Raise the warning limit
+      // past it so the build stays warning-clean while still flagging any chunk
+      // that grows unexpectedly large.
+      chunkSizeWarningLimit: 800,
     },
     server: {
       port: devPort,
