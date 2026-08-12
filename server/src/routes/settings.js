@@ -38,6 +38,7 @@ const ALLOWED_SETTINGS_FIELDS = new Set([
   'backupEnabled', 'backupTimeLocal', 'backupRetentionDaily', 'backupRetentionWeekly',
   'backupRetentionMonthly',
   'Jitsi_Enabled', 'Jitsi_Domain', 'Jitsi_EtherpadDomain', 'Jitsi_EnabledCourses',
+  'AI_Enabled', 'AI_ApiUrl', 'AI_ApiToken', 'AI_EnabledCourses', 'AI_AllowCourseBackendCourses',
   'locale', 'dateFormat', 'timeFormat',
   'maxImageSize', 'maxImageWidth', 'avatarThumbnailSize',
 ]);
@@ -50,6 +51,7 @@ const SECRET_SETTINGS_FIELDS = new Set([
   'SSO_privKey',
   'AWS_secretAccessKey', 'AWS_secret',
   'Azure_storageAccessKey', 'Azure_accountKey',
+  'AI_ApiToken',
 ]);
 // Mongoose virtuals that resolve the secrets above (new-or-legacy fallbacks).
 const SECRET_SETTINGS_VIRTUALS = [
@@ -68,6 +70,7 @@ function maskSettingsSecrets(payload = {}) {
     || hasStoredValue(payload.AWS_secret);
   masked.Azure_storageAccessKeySet = hasStoredValue(payload.Azure_storageAccessKey)
     || hasStoredValue(payload.Azure_accountKey);
+  masked.AI_ApiTokenSet = hasStoredValue(payload.AI_ApiToken);
   for (const field of SECRET_SETTINGS_FIELDS) {
     if (field in masked) masked[field] = '';
   }
@@ -148,6 +151,11 @@ const updateSettingsSchema = {
       Jitsi_Domain: { type: 'string' },
       Jitsi_EtherpadDomain: { type: 'string' },
       Jitsi_EnabledCourses: { type: 'array', items: { type: 'string' } },
+      AI_Enabled: { type: 'boolean' },
+      AI_ApiUrl: { type: 'string' },
+      AI_ApiToken: { type: 'string' },
+      AI_EnabledCourses: { type: 'array', items: { type: 'string' } },
+      AI_AllowCourseBackendCourses: { type: 'array', items: { type: 'string' } },
       locale: { type: 'string' },
       dateFormat: { type: 'string' },
       timeFormat: { type: 'string', enum: ['24h', '12h'] },
@@ -396,6 +404,31 @@ export default async function settingsRoutes(app) {
 
     return {
       enabled: Boolean(settings.Jitsi_Enabled && enabledCourses.includes(courseId)),
+    };
+  });
+
+  // GET /ai-course/:courseId — only exposes policy flags, never AI credentials.
+  app.get('/ai-course/:courseId', { preHandler: authenticate, schema: courseIdParamsSchema, ...settingsRateLimit }, async (request, reply) => {
+    const { courseId } = request.params;
+    const course = await Course.findById(courseId).select('_id instructors students inactive');
+    if (!course) return reply.code(404).send({ error: 'Not Found', message: 'Course not found' });
+
+    const roles = request.user.roles || [];
+    const userId = request.user.userId;
+    const isAdmin = roles.includes('admin');
+    const isInstructor = (course.instructors || []).includes(userId);
+    const isStudent = (course.students || []).includes(userId);
+    if (!isAdmin && !isInstructor && !isStudent) {
+      return reply.code(403).send({ error: 'Forbidden', message: 'Not enrolled in this course' });
+    }
+
+    const settings = await getOrCreateSettings();
+    const aiEnabledCourses = (settings.AI_EnabledCourses || []).map(String);
+    const courseBackends = (settings.AI_AllowCourseBackendCourses || []).map(String);
+    const enabled = Boolean(settings.AI_Enabled && aiEnabledCourses.includes(String(courseId)));
+    return {
+      enabled,
+      allowCourseBackend: enabled && courseBackends.includes(String(courseId)),
     };
   });
 

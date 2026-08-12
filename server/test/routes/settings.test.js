@@ -156,7 +156,7 @@ describe('settings secret masking (write-only secrets)', () => {
     return getAuthToken(app, admin);
   }
 
-  it('masks SSO private key and storage secrets in GET responses', async (ctx) => {
+  it('masks SSO, storage, and AI secrets in GET responses', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
 
     await Settings.findOneAndUpdate(
@@ -166,6 +166,7 @@ describe('settings secret masking (write-only secrets)', () => {
           SSO_privKey: '-----BEGIN PRIVATE KEY-----abc-----END PRIVATE KEY-----',
           AWS_secretAccessKey: 'super-secret-aws',
           Azure_storageAccessKey: 'super-secret-azure',
+          AI_ApiToken: 'super-secret-ai',
         },
       },
       { upsert: true, returnDocument: 'after' }
@@ -183,6 +184,8 @@ describe('settings secret masking (write-only secrets)', () => {
     expect(body.resolvedAzureStorageAccessKey).toBe('');
     expect(body.SSO_privKeySet).toBe(true);
     expect(body.AWS_secretAccessKeySet).toBe(true);
+    expect(body.AI_ApiToken).toBe('');
+    expect(body.AI_ApiTokenSet).toBe(true);
     expect(body.Azure_storageAccessKeySet).toBe(true);
     expect(JSON.stringify(body)).not.toContain('super-secret');
     expect(JSON.stringify(body)).not.toContain('BEGIN PRIVATE KEY');
@@ -634,6 +637,32 @@ describe('GET /api/v1/settings/jitsi-course/:courseId', () => {
       token: outsiderToken,
     });
     expect(res.statusCode).toBe(403);
+  });
+});
+
+describe('GET /api/v1/settings/ai-course/:courseId', () => {
+  it('returns AI policy flags without exposing an administrator backend', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const prof = await createTestUser({ email: 'prof-ai-policy@example.com', roles: ['professor'] });
+    const token = await getAuthToken(app, prof);
+    const course = (await createCourseAsProfessor(token)).json().course;
+    await Settings.findOneAndUpdate(
+      { _id: 'settings' },
+      { $set: {
+        AI_Enabled: true,
+        AI_ApiUrl: 'https://admin-llm.example/v1',
+        AI_ApiToken: 'admin-ai-secret',
+        AI_EnabledCourses: [course._id],
+        AI_AllowCourseBackendCourses: [course._id],
+      } },
+      { upsert: true },
+    );
+
+    const res = await authenticatedRequest(app, 'GET', `/api/v1/settings/ai-course/${course._id}`, { token });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ enabled: true, allowCourseBackend: true });
+    expect(JSON.stringify(res.json())).not.toContain('admin-ai-secret');
+    expect(JSON.stringify(res.json())).not.toContain('admin-llm.example');
   });
 });
 

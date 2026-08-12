@@ -72,6 +72,10 @@ const CourseSchema = new mongoose.Schema(
     tags: { type: [TagSchema], default: [] },
     groupCategories: { type: [GroupCategorySchema], default: [] },
     videoChatOptions: { type: VideoChatOptionsSchema, default: undefined },
+    // AI remains off per course until an instructor explicitly enables it.
+    aiEnabled: { type: Boolean, default: false },
+    aiApiUrl: { type: String, default: '' },
+    aiApiToken: { type: String, default: '' },
   },
   {
     collection: 'courses',

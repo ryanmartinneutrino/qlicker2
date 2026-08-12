@@ -140,8 +140,8 @@ function buildProfessorSessionSubtitle(session, t) {
   return details.join(' · ');
 }
 
-// Tab indices: 0=Interactive Sessions, 1=Quizzes, 2=Grades, 3=Students, 4=Instructors, 5=Groups, 6=Video?, 7=Settings, 8=Question Library
-const MAX_COURSE_TAB_INDEX = 9;
+// Tab indices after Groups are allocated dynamically for chat, video, AI, settings, and questions.
+const MAX_COURSE_TAB_INDEX = 10;
 
 function parseCourseTab(value) {
   const parsed = Number.parseInt(value, 10);
@@ -308,6 +308,7 @@ export default function CourseDetail() {
   const [settingsAutoSaveError, setSettingsAutoSaveError] = useState('');
   const [adminTimeFormat, setAdminTimeFormat] = useState('24h');
   const [ssoEnabled, setSsoEnabled] = useState(false);
+  const [aiCoursePolicy, setAiCoursePolicy] = useState({ enabled: false, allowCourseBackend: false });
 
   // Sessions
   const [sessions, setSessions] = useState([]);
@@ -343,10 +344,14 @@ export default function CourseDetail() {
 
   // Video chat — check if Jitsi is enabled for this course
   const [videoEnabled, setVideoEnabled] = useState(false);
+  const aiAvailable = !!aiCoursePolicy.enabled;
   const courseChatEnabled = !!course?.courseChatEnabled;
   const chatTabIndex = courseChatEnabled ? 6 : -1;
   const videoTabIndex = videoEnabled ? (courseChatEnabled ? 7 : 6) : -1;
-  const settingsTabIndex = courseChatEnabled ? (videoEnabled ? 8 : 7) : (videoEnabled ? 7 : 6);
+  const aiTabIndex = aiAvailable ? (courseChatEnabled ? (videoEnabled ? 8 : 7) : (videoEnabled ? 7 : 6)) : -1;
+  const settingsTabIndex = aiAvailable
+    ? aiTabIndex + 1
+    : (courseChatEnabled ? (videoEnabled ? 8 : 7) : (videoEnabled ? 7 : 6));
   const questionLibraryTabIndex = settingsTabIndex + 1;
 
   useEffect(() => {
@@ -355,6 +360,16 @@ export default function CourseDetail() {
       if (mounted) setVideoEnabled(!!data.enabled);
     }).catch(() => {
       if (mounted) setVideoEnabled(false);
+    });
+    return () => { mounted = false; };
+  }, [id]);
+
+  useEffect(() => {
+    let mounted = true;
+    apiClient.get(`/settings/ai-course/${id}`).then(({ data }) => {
+      if (mounted) setAiCoursePolicy({ enabled: !!data?.enabled, allowCourseBackend: !!data?.allowCourseBackend });
+    }).catch(() => {
+      if (mounted) setAiCoursePolicy({ enabled: false, allowCourseBackend: false });
     });
     return () => { mounted = false; };
   }, [id]);
@@ -981,6 +996,28 @@ export default function CourseDetail() {
     }
   };
 
+  const handleAiEnabledChange = async (event) => {
+    markSettingAutoSaveInProgress();
+    try {
+      await apiClient.patch(`/courses/${id}`, { aiEnabled: event.target.checked });
+      fetchCourse();
+      setSettingsAutoSaveStatus('success');
+    } catch (err) {
+      markSettingAutoSaveError(err, t('professor.course.failedUpdateSetting'));
+    }
+  };
+
+  const handleAiBackendChange = async (field, value) => {
+    markSettingAutoSaveInProgress();
+    try {
+      await apiClient.patch(`/courses/${id}`, { [field]: value });
+      fetchCourse();
+      setSettingsAutoSaveStatus('success');
+    } catch (err) {
+      markSettingAutoSaveError(err, t('professor.course.failedUpdateSetting'));
+    }
+  };
+
   const handleCourseChatEnabledChange = async (event) => {
     markSettingAutoSaveInProgress();
     try {
@@ -1212,6 +1249,7 @@ export default function CourseDetail() {
       },
     }] : []),
     ...(videoEnabled ? [{ value: videoTabIndex, label: t('professor.course.video') }] : []),
+    ...(aiAvailable && course?.aiEnabled ? [{ value: aiTabIndex, label: t('professor.course.aiSettings') }] : []),
     { value: settingsTabIndex, label: t('professor.course.settings') },
     { value: questionLibraryTabIndex, label: t('questionLibrary.title', { defaultValue: 'Question Library' }) },
   ];
@@ -1846,6 +1884,38 @@ export default function CourseDetail() {
         </TabPanel>
       )}
 
+      {aiAvailable && course?.aiEnabled && (
+        <TabPanel value={tab} index={aiTabIndex}>
+          <Box sx={{ maxWidth: 620, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Typography variant="h6">{t('professor.course.aiSettings')}</Typography>
+            {aiCoursePolicy.allowCourseBackend ? (
+              <>
+                <Typography variant="body2" color="text.secondary">{t('professor.course.aiBackendHelp')}</Typography>
+                <TextField
+                  label={t('professor.course.aiApiUrl')}
+                  value={course.aiApiUrl || ''}
+                  onBlur={(event) => handleAiBackendChange('aiApiUrl', event.target.value)}
+                  onChange={(event) => setCourse((current) => ({ ...current, aiApiUrl: event.target.value }))}
+                  placeholder={t('professor.course.aiApiUrlPlaceholder')}
+                  fullWidth
+                />
+                <TextField
+                  type="password"
+                  label={t('professor.course.aiApiToken')}
+                  defaultValue=""
+                  onBlur={(event) => { if (event.target.value) handleAiBackendChange('aiApiToken', event.target.value); }}
+                  placeholder={course.aiApiTokenSet ? t('professor.course.aiTokenConfigured') : t('professor.course.aiApiTokenPlaceholder')}
+                  helperText={t('professor.course.aiTokenHelp')}
+                  fullWidth
+                />
+              </>
+            ) : (
+              <Alert severity="info">{t('professor.course.aiAdminBackendOnly')}</Alert>
+            )}
+          </Box>
+        </TabPanel>
+      )}
+
       {/* Settings Tab */}
       <TabPanel value={tab} index={settingsTabIndex}>
         <Box sx={{ maxWidth: 500, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -1859,6 +1929,11 @@ export default function CourseDetail() {
             control={<Switch checked={!course.inactive} onChange={handleToggleActive} />}
             label={course.inactive ? t('professor.course.courseInactive') : t('professor.course.courseActive')}
           />
+          <FormControlLabel
+            control={<Switch checked={!!course.aiEnabled} onChange={handleAiEnabledChange} disabled={!aiAvailable} />}
+            label={t('professor.course.enableAiHelper')}
+          />
+          {!aiAvailable ? <Typography variant="caption" color="text.secondary">{t('professor.course.aiNotAvailable')}</Typography> : null}
           {!ssoEnabled ? (
             <FormControlLabel
               control={(

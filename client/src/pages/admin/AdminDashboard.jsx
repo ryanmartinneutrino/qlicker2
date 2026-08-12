@@ -2277,6 +2277,102 @@ function VideoTab() {
   );
 }
 
+// ── AI Helper Tab ──────────────────────────────────────────────────────────
+function AiHelperTab() {
+  const { t } = useTranslation();
+  const [settings, setSettings] = useState({
+    AI_Enabled: false, AI_ApiUrl: '', AI_ApiToken: '', AI_ApiTokenSet: false,
+    AI_EnabledCourses: [], AI_AllowCourseBackendCourses: [],
+  });
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState('idle');
+  const [error, setError] = useState('');
+  const loadedRef = useRef(false);
+
+  useEffect(() => {
+    let mounted = true;
+    Promise.all([
+      apiClient.get('/settings'),
+      apiClient.get('/courses', { params: { limit: 500, view: 'all' } }),
+    ]).then(([settingsRes, coursesRes]) => {
+      if (!mounted) return;
+      const data = settingsRes.data || {};
+      setSettings((current) => ({ ...current,
+        AI_Enabled: !!data.AI_Enabled,
+        AI_ApiUrl: data.AI_ApiUrl || '',
+        AI_ApiToken: '',
+        AI_ApiTokenSet: !!data.AI_ApiTokenSet,
+        AI_EnabledCourses: data.AI_EnabledCourses || [],
+        AI_AllowCourseBackendCourses: data.AI_AllowCourseBackendCourses || [],
+      }));
+      setCourses(coursesRes.data.courses || []);
+    }).catch((err) => {
+      if (mounted) { setStatus('error'); setError(err.response?.data?.message || t('admin.failedLoadSettings')); }
+    }).finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
+  }, [t]);
+
+  useEffect(() => {
+    if (loading || !loadedRef.current) { loadedRef.current = !loading; return undefined; }
+    const timer = setTimeout(async () => {
+      setStatus('saving'); setError('');
+      try {
+        const { data } = await apiClient.patch('/settings', settings);
+        if (settings.AI_ApiToken) {
+          setSettings((current) => ({ ...current, AI_ApiToken: '', AI_ApiTokenSet: !!data.AI_ApiTokenSet }));
+        }
+        setStatus('success');
+      } catch (err) {
+        setStatus('error'); setError(`${err.response?.data?.message || t('admin.ai.failedSave')} ${t('profile.lastChangeNotRecorded')}`);
+      }
+    }, AUTO_SAVE_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [settings, loading, t]);
+
+  const enabledIds = new Set((settings.AI_EnabledCourses || []).map(String));
+  const customIds = new Set((settings.AI_AllowCourseBackendCourses || []).map(String));
+  const sortedCourses = useMemo(() => sortCoursesByTitle(courses), [courses]);
+  const toggleCourse = (courseId) => setSettings((current) => {
+    const id = String(courseId);
+    const enabled = (current.AI_EnabledCourses || []).map(String);
+    const isEnabled = enabled.includes(id);
+    return {
+      ...current,
+      AI_EnabledCourses: isEnabled ? enabled.filter((value) => value !== id) : [...enabled, id],
+      AI_AllowCourseBackendCourses: isEnabled
+        ? (current.AI_AllowCourseBackendCourses || []).map(String).filter((value) => value !== id)
+        : current.AI_AllowCourseBackendCourses,
+    };
+  });
+  const toggleCustomBackend = (courseId) => setSettings((current) => {
+    const id = String(courseId);
+    const values = (current.AI_AllowCourseBackendCourses || []).map(String);
+    return { ...current, AI_AllowCourseBackendCourses: values.includes(id) ? values.filter((value) => value !== id) : [...values, id] };
+  });
+
+  if (loading) return <CircularProgress />;
+  return (
+    <Box sx={{ maxWidth: 980, display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <AutoSaveStatus status={status} errorText={error} />
+      <FormControlLabel control={<Checkbox checked={settings.AI_Enabled} onChange={(event) => setSettings((s) => ({ ...s, AI_Enabled: event.target.checked }))} />} label={t('admin.ai.enable')} />
+      <TextField disabled={!settings.AI_Enabled} label={t('admin.ai.apiUrl')} value={settings.AI_ApiUrl} onChange={(event) => setSettings((s) => ({ ...s, AI_ApiUrl: event.target.value }))} placeholder={t('admin.ai.apiUrlPlaceholder')} fullWidth />
+      <TextField disabled={!settings.AI_Enabled} type="password" label={t('admin.ai.apiToken')} value={settings.AI_ApiToken} onChange={(event) => setSettings((s) => ({ ...s, AI_ApiToken: event.target.value }))} placeholder={settings.AI_ApiTokenSet ? t('admin.ai.tokenConfigured') : t('admin.ai.apiTokenPlaceholder')} helperText={t('admin.ai.tokenHelp')} fullWidth />
+      <Typography variant="body2" color="text.secondary">{t('admin.ai.courseHelp')}</Typography>
+      <Box sx={{ display: 'grid', gap: 1.25, gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' } }}>
+        {sortedCourses.map((course) => {
+          const enabled = enabledIds.has(String(course._id));
+          return <Paper key={course._id} variant="outlined" sx={{ p: 1.25, opacity: settings.AI_Enabled ? 1 : 0.6 }}>
+            <FormControlLabel control={<Checkbox disabled={!settings.AI_Enabled} checked={enabled} onChange={() => toggleCourse(course._id)} />} label={buildCourseTitle(course, 'long')} />
+            {enabled ? <FormControlLabel sx={{ display: 'flex', ml: 3 }} control={<Checkbox disabled={!settings.AI_Enabled} checked={customIds.has(String(course._id))} onChange={() => toggleCustomBackend(course._id)} />} label={t('admin.ai.allowCourseBackend')} /> : null}
+          </Paper>;
+        })}
+      </Box>
+      {!settings.AI_Enabled ? <Typography variant="body2" color="text.secondary">{t('admin.ai.disabledHelp')}</Typography> : null}
+    </Box>
+  );
+}
+
 // ── Courses Tab ─────────────────────────────────────────────────────────────
 function CoursesTab() {
   const INITIAL_COURSE_COUNT = 50;
@@ -2392,6 +2488,7 @@ export default function AdminDashboard() {
           { value: 4, label: t('admin.tabs.storage') },
           { value: 5, label: t('admin.tabs.sso') },
           { value: 6, label: t('admin.tabs.video') },
+          { value: 7, label: t('admin.tabs.ai') },
         ]}
       />
       <TabPanel value={tab} index={0}><SettingsTab /></TabPanel>
@@ -2401,6 +2498,7 @@ export default function AdminDashboard() {
       <TabPanel value={tab} index={4}><StorageTab /></TabPanel>
       <TabPanel value={tab} index={5}><SSOTab /></TabPanel>
       <TabPanel value={tab} index={6}><VideoTab /></TabPanel>
+      <TabPanel value={tab} index={7}><AiHelperTab /></TabPanel>
     </Box>
   );
 }

@@ -130,6 +130,14 @@ const SettingsSchema = new mongoose.Schema(
     Jitsi_EtherpadDomain: { type: String, default: '' },
     Jitsi_EnabledCourses: { type: [String], default: [] },
 
+    // OpenAI-compatible AI helper settings. Tokens are never returned from
+    // settings routes; see routes/settings.js for write-only handling.
+    AI_Enabled: { type: Boolean, default: false },
+    AI_ApiUrl: { type: String, default: '' },
+    AI_ApiToken: { type: String, default: '' },
+    AI_EnabledCourses: { type: [String], default: [] },
+    AI_AllowCourseBackendCourses: { type: [String], default: [] },
+
     // i18n / locale settings
     locale: { type: String, default: 'en' },
     dateFormat: { type: String, default: 'DD-MMM-YYYY' },

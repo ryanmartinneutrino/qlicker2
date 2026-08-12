@@ -322,6 +322,36 @@ describe('GET /api/v1/courses/:id', () => {
 });
 
 describe('PATCH /api/v1/courses/:id', () => {
+  it('only permits AI helper settings for administrator-approved courses and never returns a course token', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const prof = await createTestUser({ email: 'prof-ai-course@example.com', roles: ['professor'] });
+    const token = await getAuthToken(app, prof);
+    const course = (await createCourseAsProf(token)).json().course;
+
+    const denied = await authenticatedRequest(app, 'PATCH', `/api/v1/courses/${course._id}`, {
+      token,
+      payload: { aiEnabled: true },
+    });
+    expect(denied.statusCode).toBe(403);
+
+    await Settings.findOneAndUpdate(
+      { _id: 'settings' },
+      { $set: { AI_Enabled: true, AI_EnabledCourses: [course._id], AI_AllowCourseBackendCourses: [course._id] } },
+      { upsert: true },
+    );
+    const enabled = await authenticatedRequest(app, 'PATCH', `/api/v1/courses/${course._id}`, {
+      token,
+      payload: { aiEnabled: true, aiApiUrl: 'https://llm.example/v1', aiApiToken: 'course-secret-token' },
+    });
+    expect(enabled.statusCode).toBe(200);
+    expect(enabled.json().course.aiEnabled).toBe(true);
+    expect(enabled.json().course.aiApiToken).toBeUndefined();
+    expect(enabled.json().course.aiApiTokenSet).toBe(true);
+
+    const courseGet = await authenticatedRequest(app, 'GET', `/api/v1/courses/${course._id}`, { token });
+    expect(JSON.stringify(courseGet.json())).not.toContain('course-secret-token');
+  });
+
   it('allows instructors to override the course quiz time format', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
 
