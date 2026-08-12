@@ -10,7 +10,7 @@ function newBackend() {
   return { id: `backend-${crypto.randomUUID()}`, name: '', type: 'ollama', url: '', apiToken: '', models: [] };
 }
 
-export default function AiBackendManager({ backends = [], onChange, defaultBackendId = '', defaultModelId = '', onDefaultChange, courseId = '' }) {
+export default function AiBackendManager({ backends = [], onChange, defaultBackendId = '', defaultModelId = '', onDefaultChange, courseId = '', canAddBackends = true }) {
   const { t } = useTranslation();
   const [discovering, setDiscovering] = useState({});
   const [error, setError] = useState('');
@@ -55,6 +55,6 @@ export default function AiBackendManager({ backends = [], onChange, defaultBacke
         </Box>)}
       </> : null}
     </Paper>)}
-    <Button startIcon={<AddIcon />} variant="outlined" onClick={() => onChange([...backends, newBackend()])}>{t('ai.backends.addBackend')}</Button>
+    {canAddBackends ? <Button startIcon={<AddIcon />} variant="outlined" onClick={() => onChange([...backends, newBackend()])}>{t('ai.backends.addBackend')}</Button> : null}
   </Box>;
 }

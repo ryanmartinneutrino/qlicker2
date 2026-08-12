@@ -1,20 +1,17 @@
 import AiConversation from '../models/AiConversation.js';
 import Course from '../models/Course.js';
 import { getOrCreateSettingsDocument } from '../utils/settingsSingleton.js';
+import { isCourseInstructorOrAdmin } from '../utils/courseAccess.js';
 import { discoverOllamaModels, normalizeAiBackends, serializeAiBackends } from '../services/ai.js';
 import { runAiCourseChat } from '../services/aiChatRunner.js';
 
 const READ_LIMIT = { max: 60, timeWindow: '1 minute' };
 const WRITE_LIMIT = { max: 20, timeWindow: '1 minute' };
 
-function instructorCanAccess(course, user) {
-  return (user?.roles || []).includes('admin') || (course?.instructors || []).map(String).includes(String(user?.userId));
-}
-
 async function instructorCourse(request, reply) {
   const course = await Course.findById(request.params.courseId).lean();
   if (!course) { reply.code(404).send({ error: 'Not Found', message: 'Course not found' }); return null; }
-  if (!instructorCanAccess(course, request.user)) { reply.code(403).send({ error: 'Forbidden', message: 'Only course instructors can use AI helper' }); return null; }
+  if (!isCourseInstructorOrAdmin(course, request.user)) { reply.code(403).send({ error: 'Forbidden', message: 'Only course instructors can use AI helper' }); return null; }
   return course;
 }
 
@@ -57,7 +54,7 @@ export default async function aiRoutes(app) {
     if (!(request.user.roles || []).includes('admin')) {
       const course = await Course.findById(courseId).lean();
       const settings = await getOrCreateSettingsDocument({ lean: true });
-      if (!course || !instructorCanAccess(course, request.user) || !coursePolicy(settings, course._id).allowCourseBackend) {
+      if (!course || !isCourseInstructorOrAdmin(course, request.user) || !coursePolicy(settings, course._id).allowCourseBackend) {
         return reply.code(403).send({ error: 'Forbidden', message: 'This course cannot configure its own AI backend' });
       }
     }

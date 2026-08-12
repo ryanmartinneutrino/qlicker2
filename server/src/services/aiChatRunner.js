@@ -1,5 +1,6 @@
 import { createCourseMcpClient } from './aiMcp.js';
 import { requestAiMessage } from './ai.js';
+import { isCourseInstructorOrAdmin } from '../utils/courseAccess.js';
 
 const MAX_TOOL_ROUNDS = 5;
 const MAX_TOOL_RESULT_CHARS = 80_000;
@@ -56,8 +57,7 @@ function toolResultMessage(call, content, backend) {
 }
 
 export async function runAiCourseChat({ backend, modelId, course, user, messages }) {
-  const isInstructor = (user?.roles || []).includes('admin')
-    || (course.instructors || []).map(String).includes(String(user?.userId));
+  const isInstructor = isCourseInstructorOrAdmin(course, user);
   const mcp = await createCourseMcpClient({
     courseId: String(course._id),
     audience: isInstructor ? 'instructor' : 'student',

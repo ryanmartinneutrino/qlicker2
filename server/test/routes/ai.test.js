@@ -72,6 +72,23 @@ describe('AI course configuration and chat', () => {
     expect(fetch).toHaveBeenCalledWith('http://ollama.test:11434/api/chat', expect.objectContaining({ method: 'POST' }));
   });
 
+  it('does not give a professor who is only a student in this course AI privileges', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const courseProfessor = await createTestUser({ email: 'course-owner@example.com', roles: ['professor'] });
+    const studentProfessor = await createTestUser({ email: 'student-prof@example.com', roles: ['professor', 'student'] });
+    const courseOwnerToken = await getAuthToken(app, courseProfessor);
+    const studentProfessorToken = await getAuthToken(app, studentProfessor);
+    const course = await createCourse(courseOwnerToken);
+    await Course.findByIdAndUpdate(course._id, { $addToSet: { students: studentProfessor._id }, $set: { aiEnabled: true } });
+    await configureAi(course._id);
+
+    const config = await authenticatedRequest(app, 'GET', `/api/v1/ai/courses/${course._id}/config`, { token: studentProfessorToken });
+    const conversation = await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations`, { token: studentProfessorToken });
+
+    expect(config.statusCode).toBe(403);
+    expect(conversation.statusCode).toBe(403);
+  });
+
   it('runs MCP tools before answering with course data', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
     const professor = await createTestUser({ email: 'ai-tool-prof@example.com', roles: ['professor'] });

@@ -13,6 +13,7 @@ import { isQuestionResponseCollectionEnabled, normalizeQuestionType } from '../s
 import { computeWordFrequencies } from '../utils/wordFrequency.js';
 import { computeHistogramData } from '../utils/histogram.js';
 import { buildSessionResponseTracking } from '../utils/sessionResponseTracking.js';
+import { isCourseInstructorOrAdmin as isInstructorOrAdmin } from '../utils/courseAccess.js';
 
 const createQuestionSchema = {
   body: {
@@ -495,12 +496,6 @@ function multipleChoiceValidationError(type, options) {
   };
 }
 
-// Helper to check if user is instructor of course or admin
-function isInstructorOrAdmin(course, user) {
-  const roles = user.roles || [];
-  return roles.includes('admin') || course.instructors.includes(user.userId);
-}
-
 async function buildQuestionLibraryDetails(questionDocs = [], courseId = '') {
   const questionIds = [...new Set(
     (questionDocs || []).map((question) => String(question?._id || '').trim()).filter(Boolean)
@@ -727,14 +722,13 @@ function isStudentAccount(user) {
 }
 
 function shouldTreatUserAsStudentForCourse(user, course) {
-  if (!isStudentAccount(user)) return false;
-  if (!course) return true;
-  return !isInstructorOrAdmin(course, user);
+  if (!course) return isStudentAccount(user);
+  return (course.students || []).some((studentId) => String(studentId) === String(user?.userId || ''))
+    && !isInstructorOrAdmin(course, user);
 }
 
 function isStudentPracticeAccessDisabled(course, user) {
   if (!course) return false;
-  if (!isStudentAccount(user)) return false;
   if (!(course.students || []).includes(user.userId)) return false;
   if (isInstructorOrAdmin(course, user)) return false;
   return !course.allowStudentQuestions;

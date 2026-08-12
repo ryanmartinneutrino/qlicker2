@@ -10,6 +10,7 @@ import {
 import { stringParamsSchema } from '../utils/apiDocs.js';
 import { getOrCreateSettingsDocument } from '../utils/settingsSingleton.js';
 import { normalizeAiBackends, serializeAiBackends } from '../services/ai.js';
+import { isCourseMember, isCourseStudent } from '../utils/courseAccess.js';
 
 async function getOrCreateSettings(options = {}) {
   return getOrCreateSettingsDocument(options);
@@ -406,17 +407,11 @@ export default async function settingsRoutes(app) {
       return reply.code(404).send({ error: 'Not Found', message: 'Course not found' });
     }
 
-    const roles = request.user.roles || [];
-    const userId = request.user.userId;
-    const isAdmin = roles.includes('admin');
-    const isInstructor = (course.instructors || []).includes(userId);
-    const isStudent = (course.students || []).includes(userId);
-
-    if (!isAdmin && !isInstructor && !isStudent) {
-      return reply.code(403).send({ error: 'Forbidden', message: 'Not enrolled in this course' });
-    }
-    if (!isAdmin && isStudent && !isInstructor && course.inactive) {
-      return reply.code(403).send({ error: 'Forbidden', message: 'Course is inactive for students' });
+    if (!isCourseMember(course, request.user)) {
+      const message = course.inactive && isCourseStudent(course, request.user)
+        ? 'Course is inactive for students'
+        : 'Not enrolled in this course';
+      return reply.code(403).send({ error: 'Forbidden', message });
     }
 
     const settings = await getOrCreateSettings();
@@ -433,12 +428,7 @@ export default async function settingsRoutes(app) {
     const course = await Course.findById(courseId).select('_id instructors students inactive');
     if (!course) return reply.code(404).send({ error: 'Not Found', message: 'Course not found' });
 
-    const roles = request.user.roles || [];
-    const userId = request.user.userId;
-    const isAdmin = roles.includes('admin');
-    const isInstructor = (course.instructors || []).includes(userId);
-    const isStudent = (course.students || []).includes(userId);
-    if (!isAdmin && !isInstructor && !isStudent) {
+    if (!isCourseMember(course, request.user)) {
       return reply.code(403).send({ error: 'Forbidden', message: 'Not enrolled in this course' });
     }
 

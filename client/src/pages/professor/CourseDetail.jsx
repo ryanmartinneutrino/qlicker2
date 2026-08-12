@@ -1918,7 +1918,7 @@ export default function CourseDetail() {
                   {[...aiConfig.adminBackends, ...aiConfig.courseBackends].flatMap((backend) => backend.models.map((model) => <MenuItem key={`${backend.id}-${model.id}`} value={`${backend.id}::${model.id}`}>{`${backend.name || backend.url} — ${model.name}`}</MenuItem>))}
                 </TextField>
                 <Typography variant="body2" color="text.secondary">{t('professor.course.aiBackendHelp')}</Typography>
-                <AiBackendManager backends={aiConfig.courseBackends} courseId={id} onChange={(backends) => { setAiConfig((current) => ({ ...current, courseBackends: backends })); handleAiBackendChange('backends', backends); }} defaultBackendId={aiConfig.courseDefaultBackendId} defaultModelId={aiConfig.courseDefaultModelId} onDefaultChange={(defaultBackendId, defaultModelId) => { handleAiBackendChange('defaultBackendId', defaultBackendId); handleAiBackendChange('defaultModelId', defaultModelId); }} />
+                <AiBackendManager backends={aiConfig.courseBackends} courseId={id} canAddBackends={aiCoursePolicy.allowCourseBackend} onChange={(backends) => { setAiConfig((current) => ({ ...current, courseBackends: backends })); handleAiBackendChange('backends', backends); }} defaultBackendId={aiConfig.courseDefaultBackendId} defaultModelId={aiConfig.courseDefaultModelId} onDefaultChange={(defaultBackendId, defaultModelId) => { handleAiBackendChange('defaultBackendId', defaultBackendId); handleAiBackendChange('defaultModelId', defaultModelId); }} />
               </>
             ) : (
               <>
