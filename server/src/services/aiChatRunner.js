@@ -3,6 +3,7 @@ import { requestAiMessage } from './ai.js';
 
 const MAX_TOOL_ROUNDS = 5;
 const MAX_TOOL_RESULT_CHARS = 80_000;
+const MAX_CONVERSATION_TURNS = 5;
 
 function systemMessage(course) {
   return {
@@ -11,10 +12,16 @@ function systemMessage(course) {
   };
 }
 
-function conversationMessages(messages) {
-  return messages
+export function recentConversationMessages(messages, maxTurns = MAX_CONVERSATION_TURNS) {
+  const conversation = messages
     .filter((message) => ['user', 'assistant'].includes(message.role))
     .map((message) => ({ role: message.role, content: String(message.content || '') }));
+  const userIndexes = conversation.reduce((indexes, message, index) => {
+    if (message.role === 'user') indexes.push(index);
+    return indexes;
+  }, []);
+  const firstIncludedUser = userIndexes[Math.max(userIndexes.length - maxTurns, 0)];
+  return firstIncludedUser === undefined ? conversation : conversation.slice(firstIncludedUser);
 }
 
 function serializeToolResult(result) {
@@ -57,7 +64,7 @@ export async function runAiCourseChat({ backend, modelId, course, user, messages
   });
   try {
     const toolList = await mcp.client.listTools();
-    const providerMessages = [systemMessage(course), ...conversationMessages(messages)];
+    const providerMessages = [systemMessage(course), ...recentConversationMessages(messages)];
     for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
       const response = await requestAiMessage(backend, modelId, providerMessages, toolList.tools || []);
       if (response.toolCalls.length === 0) return response.content;
