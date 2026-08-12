@@ -13,12 +13,13 @@ vi.mock('../../api/client', () => ({
 }));
 
 vi.mock('../questions/StudentRichTextEditor', () => ({
-  default: ({ value, onChange, placeholder }) => (
+  default: ({ value, onChange, onKeyDown, placeholder }) => (
     <textarea
       aria-label="AI chat message"
       placeholder={placeholder}
       value={value}
       onChange={(event) => onChange({ html: `<p>${event.target.value}</p>`, plainText: event.target.value })}
+      onKeyDown={onKeyDown}
     />
   ),
 }));
@@ -48,7 +49,9 @@ describe('AiCourseChat', () => {
     await screen.findByText('No conversations yet.');
     fireEvent.change(screen.getByLabelText('AI chat message'), { target: { value: 'Can you help?' } });
     expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled();
-    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    fireEvent.keyDown(screen.getByLabelText('AI chat message'), { key: 'Enter', shiftKey: true });
+    expect(apiClient.post).not.toHaveBeenCalled();
+    fireEvent.keyDown(screen.getByLabelText('AI chat message'), { key: 'Enter' });
 
     await waitFor(() => {
       expect(apiClient.post).toHaveBeenLastCalledWith('/ai/courses/course-1/conversations/conversation-1/messages', {

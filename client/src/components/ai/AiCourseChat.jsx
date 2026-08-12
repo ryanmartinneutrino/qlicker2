@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Box, Button, CircularProgress, IconButton, List, ListItemButton, ListItemText, Paper, Typography } from '@mui/material';
 import { Add as AddIcon, DeleteOutline as DeleteIcon } from '@mui/icons-material';
 import { useTranslation } from 'react-i18next';
@@ -101,6 +101,12 @@ export default function AiCourseChat({ courseId }) {
     } catch (err) { setError(err.response?.data?.message || t('ai.chat.failedSend')); }
     finally { setSending(false); }
   };
+  const handleDraftKeyDown = useCallback((event) => {
+    if (event.key !== 'Enter' || event.shiftKey || event.isComposing || event.nativeEvent?.isComposing) return false;
+    event.preventDefault();
+    send();
+    return true;
+  }, [send]);
   const messages = useMemo(() => selected?.messages || [], [selected]);
 
   return <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '250px minmax(0, 1fr)' }, gap: 1.5 }}>
@@ -123,7 +129,7 @@ export default function AiCourseChat({ courseId }) {
             : <Typography sx={{ whiteSpace: 'pre-wrap' }}>{message.content}</Typography>}
         </Paper>)}
       </Box>
-      <StudentRichTextEditor value={draft.html} onChange={(value) => setDraft(normalizeDraft(value))} placeholder={t('ai.chat.messagePlaceholder')} minHeight={110} />
+      <StudentRichTextEditor value={draft.html} onChange={(value) => setDraft(normalizeDraft(value))} onKeyDown={handleDraftKeyDown} placeholder={t('ai.chat.messagePlaceholder')} minHeight={110} />
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}><Button variant="contained" disabled={sending || !draft.plainText.trim()} onClick={send}>{sending ? <CircularProgress size={20} color="inherit" /> : t('ai.chat.send')}</Button></Box>
     </Paper>
   </Box>;
