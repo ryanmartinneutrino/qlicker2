@@ -1,7 +1,8 @@
 import AiConversation from '../models/AiConversation.js';
 import Course from '../models/Course.js';
 import { getOrCreateSettingsDocument } from '../utils/settingsSingleton.js';
-import { discoverOllamaModels, normalizeAiBackends, requestAiCompletion, serializeAiBackends } from '../services/ai.js';
+import { discoverOllamaModels, normalizeAiBackends, serializeAiBackends } from '../services/ai.js';
+import { runAiCourseChat } from '../services/aiChatRunner.js';
 
 const READ_LIMIT = { max: 60, timeWindow: '1 minute' };
 const WRITE_LIMIT = { max: 20, timeWindow: '1 minute' };
@@ -144,7 +145,13 @@ export default async function aiRoutes(app) {
     if (!conversation) return reply.code(404).send({ error: 'Not Found', message: 'AI conversation not found' });
     conversation.messages.push({ role: 'user', content, contentWysiwyg: String(request.body?.contentWysiwyg || '') });
     try {
-      const assistantContent = await requestAiCompletion(selected.backend, selected.model.id, conversation.messages.map((message) => ({ role: message.role, content: message.content })));
+      const assistantContent = await runAiCourseChat({
+        backend: selected.backend,
+        modelId: selected.model.id,
+        course,
+        user: request.user,
+        messages: conversation.messages,
+      });
       conversation.messages.push({ role: 'assistant', content: assistantContent });
       conversation.backendId = selected.backend.id; conversation.modelId = selected.model.id;
       conversation.title = conversation.title || content.slice(0, 80); conversation.updatedAt = new Date(); await conversation.save();

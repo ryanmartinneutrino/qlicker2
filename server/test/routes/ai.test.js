@@ -1,7 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import mongoose from 'mongoose';
 import Course from '../../src/models/Course.js';
+import Question from '../../src/models/Question.js';
+import ResponseModel from '../../src/models/Response.js';
+import Session from '../../src/models/Session.js';
 import Settings from '../../src/models/Settings.js';
+import { getQuestionResponses } from '../../src/services/aiCourseTools.js';
 import { authenticatedRequest, createApp, createTestUser, getAuthToken } from '../helpers.js';
 
 let app;
@@ -66,5 +70,48 @@ describe('AI course configuration and chat', () => {
     expect(message.statusCode).toBe(200);
     expect(message.json().conversation.messages.map((entry) => entry.content)).toEqual(['Hello', 'Hello from Ollama']);
     expect(fetch).toHaveBeenCalledWith('http://ollama.test:11434/api/chat', expect.objectContaining({ method: 'POST' }));
+  });
+
+  it('runs MCP tools before answering with course data', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const professor = await createTestUser({ email: 'ai-tool-prof@example.com', roles: ['professor'] });
+    const student = await createTestUser({ email: 'student@example.com', firstname: 'Ada', lastname: 'Lovelace' });
+    const token = await getAuthToken(app, professor);
+    const course = await createCourse(token);
+    await Course.findByIdAndUpdate(course._id, { $addToSet: { students: student._id }, $set: { aiEnabled: true } });
+    await configureAi(course._id);
+
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: { content: '', tool_calls: [{ function: { name: 'list_course_students', arguments: {} } }] } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: { content: 'Ada Lovelace is enrolled in the course.' } }), { status: 200 })));
+
+    const created = await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations`, { token });
+    const message = await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations/${created.json().conversation._id}/messages`, { token, payload: { content: 'Give me the list of students' } });
+
+    expect(message.statusCode).toBe(200);
+    expect(message.json().conversation.messages.at(-1).content).toBe('Ada Lovelace is enrolled in the course.');
+    expect(fetch).toHaveBeenCalledTimes(2);
+    const secondRequest = JSON.parse(fetch.mock.calls[1][1].body);
+    expect(secondRequest.tools.map((tool) => tool.function.name)).toEqual(expect.arrayContaining(['list_course_students', 'list_course_sessions', 'get_session_questions', 'get_question_responses']));
+    expect(secondRequest.messages.some((entry) => entry.role === 'tool' && entry.content.includes('student@example.com'))).toBe(true);
+  });
+
+  it('returns only the highest response attempt for a session question', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const professor = await createTestUser({ email: 'attempt-prof@example.com', roles: ['professor'] });
+    const student = await createTestUser({ email: 'attempt-student@example.com', firstname: 'Grace', lastname: 'Hopper' });
+    const token = await getAuthToken(app, professor);
+    const course = await createCourse(token);
+    await Course.findByIdAndUpdate(course._id, { $addToSet: { students: student._id } });
+    const question = await Question.create({ type: 1, plainText: 'What is 2 + 2?', creator: professor._id, courseId: course._id });
+    const session = await Session.create({ name: 'Lecture 9', courseId: course._id, creator: professor._id, status: 'done', questions: [question._id] });
+    await ResponseModel.create({ questionId: question._id, studentUserId: student._id, attempt: 1, answer: '3', createdAt: new Date('2026-08-10T10:00:00.000Z') });
+    await ResponseModel.create({ questionId: question._id, studentUserId: student._id, attempt: 2, answer: '4', createdAt: new Date('2026-08-10T10:01:00.000Z') });
+
+    const result = await getQuestionResponses(course._id, session._id, question._id);
+
+    expect(result.attempt).toBe(2);
+    expect(result.responses).toHaveLength(1);
+    expect(result.responses[0]).toMatchObject({ answer: '4', student: { name: 'Grace Hopper', email: 'attempt-student@example.com' } });
   });
 });
