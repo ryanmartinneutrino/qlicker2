@@ -552,7 +552,8 @@
       "courseHelp": "Select the courses that may use AI. For each enabled course, you may also allow instructors to configure a separate backend.",
       "allowCourseBackend": "Allow instructor-configured backend",
       "disabledHelp": "Enable AI helper above before configuring a backend or permitting courses.",
-      "failedSave": "Failed to save AI settings."
+      "failedSave": "Failed to save AI settings.",
+      "backendHelp": "Add one or more AI backends, discover their Ollama models, then select the default model used by courses unless an instructor chooses another available model."
     },
     "courses": {
       "searchPlaceholder": "Search courses by code, section, name, or semester",
@@ -1682,6 +1683,35 @@
     "adminManual": "Admin Manual",
     "professorManual": "Professor Manual",
     "studentManual": "Student Manual"
+  },
+  "ai": {
+    "backends": {
+      "backendNumber": "Backend {{number}}",
+      "addBackend": "Add backend",
+      "removeBackend": "Remove backend",
+      "name": "Backend name",
+      "type": "Backend type",
+      "url": "Server URL",
+      "apiToken": "API token (optional)",
+      "tokenConfigured": "Token configured — enter a new value to replace it",
+      "discoverModels": "Find models",
+      "discoveryFailed": "Could not find models on this backend.",
+      "modelsHelp": "Only checked models are available for course AI use.",
+      "makeDefault": "Make default"
+    },
+    "chat": {
+      "title": "AI Chat",
+      "newConversation": "New conversation",
+      "noConversations": "No conversations yet.",
+      "send": "Send",
+      "messagePlaceholder": "Ask the AI helper…",
+      "deleteConversation": "Delete conversation",
+      "selectConversation": "Select or start a conversation.",
+      "assistant": "AI assistant",
+      "you": "You",
+      "failedLoad": "Could not load AI conversations.",
+      "failedSend": "Could not send the message."
+    }
   },
   "semesters": {
     "fall": "Fall",

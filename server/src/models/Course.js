@@ -1,6 +1,27 @@
 import mongoose from 'mongoose';
 import { generateMeteorId } from '../utils/meteorId.js';
 
+const AiModelSchema = new mongoose.Schema(
+  {
+    id: { type: String, required: true },
+    name: { type: String, required: true },
+    available: { type: Boolean, default: true },
+  },
+  { _id: false }
+);
+
+const AiBackendSchema = new mongoose.Schema(
+  {
+    id: { type: String, required: true },
+    name: { type: String, default: '' },
+    type: { type: String, enum: ['ollama', 'openai'], default: 'ollama' },
+    url: { type: String, required: true },
+    apiToken: { type: String, default: '' },
+    models: { type: [AiModelSchema], default: [] },
+  },
+  { _id: false }
+);
+
 const VideoChatApiOptionsSchema = new mongoose.Schema(
   {
     startAudioMuted: { type: Boolean, default: true },
@@ -76,6 +97,11 @@ const CourseSchema = new mongoose.Schema(
     aiEnabled: { type: Boolean, default: false },
     aiApiUrl: { type: String, default: '' },
     aiApiToken: { type: String, default: '' },
+    aiSelectedBackendId: { type: String, default: '' },
+    aiSelectedModelId: { type: String, default: '' },
+    aiBackends: { type: [AiBackendSchema], default: [] },
+    aiDefaultBackendId: { type: String, default: '' },
+    aiDefaultModelId: { type: String, default: '' },
   },
   {
     collection: 'courses',

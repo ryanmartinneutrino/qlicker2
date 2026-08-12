@@ -221,6 +221,18 @@ describe('settings secret masking (write-only secrets)', () => {
     expect(JSON.stringify(body)).not.toContain('BEGIN PRIVATE KEY');
   });
 
+  it('masks API tokens nested in configured AI backends', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    await Settings.findOneAndUpdate({ _id: 'settings' }, { $set: {
+      AI_Backends: [{ id: 'ollama-1', name: 'Ollama', type: 'ollama', url: 'http://ollama.test:11434', apiToken: 'nested-ai-secret', models: [{ id: 'llama3', name: 'llama3', available: true }] }],
+    } }, { upsert: true });
+    const token = await createAdminToken('admin-nested-ai-secret@example.com');
+    const response = await authenticatedRequest(app, 'GET', '/api/v1/settings', { token });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().AI_Backends[0]).toMatchObject({ apiToken: '', apiTokenSet: true });
+    expect(JSON.stringify(response.json())).not.toContain('nested-ai-secret');
+  });
+
   it('reports unset secrets with false flags', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
 

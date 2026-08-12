@@ -1,0 +1,87 @@
+import { useEffect, useMemo, useState } from 'react';
+import { Alert, Box, Button, CircularProgress, IconButton, List, ListItemButton, ListItemText, Paper, Typography } from '@mui/material';
+import { Add as AddIcon, DeleteOutline as DeleteIcon } from '@mui/icons-material';
+import { useTranslation } from 'react-i18next';
+import apiClient from '../../api/client';
+import StudentRichTextEditor from '../questions/StudentRichTextEditor';
+
+function formatMessageTime(value) {
+  const date = new Date(value || 0);
+  return Number.isNaN(date.getTime()) ? '' : date.toLocaleString();
+}
+
+export default function AiCourseChat({ courseId }) {
+  const { t } = useTranslation();
+  const [conversations, setConversations] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [draft, setDraft] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
+
+  const loadConversations = async () => {
+    setLoading(true); setError('');
+    try { const { data } = await apiClient.get(`/ai/courses/${courseId}/conversations`); setConversations(data.conversations || []); }
+    catch (err) { setError(err.response?.data?.message || t('ai.chat.failedLoad')); }
+    finally { setLoading(false); }
+  };
+  useEffect(() => { loadConversations(); }, [courseId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const createConversation = async () => {
+    try {
+      const { data } = await apiClient.post(`/ai/courses/${courseId}/conversations`);
+      setConversations((current) => [data.conversation, ...current]); setSelected(data.conversation);
+    } catch (err) { setError(err.response?.data?.message || t('ai.chat.failedLoad')); }
+  };
+  const selectConversation = async (id) => {
+    try { const { data } = await apiClient.get(`/ai/courses/${courseId}/conversations/${id}`); setSelected(data.conversation); }
+    catch (err) { setError(err.response?.data?.message || t('ai.chat.failedLoad')); }
+  };
+  const deleteConversation = async (id) => {
+    try {
+      await apiClient.delete(`/ai/courses/${courseId}/conversations/${id}`);
+      setConversations((current) => current.filter((item) => item._id !== id));
+      if (selected?._id === id) setSelected(null);
+    } catch (err) { setError(err.response?.data?.message || t('ai.chat.failedLoad')); }
+  };
+  const send = async () => {
+    const content = draft.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').trim();
+    if (!content || sending) return;
+    let conversation = selected;
+    if (!conversation) {
+      try { const { data } = await apiClient.post(`/ai/courses/${courseId}/conversations`); conversation = data.conversation; setSelected(conversation); }
+      catch (err) { setError(err.response?.data?.message || t('ai.chat.failedSend')); return; }
+    }
+    setSending(true); setError('');
+    try {
+      const { data } = await apiClient.post(`/ai/courses/${courseId}/conversations/${conversation._id}/messages`, { content, contentWysiwyg: draft });
+      setSelected(data.conversation); setDraft('');
+      setConversations((current) => [data.conversation, ...current.filter((item) => item._id !== data.conversation._id)]);
+    } catch (err) { setError(err.response?.data?.message || t('ai.chat.failedSend')); }
+    finally { setSending(false); }
+  };
+  const messages = useMemo(() => selected?.messages || [], [selected]);
+
+  return <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '250px minmax(0, 1fr)' }, gap: 1.5 }}>
+    <Paper variant="outlined" sx={{ p: 1 }}>
+      <Button fullWidth startIcon={<AddIcon />} variant="outlined" onClick={createConversation}>{t('ai.chat.newConversation')}</Button>
+      {loading ? <Box sx={{ p: 2, textAlign: 'center' }}><CircularProgress size={22} /></Box> : <List dense>
+        {conversations.length ? conversations.map((conversation) => <ListItemButton key={conversation._id} selected={selected?._id === conversation._id} onClick={() => selectConversation(conversation._id)}>
+          <ListItemText primary={conversation.title || t('ai.chat.newConversation')} secondary={formatMessageTime(conversation.updatedAt)} />
+          <IconButton size="small" aria-label={t('ai.chat.deleteConversation')} onClick={(event) => { event.stopPropagation(); deleteConversation(conversation._id); }}><DeleteIcon fontSize="small" /></IconButton>
+        </ListItemButton>) : <Typography variant="body2" color="text.secondary" sx={{ p: 1 }}>{t('ai.chat.noConversations')}</Typography>}
+      </List>}
+    </Paper>
+    <Paper variant="outlined" sx={{ p: 1.5, display: 'flex', flexDirection: 'column', minHeight: 520 }}>
+      {error ? <Alert severity="error" sx={{ mb: 1 }} onClose={() => setError('')}>{error}</Alert> : null}
+      <Box sx={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 1.25, mb: 1.5 }}>
+        {!selected ? <Typography color="text.secondary">{t('ai.chat.selectConversation')}</Typography> : messages.map((message) => <Paper key={message._id} variant="outlined" sx={{ p: 1.25, alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%', bgcolor: message.role === 'user' ? 'action.hover' : 'background.paper' }}>
+          <Typography variant="caption" color="text.secondary">{message.role === 'user' ? t('ai.chat.you') : t('ai.chat.assistant')}</Typography>
+          <Typography sx={{ whiteSpace: 'pre-wrap' }}>{message.content}</Typography>
+        </Paper>)}
+      </Box>
+      <StudentRichTextEditor value={draft} onChange={setDraft} placeholder={t('ai.chat.messagePlaceholder')} minHeight={110} />
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}><Button variant="contained" disabled={sending || !draft.replace(/<[^>]*>/g, '').trim()} onClick={send}>{sending ? <CircularProgress size={20} color="inherit" /> : t('ai.chat.send')}</Button></Box>
+    </Paper>
+  </Box>;
+}

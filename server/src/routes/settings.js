@@ -9,6 +9,7 @@ import {
 } from '../utils/authPolicy.js';
 import { stringParamsSchema } from '../utils/apiDocs.js';
 import { getOrCreateSettingsDocument } from '../utils/settingsSingleton.js';
+import { normalizeAiBackends, serializeAiBackends } from '../services/ai.js';
 
 async function getOrCreateSettings(options = {}) {
   return getOrCreateSettingsDocument(options);
@@ -39,6 +40,7 @@ const ALLOWED_SETTINGS_FIELDS = new Set([
   'backupRetentionMonthly',
   'Jitsi_Enabled', 'Jitsi_Domain', 'Jitsi_EtherpadDomain', 'Jitsi_EnabledCourses',
   'AI_Enabled', 'AI_ApiUrl', 'AI_ApiToken', 'AI_EnabledCourses', 'AI_AllowCourseBackendCourses',
+  'AI_Backends', 'AI_DefaultBackendId', 'AI_DefaultModelId',
   'locale', 'dateFormat', 'timeFormat',
   'maxImageSize', 'maxImageWidth', 'avatarThumbnailSize',
 ]);
@@ -71,6 +73,7 @@ function maskSettingsSecrets(payload = {}) {
   masked.Azure_storageAccessKeySet = hasStoredValue(payload.Azure_storageAccessKey)
     || hasStoredValue(payload.Azure_accountKey);
   masked.AI_ApiTokenSet = hasStoredValue(payload.AI_ApiToken);
+  masked.AI_Backends = serializeAiBackends(payload.AI_Backends || []);
   for (const field of SECRET_SETTINGS_FIELDS) {
     if (field in masked) masked[field] = '';
   }
@@ -90,7 +93,12 @@ function sanitizeSettingsPatchPayload(payload) {
     if (!ALLOWED_SETTINGS_FIELDS.has(key)) continue;
     // Blank secrets mean "leave the stored secret unchanged".
     if (SECRET_SETTINGS_FIELDS.has(key) && !hasStoredValue(payload[key])) continue;
-    filtered[key] = payload[key];
+    if (key === 'AI_Backends') {
+      const existingBackends = normalizeAiBackends(payload[key]);
+      filtered[key] = existingBackends;
+    } else {
+      filtered[key] = payload[key];
+    }
   }
   return filtered;
 }
@@ -156,6 +164,9 @@ const updateSettingsSchema = {
       AI_ApiToken: { type: 'string' },
       AI_EnabledCourses: { type: 'array', items: { type: 'string' } },
       AI_AllowCourseBackendCourses: { type: 'array', items: { type: 'string' } },
+      AI_Backends: { type: 'array' },
+      AI_DefaultBackendId: { type: 'string' },
+      AI_DefaultModelId: { type: 'string' },
       locale: { type: 'string' },
       dateFormat: { type: 'string' },
       timeFormat: { type: 'string', enum: ['24h', '12h'] },
@@ -200,7 +211,7 @@ function buildSettingsUpdatePayload(currentSettings = {}, updates = {}) {
     )
   );
 
-  return {
+  const next = {
     ...updates,
     allowedDomains,
     requireVerified: nextRequireVerified,
@@ -209,6 +220,15 @@ function buildSettingsUpdatePayload(currentSettings = {}, updates = {}) {
       ? updates.registrationDisabled === true
       : currentSettings.registrationDisabled === true,
   };
+  if (updates.AI_Backends !== undefined) {
+    const existingById = new Map(normalizeAiBackends(currentSettings.AI_Backends || []).map((backend) => [backend.id, backend]));
+    next.AI_Backends = normalizeAiBackends(updates.AI_Backends).map((backend) => ({
+      ...backend,
+      // Empty values from the write-only UI mean "keep the configured token".
+      apiToken: backend.apiToken || existingById.get(backend.id)?.apiToken || '',
+    }));
+  }
+  return next;
 }
 
 export default async function settingsRoutes(app) {

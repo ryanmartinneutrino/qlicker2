@@ -36,6 +36,7 @@ import AutoSaveStatus from '../../components/common/AutoSaveStatus';
 import ResponsiveTabsNavigation from '../../components/common/ResponsiveTabsNavigation';
 import SessionListCard from '../../components/common/SessionListCard';
 import ManageNotificationsDialog from '../../components/notifications/ManageNotificationsDialog';
+import AiBackendManager from '../../components/ai/AiBackendManager';
 import { SUPPORTED_LOCALES, DATE_FORMATS, TIME_FORMATS } from '../../i18n';
 import i18n from '../../i18n';
 import {
@@ -2282,7 +2283,7 @@ function AiHelperTab() {
   const { t } = useTranslation();
   const [settings, setSettings] = useState({
     AI_Enabled: false, AI_ApiUrl: '', AI_ApiToken: '', AI_ApiTokenSet: false,
-    AI_EnabledCourses: [], AI_AllowCourseBackendCourses: [],
+    AI_EnabledCourses: [], AI_AllowCourseBackendCourses: [], AI_Backends: [], AI_DefaultBackendId: '', AI_DefaultModelId: '',
   });
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -2340,6 +2341,9 @@ function AiHelperTab() {
         AI_ApiTokenSet: !!data.AI_ApiTokenSet,
         AI_EnabledCourses: data.AI_EnabledCourses || [],
         AI_AllowCourseBackendCourses: data.AI_AllowCourseBackendCourses || [],
+        AI_Backends: data.AI_Backends || [],
+        AI_DefaultBackendId: data.AI_DefaultBackendId || '',
+        AI_DefaultModelId: data.AI_DefaultModelId || '',
       }));
       setCourses(coursesRes.data.courses || []);
     }).catch((err) => {
@@ -2397,8 +2401,16 @@ function AiHelperTab() {
     <Box sx={{ maxWidth: 980, display: 'flex', flexDirection: 'column', gap: 2 }}>
       <AutoSaveStatus status={status} errorText={error} />
       <FormControlLabel control={<Checkbox checked={settings.AI_Enabled} onChange={(event) => updateSettings((s) => ({ ...s, AI_Enabled: event.target.checked }), { saveImmediately: true })} />} label={t('admin.ai.enable')} />
-      <TextField disabled={!settings.AI_Enabled} label={t('admin.ai.apiUrl')} value={settings.AI_ApiUrl} onChange={(event) => updateSettings((s) => ({ ...s, AI_ApiUrl: event.target.value }))} placeholder={t('admin.ai.apiUrlPlaceholder')} fullWidth />
-      <TextField disabled={!settings.AI_Enabled} type="password" label={t('admin.ai.apiToken')} value={settings.AI_ApiToken} onChange={(event) => updateSettings((s) => ({ ...s, AI_ApiToken: event.target.value }))} placeholder={settings.AI_ApiTokenSet ? t('admin.ai.tokenConfigured') : t('admin.ai.apiTokenPlaceholder')} helperText={t('admin.ai.tokenHelp')} fullWidth />
+      <Typography variant="body2" color="text.secondary">{t('admin.ai.backendHelp')}</Typography>
+      <Box sx={{ pointerEvents: settings.AI_Enabled ? 'auto' : 'none', opacity: settings.AI_Enabled ? 1 : 0.55 }}>
+        <AiBackendManager
+          backends={settings.AI_Backends}
+          onChange={(AI_Backends) => updateSettings((s) => ({ ...s, AI_Backends }))}
+          defaultBackendId={settings.AI_DefaultBackendId}
+          defaultModelId={settings.AI_DefaultModelId}
+          onDefaultChange={(AI_DefaultBackendId, AI_DefaultModelId) => updateSettings((s) => ({ ...s, AI_DefaultBackendId, AI_DefaultModelId }))}
+        />
+      </Box>
       <Typography variant="body2" color="text.secondary">{t('admin.ai.courseHelp')}</Typography>
       <Box sx={{ display: 'grid', gap: 1.25, gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' } }}>
         {sortedCourses.map((course) => {

@@ -37,6 +37,8 @@ import CourseGradesPanel from '../../components/grades/CourseGradesPanel';
 import GroupManagementPanel from '../../components/groups/GroupManagementPanel';
 import ManageNotificationsDialog from '../../components/notifications/ManageNotificationsDialog';
 import VideoChatPanel from '../../components/video/VideoChatPanel';
+import AiBackendManager from '../../components/ai/AiBackendManager';
+import AiCourseChat from '../../components/ai/AiCourseChat';
 import { useTranslation } from 'react-i18next';
 import { toggleSessionReviewable } from '../../utils/reviewableToggle';
 import { getCourseChatEventUnseenDelta } from '../../utils/courseChat';
@@ -309,6 +311,7 @@ export default function CourseDetail() {
   const [adminTimeFormat, setAdminTimeFormat] = useState('24h');
   const [ssoEnabled, setSsoEnabled] = useState(false);
   const [aiCoursePolicy, setAiCoursePolicy] = useState({ enabled: false, allowCourseBackend: false });
+  const [aiConfig, setAiConfig] = useState(null);
 
   // Sessions
   const [sessions, setSessions] = useState([]);
@@ -349,8 +352,9 @@ export default function CourseDetail() {
   const chatTabIndex = courseChatEnabled ? 6 : -1;
   const videoTabIndex = videoEnabled ? (courseChatEnabled ? 7 : 6) : -1;
   const aiTabIndex = aiAvailable ? (courseChatEnabled ? (videoEnabled ? 8 : 7) : (videoEnabled ? 7 : 6)) : -1;
+  const aiChatTabIndex = aiAvailable && course?.aiEnabled ? aiTabIndex + 1 : -1;
   const settingsTabIndex = aiAvailable
-    ? aiTabIndex + 1
+    ? aiTabIndex + (course?.aiEnabled ? 2 : 1)
     : (courseChatEnabled ? (videoEnabled ? 8 : 7) : (videoEnabled ? 7 : 6));
   const questionLibraryTabIndex = settingsTabIndex + 1;
 
@@ -363,6 +367,15 @@ export default function CourseDetail() {
     });
     return () => { mounted = false; };
   }, [id]);
+
+  useEffect(() => {
+    if (!aiAvailable) { setAiConfig(null); return undefined; }
+    let mounted = true;
+    apiClient.get(`/ai/courses/${id}/config`).then(({ data }) => {
+      if (mounted) setAiConfig(data);
+    }).catch(() => { if (mounted) setAiConfig(null); });
+    return () => { mounted = false; };
+  }, [aiAvailable, id]);
 
   useEffect(() => {
     let mounted = true;
@@ -999,7 +1012,7 @@ export default function CourseDetail() {
   const handleAiEnabledChange = async (event) => {
     markSettingAutoSaveInProgress();
     try {
-      await apiClient.patch(`/courses/${id}`, { aiEnabled: event.target.checked });
+      await apiClient.patch(`/ai/courses/${id}/config`, { enabled: event.target.checked });
       fetchCourse();
       setSettingsAutoSaveStatus('success');
     } catch (err) {
@@ -1008,10 +1021,15 @@ export default function CourseDetail() {
   };
 
   const handleAiBackendChange = async (field, value) => {
+    return handleAiConfigChange({ [field]: value });
+  };
+
+  const handleAiConfigChange = async (updates) => {
     markSettingAutoSaveInProgress();
     try {
-      await apiClient.patch(`/courses/${id}`, { [field]: value });
-      fetchCourse();
+      await apiClient.patch(`/ai/courses/${id}/config`, updates);
+      const { data } = await apiClient.get(`/ai/courses/${id}/config`);
+      setAiConfig(data);
       setSettingsAutoSaveStatus('success');
     } catch (err) {
       markSettingAutoSaveError(err, t('professor.course.failedUpdateSetting'));
@@ -1249,7 +1267,10 @@ export default function CourseDetail() {
       },
     }] : []),
     ...(videoEnabled ? [{ value: videoTabIndex, label: t('professor.course.video') }] : []),
-    ...(aiAvailable && course?.aiEnabled ? [{ value: aiTabIndex, label: t('professor.course.aiSettings') }] : []),
+    ...(aiAvailable && course?.aiEnabled ? [
+      { value: aiTabIndex, label: t('professor.course.aiSettings') },
+      { value: aiChatTabIndex, label: t('ai.chat.title') },
+    ] : []),
     { value: settingsTabIndex, label: t('professor.course.settings') },
     { value: questionLibraryTabIndex, label: t('questionLibrary.title', { defaultValue: 'Question Library' }) },
   ];
@@ -1888,33 +1909,33 @@ export default function CourseDetail() {
         <TabPanel value={tab} index={aiTabIndex}>
           <Box sx={{ maxWidth: 620, display: 'flex', flexDirection: 'column', gap: 2 }}>
             <Typography variant="h6">{t('professor.course.aiSettings')}</Typography>
-            {aiCoursePolicy.allowCourseBackend ? (
+            {!aiConfig ? <CircularProgress size={24} /> : aiCoursePolicy.allowCourseBackend ? (
               <>
+                <TextField select label={t('professor.course.aiModel')} value={`${aiConfig.selectedBackendId}::${aiConfig.selectedModelId}`} onChange={(event) => {
+                  const [selectedBackendId, selectedModelId] = event.target.value.split('::');
+                  handleAiConfigChange({ selectedBackendId, selectedModelId });
+                }} fullWidth>
+                  {[...aiConfig.adminBackends, ...aiConfig.courseBackends].flatMap((backend) => backend.models.map((model) => <MenuItem key={`${backend.id}-${model.id}`} value={`${backend.id}::${model.id}`}>{`${backend.name || backend.url} — ${model.name}`}</MenuItem>))}
+                </TextField>
                 <Typography variant="body2" color="text.secondary">{t('professor.course.aiBackendHelp')}</Typography>
-                <TextField
-                  label={t('professor.course.aiApiUrl')}
-                  value={course.aiApiUrl || ''}
-                  onBlur={(event) => handleAiBackendChange('aiApiUrl', event.target.value)}
-                  onChange={(event) => setCourse((current) => ({ ...current, aiApiUrl: event.target.value }))}
-                  placeholder={t('professor.course.aiApiUrlPlaceholder')}
-                  fullWidth
-                />
-                <TextField
-                  type="password"
-                  label={t('professor.course.aiApiToken')}
-                  defaultValue=""
-                  onBlur={(event) => { if (event.target.value) handleAiBackendChange('aiApiToken', event.target.value); }}
-                  placeholder={course.aiApiTokenSet ? t('professor.course.aiTokenConfigured') : t('professor.course.aiApiTokenPlaceholder')}
-                  helperText={t('professor.course.aiTokenHelp')}
-                  fullWidth
-                />
+                <AiBackendManager backends={aiConfig.courseBackends} courseId={id} onChange={(backends) => { setAiConfig((current) => ({ ...current, courseBackends: backends })); handleAiBackendChange('backends', backends); }} defaultBackendId={aiConfig.courseDefaultBackendId} defaultModelId={aiConfig.courseDefaultModelId} onDefaultChange={(defaultBackendId, defaultModelId) => { handleAiBackendChange('defaultBackendId', defaultBackendId); handleAiBackendChange('defaultModelId', defaultModelId); }} />
               </>
             ) : (
-              <Alert severity="info">{t('professor.course.aiAdminBackendOnly')}</Alert>
+              <>
+                <TextField select label={t('professor.course.aiModel')} value={`${aiConfig.selectedBackendId || aiConfig.adminDefaultBackendId}::${aiConfig.selectedModelId || aiConfig.adminDefaultModelId}`} onChange={(event) => {
+                  const [selectedBackendId, selectedModelId] = event.target.value.split('::');
+                  handleAiConfigChange({ selectedBackendId, selectedModelId });
+                }} fullWidth>
+                  {aiConfig.adminBackends.flatMap((backend) => backend.models.map((model) => <MenuItem key={`${backend.id}-${model.id}`} value={`${backend.id}::${model.id}`}>{`${backend.name || backend.url} — ${model.name}`}</MenuItem>))}
+                </TextField>
+                <Alert severity="info">{t('professor.course.aiAdminBackendOnly')}</Alert>
+              </>
             )}
           </Box>
         </TabPanel>
       )}
+
+      {aiAvailable && course?.aiEnabled && <TabPanel value={tab} index={aiChatTabIndex}><AiCourseChat courseId={id} /></TabPanel>}
 
       {/* Settings Tab */}
       <TabPanel value={tab} index={settingsTabIndex}>
