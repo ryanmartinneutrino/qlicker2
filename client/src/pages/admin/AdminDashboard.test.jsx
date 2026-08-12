@@ -501,6 +501,26 @@ describe('AdminDashboard', () => {
     expect(screen.getByRole('checkbox', { name: /Course 1/i })).toBeChecked();
   });
 
+  it('keeps saved AI settings visible when the course-policy list cannot load', async () => {
+    settingsState = {
+      ...settingsState,
+      AI_Enabled: true,
+      AI_ApiUrl: 'https://llm.example/v1',
+      AI_EnabledCourses: ['course-1'],
+    };
+    const defaultGet = apiClientMock.get.getMockImplementation();
+    apiClientMock.get.mockImplementation((url, config) => {
+      if (url === '/courses') return Promise.reject(new Error('Courses unavailable'));
+      return defaultGet(url, config);
+    });
+
+    renderDashboard();
+    fireEvent.click(await screen.findByRole('tab', { name: /^AI$/i }));
+
+    expect(await screen.findByRole('checkbox', { name: /^Enable AI helper$/i })).toBeChecked();
+    expect(screen.getByLabelText(/OpenAI-compatible API URL/i)).toHaveValue('https://llm.example/v1');
+  });
+
   it('disables and restores a user account from the Users tab', async () => {
     renderDashboard();
 

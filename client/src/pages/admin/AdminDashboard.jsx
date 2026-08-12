@@ -2326,7 +2326,10 @@ function AiHelperTab() {
     let mounted = true;
     Promise.all([
       apiClient.get('/settings'),
-      apiClient.get('/courses', { params: { limit: 500, view: 'all' } }),
+      // Match the video-settings tab: course-policy loading must not discard
+      // successfully loaded site settings when the course list is unavailable.
+      apiClient.get('/courses', { params: { limit: 500, view: 'all' } })
+        .catch(() => ({ data: { courses: [] } })),
     ]).then(([settingsRes, coursesRes]) => {
       if (!mounted) return;
       const data = settingsRes.data || {};
