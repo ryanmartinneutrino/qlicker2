@@ -19,6 +19,8 @@ import {
 import { useTheme } from '@mui/material/styles';
 import apiClient, { getUsableAccessToken } from '../../api/client';
 import { closeWebSocketQuietly } from '../../utils/liveSocket';
+import { hasIncompleteAiBackend } from '../../utils/aiBackends';
+import { isCurrentUserCourseInstructorOrAdmin } from '../../utils/courseAccess';
 import { buildCourseSelectionLabel, buildCourseTitle, sortCoursesByRecent } from '../../utils/courseTitle';
 import {
   getProfessorSessionPrimaryPath,
@@ -40,6 +42,7 @@ import VideoChatPanel from '../../components/video/VideoChatPanel';
 import AiBackendManager from '../../components/ai/AiBackendManager';
 import AiCourseChat from '../../components/ai/AiCourseChat';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../../contexts/AuthContext';
 import { toggleSessionReviewable } from '../../utils/reviewableToggle';
 import { getCourseChatEventUnseenDelta } from '../../utils/courseChat';
 import { isRequestCanceled } from '../../utils/requestCancellation';
@@ -274,6 +277,7 @@ export default function CourseDetail() {
   const navigate = useNavigate();
   const theme = useTheme();
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -395,6 +399,10 @@ export default function CourseDetail() {
   const lastSavedEditFieldsHashRef = useRef('');
   const settingsSaveInFlightRef = useRef(false);
   const queuedSettingsFieldsRef = useRef(null);
+  const aiConfigSaveTimerRef = useRef(null);
+  const aiConfigUpdatesRef = useRef({});
+  const aiConfigSaveInFlightRef = useRef(false);
+  const aiConfigSaveQueuedRef = useRef(false);
   const newSessionNameInputRef = useRef(null);
   const newSessionDescInputRef = useRef(null);
 
@@ -572,6 +580,12 @@ export default function CourseDetail() {
     try {
       const { data } = await apiClient.get(`/courses/${id}`);
       const c = data.course || data;
+      if (user) {
+        if (!isCurrentUserCourseInstructorOrAdmin(c, user)) {
+          navigate(`/student/course/${id}`, { replace: true });
+          return;
+        }
+      }
       const nextEditFields = getCourseEditFields(c);
       const nextHash = JSON.stringify(nextEditFields);
       setCourse(c);
@@ -594,7 +608,7 @@ export default function CourseDetail() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, navigate, user]);
 
   const setCourseTab = useCallback((nextTab) => {
     setTab(nextTab);
@@ -625,6 +639,11 @@ export default function CourseDetail() {
     lastSavedEditFieldsHashRef.current = '';
     settingsSaveInFlightRef.current = false;
     queuedSettingsFieldsRef.current = null;
+    clearTimeout(aiConfigSaveTimerRef.current);
+    aiConfigSaveTimerRef.current = null;
+    aiConfigUpdatesRef.current = {};
+    aiConfigSaveInFlightRef.current = false;
+    aiConfigSaveQueuedRef.current = false;
     setSettingsAutoSaveStatus('idle');
     setSettingsAutoSaveError('');
   }, [id]);
@@ -1020,21 +1039,59 @@ export default function CourseDetail() {
     }
   };
 
-  const handleAiBackendChange = async (field, value) => {
-    return handleAiConfigChange({ [field]: value });
-  };
+  const flushAiConfigChanges = useCallback(async function flushAiConfigChanges() {
+    if (aiConfigSaveInFlightRef.current) {
+      aiConfigSaveQueuedRef.current = true;
+      return;
+    }
 
-  const handleAiConfigChange = async (updates) => {
-    markSettingAutoSaveInProgress();
+    const updates = aiConfigUpdatesRef.current;
+    if (Object.keys(updates).length === 0) return;
+
+    aiConfigUpdatesRef.current = {};
+    aiConfigSaveInFlightRef.current = true;
     try {
       await apiClient.patch(`/ai/courses/${id}/config`, updates);
-      const { data } = await apiClient.get(`/ai/courses/${id}/config`);
-      setAiConfig(data);
       setSettingsAutoSaveStatus('success');
     } catch (err) {
       markSettingAutoSaveError(err, t('professor.course.failedUpdateSetting'));
+    } finally {
+      aiConfigSaveInFlightRef.current = false;
+      if (aiConfigSaveQueuedRef.current || Object.keys(aiConfigUpdatesRef.current).length > 0) {
+        aiConfigSaveQueuedRef.current = false;
+        await flushAiConfigChanges();
+      }
     }
+  }, [id, t]);
+
+  const handleAiConfigChange = (updates) => {
+    setAiConfig((current) => (current ? { ...current, ...updates } : current));
+    aiConfigUpdatesRef.current = { ...aiConfigUpdatesRef.current, ...updates };
+    clearTimeout(aiConfigSaveTimerRef.current);
+    markSettingAutoSaveInProgress();
+    aiConfigSaveTimerRef.current = setTimeout(() => {
+      aiConfigSaveTimerRef.current = null;
+      flushAiConfigChanges();
+    }, 500);
   };
+
+  const handleAiBackendChange = (field, value) => {
+    if (field === 'backends' && hasIncompleteAiBackend(value)) {
+      const { backends, ...pendingUpdates } = aiConfigUpdatesRef.current;
+      aiConfigUpdatesRef.current = pendingUpdates;
+      if (Object.keys(pendingUpdates).length === 0) setSettingsAutoSaveStatus('idle');
+      return;
+    }
+    handleAiConfigChange({ [field]: value });
+  };
+
+  useEffect(() => () => {
+    clearTimeout(aiConfigSaveTimerRef.current);
+    const pendingUpdates = aiConfigUpdatesRef.current;
+    if (Object.keys(pendingUpdates).length > 0) {
+      apiClient.patch(`/ai/courses/${id}/config`, pendingUpdates).catch(() => {});
+    }
+  }, [id]);
 
   const handleCourseChatEnabledChange = async (event) => {
     markSettingAutoSaveInProgress();
