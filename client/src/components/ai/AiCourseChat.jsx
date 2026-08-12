@@ -4,17 +4,26 @@ import { Add as AddIcon, DeleteOutline as DeleteIcon } from '@mui/icons-material
 import { useTranslation } from 'react-i18next';
 import apiClient from '../../api/client';
 import StudentRichTextEditor from '../questions/StudentRichTextEditor';
+import { extractPlainTextFromHtml } from '../questions/richTextUtils';
 
 function formatMessageTime(value) {
   const date = new Date(value || 0);
   return Number.isNaN(date.getTime()) ? '' : date.toLocaleString();
 }
 
+function normalizeDraft(value) {
+  if (typeof value === 'string') {
+    return { html: value, plainText: extractPlainTextFromHtml(value) };
+  }
+  const html = String(value?.html || '');
+  return { html, plainText: String(value?.plainText ?? extractPlainTextFromHtml(html)) };
+}
+
 export default function AiCourseChat({ courseId }) {
   const { t } = useTranslation();
   const [conversations, setConversations] = useState([]);
   const [selected, setSelected] = useState(null);
-  const [draft, setDraft] = useState('');
+  const [draft, setDraft] = useState({ html: '', plainText: '' });
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
@@ -45,7 +54,7 @@ export default function AiCourseChat({ courseId }) {
     } catch (err) { setError(err.response?.data?.message || t('ai.chat.failedLoad')); }
   };
   const send = async () => {
-    const content = draft.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').trim();
+    const content = draft.plainText.trim();
     if (!content || sending) return;
     let conversation = selected;
     if (!conversation) {
@@ -54,8 +63,8 @@ export default function AiCourseChat({ courseId }) {
     }
     setSending(true); setError('');
     try {
-      const { data } = await apiClient.post(`/ai/courses/${courseId}/conversations/${conversation._id}/messages`, { content, contentWysiwyg: draft });
-      setSelected(data.conversation); setDraft('');
+      const { data } = await apiClient.post(`/ai/courses/${courseId}/conversations/${conversation._id}/messages`, { content, contentWysiwyg: draft.html });
+      setSelected(data.conversation); setDraft({ html: '', plainText: '' });
       setConversations((current) => [data.conversation, ...current.filter((item) => item._id !== data.conversation._id)]);
     } catch (err) { setError(err.response?.data?.message || t('ai.chat.failedSend')); }
     finally { setSending(false); }
@@ -80,8 +89,8 @@ export default function AiCourseChat({ courseId }) {
           <Typography sx={{ whiteSpace: 'pre-wrap' }}>{message.content}</Typography>
         </Paper>)}
       </Box>
-      <StudentRichTextEditor value={draft} onChange={setDraft} placeholder={t('ai.chat.messagePlaceholder')} minHeight={110} />
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}><Button variant="contained" disabled={sending || !draft.replace(/<[^>]*>/g, '').trim()} onClick={send}>{sending ? <CircularProgress size={20} color="inherit" /> : t('ai.chat.send')}</Button></Box>
+      <StudentRichTextEditor value={draft.html} onChange={(value) => setDraft(normalizeDraft(value))} placeholder={t('ai.chat.messagePlaceholder')} minHeight={110} />
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}><Button variant="contained" disabled={sending || !draft.plainText.trim()} onClick={send}>{sending ? <CircularProgress size={20} color="inherit" /> : t('ai.chat.send')}</Button></Box>
     </Paper>
   </Box>;
 }
