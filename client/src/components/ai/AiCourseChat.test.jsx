@@ -36,7 +36,7 @@ describe('AiCourseChat', () => {
       ...conversation,
       messages: [
         { _id: 'message-1', role: 'user', content: 'Can you help?', createdAt: '2026-08-12T10:00:00.000Z' },
-        { _id: 'message-2', role: 'assistant', content: 'Of course.', createdAt: '2026-08-12T10:00:01.000Z' },
+        { _id: 'message-2', role: 'assistant', content: 'Of **course**. The answer is $x^2$.', createdAt: '2026-08-12T10:00:01.000Z' },
       ],
     };
     apiClient.post
@@ -56,6 +56,7 @@ describe('AiCourseChat', () => {
         contentWysiwyg: '<p>Can you help?</p>',
       });
     });
-    expect(await screen.findByText('Of course.')).toBeInTheDocument();
+    expect(await screen.findByText('course', { selector: 'strong' })).toBeInTheDocument();
+    expect(document.querySelector('.katex')).not.toBeNull();
   });
 });
