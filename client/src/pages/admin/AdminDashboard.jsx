@@ -2289,6 +2289,29 @@ function AiHelperTab() {
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState('');
   const loadedRef = useRef(false);
+  const skipNextAutoSaveRef = useRef(false);
+  const settingsRef = useRef(settings);
+
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
+
+  const persistSettings = useCallback(async (nextSettings) => {
+    setStatus('saving');
+    setError('');
+    try {
+      const { data } = await apiClient.patch('/settings', nextSettings);
+      setSettings((current) => ({
+        ...current,
+        AI_ApiToken: '',
+        AI_ApiTokenSet: !!data.AI_ApiTokenSet,
+      }));
+      setStatus('success');
+    } catch (err) {
+      setStatus('error');
+      setError(`${err.response?.data?.message || t('admin.ai.failedSave')} ${t('profile.lastChangeNotRecorded')}`);
+    }
+  }, [t]);
 
   useEffect(() => {
     let mounted = true;
@@ -2315,25 +2338,31 @@ function AiHelperTab() {
 
   useEffect(() => {
     if (loading || !loadedRef.current) { loadedRef.current = !loading; return undefined; }
-    const timer = setTimeout(async () => {
-      setStatus('saving'); setError('');
-      try {
-        const { data } = await apiClient.patch('/settings', settings);
-        if (settings.AI_ApiToken) {
-          setSettings((current) => ({ ...current, AI_ApiToken: '', AI_ApiTokenSet: !!data.AI_ApiTokenSet }));
-        }
-        setStatus('success');
-      } catch (err) {
-        setStatus('error'); setError(`${err.response?.data?.message || t('admin.ai.failedSave')} ${t('profile.lastChangeNotRecorded')}`);
-      }
+    if (skipNextAutoSaveRef.current) {
+      skipNextAutoSaveRef.current = false;
+      return undefined;
+    }
+    const timer = setTimeout(() => {
+      persistSettings(settings);
     }, AUTO_SAVE_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [settings, loading, t]);
+  }, [settings, loading, persistSettings]);
+
+  const updateSettings = useCallback((updater, { saveImmediately = false } = {}) => {
+    const current = settingsRef.current;
+    const next = typeof updater === 'function' ? updater(current) : updater;
+    settingsRef.current = next;
+    setSettings(next);
+    if (saveImmediately) {
+      skipNextAutoSaveRef.current = true;
+      void persistSettings(next);
+    }
+  }, [persistSettings]);
 
   const enabledIds = new Set((settings.AI_EnabledCourses || []).map(String));
   const customIds = new Set((settings.AI_AllowCourseBackendCourses || []).map(String));
   const sortedCourses = useMemo(() => sortCoursesByTitle(courses), [courses]);
-  const toggleCourse = (courseId) => setSettings((current) => {
+  const toggleCourse = (courseId) => updateSettings((current) => {
     const id = String(courseId);
     const enabled = (current.AI_EnabledCourses || []).map(String);
     const isEnabled = enabled.includes(id);
@@ -2344,20 +2373,20 @@ function AiHelperTab() {
         ? (current.AI_AllowCourseBackendCourses || []).map(String).filter((value) => value !== id)
         : current.AI_AllowCourseBackendCourses,
     };
-  });
-  const toggleCustomBackend = (courseId) => setSettings((current) => {
+  }, { saveImmediately: true });
+  const toggleCustomBackend = (courseId) => updateSettings((current) => {
     const id = String(courseId);
     const values = (current.AI_AllowCourseBackendCourses || []).map(String);
     return { ...current, AI_AllowCourseBackendCourses: values.includes(id) ? values.filter((value) => value !== id) : [...values, id] };
-  });
+  }, { saveImmediately: true });
 
   if (loading) return <CircularProgress />;
   return (
     <Box sx={{ maxWidth: 980, display: 'flex', flexDirection: 'column', gap: 2 }}>
       <AutoSaveStatus status={status} errorText={error} />
-      <FormControlLabel control={<Checkbox checked={settings.AI_Enabled} onChange={(event) => setSettings((s) => ({ ...s, AI_Enabled: event.target.checked }))} />} label={t('admin.ai.enable')} />
-      <TextField disabled={!settings.AI_Enabled} label={t('admin.ai.apiUrl')} value={settings.AI_ApiUrl} onChange={(event) => setSettings((s) => ({ ...s, AI_ApiUrl: event.target.value }))} placeholder={t('admin.ai.apiUrlPlaceholder')} fullWidth />
-      <TextField disabled={!settings.AI_Enabled} type="password" label={t('admin.ai.apiToken')} value={settings.AI_ApiToken} onChange={(event) => setSettings((s) => ({ ...s, AI_ApiToken: event.target.value }))} placeholder={settings.AI_ApiTokenSet ? t('admin.ai.tokenConfigured') : t('admin.ai.apiTokenPlaceholder')} helperText={t('admin.ai.tokenHelp')} fullWidth />
+      <FormControlLabel control={<Checkbox checked={settings.AI_Enabled} onChange={(event) => updateSettings((s) => ({ ...s, AI_Enabled: event.target.checked }), { saveImmediately: true })} />} label={t('admin.ai.enable')} />
+      <TextField disabled={!settings.AI_Enabled} label={t('admin.ai.apiUrl')} value={settings.AI_ApiUrl} onChange={(event) => updateSettings((s) => ({ ...s, AI_ApiUrl: event.target.value }))} placeholder={t('admin.ai.apiUrlPlaceholder')} fullWidth />
+      <TextField disabled={!settings.AI_Enabled} type="password" label={t('admin.ai.apiToken')} value={settings.AI_ApiToken} onChange={(event) => updateSettings((s) => ({ ...s, AI_ApiToken: event.target.value }))} placeholder={settings.AI_ApiTokenSet ? t('admin.ai.tokenConfigured') : t('admin.ai.apiTokenPlaceholder')} helperText={t('admin.ai.tokenHelp')} fullWidth />
       <Typography variant="body2" color="text.secondary">{t('admin.ai.courseHelp')}</Typography>
       <Box sx={{ display: 'grid', gap: 1.25, gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' } }}>
         {sortedCourses.map((course) => {

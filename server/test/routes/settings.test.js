@@ -35,6 +35,36 @@ async function createCourseAsProfessor(token, overrides = {}) {
 }
 
 describe('PATCH /api/v1/settings', () => {
+  it('persists AI configuration and returns its API token only as a configured flag', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const admin = await createTestUser({ email: 'admin-ai-settings@example.com', roles: ['admin'] });
+    const token = await getAuthToken(app, admin);
+
+    const res = await authenticatedRequest(app, 'PATCH', '/api/v1/settings', {
+      token,
+      payload: {
+        AI_Enabled: true,
+        AI_ApiUrl: 'https://llm.example/v1',
+        AI_ApiToken: 'admin-ai-token',
+        AI_EnabledCourses: ['course-1'],
+        AI_AllowCourseBackendCourses: ['course-1'],
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({
+      AI_Enabled: true,
+      AI_ApiUrl: 'https://llm.example/v1',
+      AI_ApiToken: '',
+      AI_ApiTokenSet: true,
+      AI_EnabledCourses: ['course-1'],
+      AI_AllowCourseBackendCourses: ['course-1'],
+    });
+    const stored = await Settings.findById('settings').lean();
+    expect(stored.AI_ApiToken).toBe('admin-ai-token');
+    expect(stored.AI_EnabledCourses).toEqual(['course-1']);
+  });
+
   it('updates SSO fields even when legacy settings contain invalid storageType', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
 

@@ -466,6 +466,34 @@ describe('AdminDashboard', () => {
     expect(payload).not.toHaveProperty('storageType');
   });
 
+  it('persists AI enablement and course policy immediately before leaving the AI tab', async () => {
+    coursesState = [buildCourse()];
+    const { unmount } = renderDashboard();
+
+    fireEvent.click(await screen.findByRole('tab', { name: /^AI$/i }));
+    fireEvent.click(await screen.findByRole('checkbox', { name: /^Enable AI helper$/i }));
+
+    await waitFor(() => {
+      expect(apiClientMock.patch).toHaveBeenCalledWith('/settings', expect.objectContaining({
+        AI_Enabled: true,
+      }));
+    });
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /Course 1/i }));
+    await waitFor(() => {
+      expect(apiClientMock.patch).toHaveBeenCalledWith('/settings', expect.objectContaining({
+        AI_Enabled: true,
+        AI_EnabledCourses: ['course-1'],
+      }));
+    });
+
+    unmount();
+    renderDashboard();
+    fireEvent.click(await screen.findByRole('tab', { name: /^AI$/i }));
+    expect(await screen.findByRole('checkbox', { name: /^Enable AI helper$/i })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: /Course 1/i })).toBeChecked();
+  });
+
   it('disables and restores a user account from the Users tab', async () => {
     renderDashboard();
 
