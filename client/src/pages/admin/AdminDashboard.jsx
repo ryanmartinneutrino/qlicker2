@@ -2301,11 +2301,20 @@ function AiHelperTab() {
     setError('');
     try {
       const { data } = await apiClient.patch('/settings', nextSettings);
-      setSettings((current) => ({
-        ...current,
-        AI_ApiToken: '',
-        AI_ApiTokenSet: !!data.AI_ApiTokenSet,
-      }));
+      setSettings((current) => {
+        // Do not create a new state object when a normal save returns. Doing
+        // so restarts the autosave effect and repeatedly re-saves unchanged
+        // settings until the request rate limit is reached.
+        if (!current.AI_ApiToken && current.AI_ApiTokenSet === !!data.AI_ApiTokenSet) {
+          return current;
+        }
+        skipNextAutoSaveRef.current = true;
+        return {
+          ...current,
+          AI_ApiToken: '',
+          AI_ApiTokenSet: !!data.AI_ApiTokenSet,
+        };
+      });
       setStatus('success');
     } catch (err) {
       setStatus('error');

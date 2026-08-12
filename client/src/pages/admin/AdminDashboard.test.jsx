@@ -487,6 +487,13 @@ describe('AdminDashboard', () => {
       }));
     });
 
+    vi.useFakeTimers();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+    vi.useRealTimers();
+    expect(apiClientMock.patch.mock.calls.filter(([url]) => url === '/settings')).toHaveLength(2);
+
     unmount();
     renderDashboard();
     fireEvent.click(await screen.findByRole('tab', { name: /^AI$/i }));
