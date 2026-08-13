@@ -37,7 +37,7 @@ This repository contains the current **Fastify + React** version of Qlicker. Mig
 ### Option 1: native development
 
 ```bash
-cd /home/runner/work/qlicker-1/qlicker-1
+cd /home/runner/work/qlicker2/qlicker2
 ./scripts/setup-native.sh
 ./scripts/qlicker.sh start
 ```
@@ -47,7 +47,7 @@ The setup script prepares local `.env` values, installs dependencies, and helps 
 ### Option 2: Docker development
 
 ```bash
-cd /home/runner/work/qlicker-1/qlicker-1
+cd /home/runner/work/qlicker2/qlicker2
 ./scripts/setup-docker.sh
 docker compose up -d
 ```
@@ -66,9 +66,9 @@ On an empty database:
 ## Common development commands
 
 ```bash
-cd /home/runner/work/qlicker-1/qlicker-1/server && npm test
-cd /home/runner/work/qlicker-1/qlicker-1/client && npm test
-cd /home/runner/work/qlicker-1/qlicker-1/client && npm run build
+cd /home/runner/work/qlicker2/qlicker2/server && npm test
+cd /home/runner/work/qlicker2/qlicker2/client && npm test
+cd /home/runner/work/qlicker2/qlicker2/client && npm run build
 ```
 
 Native helper commands:
@@ -102,7 +102,7 @@ Reset a development user password directly:
 For a deployed Docker stack, use [`production_setup/manage-user.sh`](production_setup/manage-user.sh):
 
 ```bash
-cd /home/runner/work/qlicker-1/qlicker-1/production_setup
+cd /home/runner/work/qlicker2/qlicker2/production_setup
 ./manage-user.sh list
 ./manage-user.sh create --email prof@example.com --firstname Jane --lastname Smith --role professor
 ./manage-user.sh promote --email prof@example.com --role admin
@@ -125,7 +125,7 @@ The production-ready deployment package lives in [`production_setup/`](productio
 Start with:
 
 ```bash
-cd /home/runner/work/qlicker-1/qlicker-1/production_setup
+cd /home/runner/work/qlicker2/qlicker2/production_setup
 ./setup.sh
 docker compose up -d
 ```
@@ -146,7 +146,7 @@ Qlicker is designed to run against the existing MongoDB data model used by the M
 ### Production migration helper
 
 ```bash
-cd /home/runner/work/qlicker-1/qlicker-1/production_setup
+cd /home/runner/work/qlicker2/qlicker2/production_setup
 ./init-from-legacy.sh
 ```
 
@@ -163,7 +163,7 @@ See:
 Production backup tooling lives in [`production_setup/`](production_setup/):
 
 ```bash
-cd /home/runner/work/qlicker-1/qlicker-1/production_setup
+cd /home/runner/work/qlicker2/qlicker2/production_setup
 ./backup.sh
 ./restore.sh
 ```
@@ -175,7 +175,7 @@ The deployment also supports scheduled backups via the backup manager and the Ad
 The load-testing suite exercises realistic live-session and chat traffic with k6:
 
 ```bash
-cd /home/runner/work/qlicker-1/qlicker-1/load-testing
+cd /home/runner/work/qlicker2/qlicker2/load-testing
 ./setup.sh
 ./run.sh --prepare
 ./run.sh
