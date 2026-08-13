@@ -595,6 +595,7 @@
       "students": "学生",
       "instructors": "教师",
       "settings": "设置",
+      "aiModel": "AI 模型",
       "groups": "分组",
       "addStudent": "添加学生",
       "addInstructor": "添加教师",

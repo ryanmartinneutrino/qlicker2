@@ -19,7 +19,7 @@ import {
 import { useTheme } from '@mui/material/styles';
 import apiClient, { getUsableAccessToken } from '../../api/client';
 import { closeWebSocketQuietly } from '../../utils/liveSocket';
-import { hasIncompleteAiBackend } from '../../utils/aiBackends';
+import { getAvailableAiModels, hasIncompleteAiBackend } from '../../utils/aiBackends';
 import { isCurrentUserCourseInstructorOrAdmin } from '../../utils/courseAccess';
 import { buildCourseSelectionLabel, buildCourseTitle, sortCoursesByRecent } from '../../utils/courseTitle';
 import {
@@ -1064,8 +1064,8 @@ export default function CourseDetail() {
     }
   }, [id, t]);
 
-  const handleAiConfigChange = (updates) => {
-    setAiConfig((current) => (current ? { ...current, ...updates } : current));
+  const handleAiConfigChange = (updates, localUpdates = updates) => {
+    setAiConfig((current) => (current ? { ...current, ...localUpdates } : current));
     aiConfigUpdatesRef.current = { ...aiConfigUpdatesRef.current, ...updates };
     clearTimeout(aiConfigSaveTimerRef.current);
     markSettingAutoSaveInProgress();
@@ -1083,6 +1083,20 @@ export default function CourseDetail() {
       return;
     }
     handleAiConfigChange({ [field]: value });
+  };
+
+  const handleAiCourseDefaultChange = (defaultBackendId, defaultModelId) => {
+    handleAiConfigChange({
+      defaultBackendId,
+      defaultModelId,
+      selectedBackendId: defaultBackendId,
+      selectedModelId: defaultModelId,
+    }, {
+      courseDefaultBackendId: defaultBackendId,
+      courseDefaultModelId: defaultModelId,
+      selectedBackendId: defaultBackendId,
+      selectedModelId: defaultModelId,
+    });
   };
 
   useEffect(() => () => {
@@ -1972,10 +1986,10 @@ export default function CourseDetail() {
                   const [selectedBackendId, selectedModelId] = event.target.value.split('::');
                   handleAiConfigChange({ selectedBackendId, selectedModelId });
                 }} fullWidth>
-                  {[...aiConfig.adminBackends, ...aiConfig.courseBackends].flatMap((backend) => backend.models.map((model) => <MenuItem key={`${backend.id}-${model.id}`} value={`${backend.id}::${model.id}`}>{`${backend.name || backend.url} — ${model.name}`}</MenuItem>))}
+                  {getAvailableAiModels([...aiConfig.adminBackends, ...aiConfig.courseBackends]).map(({ backend, model }) => <MenuItem key={`${backend.id}-${model.id}`} value={`${backend.id}::${model.id}`}>{`${backend.name || backend.url} — ${model.name}`}</MenuItem>)}
                 </TextField>
                 <Typography variant="body2" color="text.secondary">{t('professor.course.aiBackendHelp')}</Typography>
-                <AiBackendManager backends={aiConfig.courseBackends} courseId={id} canAddBackends={aiCoursePolicy.allowCourseBackend} onChange={(backends) => { setAiConfig((current) => ({ ...current, courseBackends: backends })); handleAiBackendChange('backends', backends); }} defaultBackendId={aiConfig.courseDefaultBackendId} defaultModelId={aiConfig.courseDefaultModelId} onDefaultChange={(defaultBackendId, defaultModelId) => { handleAiBackendChange('defaultBackendId', defaultBackendId); handleAiBackendChange('defaultModelId', defaultModelId); }} />
+                <AiBackendManager backends={aiConfig.courseBackends} courseId={id} canAddBackends={aiCoursePolicy.allowCourseBackend} onChange={(backends) => { setAiConfig((current) => ({ ...current, courseBackends: backends })); handleAiBackendChange('backends', backends); }} defaultBackendId={aiConfig.courseDefaultBackendId} defaultModelId={aiConfig.courseDefaultModelId} onDefaultChange={handleAiCourseDefaultChange} />
               </>
             ) : (
               <>

@@ -611,6 +611,7 @@
       "instructors": "Instructors",
       "settings": "Settings",
       "aiSettings": "AI settings",
+      "aiModel": "AI model",
       "enableAiHelper": "Enable AI helper",
       "aiNotAvailable": "AI helper is not enabled for this course by the administrator.",
       "aiBackendHelp": "Configure the OpenAI-compatible backend used only by this course.",
