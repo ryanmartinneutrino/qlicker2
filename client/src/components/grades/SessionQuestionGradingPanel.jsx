@@ -30,6 +30,7 @@ import {
 import { Check as CheckIcon, Close as CloseIcon, Refresh as RefreshIcon, Speed as SpeedIcon } from '@mui/icons-material';
 import apiClient from '../../api/client';
 import SpeedGradingModal from './SpeedGradingModal';
+import AiGradingModal from './AiGradingModal';
 import {
   QUESTION_TYPES,
   TYPE_COLORS,
@@ -634,6 +635,7 @@ const GradingTableRow = memo(function GradingTableRow({
 
 export default function SessionQuestionGradingPanel({
   sessionId,
+  courseId,
   session = null,
   questions = [],
   studentResults = [],
@@ -660,6 +662,9 @@ export default function SessionQuestionGradingPanel({
   const [bulkFeedback, setBulkFeedback] = useState('');
   const [bulkApplying, setBulkApplying] = useState(false);
   const [showSolution, setShowSolution] = useState(false);
+  const [aiGradingOpen, setAiGradingOpen] = useState(false);
+  const [aiGradingJob, setAiGradingJob] = useState(null);
+  const [aiGradingReportOpen, setAiGradingReportOpen] = useState(false);
   const [recalculating, setRecalculating] = useState(false);
   const [questionPointsDraft, setQuestionPointsDraft] = useState('');
   const [questionPointsDialogOpen, setQuestionPointsDialogOpen] = useState(false);
@@ -803,6 +808,18 @@ export default function SessionQuestionGradingPanel({
       };
     });
   }, [gradesByStudentId, isQuizSession, questions, studentResults]);
+
+  useEffect(() => {
+    if (!courseId || !sessionId) return undefined;
+    let mounted = true;
+    const load = () => apiClient.get(`/ai/courses/${courseId}/sessions/${sessionId}/ai-grading`)
+      .then(({ data }) => { if (mounted) setAiGradingJob(data.job || null); }).catch(() => {});
+    load();
+    const timer = setInterval(() => {
+      if (aiGradingJob?.status === 'queued' || aiGradingJob?.status === 'running') load();
+    }, 2500);
+    return () => { mounted = false; clearInterval(timer); };
+  }, [courseId, sessionId, aiGradingJob?.status]);
 
   const allRows = useMemo(() => {
     if (!activeQuestion) return [];
@@ -1607,6 +1624,17 @@ export default function SessionQuestionGradingPanel({
       {renderQuestionRibbon()}
       <Divider sx={{ mb: 1.5 }} />
 
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+        {['queued', 'running'].includes(aiGradingJob?.status) ? (
+          <Typography variant="body2">{t('grades.aiGrading.inProgress', { completed: aiGradingJob.completed || 0, total: aiGradingJob.total || 0 })}</Typography>
+        ) : (
+          <Button variant="outlined" onClick={() => setAiGradingOpen(true)} disabled={gradingLocked}>
+            {t('grades.aiGrading.assistant')}
+          </Button>
+        )}
+        {aiGradingJob?.status === 'completed' ? <Button variant="outlined" onClick={() => setAiGradingReportOpen(true)}>{t('grades.aiGrading.report')}</Button> : null}
+      </Box>
+
       <Paper variant="outlined" sx={{ p: 1.25, mb: 1.5 }}>
         <Typography variant="subtitle2" sx={{ mb: 1 }}>
           {t('grades.questionPanel.bulkUpdateSelected', {
@@ -1871,6 +1899,24 @@ export default function SessionQuestionGradingPanel({
         onSaveGrade={handleSpeedGradingSave}
         formatOutOf={(mark) => t('grades.questionPanel.outOf', { value: formatPercent(mark?.outOf || 0) })}
       />
+      <AiGradingModal
+        open={aiGradingOpen}
+        onClose={() => setAiGradingOpen(false)}
+        courseId={courseId}
+        sessionId={sessionId}
+        questions={questions}
+        needsGradingQuestionIds={questionStatuses.filter((entry) => entry.needsGradingCount > 0).map((entry) => entry.questionId)}
+        onStarted={setAiGradingJob}
+      />
+      <Dialog open={aiGradingReportOpen} onClose={() => setAiGradingReportOpen(false)} fullWidth maxWidth="md">
+        <DialogTitle>{t('grades.aiGrading.report')}</DialogTitle>
+        <DialogContent dividers>
+          <Typography sx={{ mb: 2 }}>{aiGradingJob?.report?.summary || t('grades.aiGrading.completed')}</Typography>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>{t('grades.aiGrading.log')}</Typography>
+          {(aiGradingJob?.log || []).map((entry, index) => <Paper key={index} variant="outlined" sx={{ p: 1, mb: 1 }}><Typography variant="caption">Q{entry.questionId} · {entry.studentId}</Typography><Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{entry.response}</Typography></Paper>)}
+        </DialogContent>
+        <DialogActions><Button onClick={() => setAiGradingReportOpen(false)}>{t('common.close')}</Button></DialogActions>
+      </Dialog>
     </Box>
   );
 }

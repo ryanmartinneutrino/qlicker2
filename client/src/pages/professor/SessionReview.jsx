@@ -1563,6 +1563,7 @@ export default function SessionReview() {
       <TabPanel value={tab} index={2}>
         <SessionQuestionGradingPanel
           sessionId={sessionId}
+          courseId={courseId}
           session={session}
           questions={questions.filter((question) => !isSlideType(normalizeQuestionType(question)))}
           studentResults={groupFilteredStudentResults}
