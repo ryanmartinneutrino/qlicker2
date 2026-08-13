@@ -5,7 +5,8 @@ import Question from '../../src/models/Question.js';
 import ResponseModel from '../../src/models/Response.js';
 import Session from '../../src/models/Session.js';
 import Settings from '../../src/models/Settings.js';
-import { getQuestionResponses } from '../../src/services/aiCourseTools.js';
+import Grade from '../../src/models/Grade.js';
+import { getQuestionResponses, getSessionGradeTable } from '../../src/services/aiCourseTools.js';
 import { authenticatedRequest, createApp, createTestUser, getAuthToken } from '../helpers.js';
 
 let app;
@@ -109,7 +110,7 @@ describe('AI course configuration and chat', () => {
     expect(message.json().conversation.messages.at(-1).content).toBe('Ada Lovelace is enrolled in the course.');
     expect(fetch).toHaveBeenCalledTimes(2);
     const secondRequest = JSON.parse(fetch.mock.calls[1][1].body);
-    expect(secondRequest.tools.map((tool) => tool.function.name)).toEqual(expect.arrayContaining(['list_course_students', 'list_course_sessions', 'get_session_questions', 'get_question_responses']));
+    expect(secondRequest.tools.map((tool) => tool.function.name)).toEqual(expect.arrayContaining(['list_course_students', 'list_course_sessions', 'get_session_questions', 'get_question_responses', 'get_session_grade_table']));
     expect(secondRequest.messages.some((entry) => entry.role === 'tool' && entry.content.includes('student@example.com'))).toBe(true);
   });
 
@@ -130,5 +131,28 @@ describe('AI course configuration and chat', () => {
     expect(result.attempt).toBe(2);
     expect(result.responses).toHaveLength(1);
     expect(result.responses[0]).toMatchObject({ answer: '4', student: { name: 'Grace Hopper', email: 'attempt-student@example.com' } });
+  });
+
+  it('returns a bounded, sortable session grade table with question summaries', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const professor = await createTestUser({ email: 'grade-table-prof@example.com', roles: ['professor'] });
+    const ada = await createTestUser({ email: 'grade-table-ada@example.com', firstname: 'Ada', lastname: 'Lovelace' });
+    const grace = await createTestUser({ email: 'grade-table-grace@example.com', firstname: 'Grace', lastname: 'Hopper' });
+    const token = await getAuthToken(app, professor);
+    const course = await createCourse(token);
+    await Course.findByIdAndUpdate(course._id, { $addToSet: { students: { $each: [ada._id, grace._id] } } });
+    const firstQuestion = await Question.create({ type: 1, plainText: 'First question', creator: professor._id, courseId: course._id });
+    const secondQuestion = await Question.create({ type: 1, plainText: 'Second question', creator: professor._id, courseId: course._id });
+    const session = await Session.create({ name: 'L2', courseId: course._id, creator: professor._id, status: 'done', questions: [firstQuestion._id, secondQuestion._id] });
+    await Grade.create([
+      { userId: ada._id, courseId: course._id, sessionId: session._id, points: 1, outOf: 2, marks: [{ questionId: firstQuestion._id, points: 1, outOf: 1 }, { questionId: secondQuestion._id, points: 0, outOf: 1 }] },
+      { userId: grace._id, courseId: course._id, sessionId: session._id, points: 2, outOf: 2, marks: [{ questionId: firstQuestion._id, points: 1, outOf: 1 }, { questionId: secondQuestion._id, points: 1, outOf: 1 }] },
+    ]);
+
+    const result = await getSessionGradeTable(course._id, session._id, { limit: 1, sortBy: 'total_points', order: 'desc' });
+
+    expect(result).toMatchObject({ student_count: 2, returned_count: 1, next_offset: 1 });
+    expect(result.students[0]).toMatchObject({ student: { name: 'Grace Hopper' }, total_points: 2, total_out_of: 2 });
+    expect(result.question_summaries[1]).toMatchObject({ number: 2, average_points: 0.5, average_percentage: 50 });
   });
 });
