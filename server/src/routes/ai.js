@@ -164,14 +164,18 @@ export default async function aiRoutes(app) {
   app.get('/courses/:courseId/grading-instructions', { preHandler: authenticate }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
     const instructions = await AiGradingInstruction.find({ courseId: course._id }).sort({ kind: 1, name: 1 }).lean();
-    return { instructions: [{ _id: 'no-feedback', kind: 'feedback', name: 'Do not give feedback', content: 'Leave the feedback blank.' }, ...instructions] };
+    return { instructions: [
+      { _id: 'no-feedback', kind: 'feedback', name: 'Do not give feedback', content: 'Leave the feedback blank.' },
+      { _id: 'basic-summary', kind: 'summary', name: 'Basic summary', content: 'Summarize the student responses to identify up to five themes in the student responses. Give a few example quoted responses for the students for each theme.' },
+      ...instructions,
+    ] };
   });
 
   app.post('/courses/:courseId/grading-instructions', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
     const { _id, kind, name, content } = request.body || {};
     if (!['grading', 'feedback', 'summary'].includes(kind) || !String(name || '').trim() || !String(content || '').trim()) return reply.code(400).send({ error: 'Bad Request', message: 'Instruction type, name, and content are required' });
-    const filter = _id && _id !== 'no-feedback' ? { _id, courseId: course._id } : { courseId: course._id, kind, name: String(name).trim() };
+    const filter = _id && !['no-feedback', 'basic-summary'].includes(_id) ? { _id, courseId: course._id } : { courseId: course._id, kind, name: String(name).trim() };
     const instruction = await AiGradingInstruction.findOneAndUpdate(filter, { $set: { courseId: course._id, kind, name: String(name).trim(), content: String(content).trim() } }, { upsert: true, new: true, runValidators: true });
     return { instruction };
   });
