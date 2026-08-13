@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Box, Typography, Button, Paper, Alert, CircularProgress, Chip, Collapse,
-  Switch, FormControlLabel, Table, TableBody, TableCell, TableContainer,
+  Switch, FormControlLabel, Table, TableBody, TableCell, TableContainer, Dialog, DialogActions, DialogContent, DialogTitle,
   TableHead, TableRow, TableSortLabel, LinearProgress, TextField, Autocomplete,
 } from '@mui/material';
 import {
@@ -598,6 +598,10 @@ export default function SessionReview() {
   const [expandedNURows, setExpandedNURows] = useState({});
   const [wordCloudByRow, setWordCloudByRow] = useState({});
   const [histogramByRow, setHistogramByRow] = useState({});
+  const [aiSummaries, setAiSummaries] = useState({});
+  const [summaryQuestion, setSummaryQuestion] = useState(null);
+  const [summaryInstruction, setSummaryInstruction] = useState('Summarize the student responses to identify up to five themes in the student responses. Give a few example quoted responses for the students for each theme.');
+  const [summaryView, setSummaryView] = useState(null);
   const requestedReturnTab = Number.parseInt(searchParams.get('returnTab') || '', 10);
   const resolvedReturnTab = Number.isInteger(requestedReturnTab) && requestedReturnTab >= 0 ? requestedReturnTab : 0;
   const backToCoursePath = resolvedReturnTab > 0
@@ -643,6 +647,10 @@ export default function SessionReview() {
       setLoading(false);
     }
   }, [courseId, sessionId, t]);
+
+  useEffect(() => { if (!questions.length) return undefined; let mounted = true; const load = () => Promise.all(questions.filter((q) => normalizeQuestionType(q) === QUESTION_TYPES.SHORT_ANSWER).map((q) => apiClient.get(`/ai/courses/${courseId}/sessions/${sessionId}/questions/${q._id}/ai-summary`).then(({ data }) => [q._id, data.summary]).catch(() => [q._id, null]))).then((entries) => { if (mounted) setAiSummaries(Object.fromEntries(entries)); }); load(); const timer = setInterval(load, 2500); return () => { mounted = false; clearInterval(timer); }; }, [courseId, sessionId, questions]);
+
+  const startSummary = async () => { const { data } = await apiClient.post(`/ai/courses/${courseId}/sessions/${sessionId}/questions/${summaryQuestion._id}/ai-summary`, { instruction: summaryInstruction }); setAiSummaries((current) => ({ ...current, [summaryQuestion._id]: data.summary })); setSummaryQuestion(null); };
 
   useEffect(() => { fetchResults(); }, [fetchResults]);
 
@@ -1245,6 +1253,7 @@ export default function SessionReview() {
                       variant="outlined"
                       sx={COMPACT_CHIP_SX}
                     />
+                    {qT === QUESTION_TYPES.SHORT_ANSWER && <Box sx={{ ml: 'auto' }}>{['queued', 'running'].includes(aiSummaries[q._id]?.status) ? <Box sx={{ minWidth: 180 }}><Typography variant="caption">{t('professor.sessionReview.aiSummaryInProgress', { completed: aiSummaries[q._id]?.completed || 0, total: aiSummaries[q._id]?.total || 0 })}</Typography><LinearProgress variant="determinate" value={aiSummaries[q._id]?.total ? (aiSummaries[q._id]?.completed || 0) / aiSummaries[q._id].total * 100 : 0} /></Box> : aiSummaries[q._id]?.status === 'completed' ? <Button size="small" variant="outlined" onClick={() => setSummaryView(aiSummaries[q._id])}>{t('professor.sessionReview.viewAiResponseSummary')}</Button> : <Button size="small" variant="outlined" onClick={() => setSummaryQuestion(q)}>{t('professor.sessionReview.generateAiResponseSummary')}</Button>}</Box>}
                   </Box>
 
                   {/* Question content */}
@@ -1634,6 +1643,8 @@ export default function SessionReview() {
           />
         </TabPanel>
       ) : null}
+      <Dialog open={!!summaryQuestion} onClose={() => setSummaryQuestion(null)} fullWidth maxWidth="sm"><DialogTitle>{t('professor.sessionReview.generateAiResponseSummary')}</DialogTitle><DialogContent dividers><TextField fullWidth multiline minRows={5} label={t('professor.sessionReview.summaryInstructions')} value={summaryInstruction} onChange={(event) => setSummaryInstruction(event.target.value)} /><Typography variant="caption" color="text.secondary">{t('professor.sessionReview.basicSummaryHelp')}</Typography></DialogContent><DialogActions><Button onClick={() => setSummaryQuestion(null)}>{t('common.cancel')}</Button><Button variant="contained" disabled={!summaryInstruction.trim()} onClick={startSummary}>{t('professor.sessionReview.generateAiResponseSummary')}</Button></DialogActions></Dialog>
+      <Dialog open={!!summaryView} onClose={() => setSummaryView(null)} fullWidth maxWidth="md"><DialogTitle>{t('professor.sessionReview.viewAiResponseSummary')}</DialogTitle><DialogContent dividers><Typography sx={{ whiteSpace: 'pre-wrap' }}>{summaryView?.summary}</Typography></DialogContent><DialogActions><Button onClick={() => setSummaryView(null)}>{t('common.close')}</Button></DialogActions></Dialog>
     </Box>
   );
 }

@@ -1041,6 +1041,11 @@
       "selectGroupFilter": "Group",
       "showResponses": "Show Responses",
       "hideResponses": "Hide Responses"
+      ,"generateAiResponseSummary": "Generate AI Response summary"
+      ,"viewAiResponseSummary": "View AI response summary"
+      ,"summaryInstructions": "Summary instructions"
+      ,"basicSummaryHelp": "Basic summary identifies up to five response themes and example quotations."
+      ,"aiSummaryInProgress": "Generating summary: student {{completed}} of {{total}}"
     },
     "secondDesktop": {
       "joinCode": "Join Code",
