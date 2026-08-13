@@ -1449,9 +1449,21 @@ export default function SessionQuestionGradingPanel({
         borderColor: 'divider',
         borderRadius: 1,
         p: 1,
+        position: 'relative',
       }}
     >
-      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75, fontWeight: 700 }}>
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        sx={{
+          position: 'absolute',
+          top: -10,
+          left: 8,
+          px: 0.5,
+          bgcolor: 'background.paper',
+          fontWeight: 700,
+        }}
+      >
         {t('grades.questionPanel.questionNavigator')}
       </Typography>
       <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
