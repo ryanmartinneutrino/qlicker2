@@ -1566,6 +1566,7 @@
       "noQuestions": "В этой сессии нет вопросов для оценивания.",
       "questionGradingTable": "Таблица оценивания вопроса",
       "questionNumber": "Вопрос {{number}}",
+      "questionNavigator": "Навигатор вопросов",
       "searchStudents": "Поиск студентов",
       "searchAnswerContent": "Поиск по содержимому ответа",
       "onlyNeedsGrading": "Только требующие оценки",

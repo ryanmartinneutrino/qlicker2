@@ -1592,6 +1592,7 @@
       "noQuestions": "This session has no questions to grade.",
       "questionGradingTable": "Question grading table",
       "questionNumber": "Question {{number}}",
+      "questionNavigator": "Question navigator",
       "searchStudents": "Search students",
       "searchAnswerContent": "Search answer content",
       "onlyNeedsGrading": "Only needs grading",

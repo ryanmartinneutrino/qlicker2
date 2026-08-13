@@ -1566,6 +1566,7 @@
       "noQuestions": "Cette séance n'a pas de questions à évaluer.",
       "questionGradingTable": "Tableau d'évaluation des questions",
       "questionNumber": "Question {{number}}",
+      "questionNavigator": "Navigation entre les questions",
       "searchStudents": "Rechercher des étudiants",
       "searchAnswerContent": "Rechercher le contenu des réponses",
       "onlyNeedsGrading": "Uniquement à évaluer",

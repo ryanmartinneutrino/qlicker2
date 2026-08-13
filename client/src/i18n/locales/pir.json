@@ -1566,6 +1566,7 @@
       "noQuestions": "This voyage has nay riddles to ledger.",
       "questionGradingTable": "Riddle reckonin' table",
       "questionNumber": "Riddle {{number}}",
+      "questionNavigator": "Riddle navigator",
       "searchStudents": "Hunt crew",
       "searchAnswerContent": "Hunt answer content",
       "onlyNeedsGrading": "Only needs reckonin'",

@@ -1566,6 +1566,7 @@
       "noQuestions": "Questa sessione non ha domande da valutare.",
       "questionGradingTable": "Tabella di valutazione della domanda",
       "questionNumber": "Domanda {{number}}",
+      "questionNavigator": "Navigatore delle domande",
       "searchStudents": "Cerca studenti",
       "searchAnswerContent": "Cerca nel contenuto delle risposte",
       "onlyNeedsGrading": "Solo da valutare",

@@ -1566,6 +1566,7 @@
       "noQuestions": "Esta sesión no tiene preguntas para calificar.",
       "questionGradingTable": "Tabla de calificación de la pregunta",
       "questionNumber": "Pregunta {{number}}",
+      "questionNavigator": "Navegador de preguntas",
       "searchStudents": "Buscar estudiantes",
       "searchAnswerContent": "Buscar contenido de respuesta",
       "onlyNeedsGrading": "Solo requiere calificación",

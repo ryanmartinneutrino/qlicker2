@@ -12,6 +12,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   FormControlLabel,
   IconButton,
   Paper,
@@ -1439,10 +1440,10 @@ export default function SessionQuestionGradingPanel({
 
   const renderQuestionRibbon = () => (
     <Box
+      component="nav"
+      aria-label={t('grades.questionPanel.questionNavigator')}
       sx={{
         display: 'flex',
-        gap: 0.75,
-        flexWrap: 'wrap',
         mb: 1.5,
         border: 1,
         borderColor: 'divider',
@@ -1450,24 +1451,29 @@ export default function SessionQuestionGradingPanel({
         p: 1,
       }}
     >
-      {questionStatuses.map((entry) => {
-        const isActive = entry.questionId === activeQuestionId;
-        const needsGrading = entry.needsGradingCount > 0;
-        return (
-          <Chip
-            key={entry.questionId}
-            clickable
-            onClick={() => {
-              setActiveQuestionId(entry.questionId);
-              setShowSolution(false);
-            }}
-            label={needsGrading ? `${entry.label} (${entry.needsGradingCount})` : entry.label}
-            color={needsGrading ? 'error' : 'success'}
-            variant={isActive ? 'filled' : 'outlined'}
-            sx={COMPACT_CHIP_SX}
-          />
-        );
-      })}
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75, fontWeight: 700 }}>
+        {t('grades.questionPanel.questionNavigator')}
+      </Typography>
+      <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+        {questionStatuses.map((entry) => {
+          const isActive = entry.questionId === activeQuestionId;
+          const needsGrading = entry.needsGradingCount > 0;
+          return (
+            <Chip
+              key={entry.questionId}
+              clickable
+              onClick={() => {
+                setActiveQuestionId(entry.questionId);
+                setShowSolution(false);
+              }}
+              label={needsGrading ? `${entry.label} (${entry.needsGradingCount})` : entry.label}
+              color={needsGrading ? 'error' : 'success'}
+              variant={isActive ? 'filled' : 'outlined'}
+              sx={COMPACT_CHIP_SX}
+            />
+          );
+        })}
+      </Box>
     </Box>
   );
 
@@ -1485,9 +1491,7 @@ export default function SessionQuestionGradingPanel({
         </Alert>
       )}
 
-      {renderQuestionRibbon()}
-
-      <Paper variant="outlined" sx={{ p: 1.5, mb: 1.5 }}>
+      <Paper variant="outlined" sx={{ p: 1.5, mb: 1.5, borderColor: 'primary.main', borderLeftWidth: 4 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 1 }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
             {t('grades.questionPanel.questionNumber', { number: questions.findIndex((question) => String(question?._id) === activeQuestionId) + 1 })}
@@ -1589,6 +1593,7 @@ export default function SessionQuestionGradingPanel({
       </Paper>
 
       {renderQuestionRibbon()}
+      <Divider sx={{ mb: 1.5 }} />
 
       <Paper variant="outlined" sx={{ p: 1.25, mb: 1.5 }}>
         <Typography variant="subtitle2" sx={{ mb: 1 }}>

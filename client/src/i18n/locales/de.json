@@ -1566,6 +1566,7 @@
       "noQuestions": "Diese Sitzung enthält keine Fragen zur Bewertung.",
       "questionGradingTable": "Fragen-Bewertungstabelle",
       "questionNumber": "Frage {{number}}",
+      "questionNavigator": "Fragen-Navigation",
       "searchStudents": "Studierende suchen",
       "searchAnswerContent": "Antwortinhalt durchsuchen",
       "onlyNeedsGrading": "Nur bewertungsbedürftige",
