@@ -4,6 +4,7 @@ import Question from '../models/Question.js';
 import Response from '../models/Response.js';
 import Session from '../models/Session.js';
 import Settings from '../models/Settings.js';
+import User from '../models/User.js';
 import AiGradingJob from '../models/AiGradingJob.js';
 import { normalizeAiBackends, requestAiCompletion } from './ai.js';
 import { recomputeGradeAggregates } from './grading.js';
@@ -23,6 +24,11 @@ function resolveModel(course, settings) {
 
 function plainText(value) {
   return String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function studentName(user, grade) {
+  const name = `${user?.profile?.firstname || ''} ${user?.profile?.lastname || ''}`.trim();
+  return name || user?.emails?.[0]?.address || grade?.name || 'Student';
 }
 
 function parseGrade(content, maxPoints) {
@@ -50,13 +56,17 @@ export async function runAiGradingJob(jobId) {
     if (!selected) throw new Error('No available AI model is selected for this course');
     const questions = await Question.find({ _id: { $in: job.questionIds } }).lean();
     const grades = await Grade.find({ sessionId: job.sessionId, courseId: job.courseId });
-    job.total = grades.length * questions.length; await job.save();
+    const users = await User.find({ _id: { $in: grades.map((grade) => grade.userId) } }).lean();
+    const usersById = new Map(users.map((user) => [String(user._id), user]));
+    job.total = grades.length * questions.length; job.questionTotal = questions.length; job.studentTotal = grades.length; await job.save();
     const summaries = {};
-    for (const question of questions) {
+    for (const [questionIndex, question] of questions.entries()) {
+      job.currentQuestion = questionIndex + 1; job.currentStudent = 0; await job.save();
       const maxPoints = Number(question?.sessionOptions?.points ?? question?.points ?? 0);
       summaries[question._id] = { graded: 0, zeroed: 0, issues: [] };
       const responses = await Response.find({ questionId: question._id }).lean();
-      for (const grade of grades) {
+      for (const [studentIndex, grade] of grades.entries()) {
+        job.currentStudent = studentIndex + 1; await job.save();
         const markIndex = grade.marks.findIndex((mark) => String(mark.questionId) === String(question._id));
         if (markIndex < 0 || (!job.regrade && !grade.marks[markIndex].needsGrading)) { job.completed += 1; continue; }
         const joined = session.quiz ? session.submittedQuiz?.includes(grade.userId) : session.joined?.includes(grade.userId);
@@ -74,7 +84,7 @@ export async function runAiGradingJob(jobId) {
           ].filter(Boolean).join('\n');
           const content = await requestAiCompletion(selected.backend, selected.model.id, [{ role: 'user', content: prompt }]);
           result = parseGrade(content, maxPoints);
-          job.log.push({ questionId: question._id, studentId: grade.userId, prompt, response: content });
+          job.log.push({ question: `Q${questionIndex + 1}`, student: studentName(usersById.get(String(grade.userId)), grade), points: result.points, outOf: maxPoints, feedback: result.feedback, prompt, response: content });
           summaries[question._id].graded += 1;
         } else summaries[question._id].zeroed += 1;
         grade.marks[markIndex].points = result.points;
@@ -86,6 +96,6 @@ export async function runAiGradingJob(jobId) {
         job.completed += 1; await job.save();
       }
     }
-    job.status = 'completed'; job.report = { summaries, summary: `AI grading completed for ${questions.length} question(s).` }; await job.save();
+    job.status = 'completed'; job.report = { summaries: questions.map((question, index) => ({ question: `Q${index + 1}`, ...summaries[question._id] })), summary: `AI grading completed for ${questions.length} question(s).` }; await job.save();
   } catch (error) { job.status = 'failed'; job.error = error.message || 'AI grading failed'; await job.save(); }
 }

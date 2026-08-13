@@ -15,6 +15,7 @@ import {
   Divider,
   FormControlLabel,
   IconButton,
+  LinearProgress,
   Paper,
   Table,
   TableBody,
@@ -813,13 +814,13 @@ export default function SessionQuestionGradingPanel({
     if (!courseId || !sessionId) return undefined;
     let mounted = true;
     const load = () => apiClient.get(`/ai/courses/${courseId}/sessions/${sessionId}/ai-grading`)
-      .then(({ data }) => { if (mounted) setAiGradingJob(data.job || null); }).catch(() => {});
+      .then(({ data }) => { if (mounted) { setAiGradingJob(data.job || null); if (['queued', 'running', 'completed'].includes(data.job?.status)) { fetchSessionGrades(); onSessionDataRefresh?.(); } } }).catch(() => {});
     load();
     const timer = setInterval(() => {
       if (aiGradingJob?.status === 'queued' || aiGradingJob?.status === 'running') load();
     }, 2500);
     return () => { mounted = false; clearInterval(timer); };
-  }, [courseId, sessionId, aiGradingJob?.status]);
+  }, [courseId, sessionId, aiGradingJob?.status, fetchSessionGrades, onSessionDataRefresh]);
 
   const allRows = useMemo(() => {
     if (!activeQuestion) return [];
@@ -1626,7 +1627,7 @@ export default function SessionQuestionGradingPanel({
 
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
         {['queued', 'running'].includes(aiGradingJob?.status) ? (
-          <Typography variant="body2">{t('grades.aiGrading.inProgress', { completed: aiGradingJob.completed || 0, total: aiGradingJob.total || 0 })}</Typography>
+          <Box sx={{ minWidth: 320, flex: 1 }}><Typography variant="body2" sx={{ mb: 0.5 }}>{t('grades.aiGrading.inProgress', { student: aiGradingJob.currentStudent || 0, students: aiGradingJob.studentTotal || 0, question: aiGradingJob.currentQuestion || 0, questions: aiGradingJob.questionTotal || 0 })}</Typography><LinearProgress variant="determinate" value={aiGradingJob.total ? Math.round((aiGradingJob.completed || 0) / aiGradingJob.total * 100) : 0} /></Box>
         ) : (
           <Button variant="outlined" onClick={() => setAiGradingOpen(true)} disabled={gradingLocked}>
             {t('grades.aiGrading.assistant')}
@@ -1912,8 +1913,9 @@ export default function SessionQuestionGradingPanel({
         <DialogTitle>{t('grades.aiGrading.report')}</DialogTitle>
         <DialogContent dividers>
           <Typography sx={{ mb: 2 }}>{aiGradingJob?.report?.summary || t('grades.aiGrading.completed')}</Typography>
+          {(aiGradingJob?.report?.summaries || []).map((summary) => <Typography key={summary.question} variant="body2" sx={{ mb: 0.5 }}>{t('grades.aiGrading.reportSummary', { question: summary.question, graded: summary.graded, zeroed: summary.zeroed })}</Typography>)}
           <Typography variant="subtitle2" sx={{ mb: 1 }}>{t('grades.aiGrading.log')}</Typography>
-          {(aiGradingJob?.log || []).map((entry, index) => <Paper key={index} variant="outlined" sx={{ p: 1, mb: 1 }}><Typography variant="caption">Q{entry.questionId} · {entry.studentId}</Typography><Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{entry.response}</Typography></Paper>)}
+          {(aiGradingJob?.log || []).map((entry, index) => <Paper key={index} variant="outlined" sx={{ p: 1, mb: 1 }}><Typography variant="subtitle2">{entry.question} · {entry.student}</Typography><Typography variant="body2">{t('grades.aiGrading.assignedGrade', { points: entry.points, outOf: entry.outOf })}</Typography>{entry.feedback ? <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mt: 0.5 }}>{entry.feedback}</Typography> : null}</Paper>)}
         </DialogContent>
         <DialogActions><Button onClick={() => setAiGradingReportOpen(false)}>{t('common.close')}</Button></DialogActions>
       </Dialog>
