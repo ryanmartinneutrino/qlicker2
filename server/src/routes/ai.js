@@ -174,6 +174,12 @@ export default async function aiRoutes(app) {
     return { instruction };
   });
 
+  app.delete('/courses/:courseId/grading-instructions/:instructionId', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
+    const course = await instructorCourse(request, reply); if (!course) return undefined;
+    await AiGradingInstruction.deleteOne({ _id: request.params.instructionId, courseId: course._id });
+    return reply.code(204).send();
+  });
+
   app.get('/courses/:courseId/sessions/:sessionId/ai-grading', { preHandler: authenticate }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
     const job = await AiGradingJob.findOne({ courseId: course._id, sessionId: request.params.sessionId }).sort({ createdAt: -1 }).lean();
