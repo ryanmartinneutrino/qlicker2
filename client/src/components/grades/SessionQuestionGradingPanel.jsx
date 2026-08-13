@@ -1913,7 +1913,7 @@ export default function SessionQuestionGradingPanel({
         <DialogTitle>{t('grades.aiGrading.report')}</DialogTitle>
         <DialogContent dividers>
           <Typography sx={{ mb: 2 }}>{aiGradingJob?.report?.summary || t('grades.aiGrading.completed')}</Typography>
-          {(aiGradingJob?.report?.summaries || []).map((summary) => <Typography key={summary.question} variant="body2" sx={{ mb: 0.5 }}>{t('grades.aiGrading.reportSummary', { question: summary.question, graded: summary.graded, zeroed: summary.zeroed })}</Typography>)}
+          {(Array.isArray(aiGradingJob?.report?.summaries) ? aiGradingJob.report.summaries : Object.entries(aiGradingJob?.report?.summaries || {}).map(([questionId, summary], index) => ({ question: `Q${index + 1}`, questionId, ...summary }))).map((summary) => <Typography key={summary.questionId || summary.question} variant="body2" sx={{ mb: 0.5 }}>{t('grades.aiGrading.reportSummary', { question: summary.question, graded: summary.graded, zeroed: summary.zeroed })}</Typography>)}
           <Typography variant="subtitle2" sx={{ mb: 1 }}>{t('grades.aiGrading.log')}</Typography>
           {(aiGradingJob?.log || []).map((entry, index) => <Paper key={index} variant="outlined" sx={{ p: 1, mb: 1 }}><Typography variant="subtitle2">{entry.question} · {entry.student}</Typography><Typography variant="body2">{t('grades.aiGrading.assignedGrade', { points: entry.points, outOf: entry.outOf })}</Typography>{entry.feedback ? <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mt: 0.5 }}>{entry.feedback}</Typography> : null}</Paper>)}
         </DialogContent>
