@@ -65,4 +65,19 @@ describe('ResponsiveTabsNavigation', () => {
 
     expect(onChange).toHaveBeenCalledWith(1);
   });
+
+  it('shows a tooltip for a tab when one is provided', async () => {
+    mockMatchMedia(false);
+
+    render(
+      <ResponsiveTabsNavigation
+        value={0}
+        onChange={vi.fn()}
+        tabs={[{ value: 0, label: 'Overview', tooltip: 'Open the course overview' }]}
+      />
+    );
+
+    expect(screen.getByRole('tab', { name: 'Overview' })).toBeInTheDocument();
+    expect(screen.getByTitle('Open the course overview')).toBeInTheDocument();
+  });
 });

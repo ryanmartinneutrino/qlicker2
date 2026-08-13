@@ -133,6 +133,7 @@
     "failedToArchive": "Couldn't bury th' yarn, arr.",
     "disabled": "Ship parley be closed fer now.",
     "studentNotice": "Crew member yarns stay anonymous to th' rest o' th' crew, but officers can still see who wrote 'em.",
+    "studentNamesAnonymous": "Crew names in th' parley be anonymous to other crew members.",
     "enableCourseChat": "Hoist ship parley",
     "retentionDays": "Bury yarns after",
     "retentionHelp": "Older yarns get buried automatically an' nay longer reveal in th' ship parley.",
@@ -308,7 +309,8 @@
       "courses": "Ships",
       "storage": "Cargo hold",
       "sso": "SSO Riggin'",
-      "video": "Video"
+      "video": "Video",
+      "ai": "AI"
     },
     "settings": {
       "restrictDomain": "Restrict missive domain",
@@ -549,7 +551,21 @@
       "inactive": "Mothballed",
       "failedLoadCourses": "Couldn't load ships, arr."
     },
-    "failedSaveVideoSettings": "Couldn't stow video rigging, arr."
+    "failedSaveVideoSettings": "Couldn't stow video rigging, arr.",
+    "ai": {
+      "enable": "Enable AI helper",
+      "apiUrl": "OpenAI-compatible API URL",
+      "apiUrlPlaceholder": "e.g. https://api.openai.com/v1",
+      "apiToken": "API token",
+      "apiTokenPlaceholder": "Enter an API token",
+      "tokenConfigured": "API token configured — enter a new value to replace it",
+      "tokenHelp": "The token is stored securely and is never shown again.",
+      "courseHelp": "Select the courses that may use AI. For each enabled course, you may also allow instructors to configure a separate backend.",
+      "allowCourseBackend": "Allow instructor-configured backend",
+      "disabledHelp": "Enable AI helper above before configuring a backend or permitting courses.",
+      "failedSave": "Failed to save AI settings.",
+      "backendHelp": "Add one or more AI backends, discover their Ollama models, then select the default model used by courses unless an instructor chooses another available model."
+    }
   },
   "professor": {
     "dashboard": {
@@ -594,7 +610,7 @@
       "grades": "Ledgers",
       "students": "Crew",
       "instructors": "Officers",
-      "settings": "Rigging",
+      "settings": "Ship Settings",
       "aiModel": "AI Model",
       "groups": "Watches",
       "addStudent": "Add Crew member",
@@ -660,6 +676,7 @@
       "noInteractiveSessions": "Nary any interactive voyages yet.",
       "noQuizzes": "Nary any reckonings yet.",
       "reviewable": "Recappable",
+      "reviewableHelp": "Choose whether yer crew can access th' voyage fer review.",
       "copySession": "Copy voyage",
       "deleteSession": "Sink voyage",
       "deleteSessionConfirm": "Sink voyage \"{{name}}\"?",
@@ -723,13 +740,35 @@
       "joinLiveSessionAria": "Board underway voyage {{name}}",
       "reviewLiveQuizAria": "Recap underway reckoning voyage {{name}}",
       "reviewLiveSessionAria": "Recap underway voyage {{name}} results",
-      "reviewSessionAria": "Recap voyage {{name}}"
+      "reviewSessionAria": "Recap voyage {{name}}",
+      "aiSettings": "AI settings",
+      "enableAiHelper": "Enable AI helper",
+      "aiNotAvailable": "AI helper is not enabled for this course by the administrator.",
+      "aiBackendHelp": "Configure the OpenAI-compatible backend used only by this course.",
+      "aiAdminBackendOnly": "This course uses the AI backend configured by the Qlicker administrator. Its connection details are not shown here.",
+      "aiApiUrl": "OpenAI-compatible API URL",
+      "aiApiUrlPlaceholder": "e.g. https://api.openai.com/v1",
+      "aiApiToken": "API token",
+      "aiApiTokenPlaceholder": "Enter an API token",
+      "aiTokenConfigured": "API token configured — enter a new value to replace it",
+      "aiTokenHelp": "The token is stored securely and is never shown again.",
+      "interactiveSessionsHelp": "Use these fer live in-class voyages with yer crew (ye control which riddle be shown).",
+      "quizzesHelp": "Use these fer timed reckonings (crew see all riddles at once).",
+      "groupsHelp": "Create an’ manage watches of crew.",
+      "courseChatHelp": "A place fer anyone aboard th’ course to chat.",
+      "aiChatHelp": "Chat with th’ AI matey.",
+      "courseActiveHelp": "When th’ course be active, crew can access it.",
+      "aiRequiresAdminAuthorization": "Needs the admiral’s authorization",
+      "enrollmentCodeHelp": "This be the code crew need to enroll in the course."
     },
     "sessionEditor": {
       "sessionSettings": "Voyage Rigging",
       "name": "Moniker",
       "description": "Blurb",
       "status": "Standing",
+      "liveBasedOnDate": "Live by th' date",
+      "scheduledQuizLiveWarning": "This reckoning be within its scheduled time window and be available to th' crew right away.",
+      "makeQuizLive": "Make reckoning live",
       "quiz": "Reckoning",
       "quizHelp": "Hoist reckoning mode with reckoning dates an' reckoning-specific crew member behavior.",
       "practiceQuiz": "Drill Reckoning",
@@ -1014,7 +1053,12 @@
       "selectCategoryFilter": "Class",
       "selectGroupFilter": "Watch",
       "showResponses": "Reveal Replies",
-      "hideResponses": "Stow Replies"
+      "hideResponses": "Stow Replies",
+      "generateAiResponseSummary": "Generate AI Response summary",
+      "viewAiResponseSummary": "View AI response summary",
+      "summaryInstructions": "Summary instructions",
+      "basicSummaryHelp": "Basic summary identifies up to five response themes and example quotations.",
+      "aiSummaryInProgress": "Generating summary: student {{completed}} of {{total}}"
     },
     "secondDesktop": {
       "joinCode": "Board Code",
@@ -1044,6 +1088,28 @@
       "min": "Min",
       "max": "Max",
       "joinCodeAria": "Board code: {{code}}"
+    },
+    "aiGrading": {
+      "assistant": "AI Grading Assistant",
+      "title": "AI grading assistant",
+      "formTitle": "AI Grading Form",
+      "gradingInstructions": "Instructions for grading",
+      "feedbackInstructions": "Instructions for feedback",
+      "selectInstruction": "Select an instruction",
+      "createInstruction": "Create a new instruction",
+      "instructionSaved": "Instruction saved and selected.",
+      "unsavedInstructionWarning": "Save this instruction before changing questions. Unsaved edits will be discarded.",
+      "instructionsRequired": "Select a grading instruction for every selected question before starting AI grading.",
+      "regrade": "Re-grade questions that have already been graded",
+      "start": "Start grading",
+      "inProgress": "AI grading in progress: student {{student}} of {{students}}, question {{question}} of {{questions}}",
+      "report": "AI grading report",
+      "log": "AI grading log",
+      "reportSummary": "{{question}}: graded {{graded}} response(s); assigned zero to {{zeroed}} response(s).",
+      "assignedGrade": "Assigned grade: {{points}} / {{outOf}}",
+      "completed": "AI grading completed.",
+      "failedLoad": "Could not load AI grading instructions.",
+      "failedStart": "Could not start AI grading."
     }
   },
   "student": {
@@ -1635,6 +1701,22 @@
         "studentResponse": "Crew member reply",
         "position": "{{current}} o' {{total}}"
       }
+    },
+    "aiGrading": {
+      "assistant": "AI Grading Assistant",
+      "title": "AI grading assistant",
+      "formTitle": "AI Grading Form",
+      "gradingInstructions": "Instructions for grading",
+      "feedbackInstructions": "Instructions for feedback",
+      "selectInstruction": "Select an instruction",
+      "createInstruction": "Create a new instruction",
+      "regrade": "Re-grade questions that have already been graded",
+      "start": "Start grading",
+      "inProgress": "AI grading in progress ({{completed}} of {{total}})",
+      "report": "AI grading report",
+      "completed": "AI grading completed.",
+      "failedLoad": "Could not load AI grading instructions.",
+      "failedStart": "Could not start AI grading."
     }
   },
   "pageTitles": {
@@ -2304,6 +2386,35 @@
       "confirmUpdateMessage": "Th' bulletin will be amended fer {{recipientScope}}.",
       "confirmDeleteTitle": "Sink bulletin?",
       "confirmDeleteMessage": "Sink \"{{title}}\" permanently? This can't be undone."
+    }
+  },
+  "ai": {
+    "backends": {
+      "backendNumber": "Backend {{number}}",
+      "addBackend": "Add backend",
+      "removeBackend": "Remove backend",
+      "name": "Backend name",
+      "type": "Backend type",
+      "url": "Server URL",
+      "apiToken": "API token (optional)",
+      "tokenConfigured": "Token configured — enter a new value to replace it",
+      "discoverModels": "Find models",
+      "discoveryFailed": "Could not find models on this backend.",
+      "modelsHelp": "Only checked models are available for course AI use.",
+      "makeDefault": "Make default"
+    },
+    "chat": {
+      "title": "AI Chat",
+      "newConversation": "New conversation",
+      "noConversations": "No conversations yet.",
+      "send": "Send",
+      "messagePlaceholder": "Ask the AI helper…",
+      "deleteConversation": "Delete conversation",
+      "selectConversation": "Select or start a conversation.",
+      "assistant": "AI assistant",
+      "you": "You",
+      "failedLoad": "Could not load AI conversations.",
+      "failedSend": "Could not send the message."
     }
   }
 }

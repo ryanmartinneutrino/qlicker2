@@ -542,11 +542,7 @@ export default function CourseChatPanel({
   return (
     <Stack spacing={2}>
       {error ? <Alert severity="error">{error}</Alert> : null}
-      {role !== 'professor' ? (
-        <Alert severity="info">
-          {t('courseChat.studentNotice')}
-        </Alert>
-      ) : null}
+      <Alert severity="info">{t('courseChat.studentNamesAnonymous')}</Alert>
 
       <Paper variant="outlined" sx={{ p: 2 }}>
         <Stack spacing={1.5}>

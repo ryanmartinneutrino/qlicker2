@@ -133,6 +133,7 @@
     "failedToArchive": "Failed to archive the post.",
     "disabled": "Course chat is currently disabled.",
     "studentNotice": "Student posts stay anonymous to other students, but instructors can still see who wrote them.",
+    "studentNamesAnonymous": "Student names in the chat are anonymous to other students.",
     "enableCourseChat": "Enable course chat",
     "retentionDays": "Archive posts after",
     "retentionHelp": "Older posts are archived automatically and no longer shown in the course chat.",
@@ -609,7 +610,7 @@
       "grades": "Grades",
       "students": "Students",
       "instructors": "Instructors",
-      "settings": "Settings",
+      "settings": "Course settings",
       "aiSettings": "AI settings",
       "aiModel": "AI model",
       "enableAiHelper": "Enable AI helper",
@@ -686,6 +687,7 @@
       "noInteractiveSessions": "No interactive sessions yet.",
       "noQuizzes": "No quizzes yet.",
       "reviewable": "Reviewable",
+      "reviewableHelp": "Control whether students can access the session for review.",
       "copySession": "Copy session",
       "deleteSession": "Delete session",
       "deleteSessionConfirm": "Delete session \"{{name}}\"?",
@@ -749,13 +751,24 @@
       "joinLiveSessionAria": "Join live session {{name}}",
       "reviewLiveQuizAria": "Review live quiz session {{name}}",
       "reviewLiveSessionAria": "Review live session {{name}} results",
-      "reviewSessionAria": "Review session {{name}}"
+      "reviewSessionAria": "Review session {{name}}",
+      "interactiveSessionsHelp": "Use these for live in-class sessions with students (you control which question is being displayed).",
+      "quizzesHelp": "Use these for timed quizzes (students see all questions at once).",
+      "groupsHelp": "Create and manage groups of students.",
+      "courseChatHelp": "A place for anyone in the course to chat.",
+      "aiChatHelp": "Chat with the AI assistant.",
+      "courseActiveHelp": "When the course is active, students can access it.",
+      "aiRequiresAdminAuthorization": "Requires admin authorization",
+      "enrollmentCodeHelp": "This is the code students need to enroll in the course."
     },
     "sessionEditor": {
       "sessionSettings": "Session Settings",
       "name": "Name",
       "description": "Description",
       "status": "Status",
+      "liveBasedOnDate": "Live based on date",
+      "scheduledQuizLiveWarning": "This quiz is within its scheduled time window and will be available to students immediately.",
+      "makeQuizLive": "Make quiz live",
       "quiz": "Quiz",
       "quizHelp": "Enable quiz mode with quiz dates and quiz-specific student behavior.",
       "practiceQuiz": "Practice Quiz",
@@ -1040,12 +1053,12 @@
       "selectCategoryFilter": "Category",
       "selectGroupFilter": "Group",
       "showResponses": "Show Responses",
-      "hideResponses": "Hide Responses"
-      ,"generateAiResponseSummary": "Generate AI Response summary"
-      ,"viewAiResponseSummary": "View AI response summary"
-      ,"summaryInstructions": "Summary instructions"
-      ,"basicSummaryHelp": "Basic summary identifies up to five response themes and example quotations."
-      ,"aiSummaryInProgress": "Generating summary: student {{completed}} of {{total}}"
+      "hideResponses": "Hide Responses",
+      "generateAiResponseSummary": "Generate AI Response summary",
+      "viewAiResponseSummary": "View AI response summary",
+      "summaryInstructions": "Summary instructions",
+      "basicSummaryHelp": "Basic summary identifies up to five response themes and example quotations.",
+      "aiSummaryInProgress": "Generating summary: student {{completed}} of {{total}}"
     },
     "secondDesktop": {
       "joinCode": "Join Code",

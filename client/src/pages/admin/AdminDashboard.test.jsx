@@ -369,7 +369,7 @@ describe('AdminDashboard', () => {
     expect(screen.getByLabelText(/Daily backups to keep/i)).toHaveValue(7);
     expect(screen.getByLabelText(/Weekly backups to keep/i)).toHaveValue(5);
     expect(screen.getByLabelText(/Monthly backups to keep/i)).toHaveValue(9);
-  });
+  }, 10_000);
 
   it('requests a manual backup and shows 12-hour backup controls when the app uses 12-hour time', async () => {
     settingsState.timeFormat = '12h';

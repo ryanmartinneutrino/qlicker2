@@ -28,6 +28,7 @@ import BackLinkButton from '../../components/common/BackLinkButton';
 import DateTimePreferenceField from '../../components/common/DateTimePreferenceField';
 import SessionStatusChip from '../../components/common/SessionStatusChip';
 import { buildCourseTitle } from '../../utils/courseTitle';
+import { getEffectiveQuizStatus } from '../../utils/studentSessions';
 import {
   buildSessionExportFilename,
   buildPrintableSessionHtml,
@@ -204,6 +205,7 @@ export default function SessionEditor() {
   const [deleting, setDeleting] = useState(false);
   const [copying, setCopying] = useState(false);
   const [confirmGoLiveOpen, setConfirmGoLiveOpen] = useState(false);
+  const [confirmScheduledQuizLiveOpen, setConfirmScheduledQuizLiveOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState('pdf');
   const [exportingSession, setExportingSession] = useState(false);
@@ -226,6 +228,23 @@ export default function SessionEditor() {
   const [responseBackedQuestionIds, setResponseBackedQuestionIds] = useState(new Set());
   const [unlockEndedEditing, setUnlockEndedEditing] = useState(false);
 
+  const refreshResponseBackedQuestions = useCallback(async () => {
+    try {
+      const { data: resultsData } = await apiClient.get(`/sessions/${sessionId}/results`);
+      const backedIds = new Set();
+      (resultsData?.studentResults || []).forEach((studentResult) => {
+        (studentResult?.questionResults || []).forEach((questionResult) => {
+          if ((questionResult?.responses || []).length > 0) {
+            backedIds.add(String(questionResult.questionId));
+          }
+        });
+      });
+      setResponseBackedQuestionIds(backedIds);
+    } catch {
+      // Keep the last known locks if the response check is temporarily unavailable.
+    }
+  }, [sessionId]);
+
   const fetchSession = useCallback(async () => {
     try {
       const { data } = await apiClient.get(`/sessions/${sessionId}`);
@@ -238,7 +257,7 @@ export default function SessionEditor() {
       setQuizEnd(toDateTimeLocalString(s.quizEnd));
       setMsScoringMethod(s.msScoringMethod || DEFAULT_MS_SCORING_METHOD);
       setReviewable(!!s.reviewable);
-      setStatus(s.status || 'hidden');
+      setStatus(getEffectiveQuizStatus(s));
       setSessionDate(toDateTimeLocalString(s.date));
       setSessionTags(normalizeTagValues(s.tags || []));
       setJoinCodeEnabled(!!s.joinCodeEnabled);
@@ -262,20 +281,7 @@ export default function SessionEditor() {
       }
 
       // Identify questions that already have response data attached.
-      try {
-        const { data: resultsData } = await apiClient.get(`/sessions/${sessionId}/results`);
-        const backedIds = new Set();
-        (resultsData?.studentResults || []).forEach((studentResult) => {
-          (studentResult?.questionResults || []).forEach((questionResult) => {
-            if ((questionResult?.responses || []).length > 0) {
-              backedIds.add(String(questionResult.questionId));
-            }
-          });
-        });
-        setResponseBackedQuestionIds(backedIds);
-      } catch {
-        setResponseBackedQuestionIds(new Set());
-      }
+      await refreshResponseBackedQuestions();
 
       try {
         const { data: publicSettings } = await apiClient.get('/settings/public').catch(() => ({ data: { timeFormat: '24h' } }));
@@ -298,7 +304,7 @@ export default function SessionEditor() {
     } finally {
       setLoading(false);
     }
-  }, [courseId, sessionId]);
+  }, [courseId, refreshResponseBackedQuestions, sessionId]);
 
   useEffect(() => {
     if (status === 'done') {
@@ -309,6 +315,35 @@ export default function SessionEditor() {
   }, [status]);
 
   useEffect(() => { fetchSession(); }, [fetchSession]);
+
+  // A scheduled quiz's stored status remains "visible" while its time window
+  // determines whether it is upcoming, live, or ended. Refresh right at each
+  // remaining boundary so an editor left open stays in sync without a reload.
+  useEffect(() => {
+    if (!quiz || (session?.status !== 'visible' && status !== 'running')) return undefined;
+
+    const now = Date.now();
+    const upcomingBoundaries = [quizStart, quizEnd]
+      .map((value) => new Date(value || 0).getTime())
+      .filter((value) => Number.isFinite(value) && value > now);
+    const nextBoundary = Math.min(...upcomingBoundaries);
+    if (!Number.isFinite(nextBoundary)) return undefined;
+
+    const timer = setTimeout(() => {
+      fetchSession();
+    }, Math.max(0, nextBoundary - now) + 25);
+    return () => clearTimeout(timer);
+  }, [fetchSession, quiz, quizEnd, quizStart, session?.status, status]);
+
+  // While a quiz is live, poll only its response metadata. This immediately
+  // applies the existing type/option locks when a student starts responding,
+  // without resetting any fields the instructor is editing.
+  useEffect(() => {
+    if (!quiz || status !== 'running') return undefined;
+    refreshResponseBackedQuestions();
+    const timer = setInterval(refreshResponseBackedQuestions, 3000);
+    return () => clearInterval(timer);
+  }, [quiz, refreshResponseBackedQuestions, status]);
 
   const toIsoIfValid = (dateValue) => {
     if (!dateValue) return null;
@@ -344,6 +379,7 @@ export default function SessionEditor() {
       const updatedSession = data.session || data;
       setSession(updatedSession);
       setReviewable(!!updatedSession.reviewable);
+      setStatus(getEffectiveQuizStatus(updatedSession));
       const warnings = data.grading?.warnings || [];
       if (warnings.length > 0) {
         setMsg({ severity: 'warning', text: warnings.join(' ') });
@@ -416,8 +452,28 @@ export default function SessionEditor() {
     persistQuizWindow(quizStart, nextWindow.quizEnd);
   }, [persistQuizWindow, quizEnd, quizStart]);
 
+  const quizWouldBeLiveImmediately = () => (
+    quiz
+    && getEffectiveQuizStatus({
+      quiz: true,
+      status: 'visible',
+      quizStart: toIsoIfValid(quizStart),
+      quizEnd: toIsoIfValid(quizEnd),
+    }) === 'running'
+  );
+
+  const saveScheduledQuizStatus = () => {
+    setConfirmScheduledQuizLiveOpen(false);
+    setStatus('running');
+    saveSessionPatch({ status: 'visible' });
+  };
+
   const handleStatusChange = (nextStatus) => {
     if (nextStatus === status) return;
+    if (nextStatus === 'visible' && quiz && quizWouldBeLiveImmediately()) {
+      setConfirmScheduledQuizLiveOpen(true);
+      return;
+    }
     if (nextStatus === 'running') {
       setConfirmGoLiveOpen(true);
       return;
@@ -1362,7 +1418,9 @@ export default function SessionEditor() {
               disabled={savingSession}
             >
               <MenuItem value="hidden">{t('sessionStatus.draft')}</MenuItem>
-              <MenuItem value="visible">{t('sessionStatus.upcoming')}</MenuItem>
+              <MenuItem value="visible">
+                {quiz ? t('professor.sessionEditor.liveBasedOnDate') : t('sessionStatus.upcoming')}
+              </MenuItem>
               <MenuItem value="running">{t('sessionStatus.live')}</MenuItem>
               <MenuItem value="done">{t('sessionStatus.ended')}</MenuItem>
             </Select>
@@ -2220,6 +2278,23 @@ export default function SessionEditor() {
           <Button onClick={() => setConfirmGoLiveOpen(false)}>{t('common.cancel')}</Button>
           <Button variant="contained" color="success" onClick={confirmGoLive}>
             {t('professor.sessionEditor.goLive')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Scheduled quiz activation confirmation */}
+      <Dialog
+        open={confirmScheduledQuizLiveOpen}
+        onClose={() => setConfirmScheduledQuizLiveOpen(false)}
+      >
+        <DialogTitle>{t('professor.sessionEditor.liveBasedOnDate')}</DialogTitle>
+        <DialogContent>
+          <Typography>{t('professor.sessionEditor.scheduledQuizLiveWarning')}</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmScheduledQuizLiveOpen(false)}>{t('common.cancel')}</Button>
+          <Button variant="contained" color="warning" onClick={saveScheduledQuizStatus}>
+            {t('professor.sessionEditor.makeQuizLive')}
           </Button>
         </DialogActions>
       </Dialog>

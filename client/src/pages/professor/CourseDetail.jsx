@@ -1319,12 +1319,12 @@ export default function CourseDetail() {
     ? t('courseChat.titleWithUnseen', { count: chatUnseenCount })
     : chatTabLabel;
   const tabItems = [
-    { value: 0, label: `${t('professor.course.interactiveSessions')} (${interactiveSessionCount})` },
-    { value: 1, label: `${t('professor.course.quizzes')} (${quizSessionCount})` },
+    { value: 0, label: `${t('professor.course.interactiveSessions')} (${interactiveSessionCount})`, tooltip: t('professor.course.interactiveSessionsHelp') },
+    { value: 1, label: `${t('professor.course.quizzes')} (${quizSessionCount})`, tooltip: t('professor.course.quizzesHelp') },
     { value: 2, label: t('professor.course.grades') },
     { value: 3, label: `${t('professor.course.students')} (${students.length})` },
     { value: 4, label: `${t('professor.course.instructors')} (${instructors.length})` },
-    { value: 5, label: t('professor.course.groups') },
+    { value: 5, label: t('professor.course.groups'), tooltip: t('professor.course.groupsHelp') },
     ...(courseChatEnabled ? [{
       value: chatTabIndex,
       label: (
@@ -1333,6 +1333,7 @@ export default function CourseDetail() {
         </Badge>
       ),
       menuLabel: chatTabMenuLabel,
+      tooltip: t('professor.course.courseChatHelp'),
       tabProps: {
         'aria-label': chatTabMenuLabel,
       },
@@ -1340,7 +1341,7 @@ export default function CourseDetail() {
     ...(videoEnabled ? [{ value: videoTabIndex, label: t('professor.course.video') }] : []),
     ...(aiAvailable && course?.aiEnabled ? [
       { value: aiTabIndex, label: t('professor.course.aiSettings') },
-      { value: aiChatTabIndex, label: t('ai.chat.title') },
+      { value: aiChatTabIndex, label: t('ai.chat.title'), tooltip: t('professor.course.aiChatHelp') },
     ] : []),
     { value: settingsTabIndex, label: t('professor.course.settings') },
     { value: questionLibraryTabIndex, label: t('questionLibrary.title', { defaultValue: 'Question Library' }) },
@@ -1640,7 +1641,11 @@ export default function CourseDetail() {
                             disabled={!!sessionUpdatesInFlight[s._id] || s.status !== 'done'}
                           />
                         )}
-                        label={<Typography variant="caption">{t('professor.course.reviewable')}</Typography>}
+                        label={(
+                          <Tooltip title={t('professor.course.reviewableHelp')} arrow>
+                            <span><Typography variant="caption">{t('professor.course.reviewable')}</Typography></span>
+                          </Tooltip>
+                        )}
                       />
                       <Tooltip title={t('professor.course.copySession')}>
                         <IconButton
@@ -2017,15 +2022,35 @@ export default function CourseDetail() {
               {t('professor.course.allFieldsRequired')}
             </Alert>
           )}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+              <Typography>{t('professor.course.enrollmentCode', { code: course.enrollmentCode })}</Typography>
+              <Tooltip title={t('professor.course.enrollmentCodeHelp')} arrow>
+                <InfoOutlinedIcon fontSize="small" color="action" />
+              </Tooltip>
+            </Box>
+            <Button size="small" startIcon={<CopyIcon />} onClick={copyCode}>
+              {t('professor.course.copy')}
+            </Button>
+            <Button size="small" startIcon={<RefreshIcon />} onClick={handleRegenerateCode}>
+              {t('professor.course.regenerate')}
+            </Button>
+          </Box>
           <FormControlLabel
             control={<Switch checked={!course.inactive} onChange={handleToggleActive} />}
-            label={course.inactive ? t('professor.course.courseInactive') : t('professor.course.courseActive')}
+            label={(
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                <Typography>{course.inactive ? t('professor.course.courseInactive') : t('professor.course.courseActive')}</Typography>
+                <Tooltip title={t('professor.course.courseActiveHelp')} arrow>
+                  <InfoOutlinedIcon fontSize="small" color="action" />
+                </Tooltip>
+              </Box>
+            )}
           />
           <FormControlLabel
-            control={<Switch checked={!!course.aiEnabled} onChange={handleAiEnabledChange} disabled={!aiAvailable} />}
+            control={aiAvailable ? <Switch checked={!!course.aiEnabled} onChange={handleAiEnabledChange} /> : <Tooltip title={t('professor.course.aiRequiresAdminAuthorization')} arrow><span><Switch checked={!!course.aiEnabled} onChange={handleAiEnabledChange} disabled /></span></Tooltip>}
             label={t('professor.course.enableAiHelper')}
           />
-          {!aiAvailable ? <Typography variant="caption" color="text.secondary">{t('professor.course.aiNotAvailable')}</Typography> : null}
           {!ssoEnabled ? (
             <FormControlLabel
               control={(
@@ -2095,15 +2120,6 @@ export default function CourseDetail() {
               ))}
             </TextField>
           ) : null}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="body2">{t('professor.course.enrollmentCode', { code: course.enrollmentCode })}</Typography>
-            <Button size="small" startIcon={<CopyIcon />} onClick={copyCode}>
-              {t('professor.course.copy')}
-            </Button>
-            <Button size="small" startIcon={<RefreshIcon />} onClick={handleRegenerateCode}>
-              {t('professor.course.regenerate')}
-            </Button>
-          </Box>
           <Divider sx={{ my: 1 }} />
           <Typography variant="h6">{t('professor.course.courseProperties')}</Typography>
           <TextField

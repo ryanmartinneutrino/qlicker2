@@ -133,6 +133,7 @@
     "failedToArchive": "归档帖子失败。",
     "disabled": "课程聊天当前已禁用。",
     "studentNotice": "学生的帖子对其他学生保持匿名，但教师仍可以看到是谁发布的。",
+    "studentNamesAnonymous": "聊天中的学生姓名对其他学生匿名。",
     "enableCourseChat": "启用课程聊天",
     "retentionDays": "归档帖子的时间",
     "retentionHelp": "较旧的帖子会自动归档，不再显示在课程聊天中。",
@@ -308,7 +309,8 @@
       "courses": "课程",
       "storage": "存储",
       "sso": "SSO 配置",
-      "video": "视频"
+      "video": "视频",
+      "ai": "AI"
     },
     "settings": {
       "restrictDomain": "限制电子邮箱域名",
@@ -549,7 +551,21 @@
       "inactive": "未启用",
       "failedLoadCourses": "加载课程失败"
     },
-    "failedSaveVideoSettings": "保存视频设置失败"
+    "failedSaveVideoSettings": "保存视频设置失败",
+    "ai": {
+      "enable": "Enable AI helper",
+      "apiUrl": "OpenAI-compatible API URL",
+      "apiUrlPlaceholder": "e.g. https://api.openai.com/v1",
+      "apiToken": "API token",
+      "apiTokenPlaceholder": "Enter an API token",
+      "tokenConfigured": "API token configured — enter a new value to replace it",
+      "tokenHelp": "The token is stored securely and is never shown again.",
+      "courseHelp": "Select the courses that may use AI. For each enabled course, you may also allow instructors to configure a separate backend.",
+      "allowCourseBackend": "Allow instructor-configured backend",
+      "disabledHelp": "Enable AI helper above before configuring a backend or permitting courses.",
+      "failedSave": "Failed to save AI settings.",
+      "backendHelp": "Add one or more AI backends, discover their Ollama models, then select the default model used by courses unless an instructor chooses another available model."
+    }
   },
   "professor": {
     "dashboard": {
@@ -594,7 +610,7 @@
       "grades": "成绩",
       "students": "学生",
       "instructors": "教师",
-      "settings": "设置",
+      "settings": "课程设置",
       "aiModel": "AI 模型",
       "groups": "分组",
       "addStudent": "添加学生",
@@ -660,6 +676,7 @@
       "noInteractiveSessions": "暂无互动环节。",
       "noQuizzes": "暂无测验。",
       "reviewable": "可回顾",
+      "reviewableHelp": "控制学生是否可以访问该课程环节进行回顾。",
       "copySession": "复制环节",
       "deleteSession": "删除环节",
       "deleteSessionConfirm": "删除环节“{{name}}”？",
@@ -723,13 +740,35 @@
       "joinLiveSessionAria": "加入实时环节 {{name}}",
       "reviewLiveQuizAria": "查看实时测验环节 {{name}}",
       "reviewLiveSessionAria": "查看实时环节 {{name}} 的结果",
-      "reviewSessionAria": "查看环节 {{name}}"
+      "reviewSessionAria": "查看环节 {{name}}",
+      "aiSettings": "AI settings",
+      "enableAiHelper": "Enable AI helper",
+      "aiNotAvailable": "AI helper is not enabled for this course by the administrator.",
+      "aiBackendHelp": "Configure the OpenAI-compatible backend used only by this course.",
+      "aiAdminBackendOnly": "This course uses the AI backend configured by the Qlicker administrator. Its connection details are not shown here.",
+      "aiApiUrl": "OpenAI-compatible API URL",
+      "aiApiUrlPlaceholder": "e.g. https://api.openai.com/v1",
+      "aiApiToken": "API token",
+      "aiApiTokenPlaceholder": "Enter an API token",
+      "aiTokenConfigured": "API token configured — enter a new value to replace it",
+      "aiTokenHelp": "The token is stored securely and is never shown again.",
+      "interactiveSessionsHelp": "用于与学生进行实时课堂互动（由您控制显示哪一道题）。",
+      "quizzesHelp": "用于限时测验（学生会同时看到所有题目）。",
+      "groupsHelp": "创建和管理学生分组。",
+      "courseChatHelp": "课程中所有人都可以交流的地方。",
+      "aiChatHelp": "与 AI 助手聊天。",
+      "courseActiveHelp": "课程处于激活状态时，学生可以访问它。",
+      "aiRequiresAdminAuthorization": "需要管理员授权",
+      "enrollmentCodeHelp": "这是学生注册该课程所需的代码。"
     },
     "sessionEditor": {
       "sessionSettings": "环节设置",
       "name": "名称",
       "description": "描述",
       "status": "状态",
+      "liveBasedOnDate": "按日期开放",
+      "scheduledQuizLiveWarning": "此测验当前处于设定的开放时间内，学生将立即可以访问。",
+      "makeQuizLive": "开放测验",
       "quiz": "测验",
       "quizHelp": "启用测验模式，包含测验日期和特定于测验的学生行为。",
       "practiceQuiz": "练习测验",
@@ -1014,7 +1053,12 @@
       "selectCategoryFilter": "分类",
       "selectGroupFilter": "分组",
       "showResponses": "显示作答",
-      "hideResponses": "隐藏作答"
+      "hideResponses": "隐藏作答",
+      "generateAiResponseSummary": "Generate AI Response summary",
+      "viewAiResponseSummary": "View AI response summary",
+      "summaryInstructions": "Summary instructions",
+      "basicSummaryHelp": "Basic summary identifies up to five response themes and example quotations.",
+      "aiSummaryInProgress": "Generating summary: student {{completed}} of {{total}}"
     },
     "secondDesktop": {
       "joinCode": "加入码",
@@ -1044,6 +1088,28 @@
       "min": "最小值",
       "max": "最大值",
       "joinCodeAria": "加入码：{{code}}"
+    },
+    "aiGrading": {
+      "assistant": "AI Grading Assistant",
+      "title": "AI grading assistant",
+      "formTitle": "AI Grading Form",
+      "gradingInstructions": "Instructions for grading",
+      "feedbackInstructions": "Instructions for feedback",
+      "selectInstruction": "Select an instruction",
+      "createInstruction": "Create a new instruction",
+      "instructionSaved": "Instruction saved and selected.",
+      "unsavedInstructionWarning": "Save this instruction before changing questions. Unsaved edits will be discarded.",
+      "instructionsRequired": "Select a grading instruction for every selected question before starting AI grading.",
+      "regrade": "Re-grade questions that have already been graded",
+      "start": "Start grading",
+      "inProgress": "AI grading in progress: student {{student}} of {{students}}, question {{question}} of {{questions}}",
+      "report": "AI grading report",
+      "log": "AI grading log",
+      "reportSummary": "{{question}}: graded {{graded}} response(s); assigned zero to {{zeroed}} response(s).",
+      "assignedGrade": "Assigned grade: {{points}} / {{outOf}}",
+      "completed": "AI grading completed.",
+      "failedLoad": "Could not load AI grading instructions.",
+      "failedStart": "Could not start AI grading."
     }
   },
   "student": {
@@ -1635,6 +1701,22 @@
         "studentResponse": "学生作答",
         "position": "第 {{current}} 项，共 {{total}} 项"
       }
+    },
+    "aiGrading": {
+      "assistant": "AI Grading Assistant",
+      "title": "AI grading assistant",
+      "formTitle": "AI Grading Form",
+      "gradingInstructions": "Instructions for grading",
+      "feedbackInstructions": "Instructions for feedback",
+      "selectInstruction": "Select an instruction",
+      "createInstruction": "Create a new instruction",
+      "regrade": "Re-grade questions that have already been graded",
+      "start": "Start grading",
+      "inProgress": "AI grading in progress ({{completed}} of {{total}})",
+      "report": "AI grading report",
+      "completed": "AI grading completed.",
+      "failedLoad": "Could not load AI grading instructions.",
+      "failedStart": "Could not start AI grading."
     }
   },
   "pageTitles": {
@@ -2292,6 +2374,35 @@
       "confirmUpdateMessage": "通知将针对{{recipientScope}}进行更新。",
       "confirmDeleteTitle": "删除通知？",
       "confirmDeleteMessage": "是否永久删除“{{title}}”？此操作无法撤销。"
+    }
+  },
+  "ai": {
+    "backends": {
+      "backendNumber": "Backend {{number}}",
+      "addBackend": "Add backend",
+      "removeBackend": "Remove backend",
+      "name": "Backend name",
+      "type": "Backend type",
+      "url": "Server URL",
+      "apiToken": "API token (optional)",
+      "tokenConfigured": "Token configured — enter a new value to replace it",
+      "discoverModels": "Find models",
+      "discoveryFailed": "Could not find models on this backend.",
+      "modelsHelp": "Only checked models are available for course AI use.",
+      "makeDefault": "Make default"
+    },
+    "chat": {
+      "title": "AI Chat",
+      "newConversation": "New conversation",
+      "noConversations": "No conversations yet.",
+      "send": "Send",
+      "messagePlaceholder": "Ask the AI helper…",
+      "deleteConversation": "Delete conversation",
+      "selectConversation": "Select or start a conversation.",
+      "assistant": "AI assistant",
+      "you": "You",
+      "failedLoad": "Could not load AI conversations.",
+      "failedSend": "Could not send the message."
     }
   }
 }

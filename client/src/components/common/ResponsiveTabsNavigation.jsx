@@ -1,4 +1,4 @@
-import { MenuItem, Tab, Tabs, TextField } from '@mui/material';
+import { MenuItem, Tab, Tabs, TextField, Tooltip } from '@mui/material';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTranslation } from 'react-i18next';
 
@@ -52,7 +52,7 @@ export default function ResponsiveTabsNavigation({
         <Tab
           key={String(tab.value)}
           value={tab.value}
-          label={tab.label}
+          label={tab.tooltip ? <Tooltip title={tab.tooltip} arrow describeChild><span>{tab.label}</span></Tooltip> : tab.label}
           disabled={tab.disabled}
           {...tab.tabProps}
         />

@@ -398,7 +398,7 @@ describe('POST /api/v1/users/me/image/thumbnail', () => {
     const sourceKey = 'legacy-avatar-source.png';
     const sourceUrl = `/uploads/${sourceKey}`;
     const pngBuffer = Buffer.from(
-      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+y0Z8AAAAASUVORK5CYII=',
+      'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAEUlEQVQImWP4z8DwH4QZYAwAR8oH+Xm0fdIAAAAASUVORK5CYII=',
       'base64'
     );
 
@@ -434,7 +434,7 @@ describe('POST /api/v1/users/me/image/thumbnail', () => {
     const token = await getAuthToken(app, user);
     const sourceUrl = 'https://legacy-cdn.example.com/avatars/user-1/image';
     const pngBuffer = Buffer.from(
-      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+y0Z8AAAAASUVORK5CYII=',
+      'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAEUlEQVQImWP4z8DwH4QZYAwAR8oH+Xm0fdIAAAAASUVORK5CYII=',
       'base64'
     );
     const originalFetch = globalThis.fetch;
@@ -522,7 +522,7 @@ describe('POST /api/v1/users/me/image/thumbnail', () => {
     const sourceKey = 'decimal-avatar-source.png';
     const sourceUrl = `/uploads/${sourceKey}`;
     const pngBuffer = Buffer.from(
-      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+y0Z8AAAAASUVORK5CYII=',
+      'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAEUlEQVQImWP4z8DwH4QZYAwAR8oH+Xm0fdIAAAAASUVORK5CYII=',
       'base64'
     );
 

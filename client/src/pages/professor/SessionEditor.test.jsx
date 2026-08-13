@@ -189,6 +189,44 @@ describe('SessionEditor inline close behavior', () => {
     });
   });
 
+  it('uses the date-based quiz status label and warns before activating a currently live quiz', async () => {
+    const originalGet = apiClientMock.get.getMockImplementation();
+    const quizStart = new Date(Date.now() - 60_000).toISOString();
+    const quizEnd = new Date(Date.now() + 60_000).toISOString();
+    apiClientMock.get.mockImplementation((url) => {
+      if (url === '/sessions/session-1') {
+        return Promise.resolve({
+          data: {
+            session: {
+              _id: 'session-1',
+              name: 'Scheduled Quiz',
+              description: '',
+              quiz: true,
+              practiceQuiz: false,
+              quizStart,
+              quizEnd,
+              msScoringMethod: 'right-minus-wrong',
+              reviewable: false,
+              status: 'visible',
+              tags: [],
+              questions: ['q1'],
+              quizExtensions: [],
+            },
+          },
+        });
+      }
+      return originalGet(url);
+    });
+
+    render(<SessionEditor />);
+
+    const [statusSelect] = await screen.findAllByRole('combobox');
+    fireEvent.mouseDown(statusSelect);
+    fireEvent.click(await screen.findByRole('option', { name: 'professor.sessionEditor.liveBasedOnDate' }));
+
+    expect(await screen.findByText('professor.sessionEditor.scheduledQuizLiveWarning')).toBeInTheDocument();
+  });
+
   it('creates a new session-authored question once and inserts it into the session order directly', async () => {
     apiClientMock.post.mockImplementation((url, payload) => {
       if (url === '/questions') {

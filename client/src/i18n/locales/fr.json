@@ -133,6 +133,7 @@
     "failedToArchive": "Échec de l'archivage du message.",
     "disabled": "Le chat du cours est actuellement désactivé.",
     "studentNotice": "Les messages étudiants restent anonymes pour les autres étudiants, mais les enseignants peuvent voir qui les a écrits.",
+    "studentNamesAnonymous": "Les noms des étudiants dans le chat sont anonymes pour les autres étudiants.",
     "enableCourseChat": "Activer le chat du cours",
     "retentionDays": "Archiver les messages après",
     "retentionHelp": "Les anciens messages sont archivés automatiquement et ne sont plus affichés dans le chat du cours.",
@@ -308,7 +309,8 @@
       "courses": "Cours",
       "storage": "Stockage",
       "sso": "Configuration SSO",
-      "video": "Vidéo"
+      "video": "Vidéo",
+      "ai": "AI"
     },
     "settings": {
       "restrictDomain": "Restreindre le domaine e-mail",
@@ -549,7 +551,21 @@
       "inactive": "Inactif",
       "failedLoadCourses": "Échec du chargement des cours"
     },
-    "failedSaveVideoSettings": "Échec de l'enregistrement des paramètres vidéo"
+    "failedSaveVideoSettings": "Échec de l'enregistrement des paramètres vidéo",
+    "ai": {
+      "enable": "Enable AI helper",
+      "apiUrl": "OpenAI-compatible API URL",
+      "apiUrlPlaceholder": "e.g. https://api.openai.com/v1",
+      "apiToken": "API token",
+      "apiTokenPlaceholder": "Enter an API token",
+      "tokenConfigured": "API token configured — enter a new value to replace it",
+      "tokenHelp": "The token is stored securely and is never shown again.",
+      "courseHelp": "Select the courses that may use AI. For each enabled course, you may also allow instructors to configure a separate backend.",
+      "allowCourseBackend": "Allow instructor-configured backend",
+      "disabledHelp": "Enable AI helper above before configuring a backend or permitting courses.",
+      "failedSave": "Failed to save AI settings.",
+      "backendHelp": "Add one or more AI backends, discover their Ollama models, then select the default model used by courses unless an instructor chooses another available model."
+    }
   },
   "professor": {
     "dashboard": {
@@ -594,7 +610,7 @@
       "grades": "Notes",
       "students": "Étudiants",
       "instructors": "Enseignants",
-      "settings": "Paramètres",
+      "settings": "Paramètres du cours",
       "aiModel": "Modèle d’IA",
       "groups": "Groupes",
       "addStudent": "Ajouter un étudiant",
@@ -660,6 +676,7 @@
       "noInteractiveSessions": "Aucune séance interactive pour l'instant.",
       "noQuizzes": "Aucun questionnaire pour l'instant.",
       "reviewable": "Révisable",
+      "reviewableHelp": "Contrôle si les étudiants peuvent accéder à la séance pour la consulter.",
       "copySession": "Copier la séance",
       "deleteSession": "Supprimer la séance",
       "deleteSessionConfirm": "Supprimer la séance « {{name}} » ?",
@@ -723,13 +740,35 @@
       "joinLiveSessionAria": "Rejoindre la session en direct {{name}}",
       "reviewLiveQuizAria": "Réviser la session de quiz en direct {{name}}",
       "reviewLiveSessionAria": "Réviser les résultats de la séance en direct {{name}}",
-      "reviewSessionAria": "Réviser la session {{name}}"
+      "reviewSessionAria": "Réviser la session {{name}}",
+      "aiSettings": "AI settings",
+      "enableAiHelper": "Enable AI helper",
+      "aiNotAvailable": "AI helper is not enabled for this course by the administrator.",
+      "aiBackendHelp": "Configure the OpenAI-compatible backend used only by this course.",
+      "aiAdminBackendOnly": "This course uses the AI backend configured by the Qlicker administrator. Its connection details are not shown here.",
+      "aiApiUrl": "OpenAI-compatible API URL",
+      "aiApiUrlPlaceholder": "e.g. https://api.openai.com/v1",
+      "aiApiToken": "API token",
+      "aiApiTokenPlaceholder": "Enter an API token",
+      "aiTokenConfigured": "API token configured — enter a new value to replace it",
+      "aiTokenHelp": "The token is stored securely and is never shown again.",
+      "interactiveSessionsHelp": "Utilisez-les pour des séances en direct en classe avec les étudiants (vous contrôlez la question affichée).",
+      "quizzesHelp": "Utilisez-les pour des questionnaires chronométrés (les étudiants voient toutes les questions à la fois).",
+      "groupsHelp": "Créez et gérez des groupes d’étudiants.",
+      "courseChatHelp": "Un espace où toute personne du cours peut discuter.",
+      "aiChatHelp": "Discutez avec l’assistant IA.",
+      "courseActiveHelp": "Lorsque le cours est actif, les étudiants peuvent y accéder.",
+      "aiRequiresAdminAuthorization": "Autorisation administrateur requise",
+      "enrollmentCodeHelp": "C’est le code dont les étudiants ont besoin pour s’inscrire au cours."
     },
     "sessionEditor": {
       "sessionSettings": "Paramètres de la séance",
       "name": "Nom",
       "description": "Description",
       "status": "Statut",
+      "liveBasedOnDate": "En direct selon la date",
+      "scheduledQuizLiveWarning": "Ce questionnaire est dans sa plage horaire prévue et sera immédiatement accessible aux étudiants.",
+      "makeQuizLive": "Mettre le questionnaire en direct",
       "quiz": "Questionnaire",
       "quizHelp": "Activer le mode questionnaire avec les dates de questionnaire et le comportement spécifique aux étudiants.",
       "practiceQuiz": "Questionnaire de pratique",
@@ -1014,7 +1053,12 @@
       "selectCategoryFilter": "Catégorie",
       "selectGroupFilter": "Groupe",
       "showResponses": "Afficher les réponses",
-      "hideResponses": "Masquer les réponses"
+      "hideResponses": "Masquer les réponses",
+      "generateAiResponseSummary": "Generate AI Response summary",
+      "viewAiResponseSummary": "View AI response summary",
+      "summaryInstructions": "Summary instructions",
+      "basicSummaryHelp": "Basic summary identifies up to five response themes and example quotations.",
+      "aiSummaryInProgress": "Generating summary: student {{completed}} of {{total}}"
     },
     "secondDesktop": {
       "joinCode": "Code d'inscription",
@@ -1044,6 +1088,28 @@
       "min": "Min",
       "max": "Max",
       "joinCodeAria": "Code d'accès : {{code}}"
+    },
+    "aiGrading": {
+      "assistant": "AI Grading Assistant",
+      "title": "AI grading assistant",
+      "formTitle": "AI Grading Form",
+      "gradingInstructions": "Instructions for grading",
+      "feedbackInstructions": "Instructions for feedback",
+      "selectInstruction": "Select an instruction",
+      "createInstruction": "Create a new instruction",
+      "instructionSaved": "Instruction saved and selected.",
+      "unsavedInstructionWarning": "Save this instruction before changing questions. Unsaved edits will be discarded.",
+      "instructionsRequired": "Select a grading instruction for every selected question before starting AI grading.",
+      "regrade": "Re-grade questions that have already been graded",
+      "start": "Start grading",
+      "inProgress": "AI grading in progress: student {{student}} of {{students}}, question {{question}} of {{questions}}",
+      "report": "AI grading report",
+      "log": "AI grading log",
+      "reportSummary": "{{question}}: graded {{graded}} response(s); assigned zero to {{zeroed}} response(s).",
+      "assignedGrade": "Assigned grade: {{points}} / {{outOf}}",
+      "completed": "AI grading completed.",
+      "failedLoad": "Could not load AI grading instructions.",
+      "failedStart": "Could not start AI grading."
     }
   },
   "student": {
@@ -1635,6 +1701,22 @@
         "studentResponse": "Réponse de l'étudiant",
         "position": "{{current}} sur {{total}}"
       }
+    },
+    "aiGrading": {
+      "assistant": "AI Grading Assistant",
+      "title": "AI grading assistant",
+      "formTitle": "AI Grading Form",
+      "gradingInstructions": "Instructions for grading",
+      "feedbackInstructions": "Instructions for feedback",
+      "selectInstruction": "Select an instruction",
+      "createInstruction": "Create a new instruction",
+      "regrade": "Re-grade questions that have already been graded",
+      "start": "Start grading",
+      "inProgress": "AI grading in progress ({{completed}} of {{total}})",
+      "report": "AI grading report",
+      "completed": "AI grading completed.",
+      "failedLoad": "Could not load AI grading instructions.",
+      "failedStart": "Could not start AI grading."
     }
   },
   "pageTitles": {
@@ -2289,6 +2371,35 @@
       "confirmUpdateMessage": "La notification sera mise à jour pour {{recipientScope}}.",
       "confirmDeleteTitle": "Supprimer la notification?",
       "confirmDeleteMessage": "Supprimer définitivement « {{title}} »? Cette action est irréversible."
+    }
+  },
+  "ai": {
+    "backends": {
+      "backendNumber": "Backend {{number}}",
+      "addBackend": "Add backend",
+      "removeBackend": "Remove backend",
+      "name": "Backend name",
+      "type": "Backend type",
+      "url": "Server URL",
+      "apiToken": "API token (optional)",
+      "tokenConfigured": "Token configured — enter a new value to replace it",
+      "discoverModels": "Find models",
+      "discoveryFailed": "Could not find models on this backend.",
+      "modelsHelp": "Only checked models are available for course AI use.",
+      "makeDefault": "Make default"
+    },
+    "chat": {
+      "title": "AI Chat",
+      "newConversation": "New conversation",
+      "noConversations": "No conversations yet.",
+      "send": "Send",
+      "messagePlaceholder": "Ask the AI helper…",
+      "deleteConversation": "Delete conversation",
+      "selectConversation": "Select or start a conversation.",
+      "assistant": "AI assistant",
+      "you": "You",
+      "failedLoad": "Could not load AI conversations.",
+      "failedSend": "Could not send the message."
     }
   }
 }
