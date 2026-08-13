@@ -29,6 +29,7 @@ import {
 } from '../../components/questions/richTextUtils';
 import SessionQuestionGradingPanel from '../../components/grades/SessionQuestionGradingPanel';
 import AiSummaryInstructionForm from '../../components/grades/AiSummaryInstructionForm';
+import AiMarkdownContent from '../../components/ai/AiMarkdownContent';
 import SessionChatPanel from '../../components/live/SessionChatPanel';
 import WordCloudPanel from '../../components/questions/WordCloudPanel';
 import HistogramPanel from '../../components/questions/HistogramPanel';
@@ -1301,7 +1302,7 @@ export default function SessionReview() {
                       variant="outlined"
                       sx={COMPACT_CHIP_SX}
                     />
-                    {qT === QUESTION_TYPES.SHORT_ANSWER && <Box sx={{ ml: 'auto' }}>{['queued', 'running'].includes(aiSummaries[q._id]?.status) ? <Box sx={{ minWidth: 180 }}><Typography variant="caption">{t('professor.sessionReview.aiSummaryInProgress', { completed: aiSummaries[q._id]?.completed || 0, total: aiSummaries[q._id]?.total || 0 })}</Typography><LinearProgress variant="determinate" value={aiSummaries[q._id]?.total ? (aiSummaries[q._id]?.completed || 0) / aiSummaries[q._id].total * 100 : 0} /></Box> : aiSummaries[q._id]?.status === 'completed' ? <Button size="small" variant="outlined" onClick={() => setSummaryView(aiSummaries[q._id])}>{t('professor.sessionReview.viewAiResponseSummary')}</Button> : <Button size="small" variant="outlined" onClick={() => setSummaryQuestion(q)}>{t('professor.sessionReview.generateAiResponseSummary')}</Button>}</Box>}
+                    {qT === QUESTION_TYPES.SHORT_ANSWER && <Box sx={{ ml: 'auto' }}>{['queued', 'running'].includes(aiSummaries[q._id]?.status) ? <Box sx={{ minWidth: 180 }}><Typography variant="caption">{t('professor.sessionReview.aiSummaryInProgress', { completed: aiSummaries[q._id]?.completed || 0, total: aiSummaries[q._id]?.total || 0 })}</Typography><LinearProgress variant="determinate" value={aiSummaries[q._id]?.total ? (aiSummaries[q._id]?.completed || 0) / aiSummaries[q._id].total * 100 : 0} /></Box> : aiSummaries[q._id]?.status === 'completed' ? <Box sx={{ display: 'flex', gap: 1 }}><Button size="small" variant="outlined" onClick={() => setSummaryView(aiSummaries[q._id])}>{t('professor.sessionReview.viewAiResponseSummary')}</Button><Button size="small" variant="outlined" onClick={() => setSummaryQuestion(q)}>{t('professor.sessionReview.generateAiResponseSummary')}</Button></Box> : <Button size="small" variant="outlined" onClick={() => setSummaryQuestion(q)}>{t('professor.sessionReview.generateAiResponseSummary')}</Button>}</Box>}
                   </Box>
 
                   {/* Question content */}
@@ -1709,7 +1710,7 @@ export default function SessionReview() {
         </DialogContent>
         <DialogActions><Button onClick={() => setSummaryQuestion(null)}>{t('common.cancel')}</Button><Button variant="contained" disabled={!summaryInstructionId || !summaryInstruction.trim()} onClick={startSummary}>{t('professor.sessionReview.generateAiResponseSummary')}</Button></DialogActions>
       </Dialog>
-      <Dialog open={!!summaryView} onClose={() => setSummaryView(null)} fullWidth maxWidth="md"><DialogTitle>{t('professor.sessionReview.viewAiResponseSummary')}</DialogTitle><DialogContent dividers><Typography sx={{ whiteSpace: 'pre-wrap' }}>{summaryView?.summary}</Typography></DialogContent><DialogActions><Button onClick={() => setSummaryView(null)}>{t('common.close')}</Button></DialogActions></Dialog>
+      <Dialog open={!!summaryView} onClose={() => setSummaryView(null)} fullWidth maxWidth="md"><DialogTitle>{t('professor.sessionReview.viewAiResponseSummary')}</DialogTitle><DialogContent dividers><AiMarkdownContent content={summaryView?.summary} /></DialogContent><DialogActions><Button onClick={() => setSummaryView(null)}>{t('common.close')}</Button></DialogActions></Dialog>
     </Box>
   );
 }

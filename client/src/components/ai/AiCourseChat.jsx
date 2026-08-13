@@ -2,13 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Box, Button, CircularProgress, IconButton, List, ListItemButton, ListItemText, Paper, Typography } from '@mui/material';
 import { Add as AddIcon, DeleteOutline as DeleteIcon } from '@mui/icons-material';
 import { useTranslation } from 'react-i18next';
-import ReactMarkdown from 'react-markdown';
-import rehypeKatex from 'rehype-katex';
-import remarkGfm from 'remark-gfm';
-import remarkMath from 'remark-math';
 import apiClient from '../../api/client';
 import StudentRichTextEditor from '../questions/StudentRichTextEditor';
 import { extractPlainTextFromHtml } from '../questions/richTextUtils';
+import AiMarkdownContent from './AiMarkdownContent';
 
 function formatMessageTime(value) {
   const date = new Date(value || 0);
@@ -21,34 +18,6 @@ function normalizeDraft(value) {
   }
   const html = String(value?.html || '');
   return { html, plainText: String(value?.plainText ?? extractPlainTextFromHtml(html)) };
-}
-
-function normalizeMarkdownMath(value) {
-  return String(value || '')
-    .replace(/\\\[([\s\S]*?)\\\]/g, (_, math) => `$$\n${math.trim()}\n$$`)
-    .replace(/\\\(([\s\S]*?)\\\)/g, (_, math) => `$${math.trim()}$`);
-}
-
-const markdownSx = {
-  overflowWrap: 'anywhere',
-  '& > :first-of-type': { mt: 0 },
-  '& > :last-child': { mb: 0 },
-  '& p, & ul, & ol, & blockquote, & pre, & table': { my: 0.75 },
-  '& ul, & ol': { pl: 3 },
-  '& blockquote': { borderLeft: 3, borderColor: 'divider', pl: 1.25, ml: 0, color: 'text.secondary' },
-  '& pre': { overflowX: 'auto', p: 1, borderRadius: 1, bgcolor: 'action.hover' },
-  '& code': { fontFamily: 'monospace', fontSize: '0.9em' },
-  '& :not(pre) > code': { px: 0.4, py: 0.15, borderRadius: 0.5, bgcolor: 'action.hover' },
-  '& table': { borderCollapse: 'collapse', maxWidth: '100%' },
-  '& th, & td': { border: 1, borderColor: 'divider', p: 0.6, textAlign: 'left' },
-};
-
-function AssistantMessage({ content }) {
-  return <Box sx={markdownSx}>
-    <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
-      {normalizeMarkdownMath(content)}
-    </ReactMarkdown>
-  </Box>;
 }
 
 export default function AiCourseChat({ courseId }) {
@@ -125,7 +94,7 @@ export default function AiCourseChat({ courseId }) {
         {!selected ? <Typography color="text.secondary">{t('ai.chat.selectConversation')}</Typography> : messages.map((message) => <Paper key={message._id} variant="outlined" sx={{ p: 1.25, alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%', bgcolor: message.role === 'user' ? 'action.hover' : 'background.paper' }}>
           <Typography variant="caption" color="text.secondary">{message.role === 'user' ? t('ai.chat.you') : t('ai.chat.assistant')}</Typography>
           {message.role === 'assistant'
-            ? <AssistantMessage content={message.content} />
+            ? <AiMarkdownContent content={message.content} />
             : <Typography sx={{ whiteSpace: 'pre-wrap' }}>{message.content}</Typography>}
         </Paper>)}
       </Box>
