@@ -227,6 +227,27 @@ describe('Course-wide video chat', () => {
     const res = await authenticatedRequest(app, 'POST', `/api/v1/courses/${courseId}/video/toggle`, { token: studentToken });
     expect(res.statusCode).toBe(403);
   });
+
+  it('does not grant video settings access to a professor enrolled only as a student', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const instructor = await createTestUser({ email: 'video-instructor@example.com', roles: ['professor'] });
+    const instructorToken = await getAuthToken(app, instructor);
+    const courseRes = await createCourseAsProf(instructorToken);
+    const courseId = courseRes.json().course._id;
+
+    const professorStudent = await createTestUser({ email: 'video-professor-student@example.com', roles: ['professor', 'student'] });
+    const professorStudentToken = await getAuthToken(app, professorStudent);
+    await authenticatedRequest(app, 'POST', '/api/v1/courses/enroll', {
+      token: professorStudentToken,
+      payload: { enrollmentCode: courseRes.json().course.enrollmentCode },
+    });
+
+    const res = await authenticatedRequest(app, 'POST', `/api/v1/courses/${courseId}/video/toggle`, {
+      token: professorStudentToken,
+    });
+
+    expect(res.statusCode).toBe(403);
+  });
 });
 
 // ---------- Category video chat ----------

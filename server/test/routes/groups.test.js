@@ -98,6 +98,28 @@ describe('POST /api/v1/courses/:id/groups (create category)', () => {
 
     expect(res.statusCode).toBe(403);
   });
+
+  it('does not grant group management to a professor enrolled only as a student', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const instructor = await createTestUser({ email: 'instructor@example.com', roles: ['professor'] });
+    const instructorToken = await getAuthToken(app, instructor);
+    const courseRes = await createCourseAsProf(instructorToken);
+    const courseId = courseRes.json().course._id;
+
+    const professorStudent = await createTestUser({ email: 'professor-student@example.com', roles: ['professor', 'student'] });
+    const professorStudentToken = await getAuthToken(app, professorStudent);
+    await authenticatedRequest(app, 'POST', '/api/v1/courses/enroll', {
+      token: professorStudentToken,
+      payload: { enrollmentCode: courseRes.json().course.enrollmentCode },
+    });
+
+    const res = await authenticatedRequest(app, 'POST', `/api/v1/courses/${courseId}/groups`, {
+      token: professorStudentToken,
+      payload: { categoryName: 'Unauthorized Group', numberOfGroups: 2 },
+    });
+
+    expect(res.statusCode).toBe(403);
+  });
 });
 
 // ---------- GET /api/v1/courses/:id/groups ----------

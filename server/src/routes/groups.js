@@ -1,5 +1,6 @@
 import Course from '../models/Course.js';
 import User from '../models/User.js';
+import { isCourseInstructorOrAdmin } from '../utils/courseAccess.js';
 
 // ---------------------------------------------------------------------------
 // Legacy compatibility: normalize a groupCategories array from the legacy
@@ -94,17 +95,13 @@ export default async function groupRoutes(app) {
   // ---- Helpers ----
 
   async function loadCourseAsInstructor(request, reply) {
-    const roles = request.user.roles || [];
-    const userId = request.user.userId;
-    const isAdmin = roles.includes('admin');
-
     // Use .lean() so legacy fields (groupName, students) are preserved for normalization
     const course = await Course.findById(request.params.id).lean();
     if (!course) {
       reply.code(404).send({ error: 'Not Found', message: 'Course not found' });
       return null;
     }
-    if (!isAdmin && !(course.instructors || []).includes(userId)) {
+    if (!isCourseInstructorOrAdmin(course, request.user)) {
       reply.code(403).send({ error: 'Forbidden', message: 'Insufficient permissions' });
       return null;
     }

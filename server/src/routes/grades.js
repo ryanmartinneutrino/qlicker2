@@ -4,6 +4,7 @@ import Question from '../models/Question.js';
 import Response from '../models/Response.js';
 import Session from '../models/Session.js';
 import User from '../models/User.js';
+import { isCourseInstructorOrAdmin as isInstructorOrAdmin, isCourseMember } from '../utils/courseAccess.js';
 import {
   calculateResponsePoints,
   ensureSessionMsScoringMethod,
@@ -46,27 +47,6 @@ function formatUserDisplayName(user) {
   const fullName = `${first} ${last}`.trim();
   if (fullName) return fullName;
   return user?.emails?.[0]?.address || user?.email || 'Unknown Student';
-}
-
-function isInstructorOrAdmin(course, user) {
-  const roles = user.roles || [];
-  return roles.includes('admin') || (course.instructors || []).includes(user.userId);
-}
-
-function isStudentBlockedByInactiveCourse(course, user) {
-  if (!course?.inactive) return false;
-  const roles = user.roles || [];
-  if (roles.includes('admin')) return false;
-  if ((course.instructors || []).includes(user.userId)) return false;
-  return (course.students || []).includes(user.userId);
-}
-
-function isCourseMember(course, user) {
-  if (isStudentBlockedByInactiveCourse(course, user)) return false;
-  const roles = user.roles || [];
-  return roles.includes('admin')
-    || (course.instructors || []).includes(user.userId)
-    || (course.students || []).includes(user.userId);
 }
 
 function getGradeIdentityFilter(grade) {

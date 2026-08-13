@@ -6,6 +6,7 @@ import { emailRegex } from '../utils/email.js';
 import { escapeForRegex } from '../utils/regex.js';
 import { getUserAccessFlags, invalidateAccessCache } from '../utils/userAccess.js';
 import { getOrCreateSettingsDocument } from '../utils/settingsSingleton.js';
+import { isCourseInstructorOrAdmin } from '../utils/courseAccess.js';
 
 function generateEnrollmentCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -247,7 +248,7 @@ export default async function courseRoutes(app) {
         }
       }
 
-      const projection = { students: 0, groupCategories: 0, aiApiToken: 0 };
+      const projection = { students: 0, groupCategories: 0, aiApiToken: 0, 'aiBackends.apiToken': 0 };
 
       const [courses, total] = await Promise.all([
         Course.find(filter, projection)
@@ -308,7 +309,7 @@ export default async function courseRoutes(app) {
         return reply.code(404).send({ error: 'Not Found', message: 'Course not found' });
       }
 
-      const isInstructor = (course.instructors || []).includes(userId);
+      const isInstructor = isCourseInstructorOrAdmin(course, request.user);
       const isStudent = (course.students || []).includes(userId);
 
       if (!isAdmin && !isInstructor && !isStudent) {
@@ -322,6 +323,14 @@ export default async function courseRoutes(app) {
       const aiApiTokenSet = String(obj.aiApiToken || '').trim().length > 0;
       delete obj.aiApiToken;
       if (isAdmin || isInstructor) obj.aiApiTokenSet = aiApiTokenSet;
+      if (Array.isArray(obj.aiBackends)) {
+        obj.aiBackends = obj.aiBackends.map((backend) => {
+          const apiTokenSet = String(backend?.apiToken || '').trim().length > 0;
+          const safeBackend = { ...backend };
+          delete safeBackend.apiToken;
+          return { ...safeBackend, apiTokenSet };
+        });
+      }
 
       // Populate instructor data for any authenticated viewer
       if (obj.instructors && obj.instructors.length > 0) {
@@ -379,7 +388,7 @@ export default async function courseRoutes(app) {
         return reply.code(404).send({ error: 'Not Found', message: 'Course not found' });
       }
 
-      if (!isAdmin && !(course.instructors || []).includes(userId)) {
+      if (!isCourseInstructorOrAdmin(course, request.user)) {
         return reply.code(403).send({ error: 'Forbidden', message: 'Insufficient permissions' });
       }
 
@@ -424,6 +433,14 @@ export default async function courseRoutes(app) {
       const result = updated.toObject();
       result.aiApiTokenSet = String(result.aiApiToken || '').trim().length > 0;
       delete result.aiApiToken;
+      if (Array.isArray(result.aiBackends)) {
+        result.aiBackends = result.aiBackends.map((backend) => {
+          const safeBackend = { ...backend };
+          const apiTokenSet = String(safeBackend.apiToken || '').trim().length > 0;
+          delete safeBackend.apiToken;
+          return { ...safeBackend, apiTokenSet };
+        });
+      }
       return { course: result };
     }
   );
@@ -546,7 +563,7 @@ export default async function courseRoutes(app) {
 
       // Allow: admin, instructor, or the student removing themselves
       const isSelfUnenroll = studentId === userId && (course.students || []).includes(userId);
-      if (!isAdmin && !(course.instructors || []).includes(userId) && !isSelfUnenroll) {
+      if (!isCourseInstructorOrAdmin(course, request.user) && !isSelfUnenroll) {
         return reply.code(403).send({ error: 'Forbidden', message: 'Insufficient permissions' });
       }
 
@@ -589,7 +606,7 @@ export default async function courseRoutes(app) {
         return reply.code(404).send({ error: 'Not Found', message: 'Course not found' });
       }
 
-      if (!isAdmin && !(course.instructors || []).includes(userId)) {
+      if (!isCourseInstructorOrAdmin(course, request.user)) {
         return reply.code(403).send({ error: 'Forbidden', message: 'Insufficient permissions' });
       }
 
@@ -739,7 +756,7 @@ export default async function courseRoutes(app) {
         return reply.code(404).send({ error: 'Not Found', message: 'Course not found' });
       }
 
-      if (!isAdmin && !(course.instructors || []).includes(userId)) {
+      if (!isCourseInstructorOrAdmin(course, request.user)) {
         return reply.code(403).send({ error: 'Forbidden', message: 'Insufficient permissions' });
       }
 
@@ -779,7 +796,7 @@ export default async function courseRoutes(app) {
         return reply.code(404).send({ error: 'Not Found', message: 'Course not found' });
       }
 
-      if (!isAdmin && !(course.instructors || []).includes(userId)) {
+      if (!isCourseInstructorOrAdmin(course, request.user)) {
         return reply.code(403).send({ error: 'Forbidden', message: 'Insufficient permissions' });
       }
 

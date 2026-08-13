@@ -83,6 +83,7 @@ export default function RichTextEditor({
   ariaLabel,
   ariaDescribedBy,
   onBlur,
+  onKeyDown,
   enableVideo = false,
   borderEmphasis = 'normal',
 }) {
@@ -114,8 +115,10 @@ export default function RichTextEditor({
   // and makes typing in the grading table impossible.
   const onChangeRef = useRef(onChange);
   const onBlurRef = useRef(onBlur);
+  const onKeyDownRef = useRef(onKeyDown);
   onChangeRef.current = onChange;
   onBlurRef.current = onBlur;
+  onKeyDownRef.current = onKeyDown;
 
   const emitEditorChange = (nextEditor) => {
     if (!nextEditor) return;
@@ -218,6 +221,7 @@ export default function RichTextEditor({
             onBlurRef.current?.();
             return false;
           },
+          keydown: (_view, event) => onKeyDownRef.current?.(event) === true,
         },
         handleDrop(view, event) {
           const droppedFiles = Array.from(event.dataTransfer?.files || []).filter(isImageFile);

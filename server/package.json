@@ -24,6 +24,7 @@
     "@fastify/swagger": "^9.4.2",
     "@fastify/swagger-ui": "^5.2.1",
     "@fastify/websocket": "^11.0.2",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@node-rs/argon2": "^2.0.2",
     "@node-saml/node-saml": "^5.1.0",
     "dotenv": "^17.4.2",
@@ -34,7 +35,8 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.4.1",
     "nodemailer": "^9.0.3",
-    "sharp": "^0.34.5"
+    "sharp": "^0.34.5",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "mongodb-memory-server": "^11.0.1",

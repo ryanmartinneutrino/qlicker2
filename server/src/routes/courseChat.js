@@ -4,6 +4,7 @@ import Post from '../models/Post.js';
 import User from '../models/User.js';
 import { getNormalizedTagValue, normalizeTags } from '../services/questionImportExport.js';
 import { generateMeteorId } from '../utils/meteorId.js';
+import { isCourseInstructorOrAdmin as isInstructorOrAdmin, isCourseMember } from '../utils/courseAccess.js';
 
 const DEFAULT_RETENTION_DAYS = 14;
 const COURSE_CHAT_READ_RATE_LIMIT = { max: 90, timeWindow: '1 minute' };
@@ -59,19 +60,6 @@ function sortCourseChatComments(comments = []) {
     if (createdDiff !== 0) return createdDiff;
     return String(a?._id || '').localeCompare(String(b?._id || ''));
   });
-}
-
-function isInstructorOrAdmin(course, user) {
-  const userId = String(user?.userId || user?._id || '');
-  const roles = user?.roles || user?.profile?.roles || [];
-  if (roles.includes('admin')) return true;
-  return (course?.instructors || []).some((instructorId) => String(instructorId) === userId);
-}
-
-function isCourseMember(course, user) {
-  const userId = String(user?.userId || user?._id || '');
-  return isInstructorOrAdmin(course, user)
-    || (course?.students || []).some((studentId) => String(studentId) === userId);
 }
 
 function getChatAuthorRole(course, user) {

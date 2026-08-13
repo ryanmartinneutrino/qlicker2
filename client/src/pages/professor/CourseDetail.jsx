@@ -19,6 +19,8 @@ import {
 import { useTheme } from '@mui/material/styles';
 import apiClient, { getUsableAccessToken } from '../../api/client';
 import { closeWebSocketQuietly } from '../../utils/liveSocket';
+import { getAvailableAiModels, hasIncompleteAiBackend } from '../../utils/aiBackends';
+import { isCurrentUserCourseInstructorOrAdmin } from '../../utils/courseAccess';
 import { buildCourseSelectionLabel, buildCourseTitle, sortCoursesByRecent } from '../../utils/courseTitle';
 import {
   getProfessorSessionPrimaryPath,
@@ -37,7 +39,10 @@ import CourseGradesPanel from '../../components/grades/CourseGradesPanel';
 import GroupManagementPanel from '../../components/groups/GroupManagementPanel';
 import ManageNotificationsDialog from '../../components/notifications/ManageNotificationsDialog';
 import VideoChatPanel from '../../components/video/VideoChatPanel';
+import AiBackendManager from '../../components/ai/AiBackendManager';
+import AiCourseChat from '../../components/ai/AiCourseChat';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../../contexts/AuthContext';
 import { toggleSessionReviewable } from '../../utils/reviewableToggle';
 import { getCourseChatEventUnseenDelta } from '../../utils/courseChat';
 import { isRequestCanceled } from '../../utils/requestCancellation';
@@ -272,6 +277,7 @@ export default function CourseDetail() {
   const navigate = useNavigate();
   const theme = useTheme();
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -309,6 +315,7 @@ export default function CourseDetail() {
   const [adminTimeFormat, setAdminTimeFormat] = useState('24h');
   const [ssoEnabled, setSsoEnabled] = useState(false);
   const [aiCoursePolicy, setAiCoursePolicy] = useState({ enabled: false, allowCourseBackend: false });
+  const [aiConfig, setAiConfig] = useState(null);
 
   // Sessions
   const [sessions, setSessions] = useState([]);
@@ -349,8 +356,9 @@ export default function CourseDetail() {
   const chatTabIndex = courseChatEnabled ? 6 : -1;
   const videoTabIndex = videoEnabled ? (courseChatEnabled ? 7 : 6) : -1;
   const aiTabIndex = aiAvailable ? (courseChatEnabled ? (videoEnabled ? 8 : 7) : (videoEnabled ? 7 : 6)) : -1;
+  const aiChatTabIndex = aiAvailable && course?.aiEnabled ? aiTabIndex + 1 : -1;
   const settingsTabIndex = aiAvailable
-    ? aiTabIndex + 1
+    ? aiTabIndex + (course?.aiEnabled ? 2 : 1)
     : (courseChatEnabled ? (videoEnabled ? 8 : 7) : (videoEnabled ? 7 : 6));
   const questionLibraryTabIndex = settingsTabIndex + 1;
 
@@ -363,6 +371,15 @@ export default function CourseDetail() {
     });
     return () => { mounted = false; };
   }, [id]);
+
+  useEffect(() => {
+    if (!aiAvailable) { setAiConfig(null); return undefined; }
+    let mounted = true;
+    apiClient.get(`/ai/courses/${id}/config`).then(({ data }) => {
+      if (mounted) setAiConfig(data);
+    }).catch(() => { if (mounted) setAiConfig(null); });
+    return () => { mounted = false; };
+  }, [aiAvailable, id]);
 
   useEffect(() => {
     let mounted = true;
@@ -382,6 +399,10 @@ export default function CourseDetail() {
   const lastSavedEditFieldsHashRef = useRef('');
   const settingsSaveInFlightRef = useRef(false);
   const queuedSettingsFieldsRef = useRef(null);
+  const aiConfigSaveTimerRef = useRef(null);
+  const aiConfigUpdatesRef = useRef({});
+  const aiConfigSaveInFlightRef = useRef(false);
+  const aiConfigSaveQueuedRef = useRef(false);
   const newSessionNameInputRef = useRef(null);
   const newSessionDescInputRef = useRef(null);
 
@@ -559,6 +580,12 @@ export default function CourseDetail() {
     try {
       const { data } = await apiClient.get(`/courses/${id}`);
       const c = data.course || data;
+      if (user) {
+        if (!isCurrentUserCourseInstructorOrAdmin(c, user)) {
+          navigate(`/student/course/${id}`, { replace: true });
+          return;
+        }
+      }
       const nextEditFields = getCourseEditFields(c);
       const nextHash = JSON.stringify(nextEditFields);
       setCourse(c);
@@ -581,7 +608,7 @@ export default function CourseDetail() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, navigate, user]);
 
   const setCourseTab = useCallback((nextTab) => {
     setTab(nextTab);
@@ -612,6 +639,11 @@ export default function CourseDetail() {
     lastSavedEditFieldsHashRef.current = '';
     settingsSaveInFlightRef.current = false;
     queuedSettingsFieldsRef.current = null;
+    clearTimeout(aiConfigSaveTimerRef.current);
+    aiConfigSaveTimerRef.current = null;
+    aiConfigUpdatesRef.current = {};
+    aiConfigSaveInFlightRef.current = false;
+    aiConfigSaveQueuedRef.current = false;
     setSettingsAutoSaveStatus('idle');
     setSettingsAutoSaveError('');
   }, [id]);
@@ -999,7 +1031,7 @@ export default function CourseDetail() {
   const handleAiEnabledChange = async (event) => {
     markSettingAutoSaveInProgress();
     try {
-      await apiClient.patch(`/courses/${id}`, { aiEnabled: event.target.checked });
+      await apiClient.patch(`/ai/courses/${id}/config`, { enabled: event.target.checked });
       fetchCourse();
       setSettingsAutoSaveStatus('success');
     } catch (err) {
@@ -1007,16 +1039,73 @@ export default function CourseDetail() {
     }
   };
 
-  const handleAiBackendChange = async (field, value) => {
-    markSettingAutoSaveInProgress();
+  const flushAiConfigChanges = useCallback(async function flushAiConfigChanges() {
+    if (aiConfigSaveInFlightRef.current) {
+      aiConfigSaveQueuedRef.current = true;
+      return;
+    }
+
+    const updates = aiConfigUpdatesRef.current;
+    if (Object.keys(updates).length === 0) return;
+
+    aiConfigUpdatesRef.current = {};
+    aiConfigSaveInFlightRef.current = true;
     try {
-      await apiClient.patch(`/courses/${id}`, { [field]: value });
-      fetchCourse();
+      await apiClient.patch(`/ai/courses/${id}/config`, updates);
       setSettingsAutoSaveStatus('success');
     } catch (err) {
       markSettingAutoSaveError(err, t('professor.course.failedUpdateSetting'));
+    } finally {
+      aiConfigSaveInFlightRef.current = false;
+      if (aiConfigSaveQueuedRef.current || Object.keys(aiConfigUpdatesRef.current).length > 0) {
+        aiConfigSaveQueuedRef.current = false;
+        await flushAiConfigChanges();
+      }
     }
+  }, [id, t]);
+
+  const handleAiConfigChange = (updates, localUpdates = updates) => {
+    setAiConfig((current) => (current ? { ...current, ...localUpdates } : current));
+    aiConfigUpdatesRef.current = { ...aiConfigUpdatesRef.current, ...updates };
+    clearTimeout(aiConfigSaveTimerRef.current);
+    markSettingAutoSaveInProgress();
+    aiConfigSaveTimerRef.current = setTimeout(() => {
+      aiConfigSaveTimerRef.current = null;
+      flushAiConfigChanges();
+    }, 500);
   };
+
+  const handleAiBackendChange = (field, value) => {
+    if (field === 'backends' && hasIncompleteAiBackend(value)) {
+      const { backends, ...pendingUpdates } = aiConfigUpdatesRef.current;
+      aiConfigUpdatesRef.current = pendingUpdates;
+      if (Object.keys(pendingUpdates).length === 0) setSettingsAutoSaveStatus('idle');
+      return;
+    }
+    handleAiConfigChange({ [field]: value });
+  };
+
+  const handleAiCourseDefaultChange = (defaultBackendId, defaultModelId) => {
+    handleAiConfigChange({
+      defaultBackendId,
+      defaultModelId,
+      selectedBackendId: defaultBackendId,
+      selectedModelId: defaultModelId,
+    }, {
+      courseDefaultBackendId: defaultBackendId,
+      courseDefaultModelId: defaultModelId,
+      selectedBackendId: defaultBackendId,
+      selectedModelId: defaultModelId,
+    });
+  };
+
+  useEffect(() => () => {
+    clearTimeout(aiConfigSaveTimerRef.current);
+    const pendingUpdates = aiConfigUpdatesRef.current;
+    if (Object.keys(pendingUpdates).length > 0) {
+      apiClient.patch(`/ai/courses/${id}/config`, pendingUpdates).catch(() => {});
+    }
+  }, [id]);
 
   const handleCourseChatEnabledChange = async (event) => {
     markSettingAutoSaveInProgress();
@@ -1249,7 +1338,10 @@ export default function CourseDetail() {
       },
     }] : []),
     ...(videoEnabled ? [{ value: videoTabIndex, label: t('professor.course.video') }] : []),
-    ...(aiAvailable && course?.aiEnabled ? [{ value: aiTabIndex, label: t('professor.course.aiSettings') }] : []),
+    ...(aiAvailable && course?.aiEnabled ? [
+      { value: aiTabIndex, label: t('professor.course.aiSettings') },
+      { value: aiChatTabIndex, label: t('ai.chat.title') },
+    ] : []),
     { value: settingsTabIndex, label: t('professor.course.settings') },
     { value: questionLibraryTabIndex, label: t('questionLibrary.title', { defaultValue: 'Question Library' }) },
   ];
@@ -1888,33 +1980,33 @@ export default function CourseDetail() {
         <TabPanel value={tab} index={aiTabIndex}>
           <Box sx={{ maxWidth: 620, display: 'flex', flexDirection: 'column', gap: 2 }}>
             <Typography variant="h6">{t('professor.course.aiSettings')}</Typography>
-            {aiCoursePolicy.allowCourseBackend ? (
+            {!aiConfig ? <CircularProgress size={24} /> : aiCoursePolicy.allowCourseBackend ? (
               <>
+                <TextField select label={t('professor.course.aiModel')} value={`${aiConfig.selectedBackendId}::${aiConfig.selectedModelId}`} onChange={(event) => {
+                  const [selectedBackendId, selectedModelId] = event.target.value.split('::');
+                  handleAiConfigChange({ selectedBackendId, selectedModelId });
+                }} fullWidth>
+                  {getAvailableAiModels([...aiConfig.adminBackends, ...aiConfig.courseBackends]).map(({ backend, model }) => <MenuItem key={`${backend.id}-${model.id}`} value={`${backend.id}::${model.id}`}>{`${backend.name || backend.url} — ${model.name}`}</MenuItem>)}
+                </TextField>
                 <Typography variant="body2" color="text.secondary">{t('professor.course.aiBackendHelp')}</Typography>
-                <TextField
-                  label={t('professor.course.aiApiUrl')}
-                  value={course.aiApiUrl || ''}
-                  onBlur={(event) => handleAiBackendChange('aiApiUrl', event.target.value)}
-                  onChange={(event) => setCourse((current) => ({ ...current, aiApiUrl: event.target.value }))}
-                  placeholder={t('professor.course.aiApiUrlPlaceholder')}
-                  fullWidth
-                />
-                <TextField
-                  type="password"
-                  label={t('professor.course.aiApiToken')}
-                  defaultValue=""
-                  onBlur={(event) => { if (event.target.value) handleAiBackendChange('aiApiToken', event.target.value); }}
-                  placeholder={course.aiApiTokenSet ? t('professor.course.aiTokenConfigured') : t('professor.course.aiApiTokenPlaceholder')}
-                  helperText={t('professor.course.aiTokenHelp')}
-                  fullWidth
-                />
+                <AiBackendManager backends={aiConfig.courseBackends} courseId={id} canAddBackends={aiCoursePolicy.allowCourseBackend} onChange={(backends) => { setAiConfig((current) => ({ ...current, courseBackends: backends })); handleAiBackendChange('backends', backends); }} defaultBackendId={aiConfig.courseDefaultBackendId} defaultModelId={aiConfig.courseDefaultModelId} onDefaultChange={handleAiCourseDefaultChange} />
               </>
             ) : (
-              <Alert severity="info">{t('professor.course.aiAdminBackendOnly')}</Alert>
+              <>
+                <TextField select label={t('professor.course.aiModel')} value={`${aiConfig.selectedBackendId || aiConfig.adminDefaultBackendId}::${aiConfig.selectedModelId || aiConfig.adminDefaultModelId}`} onChange={(event) => {
+                  const [selectedBackendId, selectedModelId] = event.target.value.split('::');
+                  handleAiConfigChange({ selectedBackendId, selectedModelId });
+                }} fullWidth>
+                  {aiConfig.adminBackends.flatMap((backend) => backend.models.map((model) => <MenuItem key={`${backend.id}-${model.id}`} value={`${backend.id}::${model.id}`}>{`${backend.name || backend.url} — ${model.name}`}</MenuItem>))}
+                </TextField>
+                <Alert severity="info">{t('professor.course.aiAdminBackendOnly')}</Alert>
+              </>
             )}
           </Box>
         </TabPanel>
       )}
+
+      {aiAvailable && course?.aiEnabled && <TabPanel value={tab} index={aiChatTabIndex}><AiCourseChat courseId={id} /></TabPanel>}
 
       {/* Settings Tab */}
       <TabPanel value={tab} index={settingsTabIndex}>

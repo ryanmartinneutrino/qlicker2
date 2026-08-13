@@ -505,7 +505,7 @@ describe('AdminDashboard', () => {
     settingsState = {
       ...settingsState,
       AI_Enabled: true,
-      AI_ApiUrl: 'https://llm.example/v1',
+      AI_Backends: [{ id: 'ollama-1', name: 'Local Ollama', type: 'ollama', url: 'http://localhost:11434', models: [] }],
       AI_EnabledCourses: ['course-1'],
     };
     const defaultGet = apiClientMock.get.getMockImplementation();
@@ -518,7 +518,7 @@ describe('AdminDashboard', () => {
     fireEvent.click(await screen.findByRole('tab', { name: /^AI$/i }));
 
     expect(await screen.findByRole('checkbox', { name: /^Enable AI helper$/i })).toBeChecked();
-    expect(screen.getByLabelText(/OpenAI-compatible API URL/i)).toHaveValue('https://llm.example/v1');
+    expect(screen.getByDisplayValue('Local Ollama')).toBeInTheDocument();
   });
 
   it('disables and restores a user account from the Users tab', async () => {
