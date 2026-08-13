@@ -1,10 +1,15 @@
 import Course from '../models/Course.js';
+import Grade from '../models/Grade.js';
 import Question from '../models/Question.js';
 import Response from '../models/Response.js';
 import Session from '../models/Session.js';
 import User from '../models/User.js';
+import { getQuestionPoints } from './grading.js';
 
-const MAX_RESPONSE_RESULTS = 500;
+const MAX_RESPONSE_PAGE_SIZE = 100;
+const MAX_RESPONSE_CONTENT_CHARS = 30_000;
+const MAX_GRADE_CELLS = 500;
+const DEFAULT_PAGE_SIZE = 50;
 
 function formatStudent(student) {
   const firstname = String(student?.profile?.firstname || '').trim();
@@ -59,6 +64,31 @@ function serializeAnswer(answer) {
   return JSON.stringify(answer);
 }
 
+function clampPageValue(value, fallback, maximum) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0) return fallback;
+  return Math.min(parsed, maximum);
+}
+
+function questionPrompt(question) {
+  return String(question?.plainText || question?.content || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function compareStudentRows(left, right, sortBy, order) {
+  const direction = order === 'asc' ? 1 : -1;
+  if (sortBy === 'total_points') {
+    const pointsDifference = Number(left.total_points || 0) - Number(right.total_points || 0);
+    if (pointsDifference !== 0) return direction * pointsDifference;
+  }
+  if (sortBy === 'total_percentage') {
+    const leftPercentage = left.total_out_of > 0 ? left.total_points / left.total_out_of : -1;
+    const rightPercentage = right.total_out_of > 0 ? right.total_points / right.total_out_of : -1;
+    const percentageDifference = leftPercentage - rightPercentage;
+    if (percentageDifference !== 0) return direction * percentageDifference;
+  }
+  return left.student.name.localeCompare(right.student.name) * (sortBy === 'name' ? direction : 1);
+}
+
 export async function listCourseStudents(courseId) {
   const course = await Course.findById(courseId).select('students').lean();
   if (!course) throw new Error('Course not found');
@@ -98,7 +128,7 @@ export async function getSessionQuestions(courseId, sessionId) {
   };
 }
 
-export async function getQuestionResponses(courseId, sessionId, questionId) {
+export async function getQuestionResponses(courseId, sessionId, questionId, { offset = 0, limit = DEFAULT_PAGE_SIZE } = {}) {
   const session = await requireCourseSession(courseId, sessionId);
   const orderedQuestions = await loadOrderedQuestions(session);
   const question = orderedQuestions.find((entry) => String(entry._id) === String(questionId));
@@ -116,26 +146,119 @@ export async function getQuestionResponses(courseId, sessionId, questionId) {
 
   const responses = [...latestByStudent.values()]
     .sort((a, b) => responseTimestamp(b) - responseTimestamp(a));
-  const truncated = responses.length > MAX_RESPONSE_RESULTS;
-  const displayedResponses = responses.slice(0, MAX_RESPONSE_RESULTS);
+  const pageOffset = clampPageValue(offset, 0, Number.MAX_SAFE_INTEGER);
+  const pageSize = clampPageValue(limit, DEFAULT_PAGE_SIZE, MAX_RESPONSE_PAGE_SIZE) || DEFAULT_PAGE_SIZE;
+  const displayedResponses = responses.slice(pageOffset, pageOffset + pageSize);
   const users = displayedResponses.length > 0
     ? await User.find({ _id: { $in: displayedResponses.map((response) => response.studentUserId) } }).select('_id profile emails email').lean()
     : [];
   const studentById = new Map(users.map((student) => [String(student._id), formatStudent(student)]));
+
+  const serializedResponses = displayedResponses.map((response) => ({
+    student: studentById.get(String(response.studentUserId)) || { student_id: String(response.studentUserId || ''), name: 'Unknown student', email: '' },
+    answer: serializeAnswer(response.answer),
+    answer_wysiwyg: response.answerWysiwyg || '',
+    correct: response.correct,
+    mark: response.mark,
+    submitted_at: response.submittedAt || response.updatedAt || response.createdAt || null,
+  }));
+  const boundedResponses = [];
+  let contentSize = 0;
+  let contentTruncated = false;
+  for (const response of serializedResponses) {
+    const responseSize = JSON.stringify(response).length;
+    if (contentSize + responseSize > MAX_RESPONSE_CONTENT_CHARS) {
+      contentTruncated = true;
+      break;
+    }
+    boundedResponses.push(response);
+    contentSize += responseSize;
+  }
+  if (boundedResponses.length === 0 && serializedResponses.length > 0) {
+    const response = serializedResponses[0];
+    boundedResponses.push({
+      ...response,
+      answer: String(response.answer || '').slice(0, 10_000),
+      answer_wysiwyg: String(response.answer_wysiwyg || '').slice(0, 10_000),
+    });
+    contentTruncated = true;
+  }
 
   return {
     session: { session_id: String(session._id), name: session.name || '' },
     question: serializeQuestion(question, orderedQuestions.indexOf(question)),
     attempt: highestAttempt || null,
     response_count: responses.length,
-    truncated,
-    responses: displayedResponses.map((response) => ({
-      student: studentById.get(String(response.studentUserId)) || { student_id: String(response.studentUserId || ''), name: 'Unknown student', email: '' },
-      answer: serializeAnswer(response.answer),
-      answer_wysiwyg: response.answerWysiwyg || '',
-      correct: response.correct,
-      mark: response.mark,
-      submitted_at: response.submittedAt || response.updatedAt || response.createdAt || null,
-    })),
+    offset: pageOffset,
+    returned_count: boundedResponses.length,
+    next_offset: pageOffset + boundedResponses.length < responses.length ? pageOffset + boundedResponses.length : null,
+    content_truncated: contentTruncated,
+    responses: boundedResponses,
+  };
+}
+
+export async function getSessionGradeTable(courseId, sessionId, { offset = 0, limit = DEFAULT_PAGE_SIZE, sortBy = 'name', order = 'asc' } = {}) {
+  const session = await requireCourseSession(courseId, sessionId);
+  const questions = await loadOrderedQuestions(session);
+  const course = await Course.findById(courseId).select('students').lean();
+  if (!course) throw new Error('Course not found');
+
+  const [grades, students] = await Promise.all([
+    Grade.find({ courseId: String(courseId), sessionId: String(sessionId) }).select('userId marks points outOf needsGrading').lean(),
+    User.find({ _id: { $in: course.students || [] } }).select('_id profile emails email').lean(),
+  ]);
+  const gradeByStudentId = new Map(grades.map((grade) => [String(grade.userId), grade]));
+  const questionColumns = questions.map((question, index) => ({
+    question_id: String(question._id),
+    number: index + 1,
+    prompt: questionPrompt(question),
+    out_of: getQuestionPoints(question),
+  }));
+  const questionIndexById = new Map(questionColumns.map((question, index) => [question.question_id, index]));
+  const allRows = students.map((student) => {
+    const grade = gradeByStudentId.get(String(student._id));
+    const marksByQuestionId = new Map((grade?.marks || []).map((mark) => [String(mark.questionId), mark]));
+    const scores = questionColumns.map((question) => {
+      const mark = marksByQuestionId.get(question.question_id);
+      return mark ? {
+        points: Number(mark.points || 0),
+        out_of: Number(mark.outOf ?? question.out_of),
+        needs_grading: !!mark.needsGrading,
+      } : { points: null, out_of: question.out_of, needs_grading: false };
+    });
+    const totalPoints = scores.reduce((total, score) => total + (score.points === null ? 0 : score.points), 0);
+    const totalOutOf = scores.reduce((total, score) => total + (score.points === null ? 0 : score.out_of), 0);
+    return { student: formatStudent(student), total_points: totalPoints, total_out_of: totalOutOf, scores };
+  }).sort((left, right) => compareStudentRows(left, right, sortBy, order));
+
+  const questionSummaries = questionColumns.map((question) => {
+    const questionIndex = questionIndexById.get(question.question_id);
+    const scores = allRows.map((row) => row.scores[questionIndex]).filter((score) => score.points !== null);
+    const pointsEarned = scores.reduce((total, score) => total + score.points, 0);
+    const pointsPossible = scores.reduce((total, score) => total + score.out_of, 0);
+    return {
+      question_id: question.question_id,
+      number: question.number,
+      graded_students: scores.length,
+      average_points: scores.length ? pointsEarned / scores.length : null,
+      average_percentage: pointsPossible > 0 ? pointsEarned / pointsPossible * 100 : null,
+      needs_grading: scores.filter((score) => score.needs_grading).length,
+    };
+  });
+
+  const pageOffset = clampPageValue(offset, 0, Number.MAX_SAFE_INTEGER);
+  const requestedPageSize = clampPageValue(limit, DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE) || DEFAULT_PAGE_SIZE;
+  const pageSize = Math.max(1, Math.min(requestedPageSize, Math.floor(MAX_GRADE_CELLS / Math.max(questionColumns.length, 1))));
+  const studentRows = allRows.slice(pageOffset, pageOffset + pageSize);
+  return {
+    session: { session_id: String(session._id), name: session.name || '' },
+    questions: questionColumns,
+    question_summaries: questionSummaries,
+    student_count: allRows.length,
+    offset: pageOffset,
+    returned_count: studentRows.length,
+    next_offset: pageOffset + studentRows.length < allRows.length ? pageOffset + studentRows.length : null,
+    page_limited_to_preserve_context: pageSize < requestedPageSize,
+    students: studentRows,
   };
 }

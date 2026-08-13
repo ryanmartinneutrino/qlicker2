@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Box, Typography, Button, Paper, Alert, CircularProgress, Chip, Collapse,
-  Switch, FormControlLabel, Table, TableBody, TableCell, TableContainer,
+  Switch, FormControlLabel, Table, TableBody, TableCell, TableContainer, Dialog, DialogActions, DialogContent, DialogTitle,
   TableHead, TableRow, TableSortLabel, LinearProgress, TextField, Autocomplete,
 } from '@mui/material';
 import {
@@ -28,6 +28,8 @@ import {
   renderKatexInElement,
 } from '../../components/questions/richTextUtils';
 import SessionQuestionGradingPanel from '../../components/grades/SessionQuestionGradingPanel';
+import AiSummaryInstructionForm from '../../components/grades/AiSummaryInstructionForm';
+import AiMarkdownContent from '../../components/ai/AiMarkdownContent';
 import SessionChatPanel from '../../components/live/SessionChatPanel';
 import WordCloudPanel from '../../components/questions/WordCloudPanel';
 import HistogramPanel from '../../components/questions/HistogramPanel';
@@ -598,6 +600,13 @@ export default function SessionReview() {
   const [expandedNURows, setExpandedNURows] = useState({});
   const [wordCloudByRow, setWordCloudByRow] = useState({});
   const [histogramByRow, setHistogramByRow] = useState({});
+  const [aiSummaries, setAiSummaries] = useState({});
+  const [summaryQuestion, setSummaryQuestion] = useState(null);
+  const [summaryInstructions, setSummaryInstructions] = useState([]);
+  const [summaryInstructionId, setSummaryInstructionId] = useState('basic-summary');
+  const [summaryInstruction, setSummaryInstruction] = useState('Summarize the student responses to identify up to five themes in the student responses. Give a few example quoted responses for the students for each theme.');
+  const [summaryError, setSummaryError] = useState('');
+  const [summaryView, setSummaryView] = useState(null);
   const requestedReturnTab = Number.parseInt(searchParams.get('returnTab') || '', 10);
   const resolvedReturnTab = Number.isInteger(requestedReturnTab) && requestedReturnTab >= 0 ? requestedReturnTab : 0;
   const backToCoursePath = resolvedReturnTab > 0
@@ -643,6 +652,54 @@ export default function SessionReview() {
       setLoading(false);
     }
   }, [courseId, sessionId, t]);
+
+  useEffect(() => { if (!questions.length) return undefined; let mounted = true; const load = () => Promise.all(questions.filter((q) => normalizeQuestionType(q) === QUESTION_TYPES.SHORT_ANSWER).map((q) => apiClient.get(`/ai/courses/${courseId}/sessions/${sessionId}/questions/${q._id}/ai-summary`).then(({ data }) => [q._id, data.summary]).catch(() => [q._id, null]))).then((entries) => { if (mounted) setAiSummaries(Object.fromEntries(entries)); }); load(); const timer = setInterval(load, 2500); return () => { mounted = false; clearInterval(timer); }; }, [courseId, sessionId, questions]);
+
+  useEffect(() => {
+    if (!summaryQuestion) return;
+    let active = true;
+    setSummaryError('');
+    apiClient.get(`/ai/courses/${courseId}/grading-instructions`)
+      .then(({ data }) => {
+        if (!active) return;
+        const instructions = data.instructions || [];
+        const basicSummary = instructions.find((entry) => entry._id === 'basic-summary');
+        setSummaryInstructions(instructions);
+        setSummaryInstructionId(basicSummary?._id || '');
+        setSummaryInstruction(basicSummary?.content || '');
+      })
+      .catch((err) => {
+        if (active) setSummaryError(err.response?.data?.message || t('grades.aiGrading.failedLoad'));
+      });
+    return () => { active = false; };
+  }, [summaryQuestion, courseId, t]);
+
+  const saveSummaryInstruction = async (instruction) => {
+    const { data } = await apiClient.post(`/ai/courses/${courseId}/grading-instructions`, instruction);
+    setSummaryInstructions((current) => [...current.filter((entry) => entry._id !== data.instruction._id), data.instruction]);
+    return data.instruction;
+  };
+
+  const deleteSummaryInstruction = async (instruction) => {
+    await apiClient.delete(`/ai/courses/${courseId}/grading-instructions/${instruction._id}`);
+    setSummaryInstructions((current) => current.filter((entry) => entry._id !== instruction._id));
+    if (summaryInstructionId === instruction._id) {
+      const basicSummary = summaryInstructions.find((entry) => entry._id === 'basic-summary');
+      setSummaryInstructionId(basicSummary?._id || '');
+      setSummaryInstruction(basicSummary?.content || '');
+    }
+  };
+
+  const startSummary = async () => {
+    setSummaryError('');
+    try {
+      const { data } = await apiClient.post(`/ai/courses/${courseId}/sessions/${sessionId}/questions/${summaryQuestion._id}/ai-summary`, { instruction: summaryInstruction });
+      setAiSummaries((current) => ({ ...current, [summaryQuestion._id]: data.summary }));
+      setSummaryQuestion(null);
+    } catch (err) {
+      setSummaryError(err.response?.data?.message || t('grades.aiGrading.failedStart'));
+    }
+  };
 
   useEffect(() => { fetchResults(); }, [fetchResults]);
 
@@ -1245,6 +1302,7 @@ export default function SessionReview() {
                       variant="outlined"
                       sx={COMPACT_CHIP_SX}
                     />
+                    {qT === QUESTION_TYPES.SHORT_ANSWER && <Box sx={{ ml: 'auto' }}>{['queued', 'running'].includes(aiSummaries[q._id]?.status) ? <Box sx={{ minWidth: 180 }}><Typography variant="caption">{t('professor.sessionReview.aiSummaryInProgress', { completed: aiSummaries[q._id]?.completed || 0, total: aiSummaries[q._id]?.total || 0 })}</Typography><LinearProgress variant="determinate" value={aiSummaries[q._id]?.total ? (aiSummaries[q._id]?.completed || 0) / aiSummaries[q._id].total * 100 : 0} /></Box> : aiSummaries[q._id]?.status === 'completed' ? <Box sx={{ display: 'flex', gap: 1 }}><Button size="small" variant="outlined" onClick={() => setSummaryView(aiSummaries[q._id])}>{t('professor.sessionReview.viewAiResponseSummary')}</Button><Button size="small" variant="outlined" onClick={() => setSummaryQuestion(q)}>{t('professor.sessionReview.generateAiResponseSummary')}</Button></Box> : <Button size="small" variant="outlined" onClick={() => setSummaryQuestion(q)}>{t('professor.sessionReview.generateAiResponseSummary')}</Button>}</Box>}
                   </Box>
 
                   {/* Question content */}
@@ -1563,6 +1621,7 @@ export default function SessionReview() {
       <TabPanel value={tab} index={2}>
         <SessionQuestionGradingPanel
           sessionId={sessionId}
+          courseId={courseId}
           session={session}
           questions={questions.filter((question) => !isSlideType(normalizeQuestionType(question)))}
           studentResults={groupFilteredStudentResults}
@@ -1633,6 +1692,25 @@ export default function SessionReview() {
           />
         </TabPanel>
       ) : null}
+      <Dialog open={!!summaryQuestion} onClose={() => setSummaryQuestion(null)} fullWidth maxWidth="sm">
+        <DialogTitle>{t('professor.sessionReview.generateAiResponseSummary')}</DialogTitle>
+        <DialogContent dividers>
+          {summaryError ? <Alert severity="error" sx={{ mb: 2 }}>{summaryError}</Alert> : null}
+          <AiSummaryInstructionForm
+            instructionId={summaryInstructionId}
+            instruction={summaryInstruction}
+            instructions={summaryInstructions}
+            onChange={({ instructionId, instruction }) => {
+              setSummaryInstructionId(instructionId);
+              setSummaryInstruction(instruction);
+            }}
+            onSaveInstruction={saveSummaryInstruction}
+            onDeleteInstruction={deleteSummaryInstruction}
+          />
+        </DialogContent>
+        <DialogActions><Button onClick={() => setSummaryQuestion(null)}>{t('common.cancel')}</Button><Button variant="contained" disabled={!summaryInstructionId || !summaryInstruction.trim()} onClick={startSummary}>{t('professor.sessionReview.generateAiResponseSummary')}</Button></DialogActions>
+      </Dialog>
+      <Dialog open={!!summaryView} onClose={() => setSummaryView(null)} fullWidth maxWidth="md"><DialogTitle>{t('professor.sessionReview.viewAiResponseSummary')}</DialogTitle><DialogContent dividers><AiMarkdownContent content={summaryView?.summary} /></DialogContent><DialogActions><Button onClick={() => setSummaryView(null)}>{t('common.close')}</Button></DialogActions></Dialog>
     </Box>
   );
 }

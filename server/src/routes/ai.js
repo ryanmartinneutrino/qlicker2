@@ -1,9 +1,14 @@
 import AiConversation from '../models/AiConversation.js';
+import AiGradingInstruction from '../models/AiGradingInstruction.js';
+import AiGradingJob from '../models/AiGradingJob.js';
+import AiResponseSummary from '../models/AiResponseSummary.js';
 import Course from '../models/Course.js';
 import { getOrCreateSettingsDocument } from '../utils/settingsSingleton.js';
 import { isCourseInstructorOrAdmin } from '../utils/courseAccess.js';
 import { discoverOllamaModels, normalizeAiBackends, serializeAiBackends } from '../services/ai.js';
 import { runAiCourseChat } from '../services/aiChatRunner.js';
+import { runAiGradingJob } from '../services/aiGradingRunner.js';
+import { runAiResponseSummary } from '../services/aiResponseSummaryRunner.js';
 
 const READ_LIMIT = { max: 60, timeWindow: '1 minute' };
 const WRITE_LIMIT = { max: 20, timeWindow: '1 minute' };
@@ -155,4 +160,49 @@ export default async function aiRoutes(app) {
       return { conversation: serializeConversation(conversation.toObject(), true) };
     } catch (err) { conversation.messages.pop(); return reply.code(502).send({ error: 'Bad Gateway', message: err.message || 'AI backend request failed' }); }
   });
+
+  app.get('/courses/:courseId/grading-instructions', { preHandler: authenticate }, async (request, reply) => {
+    const course = await instructorCourse(request, reply); if (!course) return undefined;
+    const instructions = await AiGradingInstruction.find({ courseId: course._id }).sort({ kind: 1, name: 1 }).lean();
+    return { instructions: [
+      { _id: 'no-feedback', kind: 'feedback', name: 'Do not give feedback', content: 'Leave the feedback blank.' },
+      { _id: 'basic-summary', kind: 'summary', name: 'Basic summary', content: 'Summarize the student responses to identify up to five themes in the student responses. Give a few example quoted responses for the students for each theme.' },
+      ...instructions,
+    ] };
+  });
+
+  app.post('/courses/:courseId/grading-instructions', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
+    const course = await instructorCourse(request, reply); if (!course) return undefined;
+    const { _id, kind, name, content } = request.body || {};
+    if (!['grading', 'feedback', 'summary'].includes(kind) || !String(name || '').trim() || !String(content || '').trim()) return reply.code(400).send({ error: 'Bad Request', message: 'Instruction type, name, and content are required' });
+    const filter = _id && !['no-feedback', 'basic-summary'].includes(_id) ? { _id, courseId: course._id } : { courseId: course._id, kind, name: String(name).trim() };
+    const instruction = await AiGradingInstruction.findOneAndUpdate(filter, { $set: { courseId: course._id, kind, name: String(name).trim(), content: String(content).trim() } }, { upsert: true, new: true, runValidators: true });
+    return { instruction };
+  });
+
+  app.delete('/courses/:courseId/grading-instructions/:instructionId', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
+    const course = await instructorCourse(request, reply); if (!course) return undefined;
+    await AiGradingInstruction.deleteOne({ _id: request.params.instructionId, courseId: course._id });
+    return reply.code(204).send();
+  });
+
+  app.get('/courses/:courseId/sessions/:sessionId/ai-grading', { preHandler: authenticate }, async (request, reply) => {
+    const course = await instructorCourse(request, reply); if (!course) return undefined;
+    const job = await AiGradingJob.findOne({ courseId: course._id, sessionId: request.params.sessionId }).sort({ createdAt: -1 }).lean();
+    return { job };
+  });
+
+  app.post('/courses/:courseId/sessions/:sessionId/ai-grading', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
+    const course = await instructorCourse(request, reply); if (!course) return undefined;
+    const settings = await getOrCreateSettingsDocument({ lean: true }); const policy = coursePolicy(settings, course._id);
+    if (!policy.enabled || !course.aiEnabled || !resolveModel(course, settings, policy)) return reply.code(400).send({ error: 'Bad Request', message: 'Configure an available AI model before grading' });
+    const { questionIds, instructions = {}, regrade = false } = request.body || {};
+    if (!Array.isArray(questionIds) || questionIds.length === 0) return reply.code(400).send({ error: 'Bad Request', message: 'Select at least one question' });
+    const job = await AiGradingJob.create({ courseId: course._id, sessionId: request.params.sessionId, ownerId: request.user.userId, questionIds: questionIds.map(String), instructions, regrade: !!regrade });
+    setImmediate(() => runAiGradingJob(job._id));
+    return reply.code(202).send({ job });
+  });
+
+  app.get('/courses/:courseId/sessions/:sessionId/questions/:questionId/ai-summary', { preHandler: authenticate }, async (request, reply) => { const course = await instructorCourse(request, reply); if (!course) return undefined; return { summary: await AiResponseSummary.findOne({ courseId: course._id, sessionId: request.params.sessionId, questionId: request.params.questionId }).lean() }; });
+  app.post('/courses/:courseId/sessions/:sessionId/questions/:questionId/ai-summary', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => { const course = await instructorCourse(request, reply); if (!course) return undefined; const settings = await getOrCreateSettingsDocument({ lean: true }); const policy = coursePolicy(settings, course._id); if (!policy.enabled || !course.aiEnabled || !resolveModel(course, settings, policy)) return reply.code(400).send({ error: 'Bad Request', message: 'Configure an available AI model before summarizing' }); const instruction = String(request.body?.instruction || '').trim(); if (!instruction) return reply.code(400).send({ error: 'Bad Request', message: 'Summary instructions are required' }); const summary = await AiResponseSummary.findOneAndUpdate({ courseId: course._id, sessionId: request.params.sessionId, questionId: request.params.questionId }, { $set: { status: 'queued', instruction, completed: 0, total: 0, summary: '', error: '' } }, { upsert: true, new: true }); setImmediate(() => runAiResponseSummary(summary._id)); return reply.code(202).send({ summary }); });
 }

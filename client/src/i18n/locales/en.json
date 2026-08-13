@@ -1041,6 +1041,11 @@
       "selectGroupFilter": "Group",
       "showResponses": "Show Responses",
       "hideResponses": "Hide Responses"
+      ,"generateAiResponseSummary": "Generate AI Response summary"
+      ,"viewAiResponseSummary": "View AI response summary"
+      ,"summaryInstructions": "Summary instructions"
+      ,"basicSummaryHelp": "Basic summary identifies up to five response themes and example quotations."
+      ,"aiSummaryInProgress": "Generating summary: student {{completed}} of {{total}}"
     },
     "secondDesktop": {
       "joinCode": "Join Code",
@@ -1070,6 +1075,28 @@
       "min": "Min",
       "max": "Max",
       "joinCodeAria": "Join code: {{code}}"
+    },
+    "aiGrading": {
+      "assistant": "AI Grading Assistant",
+      "title": "AI grading assistant",
+      "formTitle": "AI Grading Form",
+      "gradingInstructions": "Instructions for grading",
+      "feedbackInstructions": "Instructions for feedback",
+      "selectInstruction": "Select an instruction",
+      "createInstruction": "Create a new instruction",
+      "instructionSaved": "Instruction saved and selected.",
+      "unsavedInstructionWarning": "Save this instruction before changing questions. Unsaved edits will be discarded.",
+      "instructionsRequired": "Select a grading instruction for every selected question before starting AI grading.",
+      "regrade": "Re-grade questions that have already been graded",
+      "start": "Start grading",
+      "inProgress": "AI grading in progress: student {{student}} of {{students}}, question {{question}} of {{questions}}",
+      "report": "AI grading report",
+      "log": "AI grading log",
+      "reportSummary": "{{question}}: graded {{graded}} response(s); assigned zero to {{zeroed}} response(s).",
+      "assignedGrade": "Assigned grade: {{points}} / {{outOf}}",
+      "completed": "AI grading completed.",
+      "failedLoad": "Could not load AI grading instructions.",
+      "failedStart": "Could not start AI grading."
     }
   },
   "student": {
@@ -1592,6 +1619,7 @@
       "noQuestions": "This session has no questions to grade.",
       "questionGradingTable": "Question grading table",
       "questionNumber": "Question {{number}}",
+      "questionNavigator": "Question navigator",
       "searchStudents": "Search students",
       "searchAnswerContent": "Search answer content",
       "onlyNeedsGrading": "Only needs grading",
@@ -1660,6 +1688,22 @@
         "studentResponse": "Student response",
         "position": "{{current}} of {{total}}"
       }
+    },
+    "aiGrading": {
+      "assistant": "AI Grading Assistant",
+      "title": "AI grading assistant",
+      "formTitle": "AI Grading Form",
+      "gradingInstructions": "Instructions for grading",
+      "feedbackInstructions": "Instructions for feedback",
+      "selectInstruction": "Select an instruction",
+      "createInstruction": "Create a new instruction",
+      "regrade": "Re-grade questions that have already been graded",
+      "start": "Start grading",
+      "inProgress": "AI grading in progress ({{completed}} of {{total}})",
+      "report": "AI grading report",
+      "completed": "AI grading completed.",
+      "failedLoad": "Could not load AI grading instructions.",
+      "failedStart": "Could not start AI grading."
     }
   },
   "pageTitles": {

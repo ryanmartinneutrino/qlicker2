@@ -95,6 +95,26 @@ describe('SessionQuestionGradingPanel', () => {
     apiClient.post.mockResolvedValue({ data: {} });
   });
 
+  it('renders one labelled question navigator below the active question', async () => {
+    render(
+      <SessionQuestionGradingPanel
+        sessionId="session-1"
+        session={{ _id: 'session-1', quiz: false, practiceQuiz: false }}
+        questions={[{
+          _id: 'q-mc', type: 0, content: '<p>Pick one</p>', plainText: 'Pick one', sessionOptions: { points: 1 },
+        }]}
+        studentResults={[{
+          studentId: 'student-a', firstname: 'Ada', lastname: 'Lovelace', inSession: true,
+          questionResults: [{ questionId: 'q-mc', responses: [{ attempt: 1, answer: '0' }] }],
+        }]}
+      />
+    );
+
+    await screen.findByText('Ada Lovelace');
+    expect(screen.getAllByText('Question navigator')).toHaveLength(1);
+    expect(screen.getByRole('navigation', { name: 'Question navigator' })).toHaveTextContent('Q1');
+  });
+
   it('debounces answer filtering and matches MC answers by option label instead of option text', async () => {
     render(
       <SessionQuestionGradingPanel

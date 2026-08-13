@@ -12,8 +12,10 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   FormControlLabel,
   IconButton,
+  LinearProgress,
   Paper,
   Table,
   TableBody,
@@ -29,6 +31,7 @@ import {
 import { Check as CheckIcon, Close as CloseIcon, Refresh as RefreshIcon, Speed as SpeedIcon } from '@mui/icons-material';
 import apiClient from '../../api/client';
 import SpeedGradingModal from './SpeedGradingModal';
+import AiGradingModal from './AiGradingModal';
 import {
   QUESTION_TYPES,
   TYPE_COLORS,
@@ -633,6 +636,7 @@ const GradingTableRow = memo(function GradingTableRow({
 
 export default function SessionQuestionGradingPanel({
   sessionId,
+  courseId,
   session = null,
   questions = [],
   studentResults = [],
@@ -659,6 +663,9 @@ export default function SessionQuestionGradingPanel({
   const [bulkFeedback, setBulkFeedback] = useState('');
   const [bulkApplying, setBulkApplying] = useState(false);
   const [showSolution, setShowSolution] = useState(false);
+  const [aiGradingOpen, setAiGradingOpen] = useState(false);
+  const [aiGradingJob, setAiGradingJob] = useState(null);
+  const [aiGradingReportOpen, setAiGradingReportOpen] = useState(false);
   const [recalculating, setRecalculating] = useState(false);
   const [questionPointsDraft, setQuestionPointsDraft] = useState('');
   const [questionPointsDialogOpen, setQuestionPointsDialogOpen] = useState(false);
@@ -802,6 +809,18 @@ export default function SessionQuestionGradingPanel({
       };
     });
   }, [gradesByStudentId, isQuizSession, questions, studentResults]);
+
+  useEffect(() => {
+    if (!courseId || !sessionId) return undefined;
+    let mounted = true;
+    const load = () => apiClient.get(`/ai/courses/${courseId}/sessions/${sessionId}/ai-grading`)
+      .then(({ data }) => { if (mounted) { setAiGradingJob(data.job || null); if (['queued', 'running', 'completed'].includes(data.job?.status)) { fetchSessionGrades(); onSessionDataRefresh?.(); } } }).catch(() => {});
+    load();
+    const timer = setInterval(() => {
+      if (aiGradingJob?.status === 'queued' || aiGradingJob?.status === 'running') load();
+    }, 2500);
+    return () => { mounted = false; clearInterval(timer); };
+  }, [courseId, sessionId, aiGradingJob?.status, fetchSessionGrades, onSessionDataRefresh]);
 
   const allRows = useMemo(() => {
     if (!activeQuestion) return [];
@@ -1439,35 +1458,52 @@ export default function SessionQuestionGradingPanel({
 
   const renderQuestionRibbon = () => (
     <Box
+      component="nav"
+      aria-label={t('grades.questionPanel.questionNavigator')}
       sx={{
         display: 'flex',
-        gap: 0.75,
-        flexWrap: 'wrap',
         mb: 1.5,
         border: 1,
         borderColor: 'divider',
         borderRadius: 1,
         p: 1,
+        position: 'relative',
       }}
     >
-      {questionStatuses.map((entry) => {
-        const isActive = entry.questionId === activeQuestionId;
-        const needsGrading = entry.needsGradingCount > 0;
-        return (
-          <Chip
-            key={entry.questionId}
-            clickable
-            onClick={() => {
-              setActiveQuestionId(entry.questionId);
-              setShowSolution(false);
-            }}
-            label={needsGrading ? `${entry.label} (${entry.needsGradingCount})` : entry.label}
-            color={needsGrading ? 'error' : 'success'}
-            variant={isActive ? 'filled' : 'outlined'}
-            sx={COMPACT_CHIP_SX}
-          />
-        );
-      })}
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        sx={{
+          position: 'absolute',
+          top: -10,
+          left: 8,
+          px: 0.5,
+          bgcolor: 'background.paper',
+          fontWeight: 700,
+        }}
+      >
+        {t('grades.questionPanel.questionNavigator')}
+      </Typography>
+      <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+        {questionStatuses.map((entry) => {
+          const isActive = entry.questionId === activeQuestionId;
+          const needsGrading = entry.needsGradingCount > 0;
+          return (
+            <Chip
+              key={entry.questionId}
+              clickable
+              onClick={() => {
+                setActiveQuestionId(entry.questionId);
+                setShowSolution(false);
+              }}
+              label={needsGrading ? `${entry.label} (${entry.needsGradingCount})` : entry.label}
+              color={needsGrading ? 'error' : 'success'}
+              variant={isActive ? 'filled' : 'outlined'}
+              sx={COMPACT_CHIP_SX}
+            />
+          );
+        })}
+      </Box>
     </Box>
   );
 
@@ -1485,9 +1521,7 @@ export default function SessionQuestionGradingPanel({
         </Alert>
       )}
 
-      {renderQuestionRibbon()}
-
-      <Paper variant="outlined" sx={{ p: 1.5, mb: 1.5 }}>
+      <Paper variant="outlined" sx={{ p: 1.5, mb: 1.5, borderColor: 'primary.main', borderLeftWidth: 4 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 1 }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
             {t('grades.questionPanel.questionNumber', { number: questions.findIndex((question) => String(question?._id) === activeQuestionId) + 1 })}
@@ -1589,6 +1623,18 @@ export default function SessionQuestionGradingPanel({
       </Paper>
 
       {renderQuestionRibbon()}
+      <Divider sx={{ mb: 1.5 }} />
+
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+        {['queued', 'running'].includes(aiGradingJob?.status) ? (
+          <Box sx={{ minWidth: 320, flex: 1 }}><Typography variant="body2" sx={{ mb: 0.5 }}>{t('grades.aiGrading.inProgress', { student: aiGradingJob.currentStudent || 0, students: aiGradingJob.studentTotal || 0, question: aiGradingJob.currentQuestion || 0, questions: aiGradingJob.questionTotal || 0 })}</Typography><LinearProgress variant="determinate" value={aiGradingJob.total ? Math.round((aiGradingJob.completed || 0) / aiGradingJob.total * 100) : 0} /></Box>
+        ) : (
+          <Button variant="outlined" onClick={() => setAiGradingOpen(true)} disabled={gradingLocked}>
+            {t('grades.aiGrading.assistant')}
+          </Button>
+        )}
+        {aiGradingJob?.status === 'completed' ? <Button variant="outlined" onClick={() => setAiGradingReportOpen(true)}>{t('grades.aiGrading.report')}</Button> : null}
+      </Box>
 
       <Paper variant="outlined" sx={{ p: 1.25, mb: 1.5 }}>
         <Typography variant="subtitle2" sx={{ mb: 1 }}>
@@ -1854,6 +1900,25 @@ export default function SessionQuestionGradingPanel({
         onSaveGrade={handleSpeedGradingSave}
         formatOutOf={(mark) => t('grades.questionPanel.outOf', { value: formatPercent(mark?.outOf || 0) })}
       />
+      <AiGradingModal
+        open={aiGradingOpen}
+        onClose={() => setAiGradingOpen(false)}
+        courseId={courseId}
+        sessionId={sessionId}
+        questions={questions}
+        needsGradingQuestionIds={questionStatuses.filter((entry) => entry.needsGradingCount > 0).map((entry) => entry.questionId)}
+        onStarted={setAiGradingJob}
+      />
+      <Dialog open={aiGradingReportOpen} onClose={() => setAiGradingReportOpen(false)} fullWidth maxWidth="md">
+        <DialogTitle>{t('grades.aiGrading.report')}</DialogTitle>
+        <DialogContent dividers>
+          <Typography sx={{ mb: 2 }}>{aiGradingJob?.report?.summary || t('grades.aiGrading.completed')}</Typography>
+          {(aiGradingJob?.report?.summaries || []).map((summary) => <Typography key={summary.question} variant="body2" sx={{ mb: 0.5 }}>{t('grades.aiGrading.reportSummary', { question: summary.question, graded: summary.graded, zeroed: summary.zeroed })}</Typography>)}
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>{t('grades.aiGrading.log')}</Typography>
+          {(aiGradingJob?.log || []).map((entry, index) => <Paper key={index} variant="outlined" sx={{ p: 1, mb: 1 }}><Typography variant="subtitle2">{entry.question} · {entry.student}</Typography><Typography variant="body2">{t('grades.aiGrading.assignedGrade', { points: entry.points, outOf: entry.outOf })}</Typography>{entry.feedback ? <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mt: 0.5 }}>{entry.feedback}</Typography> : null}</Paper>)}
+        </DialogContent>
+        <DialogActions><Button onClick={() => setAiGradingReportOpen(false)}>{t('common.close')}</Button></DialogActions>
+      </Dialog>
     </Box>
   );
 }

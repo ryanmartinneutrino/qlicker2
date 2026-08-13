@@ -1566,6 +1566,7 @@
       "noQuestions": "此环节没有需要评分的题目。",
       "questionGradingTable": "题目评分表",
       "questionNumber": "第 {{number}} 题",
+      "questionNavigator": "题目导航",
       "searchStudents": "搜索学生",
       "searchAnswerContent": "搜索作答内容",
       "onlyNeedsGrading": "仅显示需要评分的",
