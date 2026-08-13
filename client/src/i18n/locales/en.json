@@ -308,7 +308,8 @@
       "courses": "Courses",
       "storage": "Storage",
       "sso": "SSO Configuration",
-      "video": "Video"
+      "video": "Video",
+      "ai": "AI"
     },
     "settings": {
       "restrictDomain": "Restrict email domain",
@@ -540,6 +541,20 @@
       "jitsiNotEnabled": "Jitsi video chat is disabled. Enable the checkbox above to configure.",
       "jitsiSettings": "Jitsi Video Settings"
     },
+    "ai": {
+      "enable": "Enable AI helper",
+      "apiUrl": "OpenAI-compatible API URL",
+      "apiUrlPlaceholder": "e.g. https://api.openai.com/v1",
+      "apiToken": "API token",
+      "apiTokenPlaceholder": "Enter an API token",
+      "tokenConfigured": "API token configured — enter a new value to replace it",
+      "tokenHelp": "The token is stored securely and is never shown again.",
+      "courseHelp": "Select the courses that may use AI. For each enabled course, you may also allow instructors to configure a separate backend.",
+      "allowCourseBackend": "Allow instructor-configured backend",
+      "disabledHelp": "Enable AI helper above before configuring a backend or permitting courses.",
+      "failedSave": "Failed to save AI settings.",
+      "backendHelp": "Add one or more AI backends, discover their Ollama models, then select the default model used by courses unless an instructor chooses another available model."
+    },
     "courses": {
       "searchPlaceholder": "Search courses by code, section, name, or semester",
       "totalCount": "{{total}} course(s)",
@@ -595,6 +610,18 @@
       "students": "Students",
       "instructors": "Instructors",
       "settings": "Settings",
+      "aiSettings": "AI settings",
+      "aiModel": "AI model",
+      "enableAiHelper": "Enable AI helper",
+      "aiNotAvailable": "AI helper is not enabled for this course by the administrator.",
+      "aiBackendHelp": "Configure the OpenAI-compatible backend used only by this course.",
+      "aiAdminBackendOnly": "This course uses the AI backend configured by the Qlicker administrator. Its connection details are not shown here.",
+      "aiApiUrl": "OpenAI-compatible API URL",
+      "aiApiUrlPlaceholder": "e.g. https://api.openai.com/v1",
+      "aiApiToken": "API token",
+      "aiApiTokenPlaceholder": "Enter an API token",
+      "aiTokenConfigured": "API token configured — enter a new value to replace it",
+      "aiTokenHelp": "The token is stored securely and is never shown again.",
       "groups": "Groups",
       "addStudent": "Add Student",
       "addInstructor": "Add Instructor",
@@ -1657,6 +1684,35 @@
     "adminManual": "Admin Manual",
     "professorManual": "Professor Manual",
     "studentManual": "Student Manual"
+  },
+  "ai": {
+    "backends": {
+      "backendNumber": "Backend {{number}}",
+      "addBackend": "Add backend",
+      "removeBackend": "Remove backend",
+      "name": "Backend name",
+      "type": "Backend type",
+      "url": "Server URL",
+      "apiToken": "API token (optional)",
+      "tokenConfigured": "Token configured — enter a new value to replace it",
+      "discoverModels": "Find models",
+      "discoveryFailed": "Could not find models on this backend.",
+      "modelsHelp": "Only checked models are available for course AI use.",
+      "makeDefault": "Make default"
+    },
+    "chat": {
+      "title": "AI Chat",
+      "newConversation": "New conversation",
+      "noConversations": "No conversations yet.",
+      "send": "Send",
+      "messagePlaceholder": "Ask the AI helper…",
+      "deleteConversation": "Delete conversation",
+      "selectConversation": "Select or start a conversation.",
+      "assistant": "AI assistant",
+      "you": "You",
+      "failedLoad": "Could not load AI conversations.",
+      "failedSend": "Could not send the message."
+    }
   },
   "semesters": {
     "fall": "Fall",

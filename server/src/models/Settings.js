@@ -8,6 +8,27 @@ import {
   DEFAULT_BACKUP_TIME_LOCAL,
 } from '../utils/authPolicy.js';
 
+const AiModelSchema = new mongoose.Schema(
+  {
+    id: { type: String, required: true },
+    name: { type: String, required: true },
+    available: { type: Boolean, default: true },
+  },
+  { _id: false }
+);
+
+const AiBackendSchema = new mongoose.Schema(
+  {
+    id: { type: String, required: true },
+    name: { type: String, default: '' },
+    type: { type: String, enum: ['ollama', 'openai'], default: 'ollama' },
+    url: { type: String, required: true },
+    apiToken: { type: String, default: '' },
+    models: { type: [AiModelSchema], default: [] },
+  },
+  { _id: false }
+);
+
 const SettingsSchema = new mongoose.Schema(
   {
     _id: {
@@ -129,6 +150,17 @@ const SettingsSchema = new mongoose.Schema(
     Jitsi_Domain: { type: String, default: '' },
     Jitsi_EtherpadDomain: { type: String, default: '' },
     Jitsi_EnabledCourses: { type: [String], default: [] },
+
+    // OpenAI-compatible AI helper settings. Tokens are never returned from
+    // settings routes; see routes/settings.js for write-only handling.
+    AI_Enabled: { type: Boolean, default: false },
+    AI_ApiUrl: { type: String, default: '' },
+    AI_ApiToken: { type: String, default: '' },
+    AI_EnabledCourses: { type: [String], default: [] },
+    AI_AllowCourseBackendCourses: { type: [String], default: [] },
+    AI_Backends: { type: [AiBackendSchema], default: [] },
+    AI_DefaultBackendId: { type: String, default: '' },
+    AI_DefaultModelId: { type: String, default: '' },
 
     // i18n / locale settings
     locale: { type: String, default: 'en' },

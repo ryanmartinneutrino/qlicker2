@@ -35,6 +35,36 @@ async function createCourseAsProfessor(token, overrides = {}) {
 }
 
 describe('PATCH /api/v1/settings', () => {
+  it('persists AI configuration and returns its API token only as a configured flag', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const admin = await createTestUser({ email: 'admin-ai-settings@example.com', roles: ['admin'] });
+    const token = await getAuthToken(app, admin);
+
+    const res = await authenticatedRequest(app, 'PATCH', '/api/v1/settings', {
+      token,
+      payload: {
+        AI_Enabled: true,
+        AI_ApiUrl: 'https://llm.example/v1',
+        AI_ApiToken: 'admin-ai-token',
+        AI_EnabledCourses: ['course-1'],
+        AI_AllowCourseBackendCourses: ['course-1'],
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({
+      AI_Enabled: true,
+      AI_ApiUrl: 'https://llm.example/v1',
+      AI_ApiToken: '',
+      AI_ApiTokenSet: true,
+      AI_EnabledCourses: ['course-1'],
+      AI_AllowCourseBackendCourses: ['course-1'],
+    });
+    const stored = await Settings.findById('settings').lean();
+    expect(stored.AI_ApiToken).toBe('admin-ai-token');
+    expect(stored.AI_EnabledCourses).toEqual(['course-1']);
+  });
+
   it('updates SSO fields even when legacy settings contain invalid storageType', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
 
@@ -156,7 +186,7 @@ describe('settings secret masking (write-only secrets)', () => {
     return getAuthToken(app, admin);
   }
 
-  it('masks SSO private key and storage secrets in GET responses', async (ctx) => {
+  it('masks SSO, storage, and AI secrets in GET responses', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
 
     await Settings.findOneAndUpdate(
@@ -166,6 +196,7 @@ describe('settings secret masking (write-only secrets)', () => {
           SSO_privKey: '-----BEGIN PRIVATE KEY-----abc-----END PRIVATE KEY-----',
           AWS_secretAccessKey: 'super-secret-aws',
           Azure_storageAccessKey: 'super-secret-azure',
+          AI_ApiToken: 'super-secret-ai',
         },
       },
       { upsert: true, returnDocument: 'after' }
@@ -183,9 +214,23 @@ describe('settings secret masking (write-only secrets)', () => {
     expect(body.resolvedAzureStorageAccessKey).toBe('');
     expect(body.SSO_privKeySet).toBe(true);
     expect(body.AWS_secretAccessKeySet).toBe(true);
+    expect(body.AI_ApiToken).toBe('');
+    expect(body.AI_ApiTokenSet).toBe(true);
     expect(body.Azure_storageAccessKeySet).toBe(true);
     expect(JSON.stringify(body)).not.toContain('super-secret');
     expect(JSON.stringify(body)).not.toContain('BEGIN PRIVATE KEY');
+  });
+
+  it('masks API tokens nested in configured AI backends', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    await Settings.findOneAndUpdate({ _id: 'settings' }, { $set: {
+      AI_Backends: [{ id: 'ollama-1', name: 'Ollama', type: 'ollama', url: 'http://ollama.test:11434', apiToken: 'nested-ai-secret', models: [{ id: 'llama3', name: 'llama3', available: true }] }],
+    } }, { upsert: true });
+    const token = await createAdminToken('admin-nested-ai-secret@example.com');
+    const response = await authenticatedRequest(app, 'GET', '/api/v1/settings', { token });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().AI_Backends[0]).toMatchObject({ apiToken: '', apiTokenSet: true });
+    expect(JSON.stringify(response.json())).not.toContain('nested-ai-secret');
   });
 
   it('reports unset secrets with false flags', async (ctx) => {
@@ -634,6 +679,32 @@ describe('GET /api/v1/settings/jitsi-course/:courseId', () => {
       token: outsiderToken,
     });
     expect(res.statusCode).toBe(403);
+  });
+});
+
+describe('GET /api/v1/settings/ai-course/:courseId', () => {
+  it('returns AI policy flags without exposing an administrator backend', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const prof = await createTestUser({ email: 'prof-ai-policy@example.com', roles: ['professor'] });
+    const token = await getAuthToken(app, prof);
+    const course = (await createCourseAsProfessor(token)).json().course;
+    await Settings.findOneAndUpdate(
+      { _id: 'settings' },
+      { $set: {
+        AI_Enabled: true,
+        AI_ApiUrl: 'https://admin-llm.example/v1',
+        AI_ApiToken: 'admin-ai-secret',
+        AI_EnabledCourses: [course._id],
+        AI_AllowCourseBackendCourses: [course._id],
+      } },
+      { upsert: true },
+    );
+
+    const res = await authenticatedRequest(app, 'GET', `/api/v1/settings/ai-course/${course._id}`, { token });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ enabled: true, allowCourseBackend: true });
+    expect(JSON.stringify(res.json())).not.toContain('admin-ai-secret');
+    expect(JSON.stringify(res.json())).not.toContain('admin-llm.example');
   });
 });
 

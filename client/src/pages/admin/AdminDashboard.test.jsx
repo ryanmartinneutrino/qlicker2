@@ -466,6 +466,61 @@ describe('AdminDashboard', () => {
     expect(payload).not.toHaveProperty('storageType');
   });
 
+  it('persists AI enablement and course policy immediately before leaving the AI tab', async () => {
+    coursesState = [buildCourse()];
+    const { unmount } = renderDashboard();
+
+    fireEvent.click(await screen.findByRole('tab', { name: /^AI$/i }));
+    fireEvent.click(await screen.findByRole('checkbox', { name: /^Enable AI helper$/i }));
+
+    await waitFor(() => {
+      expect(apiClientMock.patch).toHaveBeenCalledWith('/settings', expect.objectContaining({
+        AI_Enabled: true,
+      }));
+    });
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /Course 1/i }));
+    await waitFor(() => {
+      expect(apiClientMock.patch).toHaveBeenCalledWith('/settings', expect.objectContaining({
+        AI_Enabled: true,
+        AI_EnabledCourses: ['course-1'],
+      }));
+    });
+
+    vi.useFakeTimers();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+    vi.useRealTimers();
+    expect(apiClientMock.patch.mock.calls.filter(([url]) => url === '/settings')).toHaveLength(2);
+
+    unmount();
+    renderDashboard();
+    fireEvent.click(await screen.findByRole('tab', { name: /^AI$/i }));
+    expect(await screen.findByRole('checkbox', { name: /^Enable AI helper$/i })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: /Course 1/i })).toBeChecked();
+  });
+
+  it('keeps saved AI settings visible when the course-policy list cannot load', async () => {
+    settingsState = {
+      ...settingsState,
+      AI_Enabled: true,
+      AI_Backends: [{ id: 'ollama-1', name: 'Local Ollama', type: 'ollama', url: 'http://localhost:11434', models: [] }],
+      AI_EnabledCourses: ['course-1'],
+    };
+    const defaultGet = apiClientMock.get.getMockImplementation();
+    apiClientMock.get.mockImplementation((url, config) => {
+      if (url === '/courses') return Promise.reject(new Error('Courses unavailable'));
+      return defaultGet(url, config);
+    });
+
+    renderDashboard();
+    fireEvent.click(await screen.findByRole('tab', { name: /^AI$/i }));
+
+    expect(await screen.findByRole('checkbox', { name: /^Enable AI helper$/i })).toBeChecked();
+    expect(screen.getByDisplayValue('Local Ollama')).toBeInTheDocument();
+  });
+
   it('disables and restores a user account from the Users tab', async () => {
     renderDashboard();
 

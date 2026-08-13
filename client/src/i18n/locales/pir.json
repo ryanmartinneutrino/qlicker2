@@ -595,6 +595,7 @@
       "students": "Crew",
       "instructors": "Officers",
       "settings": "Rigging",
+      "aiModel": "AI Model",
       "groups": "Watches",
       "addStudent": "Add Crew member",
       "addInstructor": "Add Officer",

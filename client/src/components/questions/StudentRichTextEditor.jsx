@@ -16,6 +16,7 @@ export default function StudentRichTextEditor({
   placeholder,
   disabled = false,
   ariaLabel,
+  onKeyDown,
   showMathHint = true,
   enableVideo = false,
 }) {
@@ -87,6 +88,7 @@ export default function StudentRichTextEditor({
         ariaLabel={resolvedAriaLabel}
         ariaDescribedBy={showMathHint ? mathHintId : undefined}
         onBlur={flushPendingChange}
+        onKeyDown={onKeyDown}
         enableVideo={enableVideo}
       />
       {showMathHint && (

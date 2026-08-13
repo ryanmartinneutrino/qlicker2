@@ -7,6 +7,7 @@ import Post from '../models/Post.js';
 import Question from '../models/Question.js';
 import Response from '../models/Response.js';
 import User from '../models/User.js';
+import { isCourseInstructorOrAdmin as isInstructorOrAdmin, isCourseMember } from '../utils/courseAccess.js';
 import { copySessionToCourse } from '../services/sessionCopy.js';
 import { copyQuestionToSession } from '../services/questionCopy.js';
 import {
@@ -2437,29 +2438,6 @@ async function incrementSessionResponseTracking(session, questionId) {
   }
 
   return hydrateSingleSessionResponseTracking(session);
-}
-
-// Helper to check if user is instructor of course or admin
-function isInstructorOrAdmin(course, user) {
-  const roles = user.roles || [];
-  return roles.includes('admin') || (course.instructors || []).includes(user.userId);
-}
-
-function isStudentBlockedByInactiveCourse(course, user) {
-  if (!course?.inactive) return false;
-  const roles = user.roles || [];
-  if (roles.includes('admin')) return false;
-  if ((course.instructors || []).includes(user.userId)) return false;
-  return (course.students || []).includes(user.userId);
-}
-
-// Helper to check if user is a member of the course (student, instructor, or admin)
-function isCourseMember(course, user) {
-  if (isStudentBlockedByInactiveCourse(course, user)) return false;
-  const roles = user.roles || [];
-  return roles.includes('admin') ||
-    (course.instructors || []).includes(user.userId) ||
-    (course.students || []).includes(user.userId);
 }
 
 function buildSessionForUser(session, user, { instructorView = false } = {}) {

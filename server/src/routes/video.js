@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import Course from '../models/Course.js';
 import Settings from '../models/Settings.js';
 import User from '../models/User.js';
+import { isCourseInstructorOrAdmin, isCourseStudent } from '../utils/courseAccess.js';
 
 // Default api options for a new video chat
 const DEFAULT_VIDEO_API_OPTIONS = {
@@ -67,10 +68,7 @@ export default async function videoRoutes(app) {
       reply.code(404).send({ error: 'Not Found', message: 'Course not found' });
       return null;
     }
-    const roles = request.user.roles || [];
-    const userId = request.user.userId;
-    const isAdmin = roles.includes('admin');
-    if (!isAdmin && !(course.instructors || []).includes(userId)) {
+    if (!isCourseInstructorOrAdmin(course, request.user)) {
       reply.code(403).send({ error: 'Forbidden', message: 'Insufficient permissions' });
       return null;
     }
@@ -83,12 +81,7 @@ export default async function videoRoutes(app) {
       reply.code(404).send({ error: 'Not Found', message: 'Course not found' });
       return null;
     }
-    const userId = request.user.userId;
-    const roles = request.user.roles || [];
-    const isAdmin = roles.includes('admin');
-    const isInstructor = (course.instructors || []).includes(userId);
-    const isStudent = (course.students || []).includes(userId);
-    if (!isAdmin && !isInstructor && !isStudent) {
+    if (!isCourseInstructorOrAdmin(course, request.user) && !isCourseStudent(course, request.user)) {
       reply.code(403).send({ error: 'Forbidden', message: 'Not enrolled in this course' });
       return null;
     }
@@ -333,7 +326,7 @@ export default async function videoRoutes(app) {
       const userId = request.user.userId;
       const roles = request.user.roles || [];
       const isAdmin = roles.includes('admin');
-      const isInstructor = (course.instructors || []).includes(userId);
+      const isInstructor = !isAdmin && isCourseInstructorOrAdmin(course, request.user);
 
       const category = findCategory(course.groupCategories, catNum);
       if (!category || !category.catVideoChatOptions) {
@@ -421,7 +414,8 @@ export default async function videoRoutes(app) {
       const catNum = parseInt(request.params.catNum, 10);
       const groupIdx = parseInt(request.params.groupIdx, 10);
       const userId = request.user.userId;
-      const isInstructor = (course.instructors || []).includes(userId);
+      const isInstructor = !request.user.roles?.includes('admin')
+        && isCourseInstructorOrAdmin(course, request.user);
 
       // Only students in the group can toggle the help button
       if (isInstructor) {
@@ -505,7 +499,8 @@ export default async function videoRoutes(app) {
       const userId = request.user.userId;
       const user = await User.findById(userId).lean();
       const displayName = `${user?.profile?.firstname || ''} ${user?.profile?.lastname || ''}`.trim() || 'User';
-      const isInstructor = (course.instructors || []).includes(userId);
+      const isInstructor = !request.user.roles?.includes('admin')
+        && isCourseInstructorOrAdmin(course, request.user);
 
       const roomName = `${course._id}Qlicker${course.videoChatOptions.urlId}all`;
       const apiOptions = {
@@ -541,7 +536,8 @@ export default async function videoRoutes(app) {
       const catNum = parseInt(request.params.catNum, 10);
       const groupIdx = parseInt(request.params.groupIdx, 10);
       const userId = request.user.userId;
-      const isInstructor = (course.instructors || []).includes(userId);
+      const isInstructor = !request.user.roles?.includes('admin')
+        && isCourseInstructorOrAdmin(course, request.user);
 
       const category = findCategory(course.groupCategories, catNum);
       if (!category || !category.catVideoChatOptions) {
