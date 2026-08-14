@@ -2408,6 +2408,8 @@
       "newConversation": "New conversation",
       "noConversations": "No conversations yet.",
       "send": "Send",
+      "stop": "Belay",
+      "thinking": "Thinkin’…",
       "messagePlaceholder": "Ask the AI helper…",
       "deleteConversation": "Delete conversation",
       "selectConversation": "Select or start a conversation.",

@@ -13,11 +13,12 @@ vi.mock('../../api/client', () => ({
 }));
 
 vi.mock('../questions/StudentRichTextEditor', () => ({
-  default: ({ value, onChange, onKeyDown, placeholder }) => (
+  default: ({ value, onChange, onKeyDown, placeholder, disabled }) => (
     <textarea
       aria-label="AI chat message"
       placeholder={placeholder}
       value={value}
+      disabled={disabled}
       onChange={(event) => onChange({ html: `<p>${event.target.value}</p>`, plainText: event.target.value })}
       onKeyDown={onKeyDown}
     />
@@ -61,5 +62,30 @@ describe('AiCourseChat', () => {
     });
     expect(await screen.findByText('course', { selector: 'strong' })).toBeInTheDocument();
     expect(document.querySelector('.katex')).not.toBeNull();
+  });
+
+  it('restores the thinking state for a persisted pending conversation and can stop it', async () => {
+    const pendingConversation = {
+      _id: 'conversation-1',
+      title: 'Pending question',
+      pending: true,
+      messages: [{ _id: 'message-1', role: 'user', content: 'Please wait' }],
+    };
+    const stoppedConversation = { ...pendingConversation, pending: false, pendingError: 'AI response stopped' };
+    apiClient.get
+      .mockResolvedValueOnce({ data: { conversations: [pendingConversation] } })
+      .mockResolvedValueOnce({ data: { conversation: pendingConversation } });
+    apiClient.post.mockResolvedValueOnce({ data: { conversation: stoppedConversation } });
+
+    render(<AiCourseChat courseId="course-1" />);
+
+    expect(await screen.findByText('Thinking…')).toBeInTheDocument();
+    expect(screen.getByLabelText('AI chat message')).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
+
+    await waitFor(() => {
+      expect(apiClient.post).toHaveBeenCalledWith('/ai/courses/course-1/conversations/conversation-1/stop');
+    });
+    expect(await screen.findByText('AI response stopped')).toBeInTheDocument();
   });
 });

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Box, Button, CircularProgress, IconButton, List, ListItemButton, ListItemText, Paper, Typography } from '@mui/material';
-import { Add as AddIcon, DeleteOutline as DeleteIcon } from '@mui/icons-material';
+import { Add as AddIcon, DeleteOutline as DeleteIcon, Stop as StopIcon } from '@mui/icons-material';
 import { useTranslation } from 'react-i18next';
 import apiClient from '../../api/client';
 import StudentRichTextEditor from '../questions/StudentRichTextEditor';
@@ -25,28 +25,64 @@ export default function AiCourseChat({ courseId }) {
   const [conversations, setConversations] = useState([]);
   const [selected, setSelected] = useState(null);
   const [draft, setDraft] = useState({ html: '', plainText: '' });
+  const [pendingMessage, setPendingMessage] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
+  const [stopping, setStopping] = useState(false);
   const [error, setError] = useState('');
 
-  const loadConversations = async () => {
+  const updateConversation = useCallback((conversation, { select = true } = {}) => {
+    if (!conversation) return;
+    if (select) setSelected(conversation);
+    setConversations((current) => [conversation, ...current.filter((item) => item._id !== conversation._id)]);
+  }, []);
+
+  const loadConversation = useCallback(async (id, { silent = false } = {}) => {
+    try {
+      const { data } = await apiClient.get(`/ai/courses/${courseId}/conversations/${id}`);
+      updateConversation(data.conversation);
+      if (!silent) setError('');
+      return data.conversation;
+    } catch (err) {
+      if (!silent) setError(err.response?.data?.message || t('ai.chat.failedLoad'));
+      return null;
+    }
+  }, [courseId, t, updateConversation]);
+
+  const loadConversations = useCallback(async () => {
     setLoading(true); setError('');
-    try { const { data } = await apiClient.get(`/ai/courses/${courseId}/conversations`); setConversations(data.conversations || []); }
-    catch (err) { setError(err.response?.data?.message || t('ai.chat.failedLoad')); }
-    finally { setLoading(false); }
-  };
-  useEffect(() => { loadConversations(); }, [courseId]); // eslint-disable-line react-hooks/exhaustive-deps
+    try {
+      const { data } = await apiClient.get(`/ai/courses/${courseId}/conversations`);
+      const nextConversations = data.conversations || [];
+      setConversations(nextConversations);
+      if (nextConversations[0]) await loadConversation(nextConversations[0]._id, { silent: true });
+    } catch (err) {
+      setError(err.response?.data?.message || t('ai.chat.failedLoad'));
+    } finally {
+      setLoading(false);
+    }
+  }, [courseId, loadConversation, t]);
+
+  useEffect(() => { loadConversations(); }, [loadConversations]);
+
+  // A pending flag is persisted on the conversation, so returning to this tab
+  // restores the waiting state and this lightweight poll picks up completion.
+  useEffect(() => {
+    if (!selected?.pending) return undefined;
+    const timer = setInterval(() => { loadConversation(selected._id, { silent: true }); }, 1500);
+    return () => clearInterval(timer);
+  }, [loadConversation, selected?._id, selected?.pending]);
 
   const createConversation = async () => {
     try {
       const { data } = await apiClient.post(`/ai/courses/${courseId}/conversations`);
-      setConversations((current) => [data.conversation, ...current]); setSelected(data.conversation);
-    } catch (err) { setError(err.response?.data?.message || t('ai.chat.failedLoad')); }
+      updateConversation(data.conversation); setError('');
+      return data.conversation;
+    } catch (err) {
+      setError(err.response?.data?.message || t('ai.chat.failedLoad'));
+      return null;
+    }
   };
-  const selectConversation = async (id) => {
-    try { const { data } = await apiClient.get(`/ai/courses/${courseId}/conversations/${id}`); setSelected(data.conversation); }
-    catch (err) { setError(err.response?.data?.message || t('ai.chat.failedLoad')); }
-  };
+
   const deleteConversation = async (id) => {
     try {
       await apiClient.delete(`/ai/courses/${courseId}/conversations/${id}`);
@@ -54,52 +90,101 @@ export default function AiCourseChat({ courseId }) {
       if (selected?._id === id) setSelected(null);
     } catch (err) { setError(err.response?.data?.message || t('ai.chat.failedLoad')); }
   };
+
   const send = async () => {
     const content = draft.plainText.trim();
-    if (!content || sending) return;
+    if (!content || pendingMessage || selected?.pending) return;
+
+    const submittedDraft = { ...draft, content };
+    setPendingMessage({ conversationId: selected?._id || '', content, contentWysiwyg: draft.html });
+    setDraft({ html: '', plainText: '' });
+    setError('');
+
     let conversation = selected;
     if (!conversation) {
-      try { const { data } = await apiClient.post(`/ai/courses/${courseId}/conversations`); conversation = data.conversation; setSelected(conversation); }
-      catch (err) { setError(err.response?.data?.message || t('ai.chat.failedSend')); return; }
+      conversation = await createConversation();
+      if (!conversation) {
+        setPendingMessage(null);
+        setDraft(submittedDraft);
+        return;
+      }
+      setPendingMessage((current) => (current ? { ...current, conversationId: conversation._id } : current));
     }
-    setSending(true); setError('');
+
     try {
-      const { data } = await apiClient.post(`/ai/courses/${courseId}/conversations/${conversation._id}/messages`, { content, contentWysiwyg: draft.html });
-      setSelected(data.conversation); setDraft({ html: '', plainText: '' });
-      setConversations((current) => [data.conversation, ...current.filter((item) => item._id !== data.conversation._id)]);
-    } catch (err) { setError(err.response?.data?.message || t('ai.chat.failedSend')); }
-    finally { setSending(false); }
+      const { data } = await apiClient.post(
+        `/ai/courses/${courseId}/conversations/${conversation._id}/messages`,
+        { content, contentWysiwyg: submittedDraft.html }
+      );
+      updateConversation(data.conversation);
+      setPendingMessage(null);
+    } catch (err) {
+      setPendingMessage(null);
+      setDraft(submittedDraft);
+      setError(err.response?.data?.message || t('ai.chat.failedSend'));
+    }
   };
+
+  const stop = async () => {
+    if (!selected?.pending || stopping) return;
+    setStopping(true);
+    try {
+      const { data } = await apiClient.post(`/ai/courses/${courseId}/conversations/${selected._id}/stop`);
+      updateConversation(data.conversation);
+    } catch (err) {
+      setError(err.response?.data?.message || t('ai.chat.failedSend'));
+    } finally {
+      setStopping(false);
+    }
+  };
+
   const handleDraftKeyDown = useCallback((event) => {
     if (event.key !== 'Enter' || event.shiftKey || event.isComposing || event.nativeEvent?.isComposing) return false;
     event.preventDefault();
     send();
     return true;
   }, [send]);
-  const messages = useMemo(() => selected?.messages || [], [selected]);
+
+  const isThinking = !!pendingMessage || !!selected?.pending;
+  const messages = useMemo(() => {
+    const savedMessages = selected?.messages || [];
+    const showOptimisticMessage = pendingMessage && (!selected || pendingMessage.conversationId === selected._id);
+    return showOptimisticMessage
+      ? [...savedMessages, { _id: 'pending-user-message', role: 'user', content: pendingMessage.content }]
+      : savedMessages;
+  }, [pendingMessage, selected]);
 
   return <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '250px minmax(0, 1fr)' }, gap: 1.5 }}>
     <Paper variant="outlined" sx={{ p: 1 }}>
-      <Button fullWidth startIcon={<AddIcon />} variant="outlined" onClick={createConversation}>{t('ai.chat.newConversation')}</Button>
+      <Button fullWidth startIcon={<AddIcon />} variant="outlined" onClick={createConversation} disabled={isThinking}>{t('ai.chat.newConversation')}</Button>
       {loading ? <Box sx={{ p: 2, textAlign: 'center' }}><CircularProgress size={22} /></Box> : <List dense>
-        {conversations.length ? conversations.map((conversation) => <ListItemButton key={conversation._id} selected={selected?._id === conversation._id} onClick={() => selectConversation(conversation._id)}>
+        {conversations.length ? conversations.map((conversation) => <ListItemButton key={conversation._id} selected={selected?._id === conversation._id} onClick={() => loadConversation(conversation._id)} disabled={isThinking}>
           <ListItemText primary={conversation.title || t('ai.chat.newConversation')} secondary={formatMessageTime(conversation.updatedAt)} />
-          <IconButton size="small" aria-label={t('ai.chat.deleteConversation')} onClick={(event) => { event.stopPropagation(); deleteConversation(conversation._id); }}><DeleteIcon fontSize="small" /></IconButton>
+          <IconButton size="small" aria-label={t('ai.chat.deleteConversation')} disabled={isThinking} onClick={(event) => { event.stopPropagation(); deleteConversation(conversation._id); }}><DeleteIcon fontSize="small" /></IconButton>
         </ListItemButton>) : <Typography variant="body2" color="text.secondary" sx={{ p: 1 }}>{t('ai.chat.noConversations')}</Typography>}
       </List>}
     </Paper>
     <Paper variant="outlined" sx={{ p: 1.5, display: 'flex', flexDirection: 'column', minHeight: 520 }}>
       {error ? <Alert severity="error" sx={{ mb: 1 }} onClose={() => setError('')}>{error}</Alert> : null}
-      <Box sx={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 1.25, mb: 1.5 }}>
-        {!selected ? <Typography color="text.secondary">{t('ai.chat.selectConversation')}</Typography> : messages.map((message) => <Paper key={message._id} variant="outlined" sx={{ p: 1.25, alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%', bgcolor: message.role === 'user' ? 'action.hover' : 'background.paper' }}>
+      {selected?.pendingError ? <Alert severity="warning" sx={{ mb: 1 }}>{selected.pendingError}</Alert> : null}
+      <Box sx={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 1.25, mb: 1.5 }} aria-live="polite">
+        {!selected && !pendingMessage ? <Typography color="text.secondary">{t('ai.chat.selectConversation')}</Typography> : messages.map((message) => <Paper key={message._id} variant="outlined" sx={{ p: 1.25, alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%', bgcolor: message.role === 'user' ? 'action.hover' : 'background.paper' }}>
           <Typography variant="caption" color="text.secondary">{message.role === 'user' ? t('ai.chat.you') : t('ai.chat.assistant')}</Typography>
           {message.role === 'assistant'
             ? <AiMarkdownContent content={message.content} />
             : <Typography sx={{ whiteSpace: 'pre-wrap' }}>{message.content}</Typography>}
         </Paper>)}
+        {isThinking ? <Paper variant="outlined" role="status" sx={{ p: 1.25, alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 1, animation: 'ai-thinking-pulse 1.4s ease-in-out infinite', '@keyframes ai-thinking-pulse': { '0%, 100%': { opacity: 0.55 }, '50%': { opacity: 1 } } }}>
+          <CircularProgress size={18} aria-label={t('ai.chat.thinking')} />
+          <Typography>{t('ai.chat.thinking')}</Typography>
+        </Paper> : null}
       </Box>
-      <StudentRichTextEditor value={draft.html} onChange={(value) => setDraft(normalizeDraft(value))} onKeyDown={handleDraftKeyDown} placeholder={t('ai.chat.messagePlaceholder')} minHeight={110} />
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}><Button variant="contained" disabled={sending || !draft.plainText.trim()} onClick={send}>{sending ? <CircularProgress size={20} color="inherit" /> : t('ai.chat.send')}</Button></Box>
+      <StudentRichTextEditor value={draft.html} onChange={(value) => setDraft(normalizeDraft(value))} onKeyDown={handleDraftKeyDown} placeholder={t('ai.chat.messagePlaceholder')} disabled={isThinking} ariaLabel={t('ai.chat.messagePlaceholder')} minHeight={110} />
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+        <Button variant="contained" color={isThinking ? 'error' : 'primary'} startIcon={isThinking ? <StopIcon /> : undefined} disabled={isThinking ? (!selected?.pending || stopping) : !draft.plainText.trim()} onClick={isThinking ? stop : send}>
+          {isThinking ? t('ai.chat.stop') : t('ai.chat.send')}
+        </Button>
+      </Box>
     </Paper>
   </Box>;
 }

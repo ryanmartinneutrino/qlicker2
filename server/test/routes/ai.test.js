@@ -68,8 +68,13 @@ describe('AI course configuration and chat', () => {
 
     const created = await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations`, { token });
     const message = await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations/${created.json().conversation._id}/messages`, { token, payload: { content: 'Hello' } });
-    expect(message.statusCode).toBe(200);
-    expect(message.json().conversation.messages.map((entry) => entry.content)).toEqual(['Hello', 'Hello from Ollama']);
+    expect(message.statusCode).toBe(202);
+    expect(message.json().conversation).toMatchObject({ pending: true, messages: [{ content: 'Hello' }] });
+    await vi.waitFor(async () => {
+      const updated = await authenticatedRequest(app, 'GET', `/api/v1/ai/courses/${course._id}/conversations/${created.json().conversation._id}`, { token });
+      expect(updated.json().conversation.messages.map((entry) => entry.content)).toEqual(['Hello', 'Hello from Ollama']);
+      expect(updated.json().conversation.pending).toBe(false);
+    });
     expect(fetch).toHaveBeenCalledWith('http://ollama.test:11434/api/chat', expect.objectContaining({ method: 'POST' }));
   });
 
@@ -106,12 +111,41 @@ describe('AI course configuration and chat', () => {
     const created = await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations`, { token });
     const message = await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations/${created.json().conversation._id}/messages`, { token, payload: { content: 'Give me the list of students' } });
 
-    expect(message.statusCode).toBe(200);
-    expect(message.json().conversation.messages.at(-1).content).toBe('Ada Lovelace is enrolled in the course.');
+    expect(message.statusCode).toBe(202);
+    await vi.waitFor(async () => {
+      const updated = await authenticatedRequest(app, 'GET', `/api/v1/ai/courses/${course._id}/conversations/${created.json().conversation._id}`, { token });
+      expect(updated.json().conversation.messages.at(-1).content).toBe('Ada Lovelace is enrolled in the course.');
+    });
     expect(fetch).toHaveBeenCalledTimes(2);
     const secondRequest = JSON.parse(fetch.mock.calls[1][1].body);
     expect(secondRequest.tools.map((tool) => tool.function.name)).toEqual(expect.arrayContaining(['list_course_students', 'list_course_sessions', 'get_session_questions', 'get_question_responses', 'get_session_grade_table']));
     expect(secondRequest.messages.some((entry) => entry.role === 'tool' && entry.content.includes('student@example.com'))).toBe(true);
+  });
+
+  it('stops an in-progress AI response and preserves the submitted prompt', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const professor = await createTestUser({ email: 'ai-stop-prof@example.com', roles: ['professor'] });
+    const token = await getAuthToken(app, professor);
+    const course = await createCourse(token);
+    await configureAi(course._id);
+    await Course.findByIdAndUpdate(course._id, { $set: { aiEnabled: true } });
+    vi.stubGlobal('fetch', vi.fn((_, options) => new Promise((_, reject) => {
+      options.signal.addEventListener('abort', () => {
+        const error = new Error('aborted');
+        error.name = 'AbortError';
+        reject(error);
+      });
+    })));
+
+    const created = await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations`, { token });
+    const conversationId = created.json().conversation._id;
+    const message = await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations/${conversationId}/messages`, { token, payload: { content: 'Please wait' } });
+    expect(message.statusCode).toBe(202);
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+
+    const stopped = await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations/${conversationId}/stop`, { token });
+    expect(stopped.statusCode).toBe(200);
+    expect(stopped.json().conversation).toMatchObject({ pending: false, pendingError: 'AI response stopped', messages: [{ content: 'Please wait' }] });
   });
 
   it('returns only the highest response attempt for a session question', async (ctx) => {

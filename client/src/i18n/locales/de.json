@@ -2462,6 +2462,8 @@
       "newConversation": "New conversation",
       "noConversations": "No conversations yet.",
       "send": "Send",
+      "stop": "Stopp",
+      "thinking": "Denkt nach…",
       "messagePlaceholder": "Ask the AI helper…",
       "deleteConversation": "Delete conversation",
       "selectConversation": "Select or start a conversation.",

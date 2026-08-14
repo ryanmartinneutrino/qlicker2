@@ -72,7 +72,7 @@ function toolDefinitionsForProvider(tools = []) {
   }));
 }
 
-export async function requestAiMessage(backend, modelId, messages, tools = []) {
+export async function requestAiMessage(backend, modelId, messages, tools = [], signal = undefined) {
   const headers = { 'content-type': 'application/json' };
   if (backend.apiToken) headers.authorization = `Bearer ${backend.apiToken}`;
   const baseUrl = normalizeAiUrl(backend.url);
@@ -80,7 +80,8 @@ export async function requestAiMessage(backend, modelId, messages, tools = []) {
   const requestBody = { model: modelId, messages, stream: false };
   if (tools.length > 0) requestBody.tools = toolDefinitionsForProvider(tools);
   const response = await fetch(isOpenAi ? `${baseUrl}/chat/completions` : `${baseUrl}/api/chat`, {
-    method: 'POST', headers, signal: AbortSignal.timeout(90_000),
+    method: 'POST', headers,
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(90_000)]) : AbortSignal.timeout(90_000),
     body: JSON.stringify(requestBody),
   });
   if (!response.ok) throw new Error(`AI backend request failed (${response.status})`);

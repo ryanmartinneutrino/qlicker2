@@ -56,7 +56,7 @@ function toolResultMessage(call, content, backend) {
     : { role: 'tool', content };
 }
 
-export async function runAiCourseChat({ backend, modelId, course, user, messages }) {
+export async function runAiCourseChat({ backend, modelId, course, user, messages, signal }) {
   const isInstructor = isCourseInstructorOrAdmin(course, user);
   const mcp = await createCourseMcpClient({
     courseId: String(course._id),
@@ -66,7 +66,7 @@ export async function runAiCourseChat({ backend, modelId, course, user, messages
     const toolList = await mcp.client.listTools();
     const providerMessages = [systemMessage(course), ...recentConversationMessages(messages)];
     for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
-      const response = await requestAiMessage(backend, modelId, providerMessages, toolList.tools || []);
+      const response = await requestAiMessage(backend, modelId, providerMessages, toolList.tools || [], signal);
       if (response.toolCalls.length === 0) return response.content;
       providerMessages.push(assistantToolCallMessage(response, backend));
       for (const call of response.toolCalls) {

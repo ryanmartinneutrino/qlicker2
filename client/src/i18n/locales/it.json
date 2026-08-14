@@ -2463,6 +2463,8 @@
       "newConversation": "New conversation",
       "noConversations": "No conversations yet.",
       "send": "Send",
+      "stop": "Interrompi",
+      "thinking": "Elaborazione in corso…",
       "messagePlaceholder": "Ask the AI helper…",
       "deleteConversation": "Delete conversation",
       "selectConversation": "Select or start a conversation.",

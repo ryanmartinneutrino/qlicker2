@@ -2396,6 +2396,8 @@
       "newConversation": "New conversation",
       "noConversations": "No conversations yet.",
       "send": "Send",
+      "stop": "停止",
+      "thinking": "正在思考…",
       "messagePlaceholder": "Ask the AI helper…",
       "deleteConversation": "Delete conversation",
       "selectConversation": "Select or start a conversation.",

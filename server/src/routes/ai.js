@@ -6,7 +6,7 @@ import Course from '../models/Course.js';
 import { getOrCreateSettingsDocument } from '../utils/settingsSingleton.js';
 import { isCourseInstructorOrAdmin } from '../utils/courseAccess.js';
 import { discoverOllamaModels, normalizeAiBackends, serializeAiBackends } from '../services/ai.js';
-import { runAiCourseChat } from '../services/aiChatRunner.js';
+import { queueAiCourseChat, stopAiCourseChat } from '../services/aiChatJobRunner.js';
 import { runAiGradingJob } from '../services/aiGradingRunner.js';
 import { runAiResponseSummary } from '../services/aiResponseSummaryRunner.js';
 
@@ -45,6 +45,7 @@ function resolveModel(course, settings, policy) {
 function serializeConversation(doc, includeMessages = false) {
   return {
     _id: String(doc._id), title: doc.title || '', backendId: doc.backendId || '', modelId: doc.modelId || '',
+    pending: !!doc.pending, pendingError: doc.pendingError || '',
     createdAt: doc.createdAt || null, updatedAt: doc.updatedAt || null,
     ...(includeMessages ? { messages: doc.messages || [] } : {}),
   };
@@ -131,6 +132,7 @@ export default async function aiRoutes(app) {
 
   app.delete('/courses/:courseId/conversations/:conversationId', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
+    stopAiCourseChat(request.params.conversationId);
     await AiConversation.deleteOne({ _id: request.params.conversationId, courseId: course._id, ownerId: request.user.userId });
     return reply.code(204).send();
   });
@@ -145,20 +147,38 @@ export default async function aiRoutes(app) {
     if (!selected) return reply.code(400).send({ error: 'Bad Request', message: 'Select an available AI backend and model before chatting' });
     const conversation = await AiConversation.findOne({ _id: request.params.conversationId, courseId: course._id, ownerId: request.user.userId });
     if (!conversation) return reply.code(404).send({ error: 'Not Found', message: 'AI conversation not found' });
+    if (conversation.pending) return reply.code(409).send({ error: 'Conflict', message: 'An AI response is already in progress for this conversation' });
     conversation.messages.push({ role: 'user', content, contentWysiwyg: String(request.body?.contentWysiwyg || '') });
-    try {
-      const assistantContent = await runAiCourseChat({
-        backend: selected.backend,
-        modelId: selected.model.id,
-        course,
-        user: request.user,
-        messages: conversation.messages,
-      });
-      conversation.messages.push({ role: 'assistant', content: assistantContent });
-      conversation.backendId = selected.backend.id; conversation.modelId = selected.model.id;
-      conversation.title = conversation.title || content.slice(0, 80); conversation.updatedAt = new Date(); await conversation.save();
-      return { conversation: serializeConversation(conversation.toObject(), true) };
-    } catch (err) { conversation.messages.pop(); return reply.code(502).send({ error: 'Bad Gateway', message: err.message || 'AI backend request failed' }); }
+    const userMessage = conversation.messages.at(-1);
+    conversation.pending = true;
+    conversation.pendingMessageId = String(userMessage._id);
+    conversation.pendingError = '';
+    conversation.backendId = selected.backend.id;
+    conversation.modelId = selected.model.id;
+    conversation.title = conversation.title || content.slice(0, 80);
+    conversation.updatedAt = new Date();
+    await conversation.save();
+    queueAiCourseChat({
+      conversationId: conversation._id,
+      pendingMessageId: userMessage._id,
+      backend: selected.backend,
+      modelId: selected.model.id,
+      course,
+      user: request.user,
+    });
+    return reply.code(202).send({ conversation: serializeConversation(conversation.toObject(), true) });
+  });
+
+  app.post('/courses/:courseId/conversations/:conversationId/stop', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
+    const course = await instructorCourse(request, reply); if (!course) return undefined;
+    const conversation = await AiConversation.findOneAndUpdate(
+      { _id: request.params.conversationId, courseId: course._id, ownerId: request.user.userId, pending: true },
+      { $set: { pending: false, pendingMessageId: '', pendingError: 'AI response stopped', updatedAt: new Date() } },
+      { returnDocument: 'after' }
+    );
+    if (!conversation) return reply.code(409).send({ error: 'Conflict', message: 'No AI response is in progress for this conversation' });
+    stopAiCourseChat(conversation._id);
+    return { conversation: serializeConversation(conversation.toObject(), true) };
   });
 
   app.get('/courses/:courseId/grading-instructions', { preHandler: authenticate }, async (request, reply) => {
