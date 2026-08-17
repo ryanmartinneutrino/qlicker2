@@ -479,7 +479,7 @@ describe('AdminDashboard', () => {
       }));
     });
 
-    fireEvent.click(screen.getByRole('checkbox', { name: /Course 1/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Course 1/i }));
     await waitFor(() => {
       expect(apiClientMock.patch).toHaveBeenCalledWith('/settings', expect.objectContaining({
         AI_Enabled: true,
@@ -498,7 +498,28 @@ describe('AdminDashboard', () => {
     renderDashboard();
     fireEvent.click(await screen.findByRole('tab', { name: /^AI$/i }));
     expect(await screen.findByRole('checkbox', { name: /^Enable AI helper$/i })).toBeChecked();
-    expect(screen.getByRole('checkbox', { name: /Course 1/i })).toBeChecked();
+    expect(screen.getByRole('button', { name: /Course 1/i })).toBeInTheDocument();
+  });
+
+  it('loads every course in the AI and video policy tabs', async () => {
+    settingsState = { ...settingsState, Jitsi_Enabled: true };
+    coursesState = Array.from({ length: 501 }, (_, index) => buildCourse({
+      _id: `course-${index + 1}`,
+      name: `Course ${index + 1}`,
+    }));
+    renderDashboard();
+
+    fireEvent.click(await screen.findByRole('tab', { name: /^AI$/i }));
+    expect(await screen.findByText(/CS 101: Course 501/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: /Video/i }));
+    expect(await screen.findByText(/CS 101: Course 501/)).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(apiClientMock.get).toHaveBeenCalledWith('/courses', expect.objectContaining({
+        params: expect.objectContaining({ page: 2, limit: 500, view: 'all' }),
+      }));
+    });
   });
 
   it('keeps saved AI settings visible when the course-policy list cannot load', async () => {

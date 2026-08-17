@@ -2095,7 +2095,7 @@ function VideoTab() {
     let mounted = true;
     Promise.all([
       apiClient.get('/settings'),
-      apiClient.get('/courses', { params: { limit: 500, view: 'all' } }).catch(() => ({ data: { courses: [] } })),
+      fetchAllCourses(apiClient, { view: 'all' }).catch(() => []),
     ]).then(([settingsRes, coursesRes]) => {
       if (!mounted) return;
       const data = settingsRes.data;
@@ -2104,7 +2104,7 @@ function VideoTab() {
         Jitsi_Domain: data.Jitsi_Domain ?? '',
         Jitsi_EnabledCourses: data.Jitsi_EnabledCourses ?? [],
       });
-      setCourses(coursesRes.data.courses || []);
+      setCourses(coursesRes);
     }).catch(() => {
       if (mounted) {
         setSaveStatus('error');
@@ -2289,6 +2289,8 @@ function AiHelperTab() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState('');
+  const [enabledSearch, setEnabledSearch] = useState('');
+  const [disabledSearch, setDisabledSearch] = useState('');
   const loadedRef = useRef(false);
   const skipNextAutoSaveRef = useRef(false);
   const settingsRef = useRef(settings);
@@ -2329,8 +2331,7 @@ function AiHelperTab() {
       apiClient.get('/settings'),
       // Match the video-settings tab: course-policy loading must not discard
       // successfully loaded site settings when the course list is unavailable.
-      apiClient.get('/courses', { params: { limit: 500, view: 'all' } })
-        .catch(() => ({ data: { courses: [] } })),
+      fetchAllCourses(apiClient, { view: 'all' }).catch(() => []),
     ]).then(([settingsRes, coursesRes]) => {
       if (!mounted) return;
       const data = settingsRes.data || {};
@@ -2345,7 +2346,7 @@ function AiHelperTab() {
         AI_DefaultBackendId: data.AI_DefaultBackendId || '',
         AI_DefaultModelId: data.AI_DefaultModelId || '',
       }));
-      setCourses(coursesRes.data.courses || []);
+      setCourses(coursesRes);
     }).catch((err) => {
       if (mounted) { setStatus('error'); setError(err.response?.data?.message || t('admin.failedLoadSettings')); }
     }).finally(() => { if (mounted) setLoading(false); });
@@ -2375,9 +2376,36 @@ function AiHelperTab() {
     }
   }, [persistSettings]);
 
-  const enabledIds = new Set((settings.AI_EnabledCourses || []).map(String));
-  const customIds = new Set((settings.AI_AllowCourseBackendCourses || []).map(String));
+  const enabledIds = useMemo(
+    () => new Set((settings.AI_EnabledCourses || []).map(String)),
+    [settings.AI_EnabledCourses]
+  );
+  const customIds = useMemo(
+    () => new Set((settings.AI_AllowCourseBackendCourses || []).map(String)),
+    [settings.AI_AllowCourseBackendCourses]
+  );
   const sortedCourses = useMemo(() => sortCoursesByTitle(courses), [courses]);
+  const coursesWithAi = useMemo(
+    () => sortedCourses.filter((course) => enabledIds.has(String(course._id))),
+    [enabledIds, sortedCourses]
+  );
+  const coursesWithoutAi = useMemo(
+    () => sortedCourses.filter((course) => !enabledIds.has(String(course._id))),
+    [enabledIds, sortedCourses]
+  );
+  const filterCourseList = useCallback((items, searchValue) => {
+    const searchTerm = String(searchValue || '').trim().toLowerCase();
+    if (!searchTerm) return items;
+    return items.filter((course) => buildCourseSearchIndex(course).includes(searchTerm));
+  }, []);
+  const visibleEnabledCourses = useMemo(
+    () => filterCourseList(coursesWithAi, enabledSearch),
+    [coursesWithAi, enabledSearch, filterCourseList]
+  );
+  const visibleDisabledCourses = useMemo(
+    () => filterCourseList(coursesWithoutAi, disabledSearch),
+    [coursesWithoutAi, disabledSearch, filterCourseList]
+  );
   const toggleCourse = (courseId) => updateSettings((current) => {
     const id = String(courseId);
     const enabled = (current.AI_EnabledCourses || []).map(String);
@@ -2396,6 +2424,54 @@ function AiHelperTab() {
     return { ...current, AI_AllowCourseBackendCourses: values.includes(id) ? values.filter((value) => value !== id) : [...values, id] };
   }, { saveImmediately: true });
 
+  const renderCourseColumn = (title, searchValue, onSearchChange, items, enabled) => (
+    <Paper variant="outlined" sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1.25, minHeight: 420 }}>
+      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+        {title} ({items.length})
+      </Typography>
+      <TextField
+        size="small"
+        value={searchValue}
+        onChange={(event) => onSearchChange(event.target.value)}
+        placeholder={t('admin.ai.searchCourses')}
+        fullWidth
+      />
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, minHeight: 0, maxHeight: 440, overflowY: 'auto' }}>
+        {items.length === 0 ? (
+          <Typography variant="body2" color="text.secondary">
+            {t('admin.ai.noCourses')}
+          </Typography>
+        ) : (
+          items.map((course) => (
+            <Paper key={course._id} variant="outlined" sx={{ p: 1.25, opacity: settings.AI_Enabled ? 1 : 0.6 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <ButtonBase
+                  disabled={!settings.AI_Enabled}
+                  onClick={() => toggleCourse(course._id)}
+                  sx={{ flex: 1, justifyContent: 'flex-start', textAlign: 'left', borderRadius: 1 }}
+                >
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {buildCourseTitle(course, 'long')}
+                  </Typography>
+                </ButtonBase>
+                <Button size="small" disabled={!settings.AI_Enabled} onClick={() => toggleCourse(course._id)}>
+                  {enabled ? t('common.remove') : t('common.add')}
+                </Button>
+              </Box>
+              {enabled ? (
+                <FormControlLabel
+                  sx={{ display: 'flex', mt: 0.5, ml: 0 }}
+                  control={<Checkbox disabled={!settings.AI_Enabled} checked={customIds.has(String(course._id))} onChange={() => toggleCustomBackend(course._id)} />}
+                  label={t('admin.ai.allowCourseBackend')}
+                />
+              ) : null}
+            </Paper>
+          ))
+        )}
+      </Box>
+    </Paper>
+  );
+
   if (loading) return <CircularProgress />;
   return (
     <Box sx={{ maxWidth: 980, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -2412,14 +2488,9 @@ function AiHelperTab() {
         />
       </Box>
       <Typography variant="body2" color="text.secondary">{t('admin.ai.courseHelp')}</Typography>
-      <Box sx={{ display: 'grid', gap: 1.25, gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' } }}>
-        {sortedCourses.map((course) => {
-          const enabled = enabledIds.has(String(course._id));
-          return <Paper key={course._id} variant="outlined" sx={{ p: 1.25, opacity: settings.AI_Enabled ? 1 : 0.6 }}>
-            <FormControlLabel control={<Checkbox disabled={!settings.AI_Enabled} checked={enabled} onChange={() => toggleCourse(course._id)} />} label={buildCourseTitle(course, 'long')} />
-            {enabled ? <FormControlLabel sx={{ display: 'flex', ml: 3 }} control={<Checkbox disabled={!settings.AI_Enabled} checked={customIds.has(String(course._id))} onChange={() => toggleCustomBackend(course._id)} />} label={t('admin.ai.allowCourseBackend')} /> : null}
-          </Paper>;
-        })}
+      <Box sx={{ display: 'grid', gap: 1.5, gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' } }}>
+        {renderCourseColumn(t('admin.ai.enabledCourses'), enabledSearch, setEnabledSearch, visibleEnabledCourses, true)}
+        {renderCourseColumn(t('admin.ai.coursesWithoutAi'), disabledSearch, setDisabledSearch, visibleDisabledCourses, false)}
       </Box>
       {!settings.AI_Enabled ? <Typography variant="body2" color="text.secondary">{t('admin.ai.disabledHelp')}</Typography> : null}
     </Box>

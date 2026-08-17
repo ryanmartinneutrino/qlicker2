@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Alert, Box, Button, Checkbox, FormControlLabel, MenuItem, TextField, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 
@@ -8,7 +8,6 @@ export default function AiGradingForm({ value = {}, instructions, onChange, onSa
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
-  useEffect(() => { setDrafts({}); setEditing(null); setMessage(''); }, [value]);
   const choose = (kind, id) => {
     const instruction = instructions.find((entry) => entry._id === id);
     onChange({ ...value, [kind]: instruction?.content || '', [`${kind}InstructionId`]: id });
