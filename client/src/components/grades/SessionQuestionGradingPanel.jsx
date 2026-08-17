@@ -678,6 +678,7 @@ export default function SessionQuestionGradingPanel({
   const latestGradesSessionRef = useRef(sessionId);
   const latestGradesRequestRef = useRef(0);
   const lastDraftQuestionIdRef = useRef('');
+  const previousAiGradingStatusRef = useRef('');
 
   useEffect(() => {
     latestGradesSessionRef.current = sessionId;
@@ -687,6 +688,7 @@ export default function SessionQuestionGradingPanel({
     setEditedStudentIds({});
     setSavingByStudentId({});
     setSelectedStudentIds({});
+    previousAiGradingStatusRef.current = '';
   }, [sessionId]);
 
   const fetchSessionGrades = useCallback(async () => {
@@ -814,7 +816,18 @@ export default function SessionQuestionGradingPanel({
     if (!courseId || !sessionId) return undefined;
     let mounted = true;
     const load = () => apiClient.get(`/ai/courses/${courseId}/sessions/${sessionId}/ai-grading`)
-      .then(({ data }) => { if (mounted) { setAiGradingJob(data.job || null); if (['queued', 'running', 'completed'].includes(data.job?.status)) { fetchSessionGrades(); onSessionDataRefresh?.(); } } }).catch(() => {});
+      .then(({ data }) => {
+        if (!mounted) return;
+        const job = data.job || null;
+        const previousStatus = previousAiGradingStatusRef.current;
+        previousAiGradingStatusRef.current = job?.status || '';
+        setAiGradingJob(job);
+        if (job?.status === 'completed' && previousStatus !== 'completed') {
+          fetchSessionGrades();
+          onSessionDataRefresh?.();
+        }
+      })
+      .catch(() => {});
     load();
     const timer = setInterval(() => {
       if (aiGradingJob?.status === 'queued' || aiGradingJob?.status === 'running') load();
