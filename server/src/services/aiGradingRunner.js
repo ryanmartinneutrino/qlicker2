@@ -56,6 +56,8 @@ export async function runAiGradingJob(jobId) {
   const job = await AiGradingJob.findById(jobId);
   if (!job || job.status !== 'queued') return;
   job.status = 'running'; await job.save();
+  let questions = [];
+  let summaries = {};
   try {
     const [course, session, settings] = await Promise.all([
       Course.findById(job.courseId).lean(), Session.findById(job.sessionId).lean(), Settings.findById('settings').lean(),
@@ -67,7 +69,7 @@ export async function runAiGradingJob(jobId) {
       (await Question.find({ _id: { $in: job.questionIds } }).lean())
         .map((question) => [String(question._id), question])
     );
-    const questions = (session.questions || []).flatMap((questionId, sessionIndex) => {
+    questions = (session.questions || []).flatMap((questionId, sessionIndex) => {
       const question = questionsById.get(String(questionId));
       return selectedQuestionIds.has(String(questionId)) && question
         ? [{ ...question, sessionQuestionNumber: sessionIndex + 1 }]
@@ -77,7 +79,7 @@ export async function runAiGradingJob(jobId) {
     const users = await User.find({ _id: { $in: grades.map((grade) => grade.userId) } }).lean();
     const usersById = new Map(users.map((user) => [String(user._id), user]));
     job.total = grades.length * questions.length; job.questionTotal = questions.length; job.studentTotal = grades.length; await job.save();
-    const summaries = {};
+    summaries = {};
     for (const [questionIndex, question] of questions.entries()) {
       job.currentQuestion = questionIndex + 1; job.currentStudent = 0; await job.save();
       const maxPoints = Number(question?.sessionOptions?.points ?? question?.points ?? 0);
@@ -131,5 +133,16 @@ export async function runAiGradingJob(jobId) {
       }
     }
     job.status = 'completed'; job.report = { summaries: questions.map((question) => ({ question: sessionQuestionLabel(question.sessionQuestionNumber), ...summaries[question._id] })), summary: `AI grading completed for ${questions.length} question(s).` }; await job.save();
-  } catch (error) { job.status = 'failed'; job.error = error.message || 'AI grading failed'; await job.save(); }
+  } catch (error) {
+    job.status = 'failed';
+    job.error = error.message || 'AI grading failed';
+    job.report = {
+      summaries: questions.map((question) => ({
+        question: sessionQuestionLabel(question.sessionQuestionNumber),
+        ...(summaries[question._id] || { graded: 0, zeroed: 0, issues: [] }),
+      })),
+      summary: '',
+    };
+    await job.save();
+  }
 }

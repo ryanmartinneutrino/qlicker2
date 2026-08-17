@@ -115,6 +115,39 @@ describe('SessionQuestionGradingPanel', () => {
     expect(screen.getByRole('navigation', { name: 'Question navigator' })).toHaveTextContent('Q1');
   });
 
+  it('keeps a failed AI grading report available with its error and partial log notice', async () => {
+    apiClient.get.mockImplementation((url) => {
+      if (url.includes('/ai/courses/')) {
+        return Promise.resolve({
+          data: {
+            job: {
+              status: 'failed',
+              error: 'The AI service timed out.',
+              log: [{ question: 'Q1', student: 'Ada Lovelace', status: 'graded', points: 3, outOf: 5 }],
+            },
+          },
+        });
+      }
+      return Promise.resolve({ data: buildGradesPayload() });
+    });
+
+    render(
+      <SessionQuestionGradingPanel
+        courseId="course-1"
+        sessionId="session-1"
+        session={{ _id: 'session-1', quiz: false, practiceQuiz: false }}
+        questions={[{ _id: 'q-manual', type: 2, content: '<p>Explain</p>', sessionOptions: { points: 5 } }]}
+        studentResults={[{ studentId: 'student-a', firstname: 'Ada', lastname: 'Lovelace', inSession: true }]}
+      />
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'AI grading report' }));
+
+    expect(screen.getAllByText(/last AI grading run did not complete/i)).toHaveLength(2);
+    expect(screen.getByText(/The AI service timed out/i)).toBeInTheDocument();
+    expect(screen.getByText('Q1 · Ada Lovelace')).toBeInTheDocument();
+  });
+
   it('debounces answer filtering and matches MC answers by option label instead of option text', async () => {
     render(
       <SessionQuestionGradingPanel

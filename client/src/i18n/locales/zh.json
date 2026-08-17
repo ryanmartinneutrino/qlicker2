@@ -1733,7 +1733,9 @@
       "assignedGrade": "已给分数：{{points}} / {{outOf}}",
       "completed": "AI grading completed.",
       "failedLoad": "Could not load AI grading instructions.",
-      "failedStart": "Could not start AI grading."
+      "failedStart": "Could not start AI grading.",
+      "failedReportNotice": "上一次 AI 评分未能完成。日志显示了失败前已完成的评分。",
+      "failedReportError": "错误：{{error}}"
     }
   },
   "pageTitles": {

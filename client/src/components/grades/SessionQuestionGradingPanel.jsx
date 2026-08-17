@@ -1646,7 +1646,8 @@ export default function SessionQuestionGradingPanel({
             {t('grades.aiGrading.assistant')}
           </Button>
         )}
-        {aiGradingJob?.status === 'completed' ? <Button variant="outlined" onClick={() => setAiGradingReportOpen(true)}>{t('grades.aiGrading.report')}</Button> : null}
+        {['completed', 'failed'].includes(aiGradingJob?.status) ? <Button variant="outlined" onClick={() => setAiGradingReportOpen(true)}>{t('grades.aiGrading.report')}</Button> : null}
+        {aiGradingJob?.status === 'failed' ? <Alert severity="warning" sx={{ py: 0 }}>{t('grades.aiGrading.failedReportNotice')}</Alert> : null}
       </Box>
 
       <Paper variant="outlined" sx={{ p: 1.25, mb: 1.5 }}>
@@ -1925,7 +1926,7 @@ export default function SessionQuestionGradingPanel({
       <Dialog open={aiGradingReportOpen} onClose={() => setAiGradingReportOpen(false)} fullWidth maxWidth="md">
         <DialogTitle>{t('grades.aiGrading.report')}</DialogTitle>
         <DialogContent dividers>
-          <Typography sx={{ mb: 2 }}>{aiGradingJob?.report?.summary || t('grades.aiGrading.completed')}</Typography>
+          {aiGradingJob?.status === 'failed' ? <Alert severity="warning" sx={{ mb: 2 }}>{t('grades.aiGrading.failedReportNotice')}{aiGradingJob?.error ? ` ${t('grades.aiGrading.failedReportError', { error: aiGradingJob.error })}` : ''}</Alert> : <Typography sx={{ mb: 2 }}>{aiGradingJob?.report?.summary || t('grades.aiGrading.completed')}</Typography>}
           {(aiGradingJob?.report?.summaries || []).map((summary) => <Typography key={summary.question} variant="body2" sx={{ mb: 0.5 }}>{t('grades.aiGrading.reportSummary', { question: summary.question, graded: summary.graded, zeroed: summary.zeroed })}</Typography>)}
           <Typography variant="subtitle2" sx={{ mb: 1 }}>{t('grades.aiGrading.log')}</Typography>
           {(aiGradingJob?.log || []).map((entry, index) => <Paper key={index} variant="outlined" sx={{ p: 1, mb: 1 }}><Typography variant="subtitle2">{entry.question} · {entry.student}</Typography>{entry.status !== 'skipped' ? <Typography variant="body2">{t('grades.aiGrading.assignedGrade', { points: entry.points, outOf: entry.outOf })}</Typography> : null}{entry.note ? <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mt: 0.5 }}>{entry.note}</Typography> : null}{entry.justification ? <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mt: 0.5 }}><strong>{t('grades.aiGrading.justification')}:</strong> {entry.justification}</Typography> : null}{entry.feedback ? <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mt: 0.5 }}>{entry.feedback}</Typography> : null}</Paper>)}

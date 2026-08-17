@@ -1733,7 +1733,9 @@
       "assignedGrade": "Выставленная оценка: {{points}} / {{outOf}}",
       "completed": "AI grading completed.",
       "failedLoad": "Could not load AI grading instructions.",
-      "failedStart": "Could not start AI grading."
+      "failedStart": "Could not start AI grading.",
+      "failedReportNotice": "Последний запуск оценивания ИИ не был завершён. В журнале показаны оценки, завершённые до сбоя.",
+      "failedReportError": "Ошибка: {{error}}"
     }
   },
   "pageTitles": {

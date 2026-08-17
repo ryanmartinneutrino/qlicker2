@@ -1733,7 +1733,9 @@
       "assignedGrade": "Valutazione assegnata: {{points}} / {{outOf}}",
       "completed": "AI grading completed.",
       "failedLoad": "Could not load AI grading instructions.",
-      "failedStart": "Could not start AI grading."
+      "failedStart": "Could not start AI grading.",
+      "failedReportNotice": "L’ultima esecuzione della valutazione IA non è stata completata. Il registro mostra le valutazioni completate prima dell’errore.",
+      "failedReportError": "Errore: {{error}}"
     }
   },
   "pageTitles": {
