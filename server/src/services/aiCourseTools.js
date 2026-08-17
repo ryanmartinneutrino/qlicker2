@@ -10,6 +10,8 @@ const MAX_RESPONSE_PAGE_SIZE = 100;
 const MAX_RESPONSE_CONTENT_CHARS = 30_000;
 const MAX_GRADE_CELLS = 500;
 const DEFAULT_PAGE_SIZE = 50;
+const MAX_COURSE_GRADE_SESSION_COLUMNS = 25;
+const DEFAULT_COURSE_GRADE_SESSION_LIMIT = 10;
 
 function formatStudent(student) {
   const firstname = String(student?.profile?.firstname || '').trim();
@@ -260,5 +262,119 @@ export async function getSessionGradeTable(courseId, sessionId, { offset = 0, li
     next_offset: pageOffset + studentRows.length < allRows.length ? pageOffset + studentRows.length : null,
     page_limited_to_preserve_context: pageSize < requestedPageSize,
     students: studentRows,
+  };
+}
+
+export async function getCourseGradeTable(
+  courseId,
+  {
+    studentOffset = 0,
+    studentLimit = DEFAULT_PAGE_SIZE,
+    sessionOffset = 0,
+    sessionLimit = DEFAULT_COURSE_GRADE_SESSION_LIMIT,
+    sortBy = 'name',
+    order = 'asc',
+  } = {}
+) {
+  const course = await Course.findById(courseId).select('name students').lean();
+  if (!course) throw new Error('Course not found');
+
+  const sessions = await Session.find({ courseId: String(courseId), studentCreated: { $ne: true } })
+    .select('_id name status date quizStart createdAt quiz practiceQuiz submittedQuiz')
+    .lean();
+  sessions.sort((left, right) => sessionSortTime(right) - sessionSortTime(left));
+
+  const studentIds = (course.students || []).map(String);
+  const sessionIds = sessions.map((session) => String(session._id));
+  const [students, grades] = await Promise.all([
+    studentIds.length > 0
+      ? User.find({ _id: { $in: studentIds } }).select('_id profile emails email').lean()
+      : Promise.resolve([]),
+    sessionIds.length > 0
+      ? Grade.find({ courseId: String(courseId), sessionId: { $in: sessionIds } })
+        .select('userId sessionId value participation points outOf joined submittedQuiz needsGrading')
+        .lean()
+      : Promise.resolve([]),
+  ]);
+
+  const gradeByStudentAndSession = new Map(
+    grades.map((grade) => [`${String(grade.userId)}::${String(grade.sessionId)}`, grade])
+  );
+  const allRows = students.map((student) => {
+    const serializedStudent = formatStudent(student);
+    const participationTotal = sessions.reduce((total, session) => {
+      const grade = gradeByStudentAndSession.get(`${serializedStudent.student_id}::${String(session._id)}`);
+      return total + Number(grade?.participation || 0);
+    }, 0);
+    return {
+      student: serializedStudent,
+      average_participation: sessions.length > 0 ? participationTotal / sessions.length : 0,
+    };
+  }).sort((left, right) => {
+    const direction = order === 'desc' ? -1 : 1;
+    if (sortBy === 'average_participation') {
+      const difference = left.average_participation - right.average_participation;
+      if (difference !== 0) return direction * difference;
+    }
+    return left.student.name.localeCompare(right.student.name) * (sortBy === 'name' ? direction : 1);
+  });
+
+  const boundedSessionOffset = clampPageValue(sessionOffset, 0, Number.MAX_SAFE_INTEGER);
+  const requestedSessionLimit = clampPageValue(
+    sessionLimit,
+    DEFAULT_COURSE_GRADE_SESSION_LIMIT,
+    MAX_COURSE_GRADE_SESSION_COLUMNS
+  ) || DEFAULT_COURSE_GRADE_SESSION_LIMIT;
+  const selectedSessions = sessions.slice(boundedSessionOffset, boundedSessionOffset + requestedSessionLimit);
+  const boundedStudentOffset = clampPageValue(studentOffset, 0, Number.MAX_SAFE_INTEGER);
+  const requestedStudentLimit = clampPageValue(studentLimit, DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE) || DEFAULT_PAGE_SIZE;
+  const studentPageSize = Math.max(
+    1,
+    Math.min(requestedStudentLimit, Math.floor(MAX_GRADE_CELLS / Math.max(selectedSessions.length, 1)))
+  );
+  const selectedRows = allRows.slice(boundedStudentOffset, boundedStudentOffset + studentPageSize);
+
+  return {
+    course: { course_id: String(course._id), name: course.name || '' },
+    student_count: allRows.length,
+    session_count: sessions.length,
+    student_offset: boundedStudentOffset,
+    returned_student_count: selectedRows.length,
+    next_student_offset: boundedStudentOffset + selectedRows.length < allRows.length
+      ? boundedStudentOffset + selectedRows.length
+      : null,
+    session_offset: boundedSessionOffset,
+    returned_session_count: selectedSessions.length,
+    next_session_offset: boundedSessionOffset + selectedSessions.length < sessions.length
+      ? boundedSessionOffset + selectedSessions.length
+      : null,
+    student_page_limited_to_preserve_context: studentPageSize < requestedStudentLimit,
+    sessions: selectedSessions.map((session) => ({
+      session_id: String(session._id),
+      name: session.name || '',
+      date: session.date || session.quizStart || session.createdAt || null,
+      status: session.status || '',
+      quiz: !!session.quiz,
+      practice_quiz: !!session.practiceQuiz,
+    })),
+    students: selectedRows.map((row) => ({
+      ...row,
+      session_grades: selectedSessions.map((session) => {
+        const grade = gradeByStudentAndSession.get(`${row.student.student_id}::${String(session._id)}`);
+        return {
+          session_id: String(session._id),
+          has_grade: !!grade,
+          grade_percentage: grade ? Number(grade.value || 0) : null,
+          participation_percentage: grade ? Number(grade.participation || 0) : null,
+          points: grade ? Number(grade.points || 0) : null,
+          out_of: grade ? Number(grade.outOf || 0) : null,
+          joined: !!grade?.joined,
+          submitted: Array.isArray(session.submittedQuiz)
+            ? session.submittedQuiz.map(String).includes(row.student.student_id)
+            : false,
+          needs_grading: !!grade?.needsGrading,
+        };
+      }),
+    })),
   };
 }

@@ -3,6 +3,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import {
+  getCourseGradeTable,
   getQuestionResponses,
   getSessionGradeTable,
   getSessionQuestions,
@@ -91,6 +92,38 @@ export async function createCourseMcpClient({ courseId, audience = 'instructor' 
   }, async ({ session_id: sessionId, offset, limit, sort_by: sortBy, order }) => {
     try { return toolResult(await getSessionGradeTable(courseId, sessionId, { offset, limit, sortBy, order })); }
     catch (error) { return toolError(error); }
+  });
+
+  server.registerTool('get_course_grade_table', {
+    title: 'Get course grade table',
+    description: 'Get the instructor-only grade table for the current course, with one row per student and grade and participation columns for a selected page of sessions. The complete table may be large, so both students and session columns are paginated. Inspect student_count and session_count first, request only the rows and columns needed, and use next_student_offset or next_session_offset to continue. Missing grades are returned as null, not zero.',
+    inputSchema: {
+      student_offset: z.number().int().min(0).optional(),
+      student_limit: z.number().int().min(1).max(50).optional(),
+      session_offset: z.number().int().min(0).optional(),
+      session_limit: z.number().int().min(1).max(25).optional(),
+      sort_by: z.enum(['name', 'average_participation']).optional(),
+      order: z.enum(['asc', 'desc']).optional(),
+    },
+    annotations: { readOnlyHint: true },
+  }, async ({
+    student_offset: studentOffset,
+    student_limit: studentLimit,
+    session_offset: sessionOffset,
+    session_limit: sessionLimit,
+    sort_by: sortBy,
+    order,
+  }) => {
+    try {
+      return toolResult(await getCourseGradeTable(courseId, {
+        studentOffset,
+        studentLimit,
+        sessionOffset,
+        sessionLimit,
+        sortBy,
+        order,
+      }));
+    } catch (error) { return toolError(error); }
   });
 
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();

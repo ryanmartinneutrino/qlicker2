@@ -36,7 +36,11 @@ function parseGrade(content, maxPoints) {
   const parsed = JSON.parse(source);
   const points = Number(parsed.points);
   if (!Number.isFinite(points) || points < 0 || points > maxPoints) throw new Error('AI returned an invalid grade');
-  return { points, feedback: String(parsed.feedback || '') };
+  return {
+    points,
+    feedback: String(parsed.feedback || ''),
+    justification: String(parsed.justification || '').trim().slice(0, 2_000),
+  };
 }
 
 function latestResponse(responses) {
@@ -68,10 +72,18 @@ export async function runAiGradingJob(jobId) {
       for (const [studentIndex, grade] of grades.entries()) {
         job.currentStudent = studentIndex + 1; await job.save();
         const markIndex = grade.marks.findIndex((mark) => String(mark.questionId) === String(question._id));
-        if (markIndex < 0 || (!job.regrade && !grade.marks[markIndex].needsGrading)) { job.completed += 1; continue; }
+        const student = studentName(usersById.get(String(grade.userId)), grade);
+        if (markIndex < 0) {
+          job.log.push({ question: `Q${questionIndex + 1}`, student, status: 'skipped', note: 'Skipped: no mark exists for this question.' });
+          job.completed += 1; await job.save(); continue;
+        }
+        if (!job.regrade && !grade.marks[markIndex].needsGrading) {
+          job.log.push({ question: `Q${questionIndex + 1}`, student, status: 'skipped', note: 'Skipped: this mark does not need grading.' });
+          job.completed += 1; await job.save(); continue;
+        }
         const joined = session.quiz ? session.submittedQuiz?.includes(grade.userId) : session.joined?.includes(grade.userId);
         const response = latestResponse(responses.filter((entry) => String(entry.studentUserId) === String(grade.userId)));
-        let result = { points: 0, feedback: '' };
+        let result = { points: 0, feedback: '', justification: '' };
         if (joined && response) {
           const setup = job.instructions.get(String(question._id)) || {};
           const prompt = [
@@ -80,13 +92,20 @@ export async function runAiGradingJob(jobId) {
             `Maximum points: ${maxPoints}. Grading instructions: ${setup.grading || ''}`,
             setup.feedback ? `Feedback instructions: ${setup.feedback}` : '',
             `Student response: ${plainText(response.answerWysiwyg || response.answer)}.`,
-            'Return only JSON: {"points": number, "feedback": string}.',
+            'Return only JSON: {"points": number, "feedback": string, "justification": string}. The justification must be a concise, instructor-facing explanation citing the response and grading criteria. Do not reveal private chain-of-thought or hidden reasoning.',
           ].filter(Boolean).join('\n');
           const content = await requestAiCompletion(selected.backend, selected.model.id, [{ role: 'user', content: prompt }]);
           result = parseGrade(content, maxPoints);
-          job.log.push({ question: `Q${questionIndex + 1}`, student: studentName(usersById.get(String(grade.userId)), grade), points: result.points, outOf: maxPoints, feedback: result.feedback, prompt, response: content });
+          job.log.push({ question: `Q${questionIndex + 1}`, student, status: 'graded', points: result.points, outOf: maxPoints, feedback: result.feedback, justification: result.justification, prompt, response: content });
           summaries[question._id].graded += 1;
-        } else summaries[question._id].zeroed += 1;
+        } else {
+          const note = joined
+            ? 'Assigned 0: no meaningful response was submitted.'
+            : 'Assigned 0: the student did not join or submit this activity.';
+          result.justification = note;
+          job.log.push({ question: `Q${questionIndex + 1}`, student, status: 'zeroed', points: 0, outOf: maxPoints, note, justification: note });
+          summaries[question._id].zeroed += 1;
+        }
         grade.marks[markIndex].points = result.points;
         grade.marks[markIndex].feedback = result.feedback;
         grade.marks[markIndex].automatic = false;

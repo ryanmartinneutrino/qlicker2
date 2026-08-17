@@ -1062,7 +1062,8 @@
       "viewAiResponseSummary": "View AI response summary",
       "summaryInstructions": "Summary instructions",
       "basicSummaryHelp": "Basic summary identifies up to five response themes and example quotations.",
-      "aiSummaryInProgress": "Generating summary: student {{completed}} of {{total}}"
+      "aiSummaryInProgress": "Preparazione delle risposte: {{completed}} di {{total}}",
+      "aiSummaryGenerating": "Generazione del riepilogo IA…"
     },
     "secondDesktop": {
       "joinCode": "Codice di accesso",
@@ -1109,6 +1110,7 @@
       "inProgress": "AI grading in progress: student {{student}} of {{students}}, question {{question}} of {{questions}}",
       "report": "AI grading report",
       "log": "AI grading log",
+      "justification": "Motivazione della valutazione",
       "reportSummary": "{{question}}: graded {{graded}} response(s); assigned zero to {{zeroed}} response(s).",
       "assignedGrade": "Assigned grade: {{points}} / {{outOf}}",
       "completed": "AI grading completed.",

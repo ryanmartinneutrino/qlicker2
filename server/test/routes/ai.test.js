@@ -6,7 +6,7 @@ import ResponseModel from '../../src/models/Response.js';
 import Session from '../../src/models/Session.js';
 import Settings from '../../src/models/Settings.js';
 import Grade from '../../src/models/Grade.js';
-import { getQuestionResponses, getSessionGradeTable } from '../../src/services/aiCourseTools.js';
+import { getCourseGradeTable, getQuestionResponses, getSessionGradeTable } from '../../src/services/aiCourseTools.js';
 import { authenticatedRequest, createApp, createTestUser, getAuthToken } from '../helpers.js';
 
 let app;
@@ -118,7 +118,7 @@ describe('AI course configuration and chat', () => {
     });
     expect(fetch).toHaveBeenCalledTimes(2);
     const secondRequest = JSON.parse(fetch.mock.calls[1][1].body);
-    expect(secondRequest.tools.map((tool) => tool.function.name)).toEqual(expect.arrayContaining(['list_course_students', 'list_course_sessions', 'get_session_questions', 'get_question_responses', 'get_session_grade_table']));
+    expect(secondRequest.tools.map((tool) => tool.function.name)).toEqual(expect.arrayContaining(['list_course_students', 'list_course_sessions', 'get_session_questions', 'get_question_responses', 'get_session_grade_table', 'get_course_grade_table']));
     expect(secondRequest.messages.some((entry) => entry.role === 'tool' && entry.content.includes('student@example.com'))).toBe(true);
   });
 
@@ -188,5 +188,29 @@ describe('AI course configuration and chat', () => {
     expect(result).toMatchObject({ student_count: 2, returned_count: 1, next_offset: 1 });
     expect(result.students[0]).toMatchObject({ student: { name: 'Grace Hopper' }, total_points: 2, total_out_of: 2 });
     expect(result.question_summaries[1]).toMatchObject({ number: 2, average_points: 0.5, average_percentage: 50 });
+  });
+
+  it('returns the course grade table in bounded student and session pages', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const professor = await createTestUser({ email: 'course-table-prof@example.com', roles: ['professor'] });
+    const ada = await createTestUser({ email: 'course-table-ada@example.com', firstname: 'Ada', lastname: 'Lovelace' });
+    const grace = await createTestUser({ email: 'course-table-grace@example.com', firstname: 'Grace', lastname: 'Hopper' });
+    const token = await getAuthToken(app, professor);
+    const course = await createCourse(token);
+    await Course.findByIdAndUpdate(course._id, { $addToSet: { students: { $each: [ada._id, grace._id] } } });
+    const firstSession = await Session.create({ name: 'First', courseId: course._id, creator: professor._id, status: 'done', createdAt: new Date('2026-08-01') });
+    const secondSession = await Session.create({ name: 'Second', courseId: course._id, creator: professor._id, status: 'done', createdAt: new Date('2026-08-02'), submittedQuiz: [ada._id] });
+    await Grade.create([
+      { userId: ada._id, courseId: course._id, sessionId: firstSession._id, value: 80, participation: 100, points: 4, outOf: 5, joined: true },
+      { userId: ada._id, courseId: course._id, sessionId: secondSession._id, value: 90, participation: 50, points: 9, outOf: 10, joined: true },
+      { userId: grace._id, courseId: course._id, sessionId: secondSession._id, value: 70, participation: 75, points: 7, outOf: 10, joined: true },
+    ]);
+
+    const result = await getCourseGradeTable(course._id, { studentLimit: 1, sessionLimit: 1 });
+
+    expect(result).toMatchObject({ student_count: 2, session_count: 2, returned_student_count: 1, returned_session_count: 1, next_student_offset: 1, next_session_offset: 1 });
+    expect(result.sessions[0]).toMatchObject({ name: 'Second' });
+    expect(result.students[0]).toMatchObject({ student: { name: 'Ada Lovelace' }, average_participation: 75 });
+    expect(result.students[0].session_grades[0]).toMatchObject({ grade_percentage: 90, participation_percentage: 50, submitted: true });
   });
 });
