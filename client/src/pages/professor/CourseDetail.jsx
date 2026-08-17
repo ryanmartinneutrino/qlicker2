@@ -1031,7 +1031,13 @@ export default function CourseDetail() {
   const handleAiEnabledChange = async (event) => {
     markSettingAutoSaveInProgress();
     try {
-      await apiClient.patch(`/ai/courses/${id}/config`, { enabled: event.target.checked });
+      const enabled = event.target.checked;
+      await apiClient.patch(`/ai/courses/${id}/config`, { enabled });
+      // Enabling the assistant inserts the AI chat tab immediately before
+      // Settings. Preserve the semantic Settings tab in both local state and
+      // the URL rather than leaving its old numeric tab index selected.
+      setCourse((current) => (current ? { ...current, aiEnabled: enabled } : current));
+      setCourseTab(aiTabIndex + (enabled ? 2 : 1));
       fetchCourse();
       setSettingsAutoSaveStatus('success');
     } catch (err) {
