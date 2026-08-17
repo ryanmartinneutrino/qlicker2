@@ -47,6 +47,7 @@ describe('AiGradingForm', () => {
     fireEvent.change(name, { target: { value: 'Constructive feedback' } });
 
     expect(name).toHaveValue('Constructive feedback');
-    expect(screen.getByRole('textbox', { name: /instructions for feedback/i })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: /instructions for feedback to student/i })).toBeInTheDocument();
   });
+
 });
