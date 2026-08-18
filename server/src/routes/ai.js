@@ -261,7 +261,10 @@ export default async function aiRoutes(app) {
 
   app.delete('/courses/:courseId/sessions/:sessionId/ai-grading-log', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
-    await Session.updateOne({ _id: request.params.sessionId, courseId: course._id }, { $set: { aiGradingLog: null } });
+    await Session.updateOne(
+      { _id: request.params.sessionId, courseId: course._id },
+      { $set: { aiGradingLog: { runs: [], updatedAt: new Date() } } }
+    );
     return reply.code(204).send();
   });
 
