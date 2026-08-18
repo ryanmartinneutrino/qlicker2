@@ -58,6 +58,7 @@ export async function runAiGradingJob(jobId) {
   job.status = 'running'; await job.save();
   let questions = [];
   let summaries = {};
+  let appendLog = null;
   try {
     const [course, session, settings] = await Promise.all([
       Course.findById(job.courseId).lean(), Session.findById(job.sessionId).lean(), Settings.findById('settings').lean(),
@@ -66,7 +67,7 @@ export async function runAiGradingJob(jobId) {
     if (!selected) throw new Error('No available AI model is selected for this course');
     const runStartedAt = new Date();
     await Session.updateOne({ _id: job.sessionId }, { $push: { 'aiGradingLog.runs': { jobId: job._id, startedAt: runStartedAt, status: 'running', entries: [] } } });
-    const appendLog = async (entry) => {
+    appendLog = async (entry) => {
       const loggedEntry = { ...entry, timestamp: new Date() };
       job.log.push(loggedEntry);
       await Session.updateOne(
@@ -149,6 +150,10 @@ export async function runAiGradingJob(jobId) {
   } catch (error) {
     job.status = 'failed';
     job.error = error.message || 'AI grading failed';
+    if (appendLog) {
+      try { await appendLog({ status: 'failed', note: `AI grading failed: ${job.error}` }); }
+      catch { /* Preserve the job failure even if durable-log storage is unavailable. */ }
+    }
     await Session.updateOne({ _id: job.sessionId, 'aiGradingLog.runs.jobId': job._id }, { $set: { 'aiGradingLog.runs.$.status': 'failed', 'aiGradingLog.updatedAt': new Date() } });
     job.report = {
       summaries: questions.map((question) => ({
