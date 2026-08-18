@@ -623,6 +623,11 @@
       "copyRubricsSource": "Source course",
       "rubricsCopied": "Copied {{count}} AI rubric(s).",
       "rubricsCopyFailed": "Could not copy AI rubrics.",
+      "manageRubrics": "View or edit course rubrics",
+      "rubricType": "Guidance type",
+      "summaryInstructions": "Response summary instructions",
+      "selectRubric": "Search or select guidance",
+      "rubricInstructions": "Guidance instructions",
       "aiNotAvailable": "AI helper is not enabled for this course by the administrator.",
       "aiBackendHelp": "Configure the OpenAI-compatible backend used only by this course.",
       "aiAdminBackendOnly": "This course uses the AI backend configured by the Qlicker administrator. Its connection details are not shown here.",
@@ -1746,6 +1751,7 @@
       "includeQuestion": "Include question {{question}} in AI grading",
       "clickQuestionToEdit": "Click this row to edit its rubric",
       "notEligible": "This question cannot be graded by AI"
+      ,"guidanceMissing": "Guidance required before grading"
       ,"clearLog": "Clear log",
       "logRunAt": "Run started: {{timestamp}}"
     }

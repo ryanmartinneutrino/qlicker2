@@ -190,6 +190,7 @@ export default function AiGradingModal({
             {questions.map((question, index) => {
               const id = String(question._id);
               const enabled = canManualGrade(question);
+              const hasGuidance = !!forms[id]?.gradingInstructionId && !!forms[id]?.feedbackInstructionId;
               return (
                 <ListItemButton
                   key={id}
@@ -210,7 +211,7 @@ export default function AiGradingModal({
                   />
                   <ListItemText
                     primary={`Q${index + 1}`}
-                    secondary={enabled ? t('grades.aiGrading.clickQuestionToEdit') : t('grades.aiGrading.notEligible')}
+                    secondary={!enabled ? t('grades.aiGrading.notEligible') : selected.includes(id) && !hasGuidance ? t('grades.aiGrading.guidanceMissing') : t('grades.aiGrading.clickQuestionToEdit')}
                   />
                 </ListItemButton>
               );

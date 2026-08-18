@@ -319,6 +319,11 @@ export default function CourseDetail() {
   const [rubricSourceCourses, setRubricSourceCourses] = useState([]);
   const [rubricSourceCourseId, setRubricSourceCourseId] = useState('');
   const [copyingRubrics, setCopyingRubrics] = useState(false);
+  const [rubricManagerOpen, setRubricManagerOpen] = useState(false);
+  const [courseRubrics, setCourseRubrics] = useState([]);
+  const [rubricKind, setRubricKind] = useState('grading');
+  const [activeRubricId, setActiveRubricId] = useState('');
+  const [rubricDraft, setRubricDraft] = useState({ name: '', content: '' });
 
   // Sessions
   const [sessions, setSessions] = useState([]);
@@ -407,6 +412,28 @@ export default function CourseDetail() {
       setCopyingRubrics(false);
     }
   }, [id, rubricSourceCourseId, t]);
+
+  const openRubricManager = useCallback(async () => {
+    const { data } = await apiClient.get(`/ai/courses/${id}/grading-instructions`);
+    setCourseRubrics((data.instructions || []).filter((entry) => !['no-feedback', 'basic-summary'].includes(entry._id)));
+    setActiveRubricId('');
+    setRubricDraft({ name: '', content: '' });
+    setRubricManagerOpen(true);
+  }, [id]);
+
+  const saveCourseRubric = useCallback(async () => {
+    if (!rubricDraft.name.trim() || !rubricDraft.content.trim()) return;
+    const { data } = await apiClient.post(`/ai/courses/${id}/grading-instructions`, { _id: activeRubricId, kind: rubricKind, ...rubricDraft });
+    setCourseRubrics((current) => [...current.filter((entry) => entry._id !== data.instruction._id), data.instruction]);
+    setActiveRubricId(data.instruction._id);
+  }, [activeRubricId, id, rubricDraft, rubricKind]);
+
+  const deleteCourseRubric = useCallback(async () => {
+    if (!activeRubricId) return;
+    await apiClient.delete(`/ai/courses/${id}/grading-instructions/${activeRubricId}`);
+    setCourseRubrics((current) => current.filter((entry) => entry._id !== activeRubricId));
+    setActiveRubricId(''); setRubricDraft({ name: '', content: '' });
+  }, [activeRubricId, id]);
 
   useEffect(() => {
     let mounted = true;
@@ -2097,7 +2124,18 @@ export default function CourseDetail() {
                 <Button variant="outlined" onClick={handleCopyRubrics} disabled={!rubricSourceCourseId || copyingRubrics}>
                   {copyingRubrics ? t('common.saving') : t('professor.course.copyRubrics')}
                 </Button>
+                <Button variant="outlined" sx={{ ml: 1 }} onClick={openRubricManager}>{t('professor.course.manageRubrics')}</Button>
               </Box>
+              <Dialog open={rubricManagerOpen} onClose={() => setRubricManagerOpen(false)} fullWidth maxWidth="sm">
+                <DialogTitle>{t('professor.course.manageRubrics')}</DialogTitle>
+                <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                  <TextField select label={t('professor.course.rubricType')} value={rubricKind} onChange={(event) => { setRubricKind(event.target.value); setActiveRubricId(''); setRubricDraft({ name: '', content: '' }); }}><MenuItem value="grading">{t('grades.aiGrading.gradingInstructions')}</MenuItem><MenuItem value="feedback">{t('grades.aiGrading.feedbackToStudentInstructions')}</MenuItem><MenuItem value="summary">{t('professor.course.summaryInstructions')}</MenuItem></TextField>
+                  <Autocomplete options={courseRubrics.filter((entry) => entry.kind === rubricKind)} value={courseRubrics.find((entry) => entry._id === activeRubricId) || null} getOptionLabel={(entry) => entry.name} onChange={(_, entry) => { setActiveRubricId(entry?._id || ''); setRubricDraft(entry ? { name: entry.name, content: entry.content } : { name: '', content: '' }); }} renderInput={(params) => <TextField {...params} label={t('professor.course.selectRubric')} />} />
+                  <TextField label={t('common.name')} value={rubricDraft.name} onChange={(event) => setRubricDraft((current) => ({ ...current, name: event.target.value }))} />
+                  <TextField multiline minRows={5} label={t('professor.course.rubricInstructions')} value={rubricDraft.content} onChange={(event) => setRubricDraft((current) => ({ ...current, content: event.target.value }))} />
+                </DialogContent>
+                <DialogActions><Button color="error" onClick={deleteCourseRubric} disabled={!activeRubricId}>{t('common.delete')}</Button><Button onClick={() => setRubricManagerOpen(false)}>{t('common.close')}</Button><Button variant="contained" onClick={saveCourseRubric} disabled={!rubricDraft.name.trim() || !rubricDraft.content.trim()}>{t('common.save')}</Button></DialogActions>
+              </Dialog>
             </Box>
           )}
           {!ssoEnabled ? (
