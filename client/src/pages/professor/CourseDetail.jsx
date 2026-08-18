@@ -1165,6 +1165,7 @@ export default function CourseDetail() {
   };
 
   const handleAiBackendChange = (field, value, options = {}) => {
+    if (options.deferSave) return;
     if (field === 'backends' && hasIncompleteAiBackend(value)) {
       const { backends, ...pendingUpdates } = aiConfigUpdatesRef.current;
       aiConfigUpdatesRef.current = pendingUpdates;

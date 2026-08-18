@@ -2386,10 +2386,11 @@ function AiHelperTab() {
     return () => clearTimeout(timer);
   }, [settings, loading, persistSettings]);
 
-  const updateSettings = useCallback((updater, { saveImmediately = false } = {}) => {
+  const updateSettings = useCallback((updater, { saveImmediately = false, deferSave = false } = {}) => {
     const current = settingsRef.current;
     const next = typeof updater === 'function' ? updater(current) : updater;
     settingsRef.current = next;
+    if (deferSave) skipNextAutoSaveRef.current = true;
     setSettings(next);
     if (saveImmediately) {
       skipNextAutoSaveRef.current = true;

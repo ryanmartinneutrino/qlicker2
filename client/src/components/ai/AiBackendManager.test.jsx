@@ -56,10 +56,12 @@ describe('AiBackendManager', () => {
 
     const tokenField = screen.getByLabelText('API token (optional)');
     expect(tokenField).toHaveValue('********');
+    fireEvent.focus(tokenField);
+    expect(tokenField).toHaveValue('');
     fireEvent.change(tokenField, { target: { value: 'replacement-token' } });
     expect(onChange).toHaveBeenCalledWith([
       expect.objectContaining({ id: 'backend-1', apiToken: 'replacement-token', apiTokenSet: true }),
-    ]);
+    ], { deferSave: true });
   });
 
   it('queries the backend when showing available models', async () => {
