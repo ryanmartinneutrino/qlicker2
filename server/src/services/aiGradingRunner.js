@@ -89,11 +89,15 @@ export async function runAiGradingJob(jobId) {
     const selected = resolveModel(course, settings || {});
     if (!selected) throw new Error('No available AI model is selected for this course');
     const runStartedAt = new Date();
-    await Session.updateOne(
-      { _id: job.sessionId, aiGradingLog: null },
-      { $set: { aiGradingLog: { runs: [], updatedAt: runStartedAt } } }
-    );
-    await Session.updateOne({ _id: job.sessionId }, { $push: { 'aiGradingLog.runs': { jobId: job._id, startedAt: runStartedAt, status: 'running', entries: [] } } });
+    const existingRuns = Array.isArray(session?.aiGradingLog?.runs)
+      ? session.aiGradingLog.runs
+      : [];
+    await Session.updateOne({ _id: job.sessionId }, { $set: {
+      aiGradingLog: {
+        runs: [...existingRuns, { jobId: job._id, startedAt: runStartedAt, status: 'running', entries: [] }],
+        updatedAt: runStartedAt,
+      },
+    } });
     appendLog = async (entry) => {
       const loggedEntry = { ...entry, timestamp: new Date() };
       job.log.push(loggedEntry);
