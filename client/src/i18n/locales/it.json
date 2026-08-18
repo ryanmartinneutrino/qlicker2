@@ -1744,6 +1744,8 @@
       "failedReportError": "Errore: {{error}}",
       "clearLog": "Cancella registro",
       "logRunAt": "Esecuzione avviata: {{timestamp}}",
+      "inappropriateResponses": "Risposte inappropriate segnalate",
+      "noInappropriateResponses": "Non sono state segnalate risposte inappropriate.",
       "questionSelection": "Domande per la valutazione IA",
       "includeQuestion": "Includi la domanda {{question}} nella valutazione IA",
       "clickQuestionToEdit": "Fai clic su questa riga per modificare la rubrica",

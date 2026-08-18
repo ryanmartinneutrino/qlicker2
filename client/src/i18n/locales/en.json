@@ -1754,6 +1754,8 @@
       ,"guidanceMissing": "Guidance required before grading"
       ,"clearLog": "Clear log",
       "logRunAt": "Run started: {{timestamp}}"
+      ,"inappropriateResponses": "Flagged inappropriate responses",
+      "noInappropriateResponses": "No inappropriate responses were flagged."
     }
   },
   "pageTitles": {

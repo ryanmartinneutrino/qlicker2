@@ -1744,6 +1744,8 @@
       "failedReportError": "Error: {{error}}",
       "clearLog": "Clear log",
       "logRunAt": "Run started: {{timestamp}}",
+      "inappropriateResponses": "Flagged improper answers",
+      "noInappropriateResponses": "No improper answers were flagged.",
       "questionSelection": "Riddles fer AI reckonin'",
       "includeQuestion": "Include riddle {{question}} in AI reckonin'",
       "clickQuestionToEdit": "Click this row to edit its rubric",

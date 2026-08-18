@@ -16,4 +16,15 @@ describe('AI grading response parsing', () => {
     expect(() => parseGrade('{"points":6,"feedback":"","justification":"Too high"}', 5))
       .toThrow('AI returned an invalid grade');
   });
+
+  it('captures a quoted inappropriate-response flag', () => {
+    const result = parseGrade(JSON.stringify({
+      points: 1,
+      feedback: 'Revise this response.',
+      justification: 'The response does not answer the question.',
+      inappropriate: { flagged: true, quote: 'quoted comment', reason: 'Abusive language' },
+    }), 5);
+
+    expect(result.inappropriate).toEqual({ quote: 'quoted comment', reason: 'Abusive language' });
+  });
 });

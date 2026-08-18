@@ -1744,6 +1744,8 @@
       "failedReportError": "Fehler: {{error}}",
       "clearLog": "Protokoll löschen",
       "logRunAt": "Lauf gestartet: {{timestamp}}",
+      "inappropriateResponses": "Markierte unangemessene Antworten",
+      "noInappropriateResponses": "Es wurden keine unangemessenen Antworten markiert.",
       "questionSelection": "Fragen für die KI-Bewertung",
       "includeQuestion": "Frage {{question}} in KI-Bewertung einschließen",
       "clickQuestionToEdit": "Klicken Sie auf diese Zeile, um die Rubrik zu bearbeiten",

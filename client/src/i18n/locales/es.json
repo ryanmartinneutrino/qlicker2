@@ -1744,6 +1744,8 @@
       "failedReportError": "Error: {{error}}",
       "clearLog": "Borrar registro",
       "logRunAt": "Ejecución iniciada: {{timestamp}}",
+      "inappropriateResponses": "Respuestas inapropiadas marcadas",
+      "noInappropriateResponses": "No se marcó ninguna respuesta inapropiada.",
       "questionSelection": "Preguntas para calificación con IA",
       "includeQuestion": "Incluir la pregunta {{question}} en la calificación con IA",
       "clickQuestionToEdit": "Haga clic en esta fila para editar su rúbrica",

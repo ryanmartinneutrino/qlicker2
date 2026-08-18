@@ -52,10 +52,17 @@ export function parseGrade(content, maxPoints) {
   const parsed = parseModelJson(source);
   const points = Number(parsed.points);
   if (!Number.isFinite(points) || points < 0 || points > maxPoints) throw new Error('AI returned an invalid grade');
+  const inappropriate = parsed.inappropriate?.flagged && String(parsed.inappropriate?.quote || '').trim()
+    ? {
+        quote: String(parsed.inappropriate.quote).trim().slice(0, 1_000),
+        reason: String(parsed.inappropriate.reason || '').trim().slice(0, 1_000),
+      }
+    : null;
   return {
     points,
     feedback: String(parsed.feedback || ''),
     justification: String(parsed.justification || '').trim().slice(0, 2_000),
+    ...(inappropriate ? { inappropriate } : {}),
   };
 }
 
@@ -141,11 +148,12 @@ export async function runAiGradingJob(jobId) {
             `Maximum points: ${maxPoints}. Grading instructions: ${setup.grading || ''}`,
             setup.feedback ? `Feedback instructions: ${setup.feedback}` : '',
             `Student response: ${plainText(response.answerWysiwyg || response.answer)}.`,
-            'Return only JSON: {"points": number, "feedback": string, "justification": string}. The justification must be a concise, instructor-facing explanation citing the response and grading criteria. Do not reveal private chain-of-thought or hidden reasoning.',
+            'Also assess whether the response contains inappropriate, abusive, threatening, discriminatory, sexually explicit, or otherwise concerning content. Include a short direct quote only when flagging it.',
+            'Return only JSON: {"points": number, "feedback": string, "justification": string, "inappropriate": {"flagged": boolean, "quote": string, "reason": string}}. The justification must be a concise, instructor-facing explanation citing the response and grading criteria. Do not reveal private chain-of-thought or hidden reasoning.',
           ].filter(Boolean).join('\n');
           const content = await requestAiCompletion(selected.backend, selected.model.id, [{ role: 'user', content: prompt }]);
           result = parseGrade(content, maxPoints);
-          await appendLog({ question: questionLabel, student, status: 'graded', points: result.points, outOf: maxPoints, feedback: result.feedback, justification: result.justification, prompt, response: content });
+          await appendLog({ question: questionLabel, student, status: 'graded', points: result.points, outOf: maxPoints, feedback: result.feedback, justification: result.justification, inappropriate: result.inappropriate, prompt, response: content });
           summaries[question._id].graded += 1;
         } else {
           const note = joined

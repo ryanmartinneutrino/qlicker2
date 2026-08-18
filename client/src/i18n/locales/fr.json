@@ -1744,6 +1744,8 @@
       "failedReportError": "Erreur : {{error}}",
       "clearLog": "Effacer le journal",
       "logRunAt": "Exécution commencée : {{timestamp}}",
+      "inappropriateResponses": "Réponses inappropriées signalées",
+      "noInappropriateResponses": "Aucune réponse inappropriée n’a été signalée.",
       "questionSelection": "Questions à évaluer par IA",
       "includeQuestion": "Inclure la question {{question}} dans l’évaluation IA",
       "clickQuestionToEdit": "Cliquez sur cette ligne pour modifier sa grille",
