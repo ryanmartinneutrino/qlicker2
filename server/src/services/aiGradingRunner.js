@@ -127,6 +127,7 @@ export async function runAiGradingJob(jobId) {
       job.currentQuestion = questionIndex + 1; job.currentStudent = 0; await job.save();
       const maxPoints = Number(question?.sessionOptions?.points ?? question?.points ?? 0);
       const questionLabel = sessionQuestionLabel(question.sessionQuestionNumber);
+      const setup = job.instructions.get(String(question._id)) || {};
       summaries[question._id] = { graded: 0, zeroed: 0, issues: [] };
       const responses = await Response.find({ questionId: question._id }).lean();
       for (const [studentIndex, grade] of grades.entries()) {
@@ -137,7 +138,7 @@ export async function runAiGradingJob(jobId) {
           await appendLog({ question: questionLabel, student, status: 'skipped', note: 'Skipped: no mark exists for this question.' });
           job.completed += 1; await job.save(); continue;
         }
-        if (!job.regrade && !grade.marks[markIndex].needsGrading) {
+        if (!setup.regrade && !grade.marks[markIndex].needsGrading) {
           await appendLog({ question: questionLabel, student, status: 'skipped', note: 'Skipped: this mark does not need grading.' });
           job.completed += 1; await job.save(); continue;
         }
@@ -145,7 +146,6 @@ export async function runAiGradingJob(jobId) {
         const response = latestResponse(responses.filter((entry) => String(entry.studentUserId) === String(grade.userId)));
         let result = { points: 0, feedback: '', justification: '' };
         if (joined && response) {
-          const setup = job.instructions.get(String(question._id)) || {};
           const prompt = [
             `You are grading a student's response to this question: ${plainText(question.content || question.plainText)}.`,
             question.solution ? `Solution: ${plainText(question.solution)}.` : '',

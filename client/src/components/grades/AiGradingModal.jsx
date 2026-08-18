@@ -43,7 +43,6 @@ export default function AiGradingModal({
   const [forms, setForms] = useState({});
   const [error, setError] = useState('');
   const [starting, setStarting] = useState(false);
-  const [rubricLoaded, setRubricLoaded] = useState(false);
   const initializedRubricRef = useRef(false);
   const selectedRef = useRef([]);
   const formsRef = useRef({});
@@ -51,10 +50,9 @@ export default function AiGradingModal({
 
   useEffect(() => {
     if (!open) return undefined;
-    setActiveId('');
+    setActiveId(String(manualQuestions[0]?._id || ''));
     setForms({});
     setError('');
-    setRubricLoaded(false);
     initializedRubricRef.current = false;
     let mounted = true;
     Promise.all([
@@ -77,7 +75,6 @@ export default function AiGradingModal({
         setSelected(nextSelected);
         setForms(nextForms);
         initializedRubricRef.current = true;
-        setRubricLoaded(true);
       })
       .catch(() => {
         if (mounted) setError(t('grades.aiGrading.failedLoad'));
@@ -161,7 +158,6 @@ export default function AiGradingModal({
         {
           questionIds: selected,
           instructions: prepared,
-          regrade: Object.values(prepared).some((form) => form.regrade),
         }
       );
       onStarted(data.job);
