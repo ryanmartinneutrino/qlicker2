@@ -21,7 +21,12 @@ export default function AiBackendManager({ backends = [], onChange, defaultBacke
   const discover = async (backend) => {
     setDiscovering((current) => ({ ...current, [backend.id]: true })); setError('');
     try {
-      const { data } = await apiClient.post('/ai/discover-models', { url: backend.url, type: backend.type, ...(courseId ? { courseId } : {}) });
+      const { data } = await apiClient.post('/ai/discover-models', {
+        url: backend.url,
+        type: backend.type,
+        apiToken: backend.apiToken || '',
+        ...(courseId ? { courseId } : {}),
+      });
       const existing = new Map((backend.models || []).map((model) => [model.id, model]));
       updateBackend(backend.id, { models: (data.models || []).map((model) => ({ ...model, available: existing.get(model.id)?.available !== false })) });
     } catch (err) { setError(err.response?.data?.message || t('ai.backends.discoveryFailed')); }

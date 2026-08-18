@@ -57,7 +57,7 @@ export default async function aiRoutes(app) {
   const { authenticate } = app;
 
   app.post('/discover-models', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
-    const { url, type = 'ollama', courseId = '' } = request.body || {};
+    const { url, type = 'ollama', courseId = '', apiToken = '' } = request.body || {};
     if (!url) return reply.code(400).send({ error: 'Bad Request', message: 'Backend URL is required' });
     if (!(request.user.roles || []).includes('admin')) {
       const course = await Course.findById(courseId).lean();
@@ -67,7 +67,7 @@ export default async function aiRoutes(app) {
       }
     }
     if (type !== 'ollama') return reply.code(400).send({ error: 'Bad Request', message: 'Model discovery currently supports Ollama backends only' });
-    try { return { models: await discoverOllamaModels(url) }; }
+    try { return { models: await discoverOllamaModels(url, apiToken) }; }
     catch (err) { return reply.code(400).send({ error: 'Bad Request', message: err.message || 'Could not discover Ollama models' }); }
   });
 
