@@ -31,9 +31,25 @@ function studentName(user, grade) {
   return name || user?.emails?.[0]?.address || grade?.name || 'Student';
 }
 
-function parseGrade(content, maxPoints) {
+function parseModelJson(source) {
+  try {
+    return JSON.parse(source);
+  } catch (originalError) {
+    // Models occasionally emit LaTeX-style backslashes (for example \(x\))
+    // without JSON-escaping them. Repair only invalid JSON escape sequences;
+    // valid escapes such as \n, \" and \u1234 remain untouched.
+    const repaired = source
+      .replace(/\\u(?![0-9a-fA-F]{4})/g, '\\\\u')
+      .replace(/\\(?!["\\/bfnrtu])/g, '\\\\')
+      .replace(/\\$/g, '\\\\');
+    if (repaired === source) throw originalError;
+    return JSON.parse(repaired);
+  }
+}
+
+export function parseGrade(content, maxPoints) {
   const source = String(content || '').trim().replace(/^```json\s*|\s*```$/g, '');
-  const parsed = JSON.parse(source);
+  const parsed = parseModelJson(source);
   const points = Number(parsed.points);
   if (!Number.isFinite(points) || points < 0 || points > maxPoints) throw new Error('AI returned an invalid grade');
   return {
