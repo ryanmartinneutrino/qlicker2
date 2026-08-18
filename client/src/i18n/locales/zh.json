@@ -1742,6 +1742,8 @@
       "failedStart": "Could not start AI grading.",
       "failedReportNotice": "上一次 AI 评分未能完成。日志显示了失败前已完成的评分。",
       "failedReportError": "错误：{{error}}",
+      "clearLog": "清除日志",
+      "logRunAt": "运行开始时间：{{timestamp}}",
       "questionSelection": "AI 评分题目",
       "includeQuestion": "将题目 {{question}} 包含在 AI 评分中",
       "clickQuestionToEdit": "点击此行以编辑评分量规",

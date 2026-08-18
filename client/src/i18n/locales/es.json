@@ -1742,6 +1742,8 @@
       "failedStart": "Could not start AI grading.",
       "failedReportNotice": "La última ejecución de calificación con IA no se completó. El registro muestra las calificaciones terminadas antes del error.",
       "failedReportError": "Error: {{error}}",
+      "clearLog": "Borrar registro",
+      "logRunAt": "Ejecución iniciada: {{timestamp}}",
       "questionSelection": "Preguntas para calificación con IA",
       "includeQuestion": "Incluir la pregunta {{question}} en la calificación con IA",
       "clickQuestionToEdit": "Haga clic en esta fila para editar su rúbrica",

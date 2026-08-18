@@ -1742,6 +1742,8 @@
       "failedStart": "Could not start AI grading.",
       "failedReportNotice": "Der letzte KI-Bewertungslauf wurde nicht erfolgreich abgeschlossen. Das Protokoll zeigt alle vor dem Fehler abgeschlossenen Bewertungen.",
       "failedReportError": "Fehler: {{error}}",
+      "clearLog": "Protokoll löschen",
+      "logRunAt": "Lauf gestartet: {{timestamp}}",
       "questionSelection": "Fragen für die KI-Bewertung",
       "includeQuestion": "Frage {{question}} in KI-Bewertung einschließen",
       "clickQuestionToEdit": "Klicken Sie auf diese Zeile, um die Rubrik zu bearbeiten",

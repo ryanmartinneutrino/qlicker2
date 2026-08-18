@@ -1742,6 +1742,8 @@
       "failedStart": "Could not start AI grading.",
       "failedReportNotice": "Последний запуск оценивания ИИ не был завершён. В журнале показаны оценки, завершённые до сбоя.",
       "failedReportError": "Ошибка: {{error}}",
+      "clearLog": "Очистить журнал",
+      "logRunAt": "Запуск начат: {{timestamp}}",
       "questionSelection": "Вопросы для оценивания ИИ",
       "includeQuestion": "Включить вопрос {{question}} в оценивание ИИ",
       "clickQuestionToEdit": "Нажмите эту строку, чтобы изменить рубрику",

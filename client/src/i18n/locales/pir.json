@@ -1742,6 +1742,8 @@
       "failedStart": "Could not start AI grading.",
       "failedReportNotice": "The last AI reckonin’ run didn’t finish. The log shows grades completed afore it went awry.",
       "failedReportError": "Error: {{error}}",
+      "clearLog": "Clear log",
+      "logRunAt": "Run started: {{timestamp}}",
       "questionSelection": "Riddles fer AI reckonin'",
       "includeQuestion": "Include riddle {{question}} in AI reckonin'",
       "clickQuestionToEdit": "Click this row to edit its rubric",

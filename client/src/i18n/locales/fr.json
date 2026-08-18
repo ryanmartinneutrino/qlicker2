@@ -1742,6 +1742,8 @@
       "failedStart": "Could not start AI grading.",
       "failedReportNotice": "La dernière évaluation par IA ne s’est pas terminée. Le journal affiche les notes terminées avant l’échec.",
       "failedReportError": "Erreur : {{error}}",
+      "clearLog": "Effacer le journal",
+      "logRunAt": "Exécution commencée : {{timestamp}}",
       "questionSelection": "Questions à évaluer par IA",
       "includeQuestion": "Inclure la question {{question}} dans l’évaluation IA",
       "clickQuestionToEdit": "Cliquez sur cette ligne pour modifier sa grille",
