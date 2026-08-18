@@ -62,13 +62,23 @@ export default function AiGradingModal({
       .then(([instructionResponse, rubricResponse]) => {
         if (!mounted) return;
         const rubric = rubricResponse.data?.rubric;
-        setInstructions(instructionResponse.data.instructions || []);
+        const availableInstructions = instructionResponse.data.instructions || [];
+        const restoredForms = Object.fromEntries(Object.entries(rubric?.instructions || {}).map(([questionId, form]) => {
+          const gradingInstruction = availableInstructions.find((entry) => entry.kind === 'grading' && entry.content === form.grading);
+          const feedbackInstruction = availableInstructions.find((entry) => entry.kind === 'feedback' && entry.content === form.feedback);
+          return [questionId, {
+            ...form,
+            gradingInstructionId: form.gradingInstructionId || gradingInstruction?._id || '',
+            feedbackInstructionId: form.feedbackInstructionId || feedbackInstruction?._id || '',
+          }];
+        }));
+        setInstructions(availableInstructions);
         setSelected(rubric?.questionIds?.length
           ? rubric.questionIds.map(String)
           : manualQuestions
             .filter((question) => needsGradingQuestionIds.includes(String(question._id)))
             .map((question) => String(question._id)));
-        setForms(rubric?.instructions || {});
+        setForms(restoredForms);
         initializedRubricRef.current = true;
         setRubricLoaded(true);
       })

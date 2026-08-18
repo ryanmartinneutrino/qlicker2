@@ -4,6 +4,7 @@ import AiGradingJob from '../models/AiGradingJob.js';
 import AiSessionRubric from '../models/AiSessionRubric.js';
 import AiResponseSummary from '../models/AiResponseSummary.js';
 import Course from '../models/Course.js';
+import Session from '../models/Session.js';
 import { getOrCreateSettingsDocument } from '../utils/settingsSingleton.js';
 import { isCourseInstructorOrAdmin } from '../utils/courseAccess.js';
 import { discoverOllamaModels, normalizeAiBackends, serializeAiBackends } from '../services/ai.js';
@@ -235,7 +236,11 @@ export default async function aiRoutes(app) {
 
   app.get('/courses/:courseId/sessions/:sessionId/ai-grading-rubric', { preHandler: authenticate }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
-    const rubric = await AiSessionRubric.findOne({ courseId: course._id, sessionId: request.params.sessionId }).lean();
+    let rubric = await AiSessionRubric.findOne({ courseId: course._id, sessionId: request.params.sessionId }).lean();
+    if (!rubric) {
+      const previousJob = await AiGradingJob.findOne({ courseId: course._id, sessionId: request.params.sessionId }).sort({ createdAt: -1 }).lean();
+      if (previousJob) rubric = { questionIds: previousJob.questionIds || [], instructions: previousJob.instructions || {} };
+    }
     return { rubric };
   });
 
@@ -254,7 +259,14 @@ export default async function aiRoutes(app) {
   app.get('/courses/:courseId/sessions/:sessionId/ai-grading', { preHandler: authenticate }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
     const job = await AiGradingJob.findOne({ courseId: course._id, sessionId: request.params.sessionId }).sort({ createdAt: -1 }).lean();
-    return { job };
+    const session = await Session.findById(request.params.sessionId).select('aiGradingLog').lean();
+    return { job, log: session?.aiGradingLog || null };
+  });
+
+  app.delete('/courses/:courseId/sessions/:sessionId/ai-grading-log', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
+    const course = await instructorCourse(request, reply); if (!course) return undefined;
+    await Session.updateOne({ _id: request.params.sessionId, courseId: course._id }, { $set: { aiGradingLog: null } });
+    return reply.code(204).send();
   });
 
   app.post('/courses/:courseId/sessions/:sessionId/ai-grading', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {

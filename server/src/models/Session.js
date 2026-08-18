@@ -56,6 +56,7 @@ const SessionSchema = new mongoose.Schema(
     reviewable: { type: Boolean, default: false },
     hasResponses: { type: Boolean, default: false },
     questionResponseCounts: { type: Map, of: Number, default: {} },
+    aiGradingLog: { type: mongoose.Schema.Types.Mixed, default: null },
     // Interactive session join-code settings
     joinCodeEnabled: { type: Boolean, default: false },
     joinCodeActive: { type: Boolean, default: false },

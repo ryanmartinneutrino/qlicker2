@@ -1746,6 +1746,8 @@
       "includeQuestion": "Include question {{question}} in AI grading",
       "clickQuestionToEdit": "Click this row to edit its rubric",
       "notEligible": "This question cannot be graded by AI"
+      ,"clearLog": "Clear log",
+      "logRunAt": "Run started: {{timestamp}}"
     }
   },
   "pageTitles": {

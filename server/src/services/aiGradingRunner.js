@@ -64,6 +64,17 @@ export async function runAiGradingJob(jobId) {
     ]);
     const selected = resolveModel(course, settings || {});
     if (!selected) throw new Error('No available AI model is selected for this course');
+    const runStartedAt = new Date();
+    await Session.updateOne({ _id: job.sessionId }, { $push: { 'aiGradingLog.runs': { jobId: job._id, startedAt: runStartedAt, status: 'running', entries: [] } } });
+    const appendLog = async (entry) => {
+      const loggedEntry = { ...entry, timestamp: new Date() };
+      job.log.push(loggedEntry);
+      await Session.updateOne(
+        { _id: job.sessionId },
+        { $push: { 'aiGradingLog.runs.$[run].entries': loggedEntry }, $set: { 'aiGradingLog.updatedAt': new Date() } },
+        { arrayFilters: [{ 'run.jobId': job._id }] }
+      );
+    };
     const selectedQuestionIds = new Set(job.questionIds.map(String));
     const questionsById = new Map(
       (await Question.find({ _id: { $in: job.questionIds } }).lean())
@@ -91,11 +102,11 @@ export async function runAiGradingJob(jobId) {
         const markIndex = grade.marks.findIndex((mark) => String(mark.questionId) === String(question._id));
         const student = studentName(usersById.get(String(grade.userId)), grade);
         if (markIndex < 0) {
-          job.log.push({ question: questionLabel, student, status: 'skipped', note: 'Skipped: no mark exists for this question.' });
+          await appendLog({ question: questionLabel, student, status: 'skipped', note: 'Skipped: no mark exists for this question.' });
           job.completed += 1; await job.save(); continue;
         }
         if (!job.regrade && !grade.marks[markIndex].needsGrading) {
-          job.log.push({ question: questionLabel, student, status: 'skipped', note: 'Skipped: this mark does not need grading.' });
+          await appendLog({ question: questionLabel, student, status: 'skipped', note: 'Skipped: this mark does not need grading.' });
           job.completed += 1; await job.save(); continue;
         }
         const joined = session.quiz ? session.submittedQuiz?.includes(grade.userId) : session.joined?.includes(grade.userId);
@@ -113,14 +124,14 @@ export async function runAiGradingJob(jobId) {
           ].filter(Boolean).join('\n');
           const content = await requestAiCompletion(selected.backend, selected.model.id, [{ role: 'user', content: prompt }]);
           result = parseGrade(content, maxPoints);
-          job.log.push({ question: questionLabel, student, status: 'graded', points: result.points, outOf: maxPoints, feedback: result.feedback, justification: result.justification, prompt, response: content });
+          await appendLog({ question: questionLabel, student, status: 'graded', points: result.points, outOf: maxPoints, feedback: result.feedback, justification: result.justification, prompt, response: content });
           summaries[question._id].graded += 1;
         } else {
           const note = joined
             ? 'Assigned 0: no meaningful response was submitted.'
             : 'Assigned 0: the student did not join or submit this activity.';
           result.justification = note;
-          job.log.push({ question: questionLabel, student, status: 'zeroed', points: 0, outOf: maxPoints, note, justification: note });
+          await appendLog({ question: questionLabel, student, status: 'zeroed', points: 0, outOf: maxPoints, note, justification: note });
           summaries[question._id].zeroed += 1;
         }
         grade.marks[markIndex].points = result.points;
@@ -133,10 +144,12 @@ export async function runAiGradingJob(jobId) {
         job.completed += 1; await job.save();
       }
     }
+    await Session.updateOne({ _id: job.sessionId, 'aiGradingLog.runs.jobId': job._id }, { $set: { 'aiGradingLog.runs.$.status': 'completed', 'aiGradingLog.updatedAt': new Date() } });
     job.status = 'completed'; job.report = { summaries: questions.map((question) => ({ question: sessionQuestionLabel(question.sessionQuestionNumber), ...summaries[question._id] })), summary: `AI grading completed for ${questions.length} question(s).` }; await job.save();
   } catch (error) {
     job.status = 'failed';
     job.error = error.message || 'AI grading failed';
+    await Session.updateOne({ _id: job.sessionId, 'aiGradingLog.runs.jobId': job._id }, { $set: { 'aiGradingLog.runs.$.status': 'failed', 'aiGradingLog.updatedAt': new Date() } });
     job.report = {
       summaries: questions.map((question) => ({
         question: sessionQuestionLabel(question.sessionQuestionNumber),
