@@ -747,6 +747,11 @@
       "reviewSessionAria": "查看环节 {{name}}",
       "aiSettings": "AI settings",
       "enableAiHelper": "Enable AI helper",
+      "copyRubrics": "复制 AI 评分量规",
+      "copyRubricsHelp": "从您教授的其他课程复制可重复使用的评分、反馈和回答摘要说明。",
+      "copyRubricsSource": "源课程",
+      "rubricsCopied": "已复制 {{count}} 个 AI 评分量规。",
+      "rubricsCopyFailed": "无法复制 AI 评分量规。",
       "aiNotAvailable": "AI helper is not enabled for this course by the administrator.",
       "aiBackendHelp": "Configure the OpenAI-compatible backend used only by this course.",
       "aiAdminBackendOnly": "This course uses the AI backend configured by the Qlicker administrator. Its connection details are not shown here.",
@@ -1662,6 +1667,7 @@
       "hideSolution": "隐藏解析",
       "needsGrading": "需要评分",
       "profileImage": "个人资料图片",
+      "gradedByAi": "由 AI 评分",
       "recalculateGrades": "重新计算所有成绩",
       "outOf": "/ {{value}}",
       "pointsInvalid": "分数必须是大于或等于 0 的数字。",
@@ -1735,7 +1741,11 @@
       "failedLoad": "Could not load AI grading instructions.",
       "failedStart": "Could not start AI grading.",
       "failedReportNotice": "上一次 AI 评分未能完成。日志显示了失败前已完成的评分。",
-      "failedReportError": "错误：{{error}}"
+      "failedReportError": "错误：{{error}}",
+      "questionSelection": "AI 评分题目",
+      "includeQuestion": "将题目 {{question}} 包含在 AI 评分中",
+      "clickQuestionToEdit": "点击此行以编辑评分量规",
+      "notEligible": "此题无法由 AI 评分"
     }
   },
   "pageTitles": {

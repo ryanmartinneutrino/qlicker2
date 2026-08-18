@@ -747,6 +747,11 @@
       "reviewSessionAria": "Recap voyage {{name}}",
       "aiSettings": "AI settings",
       "enableAiHelper": "Enable AI helper",
+      "copyRubrics": "Copy AI reckonin' rubrics",
+      "copyRubricsHelp": "Copy reusable reckonin', holler, and response-summary orders from another course ye teach.",
+      "copyRubricsSource": "Source course",
+      "rubricsCopied": "Copied {{count}} AI rubric(s).",
+      "rubricsCopyFailed": "Could not copy AI rubrics.",
       "aiNotAvailable": "AI helper is not enabled for this course by the administrator.",
       "aiBackendHelp": "Configure the OpenAI-compatible backend used only by this course.",
       "aiAdminBackendOnly": "This course uses the AI backend configured by the Qlicker administrator. Its connection details are not shown here.",
@@ -1662,6 +1667,7 @@
       "hideSolution": "Stow Solution",
       "needsGrading": "Needs reckonin'",
       "profileImage": "Dossier Image",
+      "gradedByAi": "Reckoned by AI",
       "recalculateGrades": "Reckon anew all ledgers",
       "outOf": "/ {{value}}",
       "pointsInvalid": "Doubloons must be a number greater than or equal to 0, arr.",
@@ -1735,7 +1741,11 @@
       "failedLoad": "Could not load AI grading instructions.",
       "failedStart": "Could not start AI grading.",
       "failedReportNotice": "The last AI reckonin’ run didn’t finish. The log shows grades completed afore it went awry.",
-      "failedReportError": "Error: {{error}}"
+      "failedReportError": "Error: {{error}}",
+      "questionSelection": "Riddles fer AI reckonin'",
+      "includeQuestion": "Include riddle {{question}} in AI reckonin'",
+      "clickQuestionToEdit": "Click this row to edit its rubric",
+      "notEligible": "This riddle cannot be reckoned by AI"
     }
   },
   "pageTitles": {
