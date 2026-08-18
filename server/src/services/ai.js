@@ -69,8 +69,8 @@ export async function discoverOpenAiModels(url, apiToken = '') {
   })).filter((model) => model.id && model.name);
 }
 
-export async function requestAiCompletion(backend, modelId, messages) {
-  const result = await requestAiMessage(backend, modelId, messages);
+export async function requestAiCompletion(backend, modelId, messages, signal = undefined) {
+  const result = await requestAiMessage(backend, modelId, messages, [], signal);
   if (!result.content) throw new Error('AI backend returned an empty response');
   return result.content;
 }

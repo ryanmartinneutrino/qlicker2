@@ -11,7 +11,7 @@ const AiGradingJobSchema = new mongoose.Schema({
   questionIds: { type: [String], default: [] },
   regrade: { type: Boolean, default: false },
   instructions: { type: Map, of: mongoose.Schema.Types.Mixed, default: {} },
-  status: { type: String, enum: ['queued', 'running', 'completed', 'failed'], default: 'queued' },
+  status: { type: String, enum: ['queued', 'running', 'completed', 'failed', 'halted'], default: 'queued' },
   completed: { type: Number, default: 0 },
   total: { type: Number, default: 0 },
   currentQuestion: { type: Number, default: 0 },
@@ -21,6 +21,7 @@ const AiGradingJobSchema = new mongoose.Schema({
   report: { type: mongoose.Schema.Types.Mixed, default: {} },
   log: { type: [mongoose.Schema.Types.Mixed], default: [] },
   error: { type: String, default: '' },
+  haltedAt: { type: Date, default: null },
 }, { collection: 'aiGradingJobs', timestamps: true });
 
 AiGradingJobSchema.index({ courseId: 1, sessionId: 1, createdAt: -1 });

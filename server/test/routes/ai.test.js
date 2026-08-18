@@ -6,6 +6,7 @@ import ResponseModel from '../../src/models/Response.js';
 import Session from '../../src/models/Session.js';
 import Settings from '../../src/models/Settings.js';
 import Grade from '../../src/models/Grade.js';
+import AiGradingJob from '../../src/models/AiGradingJob.js';
 import { getCourseGradeTable, getQuestionResponses, getSessionGradeTable } from '../../src/services/aiCourseTools.js';
 import { authenticatedRequest, createApp, createTestUser, getAuthToken } from '../helpers.js';
 
@@ -38,6 +39,48 @@ async function configureAi(courseId) {
 }
 
 describe('AI course configuration and chat', () => {
+  it('halts an orphaned AI grading job and creates a durable partial report', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const professor = await createTestUser({ email: 'ai-halt-prof@example.com', roles: ['professor'] });
+    const token = await getAuthToken(app, professor);
+    const course = await createCourse(token);
+    const session = await Session.create({
+      name: 'Stuck grading session',
+      courseId: course._id,
+      creator: professor._id,
+      status: 'done',
+      aiGradingLog: null,
+    });
+    const job = await AiGradingJob.create({
+      courseId: course._id,
+      sessionId: session._id,
+      ownerId: professor._id,
+      questionIds: ['question-1'],
+      status: 'running',
+      completed: 3,
+      total: 10,
+    });
+
+    const halted = await authenticatedRequest(
+      app,
+      'POST',
+      `/api/v1/ai/courses/${course._id}/sessions/${session._id}/ai-grading/halt`,
+      { token }
+    );
+
+    expect(halted.statusCode).toBe(200);
+    expect(halted.json().job).toMatchObject({ _id: job._id, status: 'halted', completed: 3, total: 10 });
+    expect(halted.json().job.report.summary).toContain('halted after 3 of 10');
+    expect(halted.json().log.runs).toEqual([
+      expect.objectContaining({
+        jobId: job._id,
+        status: 'halted',
+        entries: [expect.objectContaining({ status: 'halted', note: 'AI grading was halted by an instructor.' })],
+      }),
+    ]);
+    expect((await AiGradingJob.findById(job._id).lean()).status).toBe('halted');
+  });
+
   it('keeps administrator backend tokens private and supports model selection', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
     const professor = await createTestUser({ email: 'ai-prof@example.com', roles: ['professor'] });

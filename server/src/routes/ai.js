@@ -9,7 +9,7 @@ import { getOrCreateSettingsDocument } from '../utils/settingsSingleton.js';
 import { isCourseInstructorOrAdmin } from '../utils/courseAccess.js';
 import { discoverOllamaModels, discoverOpenAiModels, normalizeAiBackends, serializeAiBackends } from '../services/ai.js';
 import { queueAiCourseChat, stopAiCourseChat } from '../services/aiChatJobRunner.js';
-import { runAiGradingJob } from '../services/aiGradingRunner.js';
+import { haltAiGradingJob, runAiGradingJob } from '../services/aiGradingRunner.js';
 import { runAiResponseSummary } from '../services/aiResponseSummaryRunner.js';
 
 const READ_LIMIT = { max: 60, timeWindow: '1 minute' };
@@ -363,6 +363,20 @@ export default async function aiRoutes(app) {
     const job = await AiGradingJob.create({ courseId: course._id, sessionId: request.params.sessionId, ownerId: request.user.userId, backendId: selectedModel.backend.id, modelId: selectedModel.model.id, questionIds: normalizedQuestionIds, instructions, regrade: !!regrade });
     setImmediate(() => runAiGradingJob(job._id));
     return reply.code(202).send({ job });
+  });
+
+  app.post('/courses/:courseId/sessions/:sessionId/ai-grading/halt', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
+    const course = await instructorCourse(request, reply); if (!course) return undefined;
+    const activeJob = await AiGradingJob.findOne({
+      courseId: course._id,
+      sessionId: request.params.sessionId,
+      status: { $in: ['queued', 'running'] },
+    }).sort({ createdAt: -1 });
+    if (!activeJob) return reply.code(409).send({ error: 'Conflict', message: 'No AI grading job is in progress' });
+    const job = await haltAiGradingJob(activeJob._id);
+    if (!job) return reply.code(409).send({ error: 'Conflict', message: 'The AI grading job has already finished' });
+    const session = await Session.findById(request.params.sessionId).select('aiGradingLog').lean();
+    return { job, log: session?.aiGradingLog || null };
   });
 
   app.get('/courses/:courseId/sessions/:sessionId/questions/:questionId/ai-summary', { preHandler: authenticate }, async (request, reply) => {

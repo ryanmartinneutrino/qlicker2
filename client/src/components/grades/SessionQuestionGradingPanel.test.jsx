@@ -150,6 +150,46 @@ describe('SessionQuestionGradingPanel', () => {
     expect(screen.getByText('Q1 · Ada Lovelace')).toBeInTheDocument();
   });
 
+  it('halts active AI grading and immediately opens its partial report', async () => {
+    let gradingHalted = false;
+    const haltedData = {
+      job: {
+        _id: 'job-1', status: 'halted', completed: 2, total: 10,
+        report: { summary: 'AI grading was halted after 2 of 10 grading steps.' },
+      },
+      log: { runs: [{ jobId: 'job-1', status: 'halted', entries: [{ status: 'halted', note: 'AI grading was halted by an instructor.' }] }] },
+    };
+    apiClient.get.mockImplementation((url) => {
+      if (url.includes('/ai/courses/')) {
+        return Promise.resolve({ data: gradingHalted ? haltedData : { job: {
+          _id: 'job-1', status: 'running', completed: 2, total: 10,
+          currentStudent: 2, studentTotal: 5, currentQuestion: 1, questionTotal: 2,
+        } } });
+      }
+      return Promise.resolve({ data: buildGradesPayload() });
+    });
+    apiClient.post.mockImplementationOnce(() => {
+      gradingHalted = true;
+      return Promise.resolve({ data: haltedData });
+    });
+
+    render(
+      <SessionQuestionGradingPanel
+        courseId="course-1"
+        sessionId="session-1"
+        session={{ _id: 'session-1', quiz: false, practiceQuiz: false }}
+        questions={[{ _id: 'q-manual', type: 2, content: '<p>Explain</p>', sessionOptions: { points: 5 } }]}
+        studentResults={[{ studentId: 'student-a', firstname: 'Ada', lastname: 'Lovelace', inSession: true }]}
+      />
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Halt grading' }));
+
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith('/ai/courses/course-1/sessions/session-1/ai-grading/halt'));
+    expect(await screen.findByText('AI grading was halted after 2 of 10 grading steps.')).toBeInTheDocument();
+    expect(screen.getByText('AI grading was halted by an instructor.')).toBeInTheDocument();
+  });
+
   it('debounces answer filtering and matches MC answers by option label instead of option text', async () => {
     render(
       <SessionQuestionGradingPanel
