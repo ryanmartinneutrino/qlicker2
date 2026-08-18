@@ -218,6 +218,10 @@ function applyMarkUpdateToGrade(grade, questionId, updates) {
     }
   }
 
+  if (updates.points !== undefined || updates.feedback !== undefined) {
+    nextMark.aiGraded = false;
+  }
+
   marks[markIndex] = nextMark;
 
   const nextGrade = {

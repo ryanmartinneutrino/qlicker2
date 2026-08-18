@@ -747,6 +747,11 @@
       "reviewSessionAria": "Sitzung {{name}} überprüfen",
       "aiSettings": "AI settings",
       "enableAiHelper": "Enable AI helper",
+      "copyRubrics": "KI-Rubriken kopieren",
+      "copyRubricsHelp": "Kopieren Sie wiederverwendbare Anweisungen zur Bewertung, zum Feedback und zur Antwortzusammenfassung aus einem anderen von Ihnen betreuten Kurs.",
+      "copyRubricsSource": "Quellkurs",
+      "rubricsCopied": "{{count}} KI-Rubrik(en) kopiert.",
+      "rubricsCopyFailed": "KI-Rubriken konnten nicht kopiert werden.",
       "aiNotAvailable": "AI helper is not enabled for this course by the administrator.",
       "aiBackendHelp": "Configure the OpenAI-compatible backend used only by this course.",
       "aiAdminBackendOnly": "This course uses the AI backend configured by the Qlicker administrator. Its connection details are not shown here.",
@@ -1662,6 +1667,7 @@
       "hideSolution": "Lösung ausblenden",
       "needsGrading": "Bewertung erforderlich",
       "profileImage": "Profilbild",
+      "gradedByAi": "Von KI bewertet",
       "recalculateGrades": "Alle Noten neu berechnen",
       "outOf": "/ {{value}}",
       "pointsInvalid": "Punkte müssen eine Zahl größer oder gleich 0 sein.",
@@ -1735,7 +1741,11 @@
       "failedLoad": "Could not load AI grading instructions.",
       "failedStart": "Could not start AI grading.",
       "failedReportNotice": "Der letzte KI-Bewertungslauf wurde nicht erfolgreich abgeschlossen. Das Protokoll zeigt alle vor dem Fehler abgeschlossenen Bewertungen.",
-      "failedReportError": "Fehler: {{error}}"
+      "failedReportError": "Fehler: {{error}}",
+      "questionSelection": "Fragen für die KI-Bewertung",
+      "includeQuestion": "Frage {{question}} in KI-Bewertung einschließen",
+      "clickQuestionToEdit": "Klicken Sie auf diese Zeile, um die Rubrik zu bearbeiten",
+      "notEligible": "Diese Frage kann nicht von KI bewertet werden"
     }
   },
   "pageTitles": {

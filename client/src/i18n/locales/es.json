@@ -747,6 +747,11 @@
       "reviewSessionAria": "Revisar la sesión {{name}}",
       "aiSettings": "AI settings",
       "enableAiHelper": "Enable AI helper",
+      "copyRubrics": "Copiar rúbricas de IA",
+      "copyRubricsHelp": "Copie instrucciones reutilizables de calificación, comentarios y resumen de respuestas desde otro curso que imparta.",
+      "copyRubricsSource": "Curso de origen",
+      "rubricsCopied": "Se copiaron {{count}} rúbrica(s) de IA.",
+      "rubricsCopyFailed": "No se pudieron copiar las rúbricas de IA.",
       "aiNotAvailable": "AI helper is not enabled for this course by the administrator.",
       "aiBackendHelp": "Configure the OpenAI-compatible backend used only by this course.",
       "aiAdminBackendOnly": "This course uses the AI backend configured by the Qlicker administrator. Its connection details are not shown here.",
@@ -1662,6 +1667,7 @@
       "hideSolution": "Ocultar solución",
       "needsGrading": "Requiere calificación",
       "profileImage": "Imagen de perfil",
+      "gradedByAi": "Calificado por IA",
       "recalculateGrades": "Recalcular todas las calificaciones",
       "outOf": "/ {{value}}",
       "pointsInvalid": "Los puntos deben ser un número mayor o igual a 0.",
@@ -1735,7 +1741,11 @@
       "failedLoad": "Could not load AI grading instructions.",
       "failedStart": "Could not start AI grading.",
       "failedReportNotice": "La última ejecución de calificación con IA no se completó. El registro muestra las calificaciones terminadas antes del error.",
-      "failedReportError": "Error: {{error}}"
+      "failedReportError": "Error: {{error}}",
+      "questionSelection": "Preguntas para calificación con IA",
+      "includeQuestion": "Incluir la pregunta {{question}} en la calificación con IA",
+      "clickQuestionToEdit": "Haga clic en esta fila para editar su rúbrica",
+      "notEligible": "Esta pregunta no puede calificarse con IA"
     }
   },
   "pageTitles": {

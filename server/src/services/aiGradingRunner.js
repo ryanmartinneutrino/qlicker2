@@ -126,6 +126,7 @@ export async function runAiGradingJob(jobId) {
         grade.marks[markIndex].points = result.points;
         grade.marks[markIndex].feedback = result.feedback;
         grade.marks[markIndex].automatic = false;
+        grade.marks[markIndex].aiGraded = true;
         grade.marks[markIndex].needsGrading = false;
         recomputeGradeAggregates(grade);
         await grade.save();

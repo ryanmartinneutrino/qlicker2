@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -43,20 +43,34 @@ export default function AiGradingModal({
   const [forms, setForms] = useState({});
   const [error, setError] = useState('');
   const [starting, setStarting] = useState(false);
+  const [rubricLoaded, setRubricLoaded] = useState(false);
+  const initializedRubricRef = useRef(false);
   const manualQuestions = useMemo(() => questions.filter(canManualGrade), [questions]);
 
   useEffect(() => {
     if (!open) return undefined;
-    setSelected(manualQuestions
-      .filter((question) => needsGradingQuestionIds.includes(String(question._id)))
-      .map((question) => String(question._id)));
     setActiveId('');
     setForms({});
     setError('');
+    setRubricLoaded(false);
+    initializedRubricRef.current = false;
     let mounted = true;
-    apiClient.get(`/ai/courses/${courseId}/grading-instructions`)
-      .then(({ data }) => {
-        if (mounted) setInstructions(data.instructions || []);
+    Promise.all([
+      apiClient.get(`/ai/courses/${courseId}/grading-instructions`),
+      apiClient.get(`/ai/courses/${courseId}/sessions/${sessionId}/ai-grading-rubric`),
+    ])
+      .then(([instructionResponse, rubricResponse]) => {
+        if (!mounted) return;
+        const rubric = rubricResponse.data?.rubric;
+        setInstructions(instructionResponse.data.instructions || []);
+        setSelected(rubric?.questionIds?.length
+          ? rubric.questionIds.map(String)
+          : manualQuestions
+            .filter((question) => needsGradingQuestionIds.includes(String(question._id)))
+            .map((question) => String(question._id)));
+        setForms(rubric?.instructions || {});
+        initializedRubricRef.current = true;
+        setRubricLoaded(true);
       })
       .catch(() => {
         if (mounted) setError(t('grades.aiGrading.failedLoad'));
@@ -66,6 +80,17 @@ export default function AiGradingModal({
   // particular, do not reinitialize when a checkbox or instruction changes.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, courseId, sessionId]);
+
+  useEffect(() => {
+    if (!open || !rubricLoaded || !initializedRubricRef.current) return undefined;
+    const timer = setTimeout(() => {
+      apiClient.put(`/ai/courses/${courseId}/sessions/${sessionId}/ai-grading-rubric`, {
+        questionIds: selected,
+        instructions: forms,
+      }).catch(() => {});
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [courseId, forms, open, rubricLoaded, selected, sessionId]);
 
   const saveInstruction = async (instruction) => {
     const { data } = await apiClient.post(`/ai/courses/${courseId}/grading-instructions`, instruction);
@@ -112,6 +137,8 @@ export default function AiGradingModal({
         return [questionId, {
           grading: form.grading || '',
           feedback: form.feedback || '',
+          gradingInstructionId: form.gradingInstructionId || '',
+          feedbackInstructionId: form.feedbackInstructionId || '',
           regrade: !!form.regrade,
         }];
       }));
@@ -145,7 +172,7 @@ export default function AiGradingModal({
       <DialogContent dividers>
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '180px 1fr' }, gap: 2 }}>
-          <List dense sx={{ borderRight: { sm: 1 }, borderColor: 'divider', maxHeight: 440, overflowY: 'auto' }}>
+          <List dense aria-label={t('grades.aiGrading.questionSelection')} sx={{ borderRight: { sm: 1 }, borderColor: 'divider', maxHeight: 440, overflowY: 'auto' }}>
             {questions.map((question, index) => {
               const id = String(question._id);
               const enabled = canManualGrade(question);
@@ -160,12 +187,17 @@ export default function AiGradingModal({
                     size="small"
                     checked={selected.includes(id)}
                     disabled={!enabled}
-                    onClick={(event) => {
+                    inputProps={{ 'aria-label': t('grades.aiGrading.includeQuestion', { question: index + 1 }) }}
+                    onClick={(event) => event.stopPropagation()}
+                    onChange={(event) => {
                       event.stopPropagation();
                       toggleQuestion(id);
                     }}
                   />
-                  <ListItemText primary={`Q${index + 1}`} />
+                  <ListItemText
+                    primary={`Q${index + 1}`}
+                    secondary={enabled ? t('grades.aiGrading.clickQuestionToEdit') : t('grades.aiGrading.notEligible')}
+                  />
                 </ListItemButton>
               );
             })}

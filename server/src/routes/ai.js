@@ -1,6 +1,7 @@
 import AiConversation from '../models/AiConversation.js';
 import AiGradingInstruction from '../models/AiGradingInstruction.js';
 import AiGradingJob from '../models/AiGradingJob.js';
+import AiSessionRubric from '../models/AiSessionRubric.js';
 import AiResponseSummary from '../models/AiResponseSummary.js';
 import Course from '../models/Course.js';
 import { getOrCreateSettingsDocument } from '../utils/settingsSingleton.js';
@@ -206,6 +207,50 @@ export default async function aiRoutes(app) {
     return reply.code(204).send();
   });
 
+  app.get('/courses/:courseId/grading-instructions/copy-sources', { preHandler: authenticate }, async (request, reply) => {
+    const course = await instructorCourse(request, reply); if (!course) return undefined;
+    const courses = await Course.find({
+      _id: { $ne: course._id },
+      $or: [{ owner: request.user.userId }, { instructors: request.user.userId }],
+    }).select('name deptCode courseNumber section semester').sort({ name: 1 }).lean();
+    return { courses };
+  });
+
+  app.post('/courses/:courseId/grading-instructions/copy', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
+    const course = await instructorCourse(request, reply); if (!course) return undefined;
+    const sourceCourse = await Course.findById(request.body?.sourceCourseId).lean();
+    if (!sourceCourse || !isCourseInstructorOrAdmin(sourceCourse, request.user)) return reply.code(403).send({ error: 'Forbidden', message: 'You cannot copy rubrics from this course' });
+    const instructions = await AiGradingInstruction.find({ courseId: sourceCourse._id }).lean();
+    if (instructions.length) {
+      await AiGradingInstruction.bulkWrite(instructions.map((instruction) => ({
+        updateOne: {
+          filter: { courseId: course._id, kind: instruction.kind, name: instruction.name },
+          update: { $set: { content: instruction.content } },
+          upsert: true,
+        },
+      })));
+    }
+    return { copied: instructions.length };
+  });
+
+  app.get('/courses/:courseId/sessions/:sessionId/ai-grading-rubric', { preHandler: authenticate }, async (request, reply) => {
+    const course = await instructorCourse(request, reply); if (!course) return undefined;
+    const rubric = await AiSessionRubric.findOne({ courseId: course._id, sessionId: request.params.sessionId }).lean();
+    return { rubric };
+  });
+
+  app.put('/courses/:courseId/sessions/:sessionId/ai-grading-rubric', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
+    const course = await instructorCourse(request, reply); if (!course) return undefined;
+    const questionIds = Array.isArray(request.body?.questionIds) ? request.body.questionIds.map(String) : [];
+    const instructions = request.body?.instructions && typeof request.body.instructions === 'object' ? request.body.instructions : {};
+    const rubric = await AiSessionRubric.findOneAndUpdate(
+      { courseId: course._id, sessionId: request.params.sessionId },
+      { $set: { questionIds, instructions } },
+      { upsert: true, new: true, runValidators: true }
+    ).lean();
+    return { rubric };
+  });
+
   app.get('/courses/:courseId/sessions/:sessionId/ai-grading', { preHandler: authenticate }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
     const job = await AiGradingJob.findOne({ courseId: course._id, sessionId: request.params.sessionId }).sort({ createdAt: -1 }).lean();
@@ -218,7 +263,13 @@ export default async function aiRoutes(app) {
     if (!policy.enabled || !course.aiEnabled || !resolveModel(course, settings, policy)) return reply.code(400).send({ error: 'Bad Request', message: 'Configure an available AI model before grading' });
     const { questionIds, instructions = {}, regrade = false } = request.body || {};
     if (!Array.isArray(questionIds) || questionIds.length === 0) return reply.code(400).send({ error: 'Bad Request', message: 'Select at least one question' });
-    const job = await AiGradingJob.create({ courseId: course._id, sessionId: request.params.sessionId, ownerId: request.user.userId, questionIds: questionIds.map(String), instructions, regrade: !!regrade });
+    const normalizedQuestionIds = questionIds.map(String);
+    await AiSessionRubric.findOneAndUpdate(
+      { courseId: course._id, sessionId: request.params.sessionId },
+      { $set: { questionIds: normalizedQuestionIds, instructions } },
+      { upsert: true, new: true, runValidators: true }
+    );
+    const job = await AiGradingJob.create({ courseId: course._id, sessionId: request.params.sessionId, ownerId: request.user.userId, questionIds: normalizedQuestionIds, instructions, regrade: !!regrade });
     setImmediate(() => runAiGradingJob(job._id));
     return reply.code(202).send({ job });
   });

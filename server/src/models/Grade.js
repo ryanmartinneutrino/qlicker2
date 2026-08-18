@@ -9,6 +9,7 @@ const MarkSchema = new mongoose.Schema(
     points: { type: Number, default: 0 },
     outOf: { type: Number, default: 0 },
     automatic: { type: Boolean, default: true },
+    aiGraded: { type: Boolean, default: false },
     needsGrading: { type: Boolean, default: false },
     feedback: { type: String, default: '' },
     feedbackUpdatedAt: { type: Date, default: null },

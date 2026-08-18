@@ -4,13 +4,14 @@ import { I18nextProvider } from 'react-i18next';
 import i18n from '../../i18n';
 import AiGradingModal from './AiGradingModal';
 
-const apiClientMock = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), delete: vi.fn() }));
+const apiClientMock = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() }));
 
 vi.mock('../../api/client', () => ({ default: apiClientMock }));
 
 describe('AiGradingModal', () => {
   it('keeps included questions checked until the instructor changes them', async () => {
     apiClientMock.get.mockResolvedValue({ data: { instructions: [] } });
+    apiClientMock.put.mockResolvedValue({ data: {} });
     render(
       <I18nextProvider i18n={i18n}>
         <AiGradingModal

@@ -10,6 +10,7 @@ vi.mock('../../api/client', () => ({
     get: vi.fn(),
     patch: vi.fn(),
     post: vi.fn(),
+    put: vi.fn(),
   },
 }));
 
@@ -93,6 +94,7 @@ describe('SessionQuestionGradingPanel', () => {
     apiClient.get.mockResolvedValue({ data: buildGradesPayload() });
     apiClient.patch.mockResolvedValue({ data: { grade: { _id: 'grade-1', userId: 'student-a', marks: [{ questionId: 'q-manual', points: 0, outOf: 5, needsGrading: false }] } } });
     apiClient.post.mockResolvedValue({ data: {} });
+    apiClient.put.mockResolvedValue({ data: {} });
   });
 
   it('renders one labelled question navigator below the active question', async () => {

@@ -561,6 +561,15 @@ const GradingTableRow = memo(function GradingTableRow({
             sx={{ mt: 0.5 }}
           />
         )}
+        {row.mark?.aiGraded && (
+          <Chip
+            size="small"
+            color="secondary"
+            variant="outlined"
+            label={t('grades.questionPanel.gradedByAi')}
+            sx={{ mt: 0.5 }}
+          />
+        )}
         {rowDisabled && (
           <Chip
             size="small"

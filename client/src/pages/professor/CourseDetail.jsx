@@ -316,6 +316,9 @@ export default function CourseDetail() {
   const [ssoEnabled, setSsoEnabled] = useState(false);
   const [aiCoursePolicy, setAiCoursePolicy] = useState({ enabled: false, allowCourseBackend: false });
   const [aiConfig, setAiConfig] = useState(null);
+  const [rubricSourceCourses, setRubricSourceCourses] = useState([]);
+  const [rubricSourceCourseId, setRubricSourceCourseId] = useState('');
+  const [copyingRubrics, setCopyingRubrics] = useState(false);
 
   // Sessions
   const [sessions, setSessions] = useState([]);
@@ -380,6 +383,30 @@ export default function CourseDetail() {
     }).catch(() => { if (mounted) setAiConfig(null); });
     return () => { mounted = false; };
   }, [aiAvailable, id]);
+
+  useEffect(() => {
+    if (!aiAvailable) return undefined;
+    let mounted = true;
+    apiClient.get(`/ai/courses/${id}/grading-instructions/copy-sources`)
+      .then(({ data }) => { if (mounted) setRubricSourceCourses(data.courses || []); })
+      .catch(() => { if (mounted) setRubricSourceCourses([]); });
+    return () => { mounted = false; };
+  }, [aiAvailable, id]);
+
+  const handleCopyRubrics = useCallback(async () => {
+    if (!rubricSourceCourseId) return;
+    setCopyingRubrics(true);
+    try {
+      const { data } = await apiClient.post(`/ai/courses/${id}/grading-instructions/copy`, {
+        sourceCourseId: rubricSourceCourseId,
+      });
+      setMsg({ severity: 'success', text: t('professor.course.rubricsCopied', { count: data.copied || 0 }) });
+    } catch (err) {
+      setMsg({ severity: 'error', text: err.response?.data?.message || t('professor.course.rubricsCopyFailed') });
+    } finally {
+      setCopyingRubrics(false);
+    }
+  }, [id, rubricSourceCourseId, t]);
 
   useEffect(() => {
     let mounted = true;
@@ -2057,6 +2084,22 @@ export default function CourseDetail() {
             control={aiAvailable ? <Switch checked={!!course.aiEnabled} onChange={handleAiEnabledChange} /> : <Tooltip title={t('professor.course.aiRequiresAdminAuthorization')} arrow><span><Switch checked={!!course.aiEnabled} onChange={handleAiEnabledChange} disabled /></span></Tooltip>}
             label={t('professor.course.enableAiHelper')}
           />
+          {aiAvailable && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Typography variant="subtitle2">{t('professor.course.copyRubrics')}</Typography>
+              <Typography variant="body2" color="text.secondary">{t('professor.course.copyRubricsHelp')}</Typography>
+              <TextField select size="small" label={t('professor.course.copyRubricsSource')} value={rubricSourceCourseId} onChange={(event) => setRubricSourceCourseId(event.target.value)}>
+                {rubricSourceCourses.map((sourceCourse) => (
+                  <MenuItem key={sourceCourse._id} value={sourceCourse._id}>{buildCourseTitle(sourceCourse)}</MenuItem>
+                ))}
+              </TextField>
+              <Box>
+                <Button variant="outlined" onClick={handleCopyRubrics} disabled={!rubricSourceCourseId || copyingRubrics}>
+                  {copyingRubrics ? t('common.saving') : t('professor.course.copyRubrics')}
+                </Button>
+              </Box>
+            </Box>
+          )}
           {!ssoEnabled ? (
             <FormControlLabel
               control={(
