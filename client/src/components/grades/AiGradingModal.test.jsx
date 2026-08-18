@@ -34,6 +34,10 @@ describe('AiGradingModal', () => {
     fireEvent.click(firstCheckbox);
 
     expect(firstCheckbox).toBeChecked();
+    await waitFor(() => expect(apiClientMock.put).toHaveBeenCalledWith(
+      '/ai/courses/course-1/sessions/session-1/ai-grading-rubric',
+      expect.objectContaining({ questionIds: ['question-1'] })
+    ));
     expect(screen.getByText(/select a question on the left/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('Q1'));

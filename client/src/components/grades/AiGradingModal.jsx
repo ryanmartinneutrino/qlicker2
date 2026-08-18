@@ -45,6 +45,8 @@ export default function AiGradingModal({
   const [starting, setStarting] = useState(false);
   const [rubricLoaded, setRubricLoaded] = useState(false);
   const initializedRubricRef = useRef(false);
+  const selectedRef = useRef([]);
+  const formsRef = useRef({});
   const manualQuestions = useMemo(() => questions.filter(canManualGrade), [questions]);
 
   useEffect(() => {
@@ -64,12 +66,16 @@ export default function AiGradingModal({
         const rubric = rubricResponse.data?.rubric;
         const availableInstructions = instructionResponse.data.instructions || [];
         setInstructions(availableInstructions);
-        setSelected(rubric?.questionIds?.length
+        const nextSelected = rubric?.questionIds?.length
           ? rubric.questionIds.map(String)
           : manualQuestions
             .filter((question) => needsGradingQuestionIds.includes(String(question._id)))
-            .map((question) => String(question._id)));
-        setForms(rubric?.instructions || {});
+            .map((question) => String(question._id));
+        const nextForms = rubric?.instructions || {};
+        selectedRef.current = nextSelected;
+        formsRef.current = nextForms;
+        setSelected(nextSelected);
+        setForms(nextForms);
         initializedRubricRef.current = true;
         setRubricLoaded(true);
       })
@@ -82,16 +88,18 @@ export default function AiGradingModal({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, courseId, sessionId]);
 
-  useEffect(() => {
-    if (!open || !rubricLoaded || !initializedRubricRef.current) return undefined;
-    const timer = setTimeout(() => {
-      apiClient.put(`/ai/courses/${courseId}/sessions/${sessionId}/ai-grading-rubric`, {
-        questionIds: selected,
-        instructions: forms,
-      }).catch(() => {});
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [courseId, forms, open, rubricLoaded, selected, sessionId]);
+  const persistRubric = (nextSelected = selectedRef.current, nextForms = formsRef.current) => {
+    if (!initializedRubricRef.current) return;
+    apiClient.put(`/ai/courses/${courseId}/sessions/${sessionId}/ai-grading-rubric`, {
+      questionIds: nextSelected,
+      instructions: nextForms,
+    }).catch(() => {});
+  };
+
+  const close = () => {
+    persistRubric();
+    onClose();
+  };
 
   const saveInstruction = async (instruction) => {
     const { data } = await apiClient.post(`/ai/courses/${courseId}/grading-instructions`, instruction);
@@ -113,11 +121,16 @@ export default function AiGradingModal({
   };
 
   const toggleQuestion = (questionId) => {
-    setSelected((current) => (
+    setSelected((current) => {
+      const next = (
       current.includes(questionId)
         ? current.filter((id) => id !== questionId)
         : [...current, questionId]
-    ));
+      );
+      selectedRef.current = next;
+      persistRubric(next);
+      return next;
+    });
   };
 
   const start = async () => {
@@ -152,7 +165,7 @@ export default function AiGradingModal({
         }
       );
       onStarted(data.job);
-      onClose();
+      close();
     } catch (err) {
       setError(err.response?.data?.message || t('grades.aiGrading.failedStart'));
     } finally {
@@ -168,7 +181,7 @@ export default function AiGradingModal({
   ));
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+    <Dialog open={open} onClose={close} fullWidth maxWidth="md">
       <DialogTitle>{t('grades.aiGrading.title')}</DialogTitle>
       <DialogContent dividers>
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
@@ -209,7 +222,12 @@ export default function AiGradingModal({
               questionNumber={activeQuestionNumber}
               value={form}
               instructions={instructions}
-              onChange={(value) => setForms((current) => ({ ...current, [activeId]: value }))}
+              onChange={(value) => setForms((current) => {
+                const next = { ...current, [activeId]: value };
+                formsRef.current = next;
+                persistRubric(selectedRef.current, next);
+                return next;
+              })}
               onSaveInstruction={saveInstruction}
               onDeleteInstruction={deleteInstruction}
             />
@@ -223,7 +241,7 @@ export default function AiGradingModal({
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>{t('common.cancel')}</Button>
+        <Button onClick={close}>{t('common.cancel')}</Button>
         <Button variant="contained" disabled={!canStart || starting} onClick={start}>
           {t('grades.aiGrading.start')}
         </Button>
