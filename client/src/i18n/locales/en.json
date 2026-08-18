@@ -1797,6 +1797,7 @@
     "chat": {
       "title": "AI Chat",
       "newConversation": "New conversation",
+      "newConversationGuidance": "Ask about students in this course, grades and performance, or create questions to use in your sessions.",
       "noConversations": "No conversations yet.",
       "send": "Send",
       "stop": "Stop",

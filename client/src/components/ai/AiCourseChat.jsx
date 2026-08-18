@@ -168,7 +168,7 @@ export default function AiCourseChat({ courseId }) {
       {error ? <Alert severity="error" sx={{ mb: 1 }} onClose={() => setError('')}>{error}</Alert> : null}
       {selected?.pendingError ? <Alert severity="warning" sx={{ mb: 1 }}>{selected.pendingError}</Alert> : null}
       <Box sx={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 1.25, mb: 1.5 }} aria-live="polite">
-        {!selected && !pendingMessage ? <Typography color="text.secondary">{t('ai.chat.selectConversation')}</Typography> : messages.map((message) => <Paper key={message._id} variant="outlined" sx={{ p: 1.25, alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%', bgcolor: message.role === 'user' ? 'action.hover' : 'background.paper' }}>
+        {!selected && !pendingMessage ? <Typography color="text.secondary">{t('ai.chat.selectConversation')}</Typography> : messages.length === 0 && !pendingMessage ? <Alert severity="info" sx={{ alignSelf: 'stretch' }}>{t('ai.chat.newConversationGuidance')}</Alert> : messages.map((message) => <Paper key={message._id} variant="outlined" sx={{ p: 1.25, alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%', bgcolor: message.role === 'user' ? 'action.hover' : 'background.paper' }}>
           <Typography variant="caption" color="text.secondary">{message.role === 'user' ? t('ai.chat.you') : t('ai.chat.assistant')}</Typography>
           {message.role === 'assistant'
             ? <AiMarkdownContent content={message.content} />
