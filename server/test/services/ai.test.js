@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { discoverOllamaModels } from '../../src/services/ai.js';
+import { discoverOllamaModels, discoverOpenAiModels } from '../../src/services/ai.js';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -23,5 +23,21 @@ describe('discoverOllamaModels', () => {
 
     await expect(discoverOllamaModels('http://localhost:8000/ollama'))
       .rejects.toThrow('http://localhost:8000/ollama/api/tags (401: missing token)');
+  });
+});
+
+describe('discoverOpenAiModels', () => {
+  it('preserves a base path and forwards a bearer token', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      data: [{ id: 'gpt-compatible-model' }],
+    }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(discoverOpenAiModels('http://localhost:8000/v1/', 'secret-token'))
+      .resolves.toEqual([{ id: 'gpt-compatible-model', name: 'gpt-compatible-model' }]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:8000/v1/models',
+      expect.objectContaining({ headers: { authorization: 'Bearer secret-token' } })
+    );
   });
 });

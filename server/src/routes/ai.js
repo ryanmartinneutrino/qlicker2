@@ -7,7 +7,7 @@ import Course from '../models/Course.js';
 import Session from '../models/Session.js';
 import { getOrCreateSettingsDocument } from '../utils/settingsSingleton.js';
 import { isCourseInstructorOrAdmin } from '../utils/courseAccess.js';
-import { discoverOllamaModels, normalizeAiBackends, serializeAiBackends } from '../services/ai.js';
+import { discoverOllamaModels, discoverOpenAiModels, normalizeAiBackends, serializeAiBackends } from '../services/ai.js';
 import { queueAiCourseChat, stopAiCourseChat } from '../services/aiChatJobRunner.js';
 import { runAiGradingJob } from '../services/aiGradingRunner.js';
 import { runAiResponseSummary } from '../services/aiResponseSummaryRunner.js';
@@ -102,18 +102,32 @@ export default async function aiRoutes(app) {
   const { authenticate } = app;
 
   app.post('/discover-models', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
-    const { url, type = 'ollama', courseId = '', apiToken = '' } = request.body || {};
+    const { backendId = '', url, type = 'ollama', courseId = '', apiToken = '' } = request.body || {};
     if (!url) return reply.code(400).send({ error: 'Bad Request', message: 'Backend URL is required' });
+    const settings = await getOrCreateSettingsDocument({ lean: true });
+    let storedBackend = normalizeAiBackends(settings.AI_Backends || []).find((backend) => backend.id === backendId);
     if (!(request.user.roles || []).includes('admin')) {
       const course = await Course.findById(courseId).lean();
-      const settings = await getOrCreateSettingsDocument({ lean: true });
-      if (!course || !isCourseInstructorOrAdmin(course, request.user) || !coursePolicy(settings, course._id).allowCourseBackend) {
-        return reply.code(403).send({ error: 'Forbidden', message: 'This course cannot configure its own AI backend' });
+      const policy = course ? coursePolicy(settings, course._id) : { enabled: false, allowCourseBackend: false };
+      if (!course || !isCourseInstructorOrAdmin(course, request.user) || !policy.enabled) {
+        return reply.code(403).send({ error: 'Forbidden', message: 'This course cannot access AI backends' });
       }
+      const courseBackend = normalizeAiBackends(course.aiBackends || []).find((backend) => backend.id === backendId);
+      if (courseBackend && policy.allowCourseBackend) storedBackend = courseBackend;
+      else if (!storedBackend && !policy.allowCourseBackend) return reply.code(403).send({ error: 'Forbidden', message: 'This course cannot configure its own AI backend' });
     }
-    if (type !== 'ollama') return reply.code(400).send({ error: 'Bad Request', message: 'Model discovery currently supports Ollama backends only' });
-    try { return { models: await discoverOllamaModels(url, apiToken) }; }
-    catch (err) { return reply.code(400).send({ error: 'Bad Request', message: err.message || 'Could not discover Ollama models' }); }
+    const storedUrl = String(storedBackend?.url || '').replace(/\/+$/, '');
+    const requestedUrl = String(url || '').replace(/\/+$/, '');
+    const storedToken = storedUrl === requestedUrl ? storedBackend?.apiToken || '' : '';
+    const resolvedToken = apiToken || storedToken;
+    try {
+      const models = type === 'openai'
+        ? await discoverOpenAiModels(url, resolvedToken)
+        : await discoverOllamaModels(url, resolvedToken);
+      return { models };
+    } catch (err) {
+      return reply.code(400).send({ error: 'Bad Request', message: err.message || 'Could not discover AI models' });
+    }
   });
 
   app.get('/courses/:courseId/config', { preHandler: authenticate, rateLimit: READ_LIMIT }, async (request, reply) => {

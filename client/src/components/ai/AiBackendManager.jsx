@@ -10,6 +10,8 @@ function newBackend() {
   return { id: `backend-${crypto.randomUUID()}`, name: '', type: 'ollama', url: '', apiToken: '', models: [] };
 }
 
+const MASKED_TOKEN = '********';
+
 export default function AiBackendManager({
   backends = [],
   onChange,
@@ -54,6 +56,7 @@ export default function AiBackendManager({
     setDiscovering((current) => ({ ...current, [backend.id]: true })); setError('');
     try {
       const { data } = await apiClient.post('/ai/discover-models', {
+        backendId: backend.id,
         url: backend.url,
         type: backend.type,
         apiToken: backend.apiToken || '',
@@ -73,7 +76,6 @@ export default function AiBackendManager({
       const visibleModels = !courseId || expandedModels[backend.id]
         ? models
         : models.filter((model) => !!policyFor(backend.id, model.id));
-      const hasHiddenModels = visibleModels.length < models.length;
       return <Paper key={backend.id} variant="outlined" sx={{ p: 1.5 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1, mb: 1 }}>
           <Typography variant="subtitle2">{readOnly ? (backend.name || backend.url) : t('ai.backends.backendNumber', { number: index + 1 })}</Typography>
@@ -88,11 +90,11 @@ export default function AiBackendManager({
           </Box>
           <Box sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap' }}>
             <TextField size="small" label={t('ai.backends.url')} value={backend.url || ''} onChange={(event) => updateBackend(backend.id, { url: event.target.value })} placeholder="http://localhost:11434" sx={{ flex: 1, minWidth: 260 }} />
-            <TextField size="small" type="password" label={t('ai.backends.apiToken')} value={backend.apiToken || ''} onChange={(event) => updateBackend(backend.id, { apiToken: event.target.value })} onBlur={() => { if (backend.apiToken) onChange(backends, { saveImmediately: true }); }} placeholder={backend.apiTokenSet ? t('ai.backends.tokenConfigured') : ''} sx={{ flex: 1, minWidth: 220 }} />
-            <Button variant="outlined" startIcon={<DiscoverIcon />} disabled={!backend.url || backend.type !== 'ollama' || discovering[backend.id]} onClick={() => discover(backend)}>{t('ai.backends.discoverModels')}</Button>
+            <TextField size="small" type="password" label={t('ai.backends.apiToken')} value={backend.apiToken || (backend.apiTokenSet ? MASKED_TOKEN : '')} onFocus={(event) => { if (!backend.apiToken && backend.apiTokenSet) event.target.select(); }} onClick={(event) => { if (!backend.apiToken && backend.apiTokenSet) event.target.select(); }} onChange={(event) => updateBackend(backend.id, { apiToken: event.target.value === MASKED_TOKEN ? '' : event.target.value })} onBlur={() => { if (backend.apiToken) onChange(backends, { saveImmediately: true }); }} sx={{ flex: 1, minWidth: 220 }} />
+            <Button variant="outlined" startIcon={<DiscoverIcon />} disabled={!backend.url || discovering[backend.id]} onClick={() => discover(backend)}>{t('ai.backends.showAvailableModels')}</Button>
           </Box>
         </> : null}
-        {courseId && hasHiddenModels ? <Button size="small" variant="outlined" startIcon={<DiscoverIcon />} sx={{ mt: readOnly ? 0 : 1 }} onClick={() => setExpandedModels((current) => ({ ...current, [backend.id]: true }))}>{t('ai.backends.showAvailableModels')}</Button> : null}
+        {readOnly ? <Button size="small" variant="outlined" startIcon={<DiscoverIcon />} disabled={!backend.url || discovering[backend.id]} onClick={() => discover(backend)}>{t('ai.backends.showAvailableModels')}</Button> : null}
         {visibleModels.length > 0 ? <>
           <Divider sx={{ my: 1.25 }} />
           <Typography variant="caption" color="text.secondary">{t('ai.backends.modelsHelp')}</Typography>

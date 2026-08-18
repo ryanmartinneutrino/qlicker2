@@ -2491,8 +2491,6 @@
       "type": "Backend type",
       "url": "Server URL",
       "apiToken": "API token (optional)",
-      "tokenConfigured": "Token configured — enter a new value to replace it",
-      "discoverModels": "Find models",
       "discoveryFailed": "Could not find models on this backend.",
       "modelsHelp": "Only checked models are available for course AI use.",
       "availableToStudents": "Für Studierende verfügbar",

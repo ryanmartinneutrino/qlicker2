@@ -2102,7 +2102,7 @@ export default function CourseDetail() {
                   courseId={id}
                   canAddBackends={false}
                   readOnly
-                  onChange={() => {}}
+                  onChange={(adminBackends) => setAiConfig((current) => ({ ...current, adminBackends }))}
                   defaultBackendId={aiConfig.defaultBackendId}
                   defaultModelId={aiConfig.defaultModelId}
                   modelPolicies={aiConfig.modelPolicies}

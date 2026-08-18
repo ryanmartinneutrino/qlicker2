@@ -47,6 +47,28 @@ export async function discoverOllamaModels(url, apiToken = '') {
   return (Array.isArray(payload?.models) ? payload.models : []).map((model) => ({ id: String(model?.name || '').trim(), name: String(model?.name || '').trim() })).filter((model) => model.id);
 }
 
+export async function discoverOpenAiModels(url, apiToken = '') {
+  const endpoint = `${normalizeAiUrl(url)}/models`;
+  const headers = {};
+  if (String(apiToken || '').trim()) headers.authorization = `Bearer ${String(apiToken).trim()}`;
+  let response;
+  try {
+    response = await fetch(endpoint, { headers, signal: AbortSignal.timeout(10_000) });
+  } catch (error) {
+    const detail = error?.cause?.message || error?.message || 'connection failed';
+    throw new Error(`Could not reach OpenAI-compatible model endpoint ${endpoint}: ${detail}. If Qlicker runs in Docker, localhost refers to the server container; use host.docker.internal to reach a service on the host.`);
+  }
+  if (!response.ok) {
+    const detail = String(await response.text()).trim().replace(/\s+/g, ' ').slice(0, 300);
+    throw new Error(`OpenAI-compatible model discovery failed at ${endpoint} (${response.status}${detail ? `: ${detail}` : ''})`);
+  }
+  const payload = await response.json();
+  return (Array.isArray(payload?.data) ? payload.data : []).map((model) => ({
+    id: String(model?.id || '').trim(),
+    name: String(model?.name || model?.id || '').trim(),
+  })).filter((model) => model.id && model.name);
+}
+
 export async function requestAiCompletion(backend, modelId, messages) {
   const result = await requestAiMessage(backend, modelId, messages);
   if (!result.content) throw new Error('AI backend returned an empty response');

@@ -111,6 +111,53 @@ describe('AI course configuration and chat', () => {
     const reloaded = await authenticatedRequest(app, 'GET', `/api/v1/ai/courses/${course._id}/config`, { token });
     expect(reloaded.json().courseBackends[0]).toMatchObject({ apiToken: '', apiTokenSet: true });
     expect((await Course.findById(course._id).lean()).aiBackends[0].apiToken).toBe('persistent-course-token');
+
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      models: [{ name: 'course-model' }],
+    }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const discovered = await authenticatedRequest(app, 'POST', '/api/v1/ai/discover-models', {
+      token,
+      payload: {
+        backendId: 'course-ollama',
+        courseId: course._id,
+        type: 'ollama',
+        url: 'http://course-ollama.test:11434',
+        apiToken: '',
+      },
+    });
+    expect(discovered.statusCode).toBe(200);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://course-ollama.test:11434/api/tags',
+      expect.objectContaining({ headers: { authorization: 'Bearer persistent-course-token' } })
+    );
+  });
+
+  it('uses a stored administrator backend token for model discovery', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const admin = await createTestUser({ email: 'ai-discovery-admin@example.com', roles: ['admin'] });
+    const token = await getAuthToken(app, admin);
+    await configureAi('course-1');
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      models: [{ name: 'llama3.2' }],
+    }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const discovered = await authenticatedRequest(app, 'POST', '/api/v1/ai/discover-models', {
+      token,
+      payload: {
+        backendId: 'ollama-local',
+        type: 'ollama',
+        url: 'http://ollama.test:11434',
+        apiToken: '',
+      },
+    });
+
+    expect(discovered.statusCode).toBe(200);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://ollama.test:11434/api/tags',
+      expect.objectContaining({ headers: { authorization: 'Bearer admin-secret' } })
+    );
   });
 
   it('stores a private conversation and proxies an Ollama reply', async (ctx) => {

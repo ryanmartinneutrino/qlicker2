@@ -1,9 +1,14 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import AiBackendManager from './AiBackendManager';
+import apiClient from '../../api/client';
 import i18n from '../../i18n';
 
+vi.mock('../../api/client', () => ({ default: { post: vi.fn() } }));
+
 describe('AiBackendManager', () => {
+  beforeEach(() => vi.resetAllMocks());
+
   it('hides backend creation when the course cannot configure custom backends', () => {
     i18n.changeLanguage('en');
     render(<AiBackendManager backends={[]} canAddBackends={false} onChange={vi.fn()} onDefaultChange={vi.fn()} />);
@@ -41,6 +46,47 @@ describe('AiBackendManager', () => {
     expect(onChange).toHaveBeenCalledWith(backends, { saveImmediately: true });
   });
 
+  it('shows a saved API token as a persistent masked password value', () => {
+    const onChange = vi.fn();
+    render(<AiBackendManager
+      backends={[{ id: 'backend-1', url: 'http://ollama.test:11434', apiToken: '', apiTokenSet: true, models: [] }]}
+      onChange={onChange}
+      onDefaultChange={vi.fn()}
+    />);
+
+    const tokenField = screen.getByLabelText('API token (optional)');
+    expect(tokenField).toHaveValue('********');
+    fireEvent.change(tokenField, { target: { value: 'replacement-token' } });
+    expect(onChange).toHaveBeenCalledWith([
+      expect.objectContaining({ id: 'backend-1', apiToken: 'replacement-token', apiTokenSet: true }),
+    ]);
+  });
+
+  it('queries the backend when showing available models', async () => {
+    const onChange = vi.fn();
+    apiClient.post.mockResolvedValue({ data: { models: [{ id: 'model-2', name: 'Model 2' }] } });
+    render(<AiBackendManager
+      backends={[{ id: 'backend-1', type: 'ollama', url: 'http://ollama.test:11434', apiToken: '', apiTokenSet: true, models: [] }]}
+      courseId="course-1"
+      onChange={onChange}
+      onDefaultChange={vi.fn()}
+      onModelPoliciesChange={vi.fn()}
+    />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show available models' }));
+
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith('/ai/discover-models', {
+      backendId: 'backend-1',
+      url: 'http://ollama.test:11434',
+      type: 'ollama',
+      apiToken: '',
+      courseId: 'course-1',
+    }));
+    expect(onChange).toHaveBeenCalledWith([
+      expect.objectContaining({ models: [{ id: 'model-2', name: 'Model 2', available: true }] }),
+    ]);
+  });
+
   it('shows only approved course models initially and controls student access separately', () => {
     const onModelPoliciesChange = vi.fn();
     render(<AiBackendManager
@@ -65,13 +111,6 @@ describe('AiBackendManager', () => {
 
     expect(screen.getByRole('checkbox', { name: 'Model 1' })).toBeInTheDocument();
     expect(screen.queryByRole('checkbox', { name: 'Model 2' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Show available models' }));
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Model 2' }));
-
-    expect(onModelPoliciesChange).toHaveBeenCalledWith([
-      { backendId: 'backend-1', modelId: 'model-1', studentAvailable: false },
-      { backendId: 'backend-1', modelId: 'model-2', studentAvailable: false },
-    ]);
     fireEvent.click(screen.getByRole('checkbox', { name: 'Model 1: Available to students' }));
     expect(onModelPoliciesChange).toHaveBeenLastCalledWith([
       { backendId: 'backend-1', modelId: 'model-1', studentAvailable: true },
