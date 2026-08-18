@@ -30,4 +30,41 @@ describe('AiBackendManager', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Make default' }));
     expect(onDefaultChange).toHaveBeenCalledWith('backend-1', 'model-1');
   });
+
+  it('shows only approved course models initially and controls student access separately', () => {
+    const onModelPoliciesChange = vi.fn();
+    render(<AiBackendManager
+      backends={[{
+        id: 'backend-1',
+        name: 'Shared backend',
+        url: 'http://ollama.test:11434',
+        models: [
+          { id: 'model-1', name: 'Model 1', available: true },
+          { id: 'model-2', name: 'Model 2', available: true },
+        ],
+      }]}
+      courseId="course-1"
+      readOnly
+      canAddBackends={false}
+      onChange={vi.fn()}
+      defaultBackendId="backend-1"
+      defaultModelId="model-1"
+      modelPolicies={[{ backendId: 'backend-1', modelId: 'model-1', studentAvailable: false }]}
+      onModelPoliciesChange={onModelPoliciesChange}
+    />);
+
+    expect(screen.getByRole('checkbox', { name: 'Model 1' })).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: 'Model 2' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Show available models' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Model 2' }));
+
+    expect(onModelPoliciesChange).toHaveBeenCalledWith([
+      { backendId: 'backend-1', modelId: 'model-1', studentAvailable: false },
+      { backendId: 'backend-1', modelId: 'model-2', studentAvailable: false },
+    ]);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Model 1: Available to students' }));
+    expect(onModelPoliciesChange).toHaveBeenLastCalledWith([
+      { backendId: 'backend-1', modelId: 'model-1', studentAvailable: true },
+    ]);
+  });
 });

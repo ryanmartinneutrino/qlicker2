@@ -616,6 +616,8 @@
       "instructors": "Instructores",
       "settings": "Configuración del curso",
       "aiModel": "Modelo de IA",
+      "aiDefaultModel": "Modelo predeterminado",
+      "aiModelAccessHelp": "Selecciona los modelos aprobados para este curso. Se usa el modelo predeterminado salvo que se elija otro modelo aprobado para una tarea.",
       "groups": "Grupos",
       "addStudent": "Agregar estudiante",
       "addInstructor": "Agregar instructor",
@@ -752,6 +754,11 @@
       "copyRubricsSource": "Curso de origen",
       "rubricsCopied": "Se copiaron {{count}} rúbrica(s) de IA.",
       "rubricsCopyFailed": "No se pudieron copiar las rúbricas de IA.",
+      "manageRubrics": "Ver o editar rúbricas del curso",
+      "rubricType": "Tipo de orientación",
+      "summaryInstructions": "Instrucciones para resumir respuestas",
+      "selectRubric": "Buscar o seleccionar orientación",
+      "rubricInstructions": "Instrucciones de la rúbrica",
       "aiNotAvailable": "AI helper is not enabled for this course by the administrator.",
       "aiBackendHelp": "Configure the OpenAI-compatible backend used only by this course.",
       "aiAdminBackendOnly": "This course uses the AI backend configured by the Qlicker administrator. Its connection details are not shown here.",
@@ -1749,6 +1756,7 @@
       "questionSelection": "Preguntas para calificación con IA",
       "includeQuestion": "Incluir la pregunta {{question}} en la calificación con IA",
       "clickQuestionToEdit": "Haga clic en esta fila para editar su rúbrica",
+      "guidanceMissing": "Faltan las instrucciones",
       "notEligible": "Esta pregunta no puede calificarse con IA"
     }
   },
@@ -2459,11 +2467,18 @@
       "discoverModels": "Find models",
       "discoveryFailed": "Could not find models on this backend.",
       "modelsHelp": "Only checked models are available for course AI use.",
+      "availableToStudents": "Disponible para estudiantes",
+      "showAvailableModels": "Mostrar modelos disponibles",
       "makeDefault": "Make default"
+    },
+    "models": {
+      "modelForTask": "Modelo para esta tarea",
+      "failedLoad": "No se pudieron cargar los modelos de IA aprobados."
     },
     "chat": {
       "title": "AI Chat",
       "newConversation": "New conversation",
+      "newConversationGuidance": "Pregunte sobre los estudiantes de este curso, las calificaciones y el rendimiento, o cree preguntas para usar en sus sesiones.",
       "noConversations": "No conversations yet.",
       "send": "Send",
       "stop": "Detener",

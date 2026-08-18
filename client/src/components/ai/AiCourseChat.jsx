@@ -6,6 +6,7 @@ import apiClient from '../../api/client';
 import StudentRichTextEditor from '../questions/StudentRichTextEditor';
 import { extractPlainTextFromHtml } from '../questions/richTextUtils';
 import AiMarkdownContent from './AiMarkdownContent';
+import AiModelSelect, { parseAiModelValue } from './AiModelSelect';
 
 function formatMessageTime(value) {
   const date = new Date(value || 0);
@@ -29,6 +30,7 @@ export default function AiCourseChat({ courseId }) {
   const [loading, setLoading] = useState(true);
   const [stopping, setStopping] = useState(false);
   const [error, setError] = useState('');
+  const [selectedModel, setSelectedModel] = useState('');
 
   const updateConversation = useCallback((conversation, { select = true } = {}) => {
     if (!conversation) return;
@@ -114,7 +116,7 @@ export default function AiCourseChat({ courseId }) {
     try {
       const { data } = await apiClient.post(
         `/ai/courses/${courseId}/conversations/${conversation._id}/messages`,
-        { content, contentWysiwyg: submittedDraft.html }
+        { content, contentWysiwyg: submittedDraft.html, ...parseAiModelValue(selectedModel) }
       );
       updateConversation(data.conversation);
       setPendingMessage(null);
@@ -167,6 +169,7 @@ export default function AiCourseChat({ courseId }) {
     <Paper variant="outlined" sx={{ p: 1.5, display: 'flex', flexDirection: 'column', minHeight: 520 }}>
       {error ? <Alert severity="error" sx={{ mb: 1 }} onClose={() => setError('')}>{error}</Alert> : null}
       {selected?.pendingError ? <Alert severity="warning" sx={{ mb: 1 }}>{selected.pendingError}</Alert> : null}
+      <Box sx={{ mb: 1.5 }}><AiModelSelect courseId={courseId} value={selectedModel} onChange={setSelectedModel} disabled={isThinking} /></Box>
       <Box sx={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 1.25, mb: 1.5 }} aria-live="polite">
         {!selected && !pendingMessage ? <Typography color="text.secondary">{t('ai.chat.selectConversation')}</Typography> : messages.length === 0 && !pendingMessage ? <Alert severity="info" sx={{ alignSelf: 'stretch' }}>{t('ai.chat.newConversationGuidance')}</Alert> : messages.map((message) => <Paper key={message._id} variant="outlined" sx={{ p: 1.25, alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%', bgcolor: message.role === 'user' ? 'action.hover' : 'background.paper' }}>
           <Typography variant="caption" color="text.secondary">{message.role === 'user' ? t('ai.chat.you') : t('ai.chat.assistant')}</Typography>
@@ -181,7 +184,7 @@ export default function AiCourseChat({ courseId }) {
       </Box>
       <StudentRichTextEditor value={draft.html} onChange={(value) => setDraft(normalizeDraft(value))} onKeyDown={handleDraftKeyDown} placeholder={t('ai.chat.messagePlaceholder')} disabled={isThinking} ariaLabel={t('ai.chat.messagePlaceholder')} minHeight={110} />
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
-        <Button variant="contained" color={isThinking ? 'error' : 'primary'} startIcon={isThinking ? <StopIcon /> : undefined} disabled={isThinking ? (!selected?.pending || stopping) : !draft.plainText.trim()} onClick={isThinking ? stop : send}>
+        <Button variant="contained" color={isThinking ? 'error' : 'primary'} startIcon={isThinking ? <StopIcon /> : undefined} disabled={isThinking ? (!selected?.pending || stopping) : (!draft.plainText.trim() || !selectedModel)} onClick={isThinking ? stop : send}>
           {isThinking ? t('ai.chat.stop') : t('ai.chat.send')}
         </Button>
       </Box>

@@ -616,6 +616,8 @@
       "instructors": "教师",
       "settings": "课程设置",
       "aiModel": "AI 模型",
+      "aiDefaultModel": "默认模型",
+      "aiModelAccessHelp": "选择本课程获准使用的模型。除非为某项任务选择其他获准模型，否则将使用默认模型。",
       "groups": "分组",
       "addStudent": "添加学生",
       "addInstructor": "添加教师",
@@ -752,6 +754,11 @@
       "copyRubricsSource": "源课程",
       "rubricsCopied": "已复制 {{count}} 个 AI 评分量规。",
       "rubricsCopyFailed": "无法复制 AI 评分量规。",
+      "manageRubrics": "查看或编辑课程评分量规",
+      "rubricType": "指导类型",
+      "summaryInstructions": "回答摘要说明",
+      "selectRubric": "搜索或选择指导",
+      "rubricInstructions": "评分量规说明",
       "aiNotAvailable": "AI helper is not enabled for this course by the administrator.",
       "aiBackendHelp": "Configure the OpenAI-compatible backend used only by this course.",
       "aiAdminBackendOnly": "This course uses the AI backend configured by the Qlicker administrator. Its connection details are not shown here.",
@@ -1749,6 +1756,7 @@
       "questionSelection": "AI 评分题目",
       "includeQuestion": "将题目 {{question}} 包含在 AI 评分中",
       "clickQuestionToEdit": "点击此行以编辑评分量规",
+      "guidanceMissing": "缺少指导",
       "notEligible": "此题无法由 AI 评分"
     }
   },
@@ -2422,11 +2430,18 @@
       "discoverModels": "Find models",
       "discoveryFailed": "Could not find models on this backend.",
       "modelsHelp": "Only checked models are available for course AI use.",
+      "availableToStudents": "可供学生使用",
+      "showAvailableModels": "显示可用模型",
       "makeDefault": "Make default"
+    },
+    "models": {
+      "modelForTask": "此任务使用的模型",
+      "failedLoad": "无法加载获准使用的 AI 模型。"
     },
     "chat": {
       "title": "AI Chat",
       "newConversation": "New conversation",
+      "newConversationGuidance": "您可以询问本课程的学生、成绩和表现，也可以创建用于课堂的题目。",
       "noConversations": "No conversations yet.",
       "send": "Send",
       "stop": "停止",

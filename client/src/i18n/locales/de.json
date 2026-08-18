@@ -616,6 +616,8 @@
       "instructors": "Dozenten",
       "settings": "Kurseinstellungen",
       "aiModel": "KI-Modell",
+      "aiDefaultModel": "Standardmodell",
+      "aiModelAccessHelp": "Wählen Sie die für diesen Kurs zugelassenen Modelle. Das Standardmodell wird verwendet, sofern für eine Aufgabe kein anderes zugelassenes Modell gewählt wird.",
       "groups": "Gruppen",
       "addStudent": "Studierende hinzufügen",
       "addInstructor": "Dozenten hinzufügen",
@@ -752,6 +754,11 @@
       "copyRubricsSource": "Quellkurs",
       "rubricsCopied": "{{count}} KI-Rubrik(en) kopiert.",
       "rubricsCopyFailed": "KI-Rubriken konnten nicht kopiert werden.",
+      "manageRubrics": "Kursrubriken anzeigen oder bearbeiten",
+      "rubricType": "Anweisungstyp",
+      "summaryInstructions": "Anweisungen zur Antwortzusammenfassung",
+      "selectRubric": "Anweisung suchen oder auswählen",
+      "rubricInstructions": "Rubrikanweisungen",
       "aiNotAvailable": "AI helper is not enabled for this course by the administrator.",
       "aiBackendHelp": "Configure the OpenAI-compatible backend used only by this course.",
       "aiAdminBackendOnly": "This course uses the AI backend configured by the Qlicker administrator. Its connection details are not shown here.",
@@ -1749,6 +1756,7 @@
       "questionSelection": "Fragen für die KI-Bewertung",
       "includeQuestion": "Frage {{question}} in KI-Bewertung einschließen",
       "clickQuestionToEdit": "Klicken Sie auf diese Zeile, um die Rubrik zu bearbeiten",
+      "guidanceMissing": "Anweisungen fehlen",
       "notEligible": "Diese Frage kann nicht von KI bewertet werden"
     }
   },
@@ -2488,11 +2496,18 @@
       "discoverModels": "Find models",
       "discoveryFailed": "Could not find models on this backend.",
       "modelsHelp": "Only checked models are available for course AI use.",
+      "availableToStudents": "Für Studierende verfügbar",
+      "showAvailableModels": "Verfügbare Modelle anzeigen",
       "makeDefault": "Make default"
+    },
+    "models": {
+      "modelForTask": "Modell für diese Aufgabe",
+      "failedLoad": "Die zugelassenen KI-Modelle konnten nicht geladen werden."
     },
     "chat": {
       "title": "AI Chat",
       "newConversation": "New conversation",
+      "newConversationGuidance": "Fragen Sie nach Studierenden, Noten und Leistungen in diesem Kurs oder erstellen Sie Fragen für Ihre Sitzungen.",
       "noConversations": "No conversations yet.",
       "send": "Send",
       "stop": "Stopp",

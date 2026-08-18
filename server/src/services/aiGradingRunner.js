@@ -15,11 +15,11 @@ function findModel(backends, backendId, modelId) {
   return backend && model ? { backend, model } : null;
 }
 
-function resolveModel(course, settings) {
-  const backendId = course.aiSelectedBackendId || course.aiDefaultBackendId || settings.AI_DefaultBackendId;
-  const modelId = course.aiSelectedModelId || course.aiDefaultModelId || settings.AI_DefaultModelId;
-  return findModel(normalizeAiBackends(course.aiBackends || []), backendId, modelId)
-    || findModel(normalizeAiBackends(settings.AI_Backends || []), backendId, modelId);
+function resolveModel(course, settings, requestedBackendId = '', requestedModelId = '') {
+  const backendId = requestedBackendId || course.aiDefaultBackendId || course.aiSelectedBackendId || settings.AI_DefaultBackendId;
+  const modelId = requestedModelId || course.aiDefaultModelId || course.aiSelectedModelId || settings.AI_DefaultModelId;
+  return findModel(normalizeAiBackends(settings.AI_Backends || []), backendId, modelId)
+    || findModel(normalizeAiBackends(course.aiBackends || []), backendId, modelId);
 }
 
 function plainText(value) {
@@ -86,7 +86,7 @@ export async function runAiGradingJob(jobId) {
     const [course, session, settings] = await Promise.all([
       Course.findById(job.courseId).lean(), Session.findById(job.sessionId).lean(), Settings.findById('settings').lean(),
     ]);
-    const selected = resolveModel(course, settings || {});
+    const selected = resolveModel(course, settings || {}, job.backendId, job.modelId);
     if (!selected) throw new Error('No available AI model is selected for this course');
     const runStartedAt = new Date();
     const existingRuns = Array.isArray(session?.aiGradingLog?.runs)

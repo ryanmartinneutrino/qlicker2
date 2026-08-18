@@ -30,6 +30,7 @@ import {
 import SessionQuestionGradingPanel from '../../components/grades/SessionQuestionGradingPanel';
 import AiSummaryInstructionForm from '../../components/grades/AiSummaryInstructionForm';
 import AiMarkdownContent from '../../components/ai/AiMarkdownContent';
+import AiModelSelect, { parseAiModelValue } from '../../components/ai/AiModelSelect';
 import SessionChatPanel from '../../components/live/SessionChatPanel';
 import WordCloudPanel from '../../components/questions/WordCloudPanel';
 import HistogramPanel from '../../components/questions/HistogramPanel';
@@ -605,6 +606,7 @@ export default function SessionReview() {
   const [summaryInstructions, setSummaryInstructions] = useState([]);
   const [summaryInstructionId, setSummaryInstructionId] = useState('basic-summary');
   const [summaryInstruction, setSummaryInstruction] = useState('Summarize the student responses to identify up to five themes in the student responses. Give a few example quoted responses for the students for each theme.');
+  const [summaryModel, setSummaryModel] = useState('');
   const [summaryError, setSummaryError] = useState('');
   const [summaryView, setSummaryView] = useState(null);
   const requestedReturnTab = Number.parseInt(searchParams.get('returnTab') || '', 10);
@@ -693,7 +695,10 @@ export default function SessionReview() {
   const startSummary = async () => {
     setSummaryError('');
     try {
-      const { data } = await apiClient.post(`/ai/courses/${courseId}/sessions/${sessionId}/questions/${summaryQuestion._id}/ai-summary`, { instruction: summaryInstruction });
+      const { data } = await apiClient.post(`/ai/courses/${courseId}/sessions/${sessionId}/questions/${summaryQuestion._id}/ai-summary`, {
+        instruction: summaryInstruction,
+        ...parseAiModelValue(summaryModel),
+      });
       setAiSummaries((current) => ({ ...current, [summaryQuestion._id]: data.summary }));
       setSummaryQuestion(null);
     } catch (err) {
@@ -1696,6 +1701,7 @@ export default function SessionReview() {
         <DialogTitle>{t('professor.sessionReview.generateAiResponseSummary')}</DialogTitle>
         <DialogContent dividers>
           {summaryError ? <Alert severity="error" sx={{ mb: 2 }}>{summaryError}</Alert> : null}
+          <Box sx={{ mb: 2 }}><AiModelSelect courseId={courseId} value={summaryModel} onChange={setSummaryModel} /></Box>
           <AiSummaryInstructionForm
             instructionId={summaryInstructionId}
             instruction={summaryInstruction}
@@ -1708,7 +1714,7 @@ export default function SessionReview() {
             onDeleteInstruction={deleteSummaryInstruction}
           />
         </DialogContent>
-        <DialogActions><Button onClick={() => setSummaryQuestion(null)}>{t('common.cancel')}</Button><Button variant="contained" disabled={!summaryInstructionId || !summaryInstruction.trim()} onClick={startSummary}>{t('professor.sessionReview.generateAiResponseSummary')}</Button></DialogActions>
+        <DialogActions><Button onClick={() => setSummaryQuestion(null)}>{t('common.cancel')}</Button><Button variant="contained" disabled={!summaryModel || !summaryInstructionId || !summaryInstruction.trim()} onClick={startSummary}>{t('professor.sessionReview.generateAiResponseSummary')}</Button></DialogActions>
       </Dialog>
       <Dialog open={!!summaryView} onClose={() => setSummaryView(null)} fullWidth maxWidth="md"><DialogTitle>{t('professor.sessionReview.viewAiResponseSummary')}</DialogTitle><DialogContent dividers><AiMarkdownContent content={summaryView?.summary} /></DialogContent><DialogActions><Button onClick={() => setSummaryView(null)}>{t('common.close')}</Button></DialogActions></Dialog>
     </Box>

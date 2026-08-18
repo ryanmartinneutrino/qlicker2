@@ -16,6 +16,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import apiClient from '../../api/client';
 import AiGradingForm from './AiGradingForm';
+import AiModelSelect, { parseAiModelValue } from '../ai/AiModelSelect';
 import { QUESTION_TYPES, normalizeQuestionType } from '../questions/constants';
 
 function canManualGrade(question) {
@@ -43,6 +44,7 @@ export default function AiGradingModal({
   const [forms, setForms] = useState({});
   const [error, setError] = useState('');
   const [starting, setStarting] = useState(false);
+  const [selectedModel, setSelectedModel] = useState('');
   const initializedRubricRef = useRef(false);
   const selectedRef = useRef([]);
   const formsRef = useRef({});
@@ -158,6 +160,7 @@ export default function AiGradingModal({
         {
           questionIds: selected,
           instructions: prepared,
+          ...parseAiModelValue(selectedModel),
         }
       );
       onStarted(data.job);
@@ -172,7 +175,7 @@ export default function AiGradingModal({
   const activeQuestion = manualQuestions.find((question) => String(question._id) === activeId);
   const activeQuestionNumber = activeQuestion ? questions.findIndex((question) => question === activeQuestion) + 1 : null;
   const form = activeId ? (forms[activeId] || {}) : null;
-  const canStart = selected.length > 0 && selected.every((questionId) => (
+  const canStart = !!selectedModel && selected.length > 0 && selected.every((questionId) => (
     forms[questionId]?.gradingInstructionId && forms[questionId]?.feedbackInstructionId
   ));
 
@@ -181,6 +184,7 @@ export default function AiGradingModal({
       <DialogTitle>{t('grades.aiGrading.title')}</DialogTitle>
       <DialogContent dividers>
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
+        <Box sx={{ mb: 2 }}><AiModelSelect courseId={courseId} value={selectedModel} onChange={setSelectedModel} disabled={starting} /></Box>
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '180px 1fr' }, gap: 2 }}>
           <List dense aria-label={t('grades.aiGrading.questionSelection')} sx={{ borderRight: { sm: 1 }, borderColor: 'divider', maxHeight: 440, overflowY: 'auto' }}>
             {questions.map((question, index) => {

@@ -6,6 +6,8 @@ const AiGradingJobSchema = new mongoose.Schema({
   courseId: { type: String, required: true },
   sessionId: { type: String, required: true },
   ownerId: { type: String, required: true },
+  backendId: { type: String, default: '' },
+  modelId: { type: String, default: '' },
   questionIds: { type: [String], default: [] },
   regrade: { type: Boolean, default: false },
   instructions: { type: Map, of: mongoose.Schema.Types.Mixed, default: {} },

@@ -22,6 +22,15 @@ const AiBackendSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const AiModelPolicySchema = new mongoose.Schema(
+  {
+    backendId: { type: String, required: true },
+    modelId: { type: String, required: true },
+    studentAvailable: { type: Boolean, default: false },
+  },
+  { _id: false }
+);
+
 const VideoChatApiOptionsSchema = new mongoose.Schema(
   {
     startAudioMuted: { type: Boolean, default: true },
@@ -102,6 +111,7 @@ const CourseSchema = new mongoose.Schema(
     aiBackends: { type: [AiBackendSchema], default: [] },
     aiDefaultBackendId: { type: String, default: '' },
     aiDefaultModelId: { type: String, default: '' },
+    aiModelPolicies: { type: [AiModelPolicySchema], default: [] },
   },
   {
     collection: 'courses',

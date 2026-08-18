@@ -34,14 +34,59 @@ function findModel(backends, backendId, modelId) {
   return backend && model ? { backend, model } : null;
 }
 
-function resolveModel(course, settings, policy) {
-  const backendId = course.aiSelectedBackendId || course.aiDefaultBackendId || settings.AI_DefaultBackendId;
-  const modelId = course.aiSelectedModelId || course.aiDefaultModelId || settings.AI_DefaultModelId;
-  if (policy.allowCourseBackend) {
-    const courseMatch = findModel(normalizeAiBackends(course.aiBackends || []), backendId, modelId);
-    if (courseMatch) return courseMatch;
-  }
-  return findModel(normalizeAiBackends(settings.AI_Backends || []), backendId, modelId);
+function modelKey(backendId, modelId) {
+  return `${String(backendId)}::${String(modelId)}`;
+}
+
+function availableBackends(course, settings, policy) {
+  return [
+    ...normalizeAiBackends(settings.AI_Backends || []),
+    ...(policy.allowCourseBackend ? normalizeAiBackends(course.aiBackends || []) : []),
+  ];
+}
+
+function normalizeModelPolicies(value) {
+  if (!Array.isArray(value)) return [];
+  const unique = new Map();
+  value.forEach((entry) => {
+    const backendId = String(entry?.backendId || '');
+    const modelId = String(entry?.modelId || '');
+    if (backendId && modelId) unique.set(modelKey(backendId, modelId), { backendId, modelId, studentAvailable: !!entry?.studentAvailable });
+  });
+  return [...unique.values()];
+}
+
+function effectiveModelPolicies(course, settings, policy) {
+  const configured = normalizeModelPolicies(course.aiModelPolicies);
+  if (configured.length) return configured;
+  const backendId = course.aiDefaultBackendId || course.aiSelectedBackendId || settings.AI_DefaultBackendId || '';
+  const modelId = course.aiDefaultModelId || course.aiSelectedModelId || settings.AI_DefaultModelId || '';
+  return findModel(availableBackends(course, settings, policy), backendId, modelId)
+    ? [{ backendId, modelId, studentAvailable: false }]
+    : [];
+}
+
+function resolveModel(course, settings, policy, requested = {}) {
+  const backendId = requested.backendId || course.aiDefaultBackendId || course.aiSelectedBackendId || settings.AI_DefaultBackendId;
+  const modelId = requested.modelId || course.aiDefaultModelId || course.aiSelectedModelId || settings.AI_DefaultModelId;
+  const approved = new Set(effectiveModelPolicies(course, settings, policy).map((entry) => modelKey(entry.backendId, entry.modelId)));
+  if (!approved.has(modelKey(backendId, modelId))) return null;
+  return findModel(availableBackends(course, settings, policy), backendId, modelId);
+}
+
+function approvedModels(course, settings, policy) {
+  const policies = effectiveModelPolicies(course, settings, policy);
+  const policyByKey = new Map(policies.map((entry) => [modelKey(entry.backendId, entry.modelId), entry]));
+  return availableBackends(course, settings, policy).flatMap((backend) => backend.models.flatMap((model) => {
+    const modelPolicy = policyByKey.get(modelKey(backend.id, model.id));
+    return modelPolicy ? [{
+      backendId: backend.id,
+      backendName: backend.name || backend.url,
+      modelId: model.id,
+      modelName: model.name,
+      studentAvailable: modelPolicy.studentAvailable,
+    }] : [];
+  }));
 }
 
 function serializeConversation(doc, includeMessages = false) {
@@ -75,6 +120,9 @@ export default async function aiRoutes(app) {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
     const settings = await getOrCreateSettingsDocument({ lean: true });
     const policy = coursePolicy(settings, course._id);
+    const modelPolicies = effectiveModelPolicies(course, settings, policy);
+    const defaultBackendId = course.aiDefaultBackendId || course.aiSelectedBackendId || settings.AI_DefaultBackendId || '';
+    const defaultModelId = course.aiDefaultModelId || course.aiSelectedModelId || settings.AI_DefaultModelId || '';
     return {
       ...policy, courseEnabled: !!course.aiEnabled,
       selectedBackendId: course.aiSelectedBackendId || '', selectedModelId: course.aiSelectedModelId || '',
@@ -82,6 +130,10 @@ export default async function aiRoutes(app) {
       adminBackends: serializeAiBackends(settings.AI_Backends || []).map((backend) => ({ ...backend, models: backend.models.filter((model) => model.available) })),
       courseBackends: policy.allowCourseBackend ? serializeAiBackends(course.aiBackends || []) : [],
       courseDefaultBackendId: course.aiDefaultBackendId || '', courseDefaultModelId: course.aiDefaultModelId || '',
+      defaultBackendId,
+      defaultModelId,
+      modelPolicies,
+      approvedModels: approvedModels(course, settings, policy),
     };
   });
 
@@ -92,7 +144,7 @@ export default async function aiRoutes(app) {
     if (!policy.enabled) return reply.code(403).send({ error: 'Forbidden', message: 'AI helper is not enabled for this course by the administrator' });
     const body = request.body || {}; const updates = {};
     if (body.enabled !== undefined) updates.aiEnabled = !!body.enabled;
-    const hasCustom = body.backends !== undefined || body.defaultBackendId !== undefined || body.defaultModelId !== undefined;
+    const hasCustom = body.backends !== undefined;
     if (hasCustom && !policy.allowCourseBackend) return reply.code(403).send({ error: 'Forbidden', message: 'This course must use an administrator-configured AI backend' });
     if (body.backends !== undefined) {
       const existingById = new Map(normalizeAiBackends(course.aiBackends || []).map((backend) => [backend.id, backend]));
@@ -103,11 +155,17 @@ export default async function aiRoutes(app) {
     }
     if (body.defaultBackendId !== undefined) updates.aiDefaultBackendId = body.defaultBackendId;
     if (body.defaultModelId !== undefined) updates.aiDefaultModelId = body.defaultModelId;
+    if (body.modelPolicies !== undefined) {
+      const available = availableBackends({ ...course, ...updates }, settings, policy);
+      updates.aiModelPolicies = normalizeModelPolicies(body.modelPolicies).filter((entry) => (
+        !!findModel(available, entry.backendId, entry.modelId)
+      ));
+    }
     if (body.selectedBackendId !== undefined) updates.aiSelectedBackendId = body.selectedBackendId;
     if (body.selectedModelId !== undefined) updates.aiSelectedModelId = body.selectedModelId;
     const candidate = { ...course, ...updates };
-    if (candidate.aiSelectedBackendId || candidate.aiSelectedModelId) {
-      if (!resolveModel(candidate, settings, policy)) return reply.code(400).send({ error: 'Bad Request', message: 'Choose an available AI backend and model' });
+    if (candidate.aiDefaultBackendId || candidate.aiDefaultModelId || candidate.aiSelectedBackendId || candidate.aiSelectedModelId) {
+      if (!resolveModel(candidate, settings, policy)) return reply.code(400).send({ error: 'Bad Request', message: 'Choose an approved AI backend and model' });
     }
     await Course.findByIdAndUpdate(course._id, { $set: updates });
     return { success: true };
@@ -145,8 +203,8 @@ export default async function aiRoutes(app) {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
     const settings = await getOrCreateSettingsDocument({ lean: true }); const policy = coursePolicy(settings, course._id);
     if (!policy.enabled || !course.aiEnabled) return reply.code(403).send({ error: 'Forbidden', message: 'AI helper is disabled for this course' });
-    const selected = resolveModel(course, settings, policy);
-    if (!selected) return reply.code(400).send({ error: 'Bad Request', message: 'Select an available AI backend and model before chatting' });
+    const selected = resolveModel(course, settings, policy, request.body || {});
+    if (!selected) return reply.code(400).send({ error: 'Bad Request', message: 'Select an approved AI backend and model before chatting' });
     const conversation = await AiConversation.findOne({ _id: request.params.conversationId, courseId: course._id, ownerId: request.user.userId });
     if (!conversation) return reply.code(404).send({ error: 'Not Found', message: 'AI conversation not found' });
     if (conversation.pending) return reply.code(409).send({ error: 'Conflict', message: 'An AI response is already in progress for this conversation' });
@@ -271,7 +329,8 @@ export default async function aiRoutes(app) {
   app.post('/courses/:courseId/sessions/:sessionId/ai-grading', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
     const settings = await getOrCreateSettingsDocument({ lean: true }); const policy = coursePolicy(settings, course._id);
-    if (!policy.enabled || !course.aiEnabled || !resolveModel(course, settings, policy)) return reply.code(400).send({ error: 'Bad Request', message: 'Configure an available AI model before grading' });
+    const selectedModel = resolveModel(course, settings, policy, request.body || {});
+    if (!policy.enabled || !course.aiEnabled || !selectedModel) return reply.code(400).send({ error: 'Bad Request', message: 'Choose an approved AI model before grading' });
     const { questionIds, instructions = {}, regrade = false } = request.body || {};
     if (!Array.isArray(questionIds) || questionIds.length === 0) return reply.code(400).send({ error: 'Bad Request', message: 'Select at least one question' });
     const normalizedQuestionIds = questionIds.map(String);
@@ -280,11 +339,40 @@ export default async function aiRoutes(app) {
       { $set: { questionIds: normalizedQuestionIds, instructions } },
       { upsert: true, new: true, runValidators: true }
     );
-    const job = await AiGradingJob.create({ courseId: course._id, sessionId: request.params.sessionId, ownerId: request.user.userId, questionIds: normalizedQuestionIds, instructions, regrade: !!regrade });
+    const job = await AiGradingJob.create({ courseId: course._id, sessionId: request.params.sessionId, ownerId: request.user.userId, backendId: selectedModel.backend.id, modelId: selectedModel.model.id, questionIds: normalizedQuestionIds, instructions, regrade: !!regrade });
     setImmediate(() => runAiGradingJob(job._id));
     return reply.code(202).send({ job });
   });
 
-  app.get('/courses/:courseId/sessions/:sessionId/questions/:questionId/ai-summary', { preHandler: authenticate }, async (request, reply) => { const course = await instructorCourse(request, reply); if (!course) return undefined; return { summary: await AiResponseSummary.findOne({ courseId: course._id, sessionId: request.params.sessionId, questionId: request.params.questionId }).lean() }; });
-  app.post('/courses/:courseId/sessions/:sessionId/questions/:questionId/ai-summary', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => { const course = await instructorCourse(request, reply); if (!course) return undefined; const settings = await getOrCreateSettingsDocument({ lean: true }); const policy = coursePolicy(settings, course._id); if (!policy.enabled || !course.aiEnabled || !resolveModel(course, settings, policy)) return reply.code(400).send({ error: 'Bad Request', message: 'Configure an available AI model before summarizing' }); const instruction = String(request.body?.instruction || '').trim(); if (!instruction) return reply.code(400).send({ error: 'Bad Request', message: 'Summary instructions are required' }); const summary = await AiResponseSummary.findOneAndUpdate({ courseId: course._id, sessionId: request.params.sessionId, questionId: request.params.questionId }, { $set: { status: 'queued', phase: 'queued', instruction, completed: 0, total: 0, summary: '', error: '' } }, { upsert: true, new: true }); setImmediate(() => runAiResponseSummary(summary._id)); return reply.code(202).send({ summary }); });
+  app.get('/courses/:courseId/sessions/:sessionId/questions/:questionId/ai-summary', { preHandler: authenticate }, async (request, reply) => {
+    const course = await instructorCourse(request, reply); if (!course) return undefined;
+    return { summary: await AiResponseSummary.findOne({ courseId: course._id, sessionId: request.params.sessionId, questionId: request.params.questionId }).lean() };
+  });
+
+  app.post('/courses/:courseId/sessions/:sessionId/questions/:questionId/ai-summary', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
+    const course = await instructorCourse(request, reply); if (!course) return undefined;
+    const settings = await getOrCreateSettingsDocument({ lean: true });
+    const policy = coursePolicy(settings, course._id);
+    const selectedModel = resolveModel(course, settings, policy, request.body || {});
+    if (!policy.enabled || !course.aiEnabled || !selectedModel) return reply.code(400).send({ error: 'Bad Request', message: 'Choose an approved AI model before summarizing' });
+    const instruction = String(request.body?.instruction || '').trim();
+    if (!instruction) return reply.code(400).send({ error: 'Bad Request', message: 'Summary instructions are required' });
+    const summary = await AiResponseSummary.findOneAndUpdate(
+      { courseId: course._id, sessionId: request.params.sessionId, questionId: request.params.questionId },
+      { $set: {
+        status: 'queued',
+        phase: 'queued',
+        instruction,
+        backendId: selectedModel.backend.id,
+        modelId: selectedModel.model.id,
+        completed: 0,
+        total: 0,
+        summary: '',
+        error: '',
+      } },
+      { upsert: true, new: true }
+    );
+    setImmediate(() => runAiResponseSummary(summary._id));
+    return reply.code(202).send({ summary });
+  });
 }

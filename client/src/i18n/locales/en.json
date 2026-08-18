@@ -617,6 +617,8 @@
       "settings": "Course settings",
       "aiSettings": "AI settings",
       "aiModel": "AI model",
+      "aiDefaultModel": "Default model",
+      "aiModelAccessHelp": "Select the models approved for this course. The default is used unless a different approved model is chosen for a task.",
       "enableAiHelper": "Enable AI helper",
       "copyRubrics": "Copy AI rubrics",
       "copyRubricsHelp": "Copy reusable grading, feedback, and response-summary guidance from another course you instruct.",
@@ -1794,7 +1796,13 @@
       "discoverModels": "Find models",
       "discoveryFailed": "Could not find models on this backend.",
       "modelsHelp": "Only checked models are available for course AI use.",
+      "availableToStudents": "Available to students",
+      "showAvailableModels": "Show available models",
       "makeDefault": "Make default"
+    },
+    "models": {
+      "modelForTask": "Model for this task",
+      "failedLoad": "Could not load the approved AI models."
     },
     "chat": {
       "title": "AI Chat",

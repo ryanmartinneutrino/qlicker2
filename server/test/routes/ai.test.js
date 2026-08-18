@@ -29,7 +29,10 @@ async function configureAi(courseId) {
   await Settings.findOneAndUpdate({ _id: 'settings' }, { $set: {
     AI_Enabled: true,
     AI_EnabledCourses: [courseId],
-    AI_Backends: [{ id: 'ollama-local', name: 'Local Ollama', type: 'ollama', url: 'http://ollama.test:11434', apiToken: 'admin-secret', models: [{ id: 'llama3.2', name: 'llama3.2', available: true }] }],
+    AI_Backends: [{ id: 'ollama-local', name: 'Local Ollama', type: 'ollama', url: 'http://ollama.test:11434', apiToken: 'admin-secret', models: [
+      { id: 'llama3.2', name: 'llama3.2', available: true },
+      { id: 'qwen3', name: 'qwen3', available: true },
+    ] }],
     AI_DefaultBackendId: 'ollama-local', AI_DefaultModelId: 'llama3.2',
   } }, { upsert: true });
 }
@@ -47,14 +50,30 @@ describe('AI course configuration and chat', () => {
     expect(config.json().adminBackends[0].apiToken).toBe('');
     expect(config.json().adminBackends[0].apiTokenSet).toBe(true);
     expect(JSON.stringify(config.json())).not.toContain('admin-secret');
+    expect(config.json().approvedModels).toEqual([
+      expect.objectContaining({ backendId: 'ollama-local', modelId: 'llama3.2', studentAvailable: false }),
+    ]);
 
     const update = await authenticatedRequest(app, 'PATCH', `/api/v1/ai/courses/${course._id}/config`, {
-      token, payload: { enabled: true, selectedBackendId: 'ollama-local', selectedModelId: 'llama3.2' },
+      token,
+      payload: {
+        enabled: true,
+        defaultBackendId: 'ollama-local',
+        defaultModelId: 'qwen3',
+        modelPolicies: [
+          { backendId: 'ollama-local', modelId: 'llama3.2', studentAvailable: true },
+          { backendId: 'ollama-local', modelId: 'qwen3', studentAvailable: false },
+        ],
+      },
     });
     expect(update.statusCode).toBe(200);
     const stored = await Course.findById(course._id).lean();
     expect(stored.aiEnabled).toBe(true);
-    expect(stored.aiSelectedModelId).toBe('llama3.2');
+    expect(stored.aiDefaultModelId).toBe('qwen3');
+    expect(stored.aiModelPolicies).toEqual([
+      expect.objectContaining({ backendId: 'ollama-local', modelId: 'llama3.2', studentAvailable: true }),
+      expect.objectContaining({ backendId: 'ollama-local', modelId: 'qwen3', studentAvailable: false }),
+    ]);
   });
 
   it('stores a private conversation and proxies an Ollama reply', async (ctx) => {

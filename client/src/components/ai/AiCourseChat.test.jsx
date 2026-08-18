@@ -29,7 +29,11 @@ describe('AiCourseChat', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     i18n.changeLanguage('en');
-    apiClient.get.mockResolvedValue({ data: { conversations: [] } });
+    apiClient.get.mockImplementation((url) => Promise.resolve(url.endsWith('/config') ? { data: {
+      approvedModels: [{ backendId: 'backend-1', backendName: 'Backend 1', modelId: 'model-1', modelName: 'Model 1' }],
+      defaultBackendId: 'backend-1',
+      defaultModelId: 'model-1',
+    } } : { data: { conversations: [] } }));
   });
 
   it('accepts the rich-text editor value and sends its plain text without crashing', async () => {
@@ -48,8 +52,9 @@ describe('AiCourseChat', () => {
     render(<AiCourseChat courseId="course-1" />);
 
     await screen.findByText('No conversations yet.');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled());
     fireEvent.change(screen.getByLabelText('AI chat message'), { target: { value: 'Can you help?' } });
-    expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled());
     fireEvent.keyDown(screen.getByLabelText('AI chat message'), { key: 'Enter', shiftKey: true });
     expect(apiClient.post).not.toHaveBeenCalled();
     fireEvent.keyDown(screen.getByLabelText('AI chat message'), { key: 'Enter' });
@@ -58,6 +63,8 @@ describe('AiCourseChat', () => {
       expect(apiClient.post).toHaveBeenLastCalledWith('/ai/courses/course-1/conversations/conversation-1/messages', {
         content: 'Can you help?',
         contentWysiwyg: '<p>Can you help?</p>',
+        backendId: 'backend-1',
+        modelId: 'model-1',
       });
     });
     expect(await screen.findByText('course', { selector: 'strong' })).toBeInTheDocument();
@@ -72,9 +79,15 @@ describe('AiCourseChat', () => {
       messages: [{ _id: 'message-1', role: 'user', content: 'Please wait' }],
     };
     const stoppedConversation = { ...pendingConversation, pending: false, pendingError: 'AI response stopped' };
-    apiClient.get
-      .mockResolvedValueOnce({ data: { conversations: [pendingConversation] } })
-      .mockResolvedValueOnce({ data: { conversation: pendingConversation } });
+    apiClient.get.mockImplementation((url) => {
+      if (url.endsWith('/config')) return Promise.resolve({ data: {
+        approvedModels: [{ backendId: 'backend-1', backendName: 'Backend 1', modelId: 'model-1', modelName: 'Model 1' }],
+        defaultBackendId: 'backend-1',
+        defaultModelId: 'model-1',
+      } });
+      if (url.endsWith('/conversations')) return Promise.resolve({ data: { conversations: [pendingConversation] } });
+      return Promise.resolve({ data: { conversation: pendingConversation } });
+    });
     apiClient.post.mockResolvedValueOnce({ data: { conversation: stoppedConversation } });
 
     render(<AiCourseChat courseId="course-1" />);
