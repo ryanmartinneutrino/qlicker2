@@ -2305,18 +2305,39 @@ function AiHelperTab() {
     try {
       const { data } = await apiClient.patch('/settings', nextSettings);
       setSettings((current) => {
+        const savedBackends = new Map((data.AI_Backends || []).map((backend) => [backend.id, backend]));
+        const submittedBackends = new Map((nextSettings.AI_Backends || []).map((backend) => [backend.id, backend]));
+        let nestedTokenStateChanged = false;
+        const AI_Backends = (current.AI_Backends || []).map((backend) => {
+          const saved = savedBackends.get(backend.id);
+          const submitted = submittedBackends.get(backend.id);
+          if (!saved) return backend;
+          const savedSubmittedToken = !!submitted?.apiToken && backend.apiToken === submitted.apiToken;
+          const nextBackend = {
+            ...backend,
+            apiToken: savedSubmittedToken ? '' : backend.apiToken,
+            apiTokenSet: !!saved.apiTokenSet,
+          };
+          if (nextBackend.apiToken !== backend.apiToken || nextBackend.apiTokenSet !== backend.apiTokenSet) {
+            nestedTokenStateChanged = true;
+          }
+          return nextBackend;
+        });
         // Do not create a new state object when a normal save returns. Doing
         // so restarts the autosave effect and repeatedly re-saves unchanged
         // settings until the request rate limit is reached.
-        if (!current.AI_ApiToken && current.AI_ApiTokenSet === !!data.AI_ApiTokenSet) {
+        if (!nestedTokenStateChanged && !current.AI_ApiToken && current.AI_ApiTokenSet === !!data.AI_ApiTokenSet) {
           return current;
         }
         skipNextAutoSaveRef.current = true;
-        return {
+        const updated = {
           ...current,
+          AI_Backends,
           AI_ApiToken: '',
           AI_ApiTokenSet: !!data.AI_ApiTokenSet,
         };
+        settingsRef.current = updated;
+        return updated;
       });
       setStatus('success');
     } catch (err) {
@@ -2481,7 +2502,7 @@ function AiHelperTab() {
       <Box sx={{ pointerEvents: settings.AI_Enabled ? 'auto' : 'none', opacity: settings.AI_Enabled ? 1 : 0.55 }}>
         <AiBackendManager
           backends={settings.AI_Backends}
-          onChange={(AI_Backends) => updateSettings((s) => ({ ...s, AI_Backends }))}
+          onChange={(AI_Backends, options) => updateSettings((s) => ({ ...s, AI_Backends }), options)}
           defaultBackendId={settings.AI_DefaultBackendId}
           defaultModelId={settings.AI_DefaultModelId}
           onDefaultChange={(AI_DefaultBackendId, AI_DefaultModelId) => updateSettings((s) => ({ ...s, AI_DefaultBackendId, AI_DefaultModelId }))}

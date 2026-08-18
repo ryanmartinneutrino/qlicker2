@@ -31,6 +31,16 @@ describe('AiBackendManager', () => {
     expect(onDefaultChange).toHaveBeenCalledWith('backend-1', 'model-1');
   });
 
+  it('requests an immediate save when an API token field loses focus', () => {
+    const onChange = vi.fn();
+    const backends = [{ id: 'backend-1', url: 'http://ollama.test:11434', apiToken: 'secret', models: [] }];
+    render(<AiBackendManager backends={backends} onChange={onChange} onDefaultChange={vi.fn()} />);
+
+    fireEvent.blur(screen.getByLabelText('API token (optional)'));
+
+    expect(onChange).toHaveBeenCalledWith(backends, { saveImmediately: true });
+  });
+
   it('shows only approved course models initially and controls student access separately', () => {
     const onModelPoliciesChange = vi.fn();
     render(<AiBackendManager

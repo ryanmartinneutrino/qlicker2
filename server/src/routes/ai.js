@@ -167,8 +167,15 @@ export default async function aiRoutes(app) {
     if (candidate.aiDefaultBackendId || candidate.aiDefaultModelId || candidate.aiSelectedBackendId || candidate.aiSelectedModelId) {
       if (!resolveModel(candidate, settings, policy)) return reply.code(400).send({ error: 'Bad Request', message: 'Choose an approved AI backend and model' });
     }
-    await Course.findByIdAndUpdate(course._id, { $set: updates });
-    return { success: true };
+    const updatedCourse = await Course.findByIdAndUpdate(
+      course._id,
+      { $set: updates },
+      { returnDocument: 'after' }
+    ).lean();
+    return {
+      success: true,
+      courseBackends: policy.allowCourseBackend ? serializeAiBackends(updatedCourse.aiBackends || []) : [],
+    };
   });
 
   app.get('/courses/:courseId/conversations', { preHandler: authenticate, rateLimit: READ_LIMIT }, async (request, reply) => {

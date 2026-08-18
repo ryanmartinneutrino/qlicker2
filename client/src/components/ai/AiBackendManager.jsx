@@ -27,9 +27,13 @@ export default function AiBackendManager({
   const [expandedModels, setExpandedModels] = useState({});
   const [error, setError] = useState('');
 
-  const updateBackend = (backendId, update) => onChange(backends.map((backend) => (
-    backend.id === backendId ? { ...backend, ...update } : backend
-  )));
+  const updateBackend = (backendId, update, options) => {
+    const nextBackends = backends.map((backend) => (
+      backend.id === backendId ? { ...backend, ...update } : backend
+    ));
+    if (options) onChange(nextBackends, options);
+    else onChange(nextBackends);
+  };
   const policyFor = (backendId, modelId) => modelPolicies.find((entry) => (
     entry.backendId === backendId && entry.modelId === modelId
   ));
@@ -84,7 +88,7 @@ export default function AiBackendManager({
           </Box>
           <Box sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap' }}>
             <TextField size="small" label={t('ai.backends.url')} value={backend.url || ''} onChange={(event) => updateBackend(backend.id, { url: event.target.value })} placeholder="http://localhost:11434" sx={{ flex: 1, minWidth: 260 }} />
-            <TextField size="small" type="password" label={t('ai.backends.apiToken')} value={backend.apiToken || ''} onChange={(event) => updateBackend(backend.id, { apiToken: event.target.value })} placeholder={backend.apiTokenSet ? t('ai.backends.tokenConfigured') : ''} sx={{ flex: 1, minWidth: 220 }} />
+            <TextField size="small" type="password" label={t('ai.backends.apiToken')} value={backend.apiToken || ''} onChange={(event) => updateBackend(backend.id, { apiToken: event.target.value })} onBlur={() => { if (backend.apiToken) onChange(backends, { saveImmediately: true }); }} placeholder={backend.apiTokenSet ? t('ai.backends.tokenConfigured') : ''} sx={{ flex: 1, minWidth: 220 }} />
             <Button variant="outlined" startIcon={<DiscoverIcon />} disabled={!backend.url || backend.type !== 'ollama' || discovering[backend.id]} onClick={() => discover(backend)}>{t('ai.backends.discoverModels')}</Button>
           </Box>
         </> : null}

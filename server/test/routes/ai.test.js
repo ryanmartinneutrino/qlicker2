@@ -76,6 +76,43 @@ describe('AI course configuration and chat', () => {
     ]);
   });
 
+  it('persists professor-managed backend tokens across masked saves and an app restart', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const professor = await createTestUser({ email: 'ai-token-prof@example.com', roles: ['professor'] });
+    const token = await getAuthToken(app, professor);
+    const course = await createCourse(token);
+    await configureAi(course._id);
+    await Settings.findByIdAndUpdate('settings', { $addToSet: { AI_AllowCourseBackendCourses: course._id } });
+    const backend = {
+      id: 'course-ollama',
+      name: 'Course Ollama',
+      type: 'ollama',
+      url: 'http://course-ollama.test:11434',
+      apiToken: 'persistent-course-token',
+      models: [{ id: 'course-model', name: 'course-model', available: true }],
+    };
+
+    const saved = await authenticatedRequest(app, 'PATCH', `/api/v1/ai/courses/${course._id}/config`, {
+      token,
+      payload: { backends: [backend] },
+    });
+    expect(saved.statusCode).toBe(200);
+    expect(saved.json().courseBackends[0]).toMatchObject({ apiToken: '', apiTokenSet: true });
+
+    const maskedRoundTrip = await authenticatedRequest(app, 'PATCH', `/api/v1/ai/courses/${course._id}/config`, {
+      token,
+      payload: { backends: saved.json().courseBackends },
+    });
+    expect(maskedRoundTrip.statusCode).toBe(200);
+    expect((await Course.findById(course._id).lean()).aiBackends[0].apiToken).toBe('persistent-course-token');
+
+    await app.close();
+    app = await createApp();
+    const reloaded = await authenticatedRequest(app, 'GET', `/api/v1/ai/courses/${course._id}/config`, { token });
+    expect(reloaded.json().courseBackends[0]).toMatchObject({ apiToken: '', apiTokenSet: true });
+    expect((await Course.findById(course._id).lean()).aiBackends[0].apiToken).toBe('persistent-course-token');
+  });
+
   it('stores a private conversation and proxies an Ollama reply', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
     const professor = await createTestUser({ email: 'ai-chat-prof@example.com', roles: ['professor'] });

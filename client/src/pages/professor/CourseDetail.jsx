@@ -1118,7 +1118,24 @@ export default function CourseDetail() {
     aiConfigUpdatesRef.current = {};
     aiConfigSaveInFlightRef.current = true;
     try {
-      await apiClient.patch(`/ai/courses/${id}/config`, updates);
+      const { data } = await apiClient.patch(`/ai/courses/${id}/config`, updates);
+      if (Array.isArray(data?.courseBackends)) {
+        const savedById = new Map(data.courseBackends.map((backend) => [backend.id, backend]));
+        const submittedById = new Map((updates.backends || []).map((backend) => [backend.id, backend]));
+        setAiConfig((current) => current ? {
+          ...current,
+          courseBackends: (current.courseBackends || []).map((backend) => {
+            const saved = savedById.get(backend.id);
+            const submitted = submittedById.get(backend.id);
+            const savedSubmittedToken = !!submitted?.apiToken && backend.apiToken === submitted.apiToken;
+            return saved ? {
+              ...backend,
+              apiToken: savedSubmittedToken ? '' : backend.apiToken,
+              apiTokenSet: !!saved.apiTokenSet,
+            } : backend;
+          }),
+        } : current);
+      }
       setSettingsAutoSaveStatus('success');
     } catch (err) {
       markSettingAutoSaveError(err, t('professor.course.failedUpdateSetting'));
@@ -1131,25 +1148,30 @@ export default function CourseDetail() {
     }
   }, [id, t]);
 
-  const handleAiConfigChange = (updates, localUpdates = updates) => {
+  const handleAiConfigChange = (updates, localUpdates = updates, { saveImmediately = false } = {}) => {
     setAiConfig((current) => (current ? { ...current, ...localUpdates } : current));
     aiConfigUpdatesRef.current = { ...aiConfigUpdatesRef.current, ...updates };
     clearTimeout(aiConfigSaveTimerRef.current);
     markSettingAutoSaveInProgress();
+    if (saveImmediately) {
+      aiConfigSaveTimerRef.current = null;
+      void flushAiConfigChanges();
+      return;
+    }
     aiConfigSaveTimerRef.current = setTimeout(() => {
       aiConfigSaveTimerRef.current = null;
       flushAiConfigChanges();
     }, 500);
   };
 
-  const handleAiBackendChange = (field, value) => {
+  const handleAiBackendChange = (field, value, options = {}) => {
     if (field === 'backends' && hasIncompleteAiBackend(value)) {
       const { backends, ...pendingUpdates } = aiConfigUpdatesRef.current;
       aiConfigUpdatesRef.current = pendingUpdates;
       if (Object.keys(pendingUpdates).length === 0) setSettingsAutoSaveStatus('idle');
       return;
     }
-    handleAiConfigChange({ [field]: value });
+    handleAiConfigChange({ [field]: value }, { courseBackends: value }, options);
   };
 
   const handleAiCourseDefaultChange = (defaultBackendId, defaultModelId) => {
@@ -2067,7 +2089,7 @@ export default function CourseDetail() {
                   backends={aiConfig.courseBackends}
                   courseId={id}
                   canAddBackends
-                  onChange={(backends) => { setAiConfig((current) => ({ ...current, courseBackends: backends })); handleAiBackendChange('backends', backends); }}
+                  onChange={(backends, options) => { setAiConfig((current) => ({ ...current, courseBackends: backends })); handleAiBackendChange('backends', backends, options); }}
                   defaultBackendId={aiConfig.defaultBackendId}
                   defaultModelId={aiConfig.defaultModelId}
                   onDefaultChange={handleAiCourseDefaultChange}

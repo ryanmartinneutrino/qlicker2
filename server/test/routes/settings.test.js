@@ -233,6 +233,39 @@ describe('settings secret masking (write-only secrets)', () => {
     expect(JSON.stringify(response.json())).not.toContain('nested-ai-secret');
   });
 
+  it('persists nested AI backend tokens across masked saves and an app restart', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const token = await createAdminToken('admin-nested-ai-persist@example.com');
+    const backend = {
+      id: 'secured-ollama',
+      name: 'Secured Ollama',
+      type: 'ollama',
+      url: 'http://ollama.test:11434',
+      apiToken: 'persistent-admin-token',
+      models: [{ id: 'llama3', name: 'llama3', available: true }],
+    };
+
+    const saved = await authenticatedRequest(app, 'PATCH', '/api/v1/settings', {
+      token,
+      payload: { AI_Backends: [backend] },
+    });
+    expect(saved.statusCode).toBe(200);
+    expect(saved.json().AI_Backends[0]).toMatchObject({ apiToken: '', apiTokenSet: true });
+
+    const maskedRoundTrip = await authenticatedRequest(app, 'PATCH', '/api/v1/settings', {
+      token,
+      payload: { AI_Backends: saved.json().AI_Backends },
+    });
+    expect(maskedRoundTrip.statusCode).toBe(200);
+    expect((await Settings.findById('settings').lean()).AI_Backends[0].apiToken).toBe('persistent-admin-token');
+
+    await app.close();
+    app = await createApp();
+    const reloaded = await authenticatedRequest(app, 'GET', '/api/v1/settings', { token });
+    expect(reloaded.json().AI_Backends[0]).toMatchObject({ apiToken: '', apiTokenSet: true });
+    expect((await Settings.findById('settings').lean()).AI_Backends[0].apiToken).toBe('persistent-admin-token');
+  });
+
   it('reports unset secrets with false flags', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
 
