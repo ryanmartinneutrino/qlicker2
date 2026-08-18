@@ -1012,4 +1012,32 @@ describe('SessionQuestionGradingPanel', () => {
       expect(screen.getByText('/ 5')).toBeInTheDocument();
     });
   });
+
+  it('does not let an AI progress refresh supersede the initial grade load', async () => {
+    const initialGrades = createDeferred();
+    apiClient.get.mockImplementation((url) => {
+      if (url === '/sessions/session-1/grades') return initialGrades.promise;
+      if (url.includes('/ai/courses/course-1/')) {
+        return Promise.resolve({ data: { job: { status: 'running', completed: 1, total: 2 } } });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    render(
+      <SessionQuestionGradingPanel
+        courseId="course-1"
+        sessionId="session-1"
+        session={{ _id: 'session-1', quiz: false, practiceQuiz: false }}
+        questions={[{ _id: 'q-manual', type: 2, content: '<p>Explain</p>', sessionOptions: { points: 5 } }]}
+        studentResults={[{ studentId: 'student-a', firstname: 'Ada', lastname: 'Lovelace', inSession: true }]}
+      />
+    );
+
+    await waitFor(() => expect(apiClient.get).toHaveBeenCalledWith('/ai/courses/course-1/sessions/session-1/ai-grading'));
+    expect(apiClient.get.mock.calls.filter(([url]) => url === '/sessions/session-1/grades')).toHaveLength(1);
+
+    initialGrades.resolve({ data: { grades: [{ _id: 'grade-1', userId: 'student-a', marks: [{ questionId: 'q-manual', points: 2, outOf: 5 }] }] } });
+    await screen.findByText('Ada Lovelace');
+    expect(screen.getByDisplayValue('2')).toBeInTheDocument();
+  });
 });

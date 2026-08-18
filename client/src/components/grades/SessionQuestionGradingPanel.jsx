@@ -686,6 +686,7 @@ export default function SessionQuestionGradingPanel({
   const [speedGradingRowsSnapshot, setSpeedGradingRowsSnapshot] = useState([]);
   const latestGradesSessionRef = useRef(sessionId);
   const latestGradesRequestRef = useRef(0);
+  const gradesLoadedRef = useRef(false);
   const lastDraftQuestionIdRef = useRef('');
   const previousAiGradingStatusRef = useRef('');
   const previousAiGradingCompletedRef = useRef(0);
@@ -693,6 +694,7 @@ export default function SessionQuestionGradingPanel({
   useEffect(() => {
     latestGradesSessionRef.current = sessionId;
     latestGradesRequestRef.current += 1;
+    gradesLoadedRef.current = false;
     setGradesByStudentId({});
     setDraftByStudentId({});
     setEditedStudentIds({});
@@ -703,6 +705,7 @@ export default function SessionQuestionGradingPanel({
   }, [sessionId]);
 
   const fetchSessionGrades = useCallback(async ({ background = false } = {}) => {
+    if (background && !gradesLoadedRef.current) return;
     const requestId = latestGradesRequestRef.current + 1;
     latestGradesRequestRef.current = requestId;
     const requestSessionId = sessionId;
@@ -722,6 +725,7 @@ export default function SessionQuestionGradingPanel({
       (data?.grades || []).forEach((grade) => {
         next[String(grade.userId)] = grade;
       });
+      gradesLoadedRef.current = true;
       setGradesByStudentId(next);
     } catch (err) {
       if (
