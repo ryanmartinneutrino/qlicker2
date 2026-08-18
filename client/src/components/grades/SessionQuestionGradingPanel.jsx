@@ -688,6 +688,7 @@ export default function SessionQuestionGradingPanel({
   const latestGradesRequestRef = useRef(0);
   const lastDraftQuestionIdRef = useRef('');
   const previousAiGradingStatusRef = useRef('');
+  const previousAiGradingCompletedRef = useRef(0);
 
   useEffect(() => {
     latestGradesSessionRef.current = sessionId;
@@ -698,14 +699,17 @@ export default function SessionQuestionGradingPanel({
     setSavingByStudentId({});
     setSelectedStudentIds({});
     previousAiGradingStatusRef.current = '';
+    previousAiGradingCompletedRef.current = 0;
   }, [sessionId]);
 
-  const fetchSessionGrades = useCallback(async () => {
+  const fetchSessionGrades = useCallback(async ({ background = false } = {}) => {
     const requestId = latestGradesRequestRef.current + 1;
     latestGradesRequestRef.current = requestId;
     const requestSessionId = sessionId;
-    setLoading(true);
-    setError('');
+    if (!background) {
+      setLoading(true);
+      setError('');
+    }
     try {
       const { data } = await apiClient.get(`/sessions/${sessionId}/grades`);
       if (
@@ -726,7 +730,7 @@ export default function SessionQuestionGradingPanel({
       ) {
         return;
       }
-      setError(err.response?.data?.message || t('grades.questionPanel.failedLoadGrades'));
+      if (!background) setError(err.response?.data?.message || t('grades.questionPanel.failedLoadGrades'));
     } finally {
       if (
         latestGradesSessionRef.current !== requestSessionId
@@ -734,7 +738,7 @@ export default function SessionQuestionGradingPanel({
       ) {
         return;
       }
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   }, [sessionId, t]);
 
@@ -829,10 +833,16 @@ export default function SessionQuestionGradingPanel({
         if (!mounted) return;
         const job = data.job || null;
         const previousStatus = previousAiGradingStatusRef.current;
+        const previousCompleted = previousAiGradingCompletedRef.current;
+        const completed = Number(job?.completed) || 0;
         previousAiGradingStatusRef.current = job?.status || '';
+        previousAiGradingCompletedRef.current = completed;
         setAiGradingJob(job ? { ...job, sessionLog: data.log || null } : null);
+        if (['queued', 'running'].includes(job?.status) && completed > previousCompleted) {
+          fetchSessionGrades({ background: true });
+        }
         if (job?.status === 'completed' && previousStatus !== 'completed') {
-          fetchSessionGrades();
+          fetchSessionGrades({ background: true });
           onSessionDataRefresh?.();
         }
       })
@@ -1647,7 +1657,7 @@ export default function SessionQuestionGradingPanel({
       {renderQuestionRibbon()}
       <Divider sx={{ mb: 1.5 }} />
 
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+      <Paper variant="outlined" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, p: 1.25, bgcolor: 'action.hover', borderColor: 'primary.light', flexWrap: 'wrap' }}>
         {['queued', 'running'].includes(aiGradingJob?.status) ? (
           <Box sx={{ minWidth: 320, flex: 1 }}><Typography variant="body2" sx={{ mb: 0.5 }}>{t('grades.aiGrading.inProgress', { student: aiGradingJob.currentStudent || 0, students: aiGradingJob.studentTotal || 0, question: aiGradingJob.currentQuestion || 0, questions: aiGradingJob.questionTotal || 0 })}</Typography><LinearProgress variant="determinate" value={aiGradingJob.total ? Math.round((aiGradingJob.completed || 0) / aiGradingJob.total * 100) : 0} /></Box>
         ) : (
@@ -1657,7 +1667,7 @@ export default function SessionQuestionGradingPanel({
         )}
         {['completed', 'failed'].includes(aiGradingJob?.status) ? <Button variant="outlined" onClick={() => setAiGradingReportOpen(true)}>{t('grades.aiGrading.report')}</Button> : null}
         {aiGradingJob?.status === 'failed' ? <Alert severity="warning" sx={{ py: 0 }}>{t('grades.aiGrading.failedReportNotice')}</Alert> : null}
-      </Box>
+      </Paper>
 
       <Paper variant="outlined" sx={{ p: 1.25, mb: 1.5 }}>
         <Typography variant="subtitle2" sx={{ mb: 1 }}>
