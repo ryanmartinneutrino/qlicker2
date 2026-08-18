@@ -236,11 +236,7 @@ export default async function aiRoutes(app) {
 
   app.get('/courses/:courseId/sessions/:sessionId/ai-grading-rubric', { preHandler: authenticate }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
-    let rubric = await AiSessionRubric.findOne({ courseId: course._id, sessionId: request.params.sessionId }).lean();
-    if (!rubric) {
-      const previousJob = await AiGradingJob.findOne({ courseId: course._id, sessionId: request.params.sessionId }).sort({ createdAt: -1 }).lean();
-      if (previousJob) rubric = { questionIds: previousJob.questionIds || [], instructions: previousJob.instructions || {} };
-    }
+    const rubric = await AiSessionRubric.findOne({ courseId: course._id, sessionId: request.params.sessionId }).lean();
     return { rubric };
   });
 
