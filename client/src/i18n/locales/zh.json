@@ -617,7 +617,6 @@
       "settings": "课程设置",
       "aiModel": "AI 模型",
       "aiDefaultModel": "默认模型",
-      "aiModelAccessHelp": "选择本课程获准使用的模型。除非为某项任务选择其他获准模型，否则将使用默认模型。",
       "groups": "分组",
       "addStudent": "添加学生",
       "addInstructor": "添加教师",

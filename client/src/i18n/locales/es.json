@@ -617,7 +617,6 @@
       "settings": "Configuración del curso",
       "aiModel": "Modelo de IA",
       "aiDefaultModel": "Modelo predeterminado",
-      "aiModelAccessHelp": "Selecciona los modelos aprobados para este curso. Se usa el modelo predeterminado salvo que se elija otro modelo aprobado para una tarea.",
       "groups": "Grupos",
       "addStudent": "Agregar estudiante",
       "addInstructor": "Agregar instructor",

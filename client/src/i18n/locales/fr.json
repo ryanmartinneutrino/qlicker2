@@ -617,7 +617,6 @@
       "settings": "Paramètres du cours",
       "aiModel": "Modèle d’IA",
       "aiDefaultModel": "Modèle par défaut",
-      "aiModelAccessHelp": "Sélectionnez les modèles autorisés pour ce cours. Le modèle par défaut est utilisé sauf si un autre modèle autorisé est choisi pour une tâche.",
       "groups": "Groupes",
       "addStudent": "Ajouter un étudiant",
       "addInstructor": "Ajouter un enseignant",

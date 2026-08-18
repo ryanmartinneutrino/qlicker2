@@ -2061,18 +2061,6 @@ export default function CourseDetail() {
               }} fullWidth>
                 {getApprovedCourseAiModels(aiConfig).map(({ backend, model }) => <MenuItem key={`${backend.id}-${model.id}`} value={`${backend.id}::${model.id}`}>{`${backend.name || backend.url} — ${model.name}`}</MenuItem>)}
               </TextField>
-              <Typography variant="body2" color="text.secondary">{t('professor.course.aiModelAccessHelp')}</Typography>
-              <AiBackendManager
-                backends={aiConfig.adminBackends}
-                courseId={id}
-                canAddBackends={false}
-                readOnly
-                onChange={() => {}}
-                defaultBackendId={aiConfig.defaultBackendId}
-                defaultModelId={aiConfig.defaultModelId}
-                modelPolicies={aiConfig.modelPolicies}
-                onModelPoliciesChange={handleAiModelPoliciesChange}
-              />
               {aiCoursePolicy.allowCourseBackend ? <>
                 <Typography variant="body2" color="text.secondary">{t('professor.course.aiBackendHelp')}</Typography>
                 <AiBackendManager
@@ -2086,7 +2074,20 @@ export default function CourseDetail() {
                   modelPolicies={aiConfig.modelPolicies}
                   onModelPoliciesChange={handleAiModelPoliciesChange}
                 />
-              </> : <Alert severity="info">{t('professor.course.aiAdminBackendOnly')}</Alert>}
+              </> : <>
+                <AiBackendManager
+                  backends={aiConfig.adminBackends}
+                  courseId={id}
+                  canAddBackends={false}
+                  readOnly
+                  onChange={() => {}}
+                  defaultBackendId={aiConfig.defaultBackendId}
+                  defaultModelId={aiConfig.defaultModelId}
+                  modelPolicies={aiConfig.modelPolicies}
+                  onModelPoliciesChange={handleAiModelPoliciesChange}
+                />
+                <Alert severity="info">{t('professor.course.aiAdminBackendOnly')}</Alert>
+              </>}
             </>}
           </Box>
         </TabPanel>

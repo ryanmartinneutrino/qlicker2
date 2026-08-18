@@ -617,7 +617,6 @@
       "settings": "Ship Settings",
       "aiModel": "AI Model",
       "aiDefaultModel": "Default model",
-      "aiModelAccessHelp": "Choose the models approved aboard this course. The default sails unless another approved model is picked for a task.",
       "groups": "Watches",
       "addStudent": "Add Crew member",
       "addInstructor": "Add Officer",

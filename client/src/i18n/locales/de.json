@@ -617,7 +617,6 @@
       "settings": "Kurseinstellungen",
       "aiModel": "KI-Modell",
       "aiDefaultModel": "Standardmodell",
-      "aiModelAccessHelp": "Wählen Sie die für diesen Kurs zugelassenen Modelle. Das Standardmodell wird verwendet, sofern für eine Aufgabe kein anderes zugelassenes Modell gewählt wird.",
       "groups": "Gruppen",
       "addStudent": "Studierende hinzufügen",
       "addInstructor": "Dozenten hinzufügen",
