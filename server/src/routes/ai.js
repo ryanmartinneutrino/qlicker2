@@ -296,6 +296,22 @@ export default async function aiRoutes(app) {
     return { conversation: serializeConversation(conversation, true) };
   });
 
+  app.delete('/courses/:courseId/conversations/:conversationId/pending-error', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
+    const course = await instructorCourse(request, reply); if (!course) return undefined;
+    let conversation = await AiConversation.findOne({ _id: request.params.conversationId, courseId: course._id, ownerId: request.user.userId }).lean();
+    if (!conversation) return reply.code(404).send({ error: 'Not Found', message: 'AI conversation not found' });
+    conversation = await recoverOrphanedConversation(conversation);
+    if (!conversation.pending && conversation.pendingError) {
+      const cleared = await AiConversation.findOneAndUpdate(
+        { _id: conversation._id, pending: false },
+        { $set: { pendingError: '' } },
+        { returnDocument: 'after' }
+      ).lean();
+      conversation = cleared || await AiConversation.findById(conversation._id).lean();
+    }
+    return { conversation: serializeConversation(conversation, true) };
+  });
+
   app.delete('/courses/:courseId/conversations/:conversationId', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
     stopAiCourseChat(request.params.conversationId);

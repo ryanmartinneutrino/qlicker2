@@ -287,6 +287,16 @@ describe('AI course configuration and chat', () => {
       pendingError: 'The previous AI request did not complete. You can send another message.',
     });
     expect(await AiConversation.findById(conversation._id).lean()).toMatchObject({ pending: false, pendingMessageId: '' });
+
+    const cleared = await authenticatedRequest(
+      app,
+      'DELETE',
+      `/api/v1/ai/courses/${course._id}/conversations/${conversation._id}/pending-error`,
+      { token }
+    );
+    expect(cleared.statusCode).toBe(200);
+    expect(cleared.json().conversation.pendingError).toBe('');
+    expect((await AiConversation.findById(conversation._id).lean()).pendingError).toBe('');
   });
 
   it('does not give a professor who is only a student in this course AI privileges', async (ctx) => {

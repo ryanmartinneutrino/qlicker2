@@ -38,9 +38,12 @@ export default function AiCourseChat({ courseId }) {
     setConversations((current) => [conversation, ...current.filter((item) => item._id !== conversation._id)]);
   }, []);
 
-  const loadConversation = useCallback(async (id, { silent = false } = {}) => {
+  const loadConversation = useCallback(async (id, { silent = false, clearPendingError = false } = {}) => {
     try {
-      const { data } = await apiClient.get(`/ai/courses/${courseId}/conversations/${id}`);
+      const endpoint = `/ai/courses/${courseId}/conversations/${id}`;
+      const { data } = clearPendingError
+        ? await apiClient.delete(`${endpoint}/pending-error`)
+        : await apiClient.get(endpoint);
       updateConversation(data.conversation);
       if (!silent) setError('');
       return data.conversation;
@@ -56,7 +59,12 @@ export default function AiCourseChat({ courseId }) {
       const { data } = await apiClient.get(`/ai/courses/${courseId}/conversations`);
       const nextConversations = data.conversations || [];
       setConversations(nextConversations);
-      if (nextConversations[0]) await loadConversation(nextConversations[0]._id, { silent: true });
+      if (nextConversations[0]) {
+        await loadConversation(nextConversations[0]._id, {
+          silent: true,
+          clearPendingError: !!nextConversations[0].pendingError && !nextConversations[0].pending,
+        });
+      }
     } catch (err) {
       setError(err.response?.data?.message || t('ai.chat.failedLoad'));
     } finally {
@@ -160,7 +168,7 @@ export default function AiCourseChat({ courseId }) {
     <Paper variant="outlined" sx={{ p: 1 }}>
       <Button fullWidth startIcon={<AddIcon />} variant="outlined" onClick={createConversation} disabled={isThinking}>{t('ai.chat.newConversation')}</Button>
       {loading ? <Box sx={{ p: 2, textAlign: 'center' }}><CircularProgress size={22} /></Box> : <List dense>
-        {conversations.length ? conversations.map((conversation) => <ListItemButton key={conversation._id} selected={selected?._id === conversation._id} onClick={() => loadConversation(conversation._id)} disabled={isThinking}>
+        {conversations.length ? conversations.map((conversation) => <ListItemButton key={conversation._id} selected={selected?._id === conversation._id} onClick={() => loadConversation(conversation._id, { clearPendingError: !!conversation.pendingError && !conversation.pending })} disabled={isThinking}>
           <ListItemText primary={conversation.title || t('ai.chat.newConversation')} secondary={formatMessageTime(conversation.updatedAt)} />
           <IconButton size="small" aria-label={t('ai.chat.deleteConversation')} disabled={isThinking} onClick={(event) => { event.stopPropagation(); deleteConversation(conversation._id); }}><DeleteIcon fontSize="small" /></IconButton>
         </ListItemButton>) : <Typography variant="body2" color="text.secondary" sx={{ p: 1 }}>{t('ai.chat.noConversations')}</Typography>}
@@ -168,7 +176,7 @@ export default function AiCourseChat({ courseId }) {
     </Paper>
     <Paper variant="outlined" sx={{ p: 1.5, display: 'flex', flexDirection: 'column', minHeight: 520 }}>
       {error ? <Alert severity="error" sx={{ mb: 1 }} onClose={() => setError('')}>{error}</Alert> : null}
-      {selected?.pendingError ? <Alert severity="warning" sx={{ mb: 1 }}>{selected.pendingError}</Alert> : null}
+      {selected?.pendingError ? <Alert severity="warning" sx={{ mb: 1 }} onClose={() => loadConversation(selected._id, { silent: true, clearPendingError: true })}>{selected.pendingError}</Alert> : null}
       <Box sx={{ mb: 1.5 }}><AiModelSelect courseId={courseId} value={selectedModel} onChange={setSelectedModel} disabled={isThinking} /></Box>
       <Box sx={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 1.25, mb: 1.5 }} aria-live="polite">
         {!selected && !pendingMessage ? <Typography color="text.secondary">{t('ai.chat.selectConversation')}</Typography> : messages.length === 0 && !pendingMessage ? <Alert severity="info" sx={{ alignSelf: 'stretch' }}>{t('ai.chat.newConversationGuidance')}</Alert> : messages.map((message) => <Paper key={message._id} variant="outlined" sx={{ p: 1.25, alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%', bgcolor: message.role === 'user' ? 'action.hover' : 'background.paper' }}>
