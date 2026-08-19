@@ -1080,7 +1080,12 @@
       "summaryInstructions": "Summary instructions",
       "basicSummaryHelp": "Basic summary identifies up to five response themes and example quotations.",
       "aiSummaryInProgress": "Подготовка ответов: {{completed}} из {{total}}",
-      "aiSummaryGenerating": "Создание сводки ИИ…"
+      "aiSummaryGenerating": "Создание сводки ИИ…",
+      "haltAiResponseSummary": "Остановить сводку",
+      "haltingAiResponseSummary": "Остановка…",
+      "aiSummaryHalted": "Сводка ИИ остановлена. Её можно создать снова.",
+      "aiSummaryFailed": "Не удалось создать сводку ИИ. {{error}}",
+      "aiSummaryHaltFailed": "Не удалось остановить сводку ИИ."
     },
     "secondDesktop": {
       "joinCode": "Код присоединения",

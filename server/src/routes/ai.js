@@ -8,9 +8,13 @@ import Session from '../models/Session.js';
 import { getOrCreateSettingsDocument } from '../utils/settingsSingleton.js';
 import { isCourseInstructorOrAdmin } from '../utils/courseAccess.js';
 import { discoverOllamaModels, discoverOpenAiModels, normalizeAiBackends, serializeAiBackends } from '../services/ai.js';
-import { queueAiCourseChat, stopAiCourseChat } from '../services/aiChatJobRunner.js';
+import { isAiCourseChatActive, queueAiCourseChat, stopAiCourseChat } from '../services/aiChatJobRunner.js';
 import { haltAiGradingJob, runAiGradingJob } from '../services/aiGradingRunner.js';
-import { runAiResponseSummary } from '../services/aiResponseSummaryRunner.js';
+import {
+  haltAiResponseSummary,
+  isAiResponseSummaryActive,
+  queueAiResponseSummary,
+} from '../services/aiResponseSummaryRunner.js';
 import { notifyCourseChatUpdated } from './courseChat.js';
 
 const READ_LIMIT = { max: 60, timeWindow: '1 minute' };
@@ -101,6 +105,34 @@ function serializeConversation(doc, includeMessages = false) {
     createdAt: doc.createdAt || null, updatedAt: doc.updatedAt || null,
     ...(includeMessages ? { messages: doc.messages || [] } : {}),
   };
+}
+
+async function recoverOrphanedConversation(conversation) {
+  if (!conversation?.pending || isAiCourseChatActive(conversation._id)) return conversation;
+  return AiConversation.findOneAndUpdate(
+    { _id: conversation._id, pending: true },
+    { $set: {
+      pending: false,
+      pendingMessageId: '',
+      pendingError: 'The previous AI request did not complete. You can send another message.',
+      updatedAt: new Date(),
+    } },
+    { returnDocument: 'after' }
+  ).lean();
+}
+
+async function recoverOrphanedResponseSummary(summary) {
+  if (!summary || !['queued', 'running'].includes(summary.status) || isAiResponseSummaryActive(summary._id)) return summary;
+  return AiResponseSummary.findOneAndUpdate(
+    { _id: summary._id, status: { $in: ['queued', 'running'] } },
+    { $set: {
+      status: 'failed',
+      phase: 'failed',
+      error: 'The previous AI summary process did not complete. You can generate it again.',
+      updatedAt: new Date(),
+    } },
+    { returnDocument: 'after' }
+  ).lean();
 }
 
 export default async function aiRoutes(app) {
@@ -238,8 +270,9 @@ export default async function aiRoutes(app) {
 
   app.get('/courses/:courseId/conversations/:conversationId', { preHandler: authenticate, rateLimit: READ_LIMIT }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
-    const conversation = await AiConversation.findOne({ _id: request.params.conversationId, courseId: course._id, ownerId: request.user.userId }).lean();
+    let conversation = await AiConversation.findOne({ _id: request.params.conversationId, courseId: course._id, ownerId: request.user.userId }).lean();
     if (!conversation) return reply.code(404).send({ error: 'Not Found', message: 'AI conversation not found' });
+    conversation = await recoverOrphanedConversation(conversation);
     return { conversation: serializeConversation(conversation, true) };
   });
 
@@ -414,7 +447,9 @@ export default async function aiRoutes(app) {
 
   app.get('/courses/:courseId/sessions/:sessionId/questions/:questionId/ai-summary', { preHandler: authenticate }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
-    return { summary: await AiResponseSummary.findOne({ courseId: course._id, sessionId: request.params.sessionId, questionId: request.params.questionId }).lean() };
+    let summary = await AiResponseSummary.findOne({ courseId: course._id, sessionId: request.params.sessionId, questionId: request.params.questionId }).lean();
+    summary = await recoverOrphanedResponseSummary(summary);
+    return { summary };
   });
 
   app.post('/courses/:courseId/sessions/:sessionId/questions/:questionId/ai-summary', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
@@ -440,7 +475,21 @@ export default async function aiRoutes(app) {
       } },
       { upsert: true, new: true }
     );
-    setImmediate(() => runAiResponseSummary(summary._id));
+    queueAiResponseSummary(summary._id);
     return reply.code(202).send({ summary });
+  });
+
+  app.post('/courses/:courseId/sessions/:sessionId/questions/:questionId/ai-summary/halt', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
+    const course = await instructorCourse(request, reply); if (!course) return undefined;
+    const summary = await AiResponseSummary.findOne({
+      courseId: course._id,
+      sessionId: request.params.sessionId,
+      questionId: request.params.questionId,
+      status: { $in: ['queued', 'running'] },
+    }).select('_id').lean();
+    if (!summary) return reply.code(409).send({ error: 'Conflict', message: 'No AI response summary is in progress' });
+    const halted = await haltAiResponseSummary(summary._id);
+    if (!halted) return reply.code(409).send({ error: 'Conflict', message: 'The AI response summary has already finished' });
+    return { summary: halted };
   });
 }

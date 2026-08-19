@@ -77,6 +77,50 @@ function normalizeComparableText(answer) {
     .toLowerCase();
 }
 
+function AiSummaryControls({
+  summary,
+  halting,
+  actionError,
+  onGenerate,
+  onHalt,
+  onView,
+  t,
+}) {
+  if (['queued', 'running'].includes(summary?.status)) {
+    const generating = summary?.phase === 'generating';
+    const progress = summary?.total ? (summary.completed || 0) / summary.total * 100 : 0;
+    return (
+      <Box sx={{ minWidth: 220 }}>
+        <Typography variant="caption">
+          {generating
+            ? t('professor.sessionReview.aiSummaryGenerating')
+            : t('professor.sessionReview.aiSummaryInProgress', { completed: summary?.completed || 0, total: summary?.total || 0 })}
+        </Typography>
+        <LinearProgress variant={generating ? 'indeterminate' : 'determinate'} value={generating ? undefined : progress} />
+        <Button size="small" color="error" sx={{ mt: 0.5 }} disabled={halting} onClick={onHalt}>
+          {halting ? t('professor.sessionReview.haltingAiResponseSummary') : t('professor.sessionReview.haltAiResponseSummary')}
+        </Button>
+      </Box>
+    );
+  }
+
+  const statusMessage = summary?.status === 'halted'
+    ? t('professor.sessionReview.aiSummaryHalted')
+    : summary?.status === 'failed'
+      ? t('professor.sessionReview.aiSummaryFailed', { error: summary.error || '' })
+      : '';
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
+      {statusMessage ? <Typography variant="caption" color={summary?.status === 'failed' ? 'error' : 'text.secondary'}>{statusMessage}</Typography> : null}
+      {actionError ? <Typography variant="caption" color="error">{actionError}</Typography> : null}
+      <Box sx={{ display: 'flex', gap: 1 }}>
+        {summary?.status === 'completed' ? <Button size="small" variant="outlined" onClick={onView}>{t('professor.sessionReview.viewAiResponseSummary')}</Button> : null}
+        <Button size="small" variant="outlined" onClick={onGenerate}>{t('professor.sessionReview.generateAiResponseSummary')}</Button>
+      </Box>
+    </Box>
+  );
+}
+
 function isCorrectOption(option) {
   const value = option?.correct;
   if (value === true || value === 1 || value === '1') return true;
@@ -609,6 +653,8 @@ export default function SessionReview() {
   const [summaryModel, setSummaryModel] = useState('');
   const [summaryError, setSummaryError] = useState('');
   const [summaryView, setSummaryView] = useState(null);
+  const [haltingSummaryIds, setHaltingSummaryIds] = useState({});
+  const [summaryActionErrors, setSummaryActionErrors] = useState({});
   const requestedReturnTab = Number.parseInt(searchParams.get('returnTab') || '', 10);
   const resolvedReturnTab = Number.isInteger(requestedReturnTab) && requestedReturnTab >= 0 ? requestedReturnTab : 0;
   const backToCoursePath = resolvedReturnTab > 0
@@ -703,6 +749,22 @@ export default function SessionReview() {
       setSummaryQuestion(null);
     } catch (err) {
       setSummaryError(err.response?.data?.message || t('grades.aiGrading.failedStart'));
+    }
+  };
+
+  const haltSummary = async (questionId) => {
+    setHaltingSummaryIds((current) => ({ ...current, [questionId]: true }));
+    setSummaryActionErrors((current) => ({ ...current, [questionId]: '' }));
+    try {
+      const { data } = await apiClient.post(`/ai/courses/${courseId}/sessions/${sessionId}/questions/${questionId}/ai-summary/halt`);
+      setAiSummaries((current) => ({ ...current, [questionId]: data.summary }));
+    } catch (err) {
+      setSummaryActionErrors((current) => ({
+        ...current,
+        [questionId]: err.response?.data?.message || t('professor.sessionReview.aiSummaryHaltFailed'),
+      }));
+    } finally {
+      setHaltingSummaryIds((current) => ({ ...current, [questionId]: false }));
     }
   };
 
@@ -1307,7 +1369,19 @@ export default function SessionReview() {
                       variant="outlined"
                       sx={COMPACT_CHIP_SX}
                     />
-                    {qT === QUESTION_TYPES.SHORT_ANSWER && <Box sx={{ ml: 'auto' }}>{['queued', 'running'].includes(aiSummaries[q._id]?.status) ? <Box sx={{ minWidth: 180 }}><Typography variant="caption">{aiSummaries[q._id]?.phase === 'generating' ? t('professor.sessionReview.aiSummaryGenerating') : t('professor.sessionReview.aiSummaryInProgress', { completed: aiSummaries[q._id]?.completed || 0, total: aiSummaries[q._id]?.total || 0 })}</Typography><LinearProgress variant={aiSummaries[q._id]?.phase === 'generating' ? 'indeterminate' : 'determinate'} value={aiSummaries[q._id]?.phase === 'generating' ? undefined : (aiSummaries[q._id]?.total ? (aiSummaries[q._id]?.completed || 0) / aiSummaries[q._id].total * 100 : 0)} /></Box> : aiSummaries[q._id]?.status === 'completed' ? <Box sx={{ display: 'flex', gap: 1 }}><Button size="small" variant="outlined" onClick={() => setSummaryView(aiSummaries[q._id])}>{t('professor.sessionReview.viewAiResponseSummary')}</Button><Button size="small" variant="outlined" onClick={() => setSummaryQuestion(q)}>{t('professor.sessionReview.generateAiResponseSummary')}</Button></Box> : <Button size="small" variant="outlined" onClick={() => setSummaryQuestion(q)}>{t('professor.sessionReview.generateAiResponseSummary')}</Button>}</Box>}
+                    {qT === QUESTION_TYPES.SHORT_ANSWER ? (
+                      <Box sx={{ ml: 'auto' }}>
+                        <AiSummaryControls
+                          summary={aiSummaries[q._id]}
+                          halting={!!haltingSummaryIds[q._id]}
+                          actionError={summaryActionErrors[q._id]}
+                          onGenerate={() => setSummaryQuestion(q)}
+                          onHalt={() => haltSummary(q._id)}
+                          onView={() => setSummaryView(aiSummaries[q._id])}
+                          t={t}
+                        />
+                      </Box>
+                    ) : null}
                   </Box>
 
                   {/* Question content */}

@@ -5,6 +5,12 @@ import Settings from '../models/Settings.js';
 import AiResponseSummary from '../models/AiResponseSummary.js';
 import { normalizeAiBackends, requestAiCompletion } from './ai.js';
 
+const activeSummaryJobs = new Map();
+
+export function isAiResponseSummaryActive(id) {
+  return activeSummaryJobs.has(String(id));
+}
+
 function selected(course, settings, requestedBackendId = '', requestedModelId = '') {
   const backendId = requestedBackendId
     || course.aiDefaultBackendId
@@ -27,13 +33,38 @@ function text(value) {
   return String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
-export async function runAiResponseSummary(id) {
-  const job = await AiResponseSummary.findById(id);
-  if (!job || job.status !== 'queued') return;
-  job.status = 'running';
-  job.phase = 'preparing';
-  await job.save();
+export function queueAiResponseSummary(id) {
+  const jobId = String(id);
+  if (activeSummaryJobs.has(jobId)) return;
+  const controller = new AbortController();
+  activeSummaryJobs.set(jobId, controller);
+  setImmediate(() => runAiResponseSummary(jobId, controller));
+}
+
+export async function haltAiResponseSummary(id) {
+  const jobId = String(id);
+  const job = await AiResponseSummary.findOneAndUpdate(
+    { _id: jobId, status: { $in: ['queued', 'running'] } },
+    { $set: { status: 'halted', phase: 'halted', error: '', updatedAt: new Date() } },
+    { returnDocument: 'after' }
+  );
+  if (!job) return null;
+  activeSummaryJobs.get(jobId)?.abort();
+  return job;
+}
+
+export async function runAiResponseSummary(id, suppliedController = null) {
+  const jobId = String(id);
+  const controller = suppliedController || new AbortController();
+  if (!suppliedController) activeSummaryJobs.set(jobId, controller);
+  let job = null;
   try {
+    job = await AiResponseSummary.findOneAndUpdate(
+      { _id: jobId, status: 'queued' },
+      { $set: { status: 'running', phase: 'preparing', error: '', updatedAt: new Date() } },
+      { returnDocument: 'after' }
+    );
+    if (!job) return;
     const [course, session, settings, responses] = await Promise.all([
       Course.findById(job.courseId).lean(),
       Session.findById(job.sessionId).lean(),
@@ -48,20 +79,36 @@ export async function runAiResponseSummary(id) {
         ? { ...all, [response.studentUserId]: response }
         : all;
     }, {})).filter((response) => text(response.answerWysiwyg || response.answer));
-    job.total = latest.length;
-    job.completed = latest.length;
-    job.phase = 'generating';
-    await job.save();
+    job = await AiResponseSummary.findOneAndUpdate(
+      { _id: jobId, status: 'running' },
+      { $set: { total: latest.length, completed: latest.length, phase: 'generating', updatedAt: new Date() } },
+      { returnDocument: 'after' }
+    );
+    if (!job) return;
     const joined = session.joined?.length || 0;
     const prompt = `Create a response summary. The header must state: ${joined} students joined the session; ${latest.length} entered a meaningful response. Follow these instructor instructions: ${job.instruction}. Flag inappropriate content or indications of mental-health distress. Responses:\n${latest.map((response, index) => `${index + 1}. ${text(response.answerWysiwyg || response.answer)}`).join('\n')}`;
-    job.summary = await requestAiCompletion(model.backend, model.model.id, [{ role: 'user', content: prompt }]);
-    job.status = 'completed';
-    job.phase = 'completed';
-    await job.save();
+    const summary = await requestAiCompletion(
+      model.backend,
+      model.model.id,
+      [{ role: 'user', content: prompt }],
+      controller.signal
+    );
+    await AiResponseSummary.findOneAndUpdate(
+      { _id: jobId, status: 'running' },
+      { $set: { summary, status: 'completed', phase: 'completed', error: '', updatedAt: new Date() } }
+    );
   } catch (error) {
-    job.status = 'failed';
-    job.phase = 'failed';
-    job.error = error.message || 'Summary failed';
-    await job.save();
+    const halted = controller.signal.aborted || error?.name === 'AbortError';
+    await AiResponseSummary.findOneAndUpdate(
+      { _id: jobId, status: { $in: ['queued', 'running'] } },
+      { $set: {
+        status: halted ? 'halted' : 'failed',
+        phase: halted ? 'halted' : 'failed',
+        error: halted ? '' : error.message || 'Summary failed',
+        updatedAt: new Date(),
+      } }
+    );
+  } finally {
+    if (activeSummaryJobs.get(jobId) === controller) activeSummaryJobs.delete(jobId);
   }
 }

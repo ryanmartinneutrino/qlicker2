@@ -1080,7 +1080,12 @@
       "summaryInstructions": "Summary instructions",
       "basicSummaryHelp": "Basic summary identifies up to five response themes and example quotations.",
       "aiSummaryInProgress": "Preparazione delle risposte: {{completed}} di {{total}}",
-      "aiSummaryGenerating": "Generazione del riepilogo IA…"
+      "aiSummaryGenerating": "Generazione del riepilogo IA…",
+      "haltAiResponseSummary": "Interrompi riepilogo",
+      "haltingAiResponseSummary": "Interruzione…",
+      "aiSummaryHalted": "Riepilogo IA interrotto. Puoi generarlo di nuovo.",
+      "aiSummaryFailed": "Riepilogo IA non riuscito. {{error}}",
+      "aiSummaryHaltFailed": "Impossibile interrompere il riepilogo IA."
     },
     "secondDesktop": {
       "joinCode": "Codice di accesso",

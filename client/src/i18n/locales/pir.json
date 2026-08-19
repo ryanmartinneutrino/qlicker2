@@ -1080,7 +1080,12 @@
       "summaryInstructions": "Summary instructions",
       "basicSummaryHelp": "Basic summary identifies up to five response themes and example quotations.",
       "aiSummaryInProgress": "Readyin' answers: {{completed}} o' {{total}}",
-      "aiSummaryGenerating": "AI be writin' the summary…"
+      "aiSummaryGenerating": "AI be writin' the summary…",
+      "haltAiResponseSummary": "Heave to on summary",
+      "haltingAiResponseSummary": "Heavin' to…",
+      "aiSummaryHalted": "AI summary be halted. Ye can make it anew.",
+      "aiSummaryFailed": "AI summary sank. {{error}}",
+      "aiSummaryHaltFailed": "Could not halt the AI summary."
     },
     "secondDesktop": {
       "joinCode": "Board Code",

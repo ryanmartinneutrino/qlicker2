@@ -1080,7 +1080,12 @@
       "summaryInstructions": "Summary instructions",
       "basicSummaryHelp": "Basic summary identifies up to five response themes and example quotations.",
       "aiSummaryInProgress": "正在准备回答：{{completed}} / {{total}}",
-      "aiSummaryGenerating": "正在生成 AI 摘要…"
+      "aiSummaryGenerating": "正在生成 AI 摘要…",
+      "haltAiResponseSummary": "停止摘要",
+      "haltingAiResponseSummary": "正在停止…",
+      "aiSummaryHalted": "AI 摘要已停止。您可以重新生成。",
+      "aiSummaryFailed": "AI 摘要生成失败。{{error}}",
+      "aiSummaryHaltFailed": "无法停止 AI 摘要。"
     },
     "secondDesktop": {
       "joinCode": "加入码",

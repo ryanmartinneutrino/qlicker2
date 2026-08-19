@@ -3,6 +3,10 @@ import { runAiCourseChat } from './aiChatRunner.js';
 
 const activeJobs = new Map();
 
+export function isAiCourseChatActive(conversationId) {
+  return activeJobs.has(String(conversationId));
+}
+
 function abortMessage(error) {
   return error?.name === 'AbortError' ? 'AI response stopped' : error?.message || 'AI backend request failed';
 }

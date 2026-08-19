@@ -8,6 +8,8 @@ import Settings from '../../src/models/Settings.js';
 import Grade from '../../src/models/Grade.js';
 import AiGradingJob from '../../src/models/AiGradingJob.js';
 import Post from '../../src/models/Post.js';
+import AiConversation from '../../src/models/AiConversation.js';
+import AiResponseSummary from '../../src/models/AiResponseSummary.js';
 import { getCourseGradeTable, getQuestionResponses, getSessionGradeTable } from '../../src/services/aiCourseTools.js';
 import { authenticatedRequest, createApp, createTestUser, getAuthToken } from '../helpers.js';
 
@@ -243,6 +245,34 @@ describe('AI course configuration and chat', () => {
     expect(fetch).toHaveBeenCalledWith('http://ollama.test:11434/api/chat', expect.objectContaining({ method: 'POST' }));
   });
 
+  it('unblocks an orphaned failed AI chat request when the conversation is reloaded', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const professor = await createTestUser({ email: 'ai-orphan-prof@example.com', roles: ['professor'] });
+    const token = await getAuthToken(app, professor);
+    const course = await createCourse(token);
+    const conversation = await AiConversation.create({
+      courseId: course._id,
+      ownerId: professor._id,
+      pending: true,
+      pendingMessageId: 'orphaned-message',
+      messages: [{ _id: 'orphaned-message', role: 'user', content: 'This request failed.' }],
+    });
+
+    const response = await authenticatedRequest(
+      app,
+      'GET',
+      `/api/v1/ai/courses/${course._id}/conversations/${conversation._id}`,
+      { token }
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().conversation).toMatchObject({
+      pending: false,
+      pendingError: 'The previous AI request did not complete. You can send another message.',
+    });
+    expect(await AiConversation.findById(conversation._id).lean()).toMatchObject({ pending: false, pendingMessageId: '' });
+  });
+
   it('does not give a professor who is only a student in this course AI privileges', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
     const courseProfessor = await createTestUser({ email: 'course-owner@example.com', roles: ['professor'] });
@@ -382,6 +412,60 @@ describe('AI course configuration and chat', () => {
       const updated = await authenticatedRequest(app, 'GET', `/api/v1/ai/courses/${course._id}/conversations/${conversationId}`, { token });
       expect(updated.json().conversation.messages.at(-1).content).toContain('Published the approved course chat response');
     });
+  });
+
+  it('halts an in-progress AI response summary and leaves it ready to regenerate', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const professor = await createTestUser({ email: 'ai-summary-halt-prof@example.com', roles: ['professor'] });
+    const token = await getAuthToken(app, professor);
+    const course = await createCourse(token);
+    await Course.findByIdAndUpdate(course._id, { $set: { aiEnabled: true } });
+    await configureAi(course._id);
+    const question = await Question.create({ type: 2, plainText: 'Explain recursion.', creator: professor._id, courseId: course._id });
+    const session = await Session.create({
+      name: 'Summary session',
+      courseId: course._id,
+      creator: professor._id,
+      status: 'done',
+      questions: [question._id],
+      joined: [],
+    });
+    vi.stubGlobal('fetch', vi.fn((_, options) => new Promise((_, reject) => {
+      options.signal.addEventListener('abort', () => {
+        const error = new Error('aborted');
+        error.name = 'AbortError';
+        reject(error);
+      });
+    })));
+
+    const started = await authenticatedRequest(
+      app,
+      'POST',
+      `/api/v1/ai/courses/${course._id}/sessions/${session._id}/questions/${question._id}/ai-summary`,
+      { token, payload: { instruction: 'Summarize the responses.' } }
+    );
+    expect(started.statusCode).toBe(202);
+    await vi.waitFor(async () => {
+      expect((await AiResponseSummary.findById(started.json().summary._id).lean()).phase).toBe('generating');
+    });
+
+    const halted = await authenticatedRequest(
+      app,
+      'POST',
+      `/api/v1/ai/courses/${course._id}/sessions/${session._id}/questions/${question._id}/ai-summary/halt`,
+      { token }
+    );
+
+    expect(halted.statusCode).toBe(200);
+    expect(halted.json().summary).toMatchObject({ status: 'halted', phase: 'halted' });
+    await vi.waitFor(() => expect(fetch.mock.calls[0][1].signal.aborted).toBe(true));
+    const reloaded = await authenticatedRequest(
+      app,
+      'GET',
+      `/api/v1/ai/courses/${course._id}/sessions/${session._id}/questions/${question._id}/ai-summary`,
+      { token }
+    );
+    expect(reloaded.json().summary).toMatchObject({ status: 'halted', phase: 'halted' });
   });
 
   it('stops an in-progress AI response and preserves the submitted prompt', async (ctx) => {

@@ -1080,7 +1080,12 @@
       "summaryInstructions": "Summary instructions",
       "basicSummaryHelp": "Basic summary identifies up to five response themes and example quotations.",
       "aiSummaryInProgress": "Antworten werden vorbereitet: {{completed}} von {{total}}",
-      "aiSummaryGenerating": "KI-Zusammenfassung wird erstellt…"
+      "aiSummaryGenerating": "KI-Zusammenfassung wird erstellt…",
+      "haltAiResponseSummary": "Zusammenfassung anhalten",
+      "haltingAiResponseSummary": "Wird angehalten…",
+      "aiSummaryHalted": "KI-Zusammenfassung angehalten. Sie können sie erneut erstellen.",
+      "aiSummaryFailed": "KI-Zusammenfassung fehlgeschlagen. {{error}}",
+      "aiSummaryHaltFailed": "Die KI-Zusammenfassung konnte nicht angehalten werden."
     },
     "secondDesktop": {
       "joinCode": "Beitrittscode",
