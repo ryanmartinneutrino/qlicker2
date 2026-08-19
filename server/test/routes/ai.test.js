@@ -10,7 +10,14 @@ import AiGradingJob from '../../src/models/AiGradingJob.js';
 import Post from '../../src/models/Post.js';
 import AiConversation from '../../src/models/AiConversation.js';
 import AiResponseSummary from '../../src/models/AiResponseSummary.js';
-import { getCourseGradeTable, getQuestionResponses, getSessionGradeTable } from '../../src/services/aiCourseTools.js';
+import {
+  getCourseGradeTable,
+  getQuestionResponses,
+  getSessionGradeTable,
+  getStudentReviewableSessionGrade,
+  getStudentReviewableSessionQuestions,
+  listStudentReviewableSessions,
+} from '../../src/services/aiCourseTools.js';
 import { authenticatedRequest, createApp, createTestUser, getAuthToken } from '../helpers.js';
 
 let app;
@@ -327,7 +334,7 @@ describe('AI course configuration and chat', () => {
     expect(studentConfig.statusCode).toBe(200);
   });
 
-  it('provides enrolled students an isolated, tool-free chat with only student-approved models', async (ctx) => {
+  it('provides enrolled students an isolated chat with only student-approved models and review tools', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
     const professor = await createTestUser({ email: 'student-ai-owner@example.com', roles: ['professor'] });
     const student = await createTestUser({ email: 'student-ai-user@example.com', roles: ['student'] });
@@ -394,9 +401,177 @@ describe('AI course configuration and chat', () => {
       expect(updated.pending).toBe(false);
     });
     const requestBody = JSON.parse(fetch.mock.calls[0][1].body);
-    expect(requestBody.tools).toBeUndefined();
+    expect(requestBody.tools.map((tool) => tool.function.name)).toEqual([
+      'list_reviewable_sessions',
+      'get_reviewable_session_questions',
+      'get_my_reviewable_session_grade',
+    ]);
     expect(requestBody.messages[0].content).toContain('Help students understand mechanics without inventing facts.');
-    expect(requestBody.messages[0].content).toContain('You do not have access to course data or tools.');
+    expect(requestBody.messages[0].content).toContain('only to tools that list ended sessions currently marked reviewable');
+    expect(requestBody.messages[0].content).toContain('Never claim to access a non-reviewable session');
+  });
+
+  it('limits student AI review data to ended reviewable sessions and the current student', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const professor = await createTestUser({ email: 'student-review-tools-owner@example.com', roles: ['professor'] });
+    const student = await createTestUser({ email: 'student-review-tools-user@example.com', roles: ['student'] });
+    const otherStudent = await createTestUser({ email: 'student-review-tools-other@example.com', roles: ['student'] });
+    const professorToken = await getAuthToken(app, professor);
+    const course = await createCourse(professorToken);
+    await Course.findByIdAndUpdate(course._id, { $set: { students: [student._id, otherStudent._id] } });
+
+    const reviewableQuestion = await Question.create({
+      type: 1,
+      plainText: 'Which force opposes motion?',
+      content: '<p>Which force opposes motion?</p>',
+      options: [
+        { plainText: 'Friction', content: '<p>Friction</p>', correct: true },
+        { plainText: 'Gravity', content: '<p>Gravity</p>', correct: false },
+      ],
+      solution: '<p>Friction acts opposite relative motion.</p>',
+      solution_plainText: 'Friction acts opposite relative motion.',
+      sessionOptions: { points: 2 },
+      creator: professor._id,
+      courseId: course._id,
+    });
+    const privateQuestion = await Question.create({
+      type: 1,
+      plainText: 'Private exam question',
+      options: [
+        { plainText: 'Secret answer', correct: true },
+        { plainText: 'Distractor', correct: false },
+      ],
+      solution_plainText: 'Private solution',
+      creator: professor._id,
+      courseId: course._id,
+    });
+    const reviewableSession = await Session.create({
+      name: 'Reviewable forces session',
+      courseId: course._id,
+      creator: professor._id,
+      status: 'done',
+      reviewable: true,
+      questions: [reviewableQuestion._id],
+    });
+    const privateSession = await Session.create({
+      name: 'Private exam',
+      courseId: course._id,
+      creator: professor._id,
+      status: 'done',
+      reviewable: false,
+      questions: [privateQuestion._id],
+    });
+    const unfinishedSession = await Session.create({
+      name: 'Still running',
+      courseId: course._id,
+      creator: professor._id,
+      status: 'running',
+      reviewable: true,
+      questions: [privateQuestion._id],
+    });
+    const studentCreatedSession = await Session.create({
+      name: 'Another student practice session',
+      courseId: course._id,
+      creator: otherStudent._id,
+      studentCreated: true,
+      status: 'done',
+      reviewable: true,
+      questions: [privateQuestion._id],
+    });
+    await Grade.create({
+      courseId: course._id,
+      sessionId: reviewableSession._id,
+      userId: student._id,
+      name: reviewableSession.name,
+      value: 50,
+      participation: 100,
+      points: 1,
+      outOf: 2,
+      visibleToStudents: true,
+      marks: [{
+        questionId: reviewableQuestion._id,
+        points: 1,
+        outOf: 2,
+        feedback: 'Review the direction of friction.',
+        feedbackUpdatedAt: new Date('2026-08-19T12:00:00.000Z'),
+      }],
+    });
+    await Grade.create({
+      courseId: course._id,
+      sessionId: reviewableSession._id,
+      userId: otherStudent._id,
+      name: reviewableSession.name,
+      value: 100,
+      points: 2,
+      outOf: 2,
+      visibleToStudents: true,
+      marks: [{
+        questionId: reviewableQuestion._id,
+        points: 2,
+        outOf: 2,
+        feedback: 'Feedback belonging only to the other student.',
+      }],
+    });
+    await Grade.create({
+      courseId: course._id,
+      sessionId: privateSession._id,
+      userId: student._id,
+      name: privateSession.name,
+      value: 100,
+      points: 1,
+      outOf: 1,
+      visibleToStudents: true,
+      marks: [{ questionId: privateQuestion._id, points: 1, outOf: 1, feedback: 'Private feedback' }],
+    });
+
+    const listed = await listStudentReviewableSessions(course._id, student._id);
+    expect(listed.sessions.map((session) => session.session_id)).toEqual([reviewableSession._id]);
+    expect(listed.sessions.map((session) => session.session_id)).not.toEqual(expect.arrayContaining([
+      privateSession._id,
+      unfinishedSession._id,
+      studentCreatedSession._id,
+    ]));
+
+    const questions = await getStudentReviewableSessionQuestions(course._id, reviewableSession._id, student._id);
+    expect(questions.questions[0]).toMatchObject({
+      question_id: reviewableQuestion._id,
+      solution: 'Friction acts opposite relative motion.',
+      points: 2,
+      options: [
+        expect.objectContaining({ text: 'Friction', correct: true }),
+        expect.objectContaining({ text: 'Gravity', correct: false }),
+      ],
+    });
+
+    const ownGrade = await getStudentReviewableSessionGrade(course._id, reviewableSession._id, student._id);
+    expect(ownGrade.grade).toMatchObject({
+      percentage: 50,
+      points: 1,
+      out_of: 2,
+      marks: [expect.objectContaining({
+        question_id: reviewableQuestion._id,
+        points: 1,
+        feedback: 'Review the direction of friction.',
+      })],
+    });
+    expect(JSON.stringify(ownGrade)).not.toContain('Feedback belonging only to the other student.');
+    await Grade.updateOne(
+      { courseId: course._id, sessionId: reviewableSession._id, userId: student._id },
+      { $set: { visibleToStudents: false } }
+    );
+    expect((await getStudentReviewableSessionGrade(
+      course._id,
+      reviewableSession._id,
+      student._id
+    )).grade).toBeNull();
+    await expect(getStudentReviewableSessionQuestions(course._id, privateSession._id, student._id))
+      .rejects.toThrow('Reviewable session not found');
+    await expect(getStudentReviewableSessionGrade(course._id, privateSession._id, student._id))
+      .rejects.toThrow('Reviewable session not found');
+    await expect(getStudentReviewableSessionQuestions(course._id, unfinishedSession._id, student._id))
+      .rejects.toThrow('Reviewable session not found');
+    await expect(listStudentReviewableSessions(course._id, 'not-enrolled'))
+      .rejects.toThrow('Student is not enrolled in this course');
   });
 
   it('runs MCP tools before answering with course data', async (ctx) => {

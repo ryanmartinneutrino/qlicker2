@@ -7,7 +7,13 @@ import Post from '../models/Post.js';
 import Question from '../models/Question.js';
 import Response from '../models/Response.js';
 import User from '../models/User.js';
-import { isCourseInstructorOrAdmin as isInstructorOrAdmin, isCourseMember } from '../utils/courseAccess.js';
+import {
+  getStudentSessionReviewRestriction,
+  isCourseInstructorOrAdmin as isInstructorOrAdmin,
+  isCourseMember,
+  isStudentOwnedSession,
+  studentVisibleGradeQuery,
+} from '../utils/courseAccess.js';
 import { copySessionToCourse } from '../services/sessionCopy.js';
 import { copyQuestionToSession } from '../services/questionCopy.js';
 import {
@@ -574,11 +580,6 @@ function toDateOrNull(value) {
 
 function isQuizLikeSession(session) {
   return !!(session?.quiz || session?.practiceQuiz);
-}
-
-function isStudentOwnedSession(session, user) {
-  if (!session || !user) return false;
-  return !!session.studentCreated && String(session.creator || '') === String(user.userId || '');
 }
 
 async function getNonAutoGradeableQuestions(session) {
@@ -4245,14 +4246,14 @@ export default async function sessionRoutes(app) {
       // Students can only review if the session is reviewable and done
       const isInstrOrAdmin = isInstructorOrAdmin(course, request.user);
       if (!isInstrOrAdmin) {
-        const ownsStudentSession = isStudentOwnedSession(normalizedSession, request.user);
-        if (!ownsStudentSession && normalizedSession.studentCreated) {
+        const restriction = getStudentSessionReviewRestriction(normalizedSession, request.user);
+        if (restriction === 'unavailable') {
           return reply.code(403).send({ error: 'Forbidden', message: 'Session is not available' });
         }
-        if (!normalizedSession.reviewable && !ownsStudentSession) {
+        if (restriction === 'not-reviewable') {
           return reply.code(403).send({ error: 'Forbidden', message: 'Session is not reviewable' });
         }
-        if (normalizedSession.status !== 'done' && !ownsStudentSession) {
+        if (restriction === 'not-finished') {
           return reply.code(403).send({ error: 'Forbidden', message: 'Session is not yet finished' });
         }
       }
@@ -4290,12 +4291,9 @@ export default async function sessionRoutes(app) {
 
       let feedbackSummary = getDefaultFeedbackSummary();
       if (!isInstrOrAdmin) {
-        const grades = await Grade.find({
-          sessionId: String(normalizedSession._id),
-          courseId: String(course._id),
-          userId: request.user.userId,
-          visibleToStudents: true,
-        })
+        const grades = await Grade.find(
+          studentVisibleGradeQuery(course._id, normalizedSession._id, request.user)
+        )
           .select('feedbackSeenAt marks.questionId marks.feedback marks.feedbackUpdatedAt')
           .lean();
         feedbackSummary = summarizeFeedbackFromGrades(grades);
@@ -4337,30 +4335,26 @@ export default async function sessionRoutes(app) {
         return reply.code(403).send({ error: 'Forbidden', message: 'Only students can dismiss feedback notifications' });
       }
 
-      if (!normalizedSession.reviewable && !isStudentOwnedSession(normalizedSession, request.user)) {
+      const restriction = getStudentSessionReviewRestriction(normalizedSession, request.user);
+      if (restriction === 'unavailable') {
+        return reply.code(403).send({ error: 'Forbidden', message: 'Session is not available' });
+      }
+      if (restriction === 'not-reviewable') {
         return reply.code(403).send({ error: 'Forbidden', message: 'Session is not reviewable' });
       }
-      if (normalizedSession.status !== 'done' && !isStudentOwnedSession(normalizedSession, request.user)) {
+      if (restriction === 'not-finished') {
         return reply.code(403).send({ error: 'Forbidden', message: 'Session is not yet finished' });
       }
 
       const seenAt = new Date();
       const updateResult = await Grade.updateMany(
-        {
-          sessionId: String(normalizedSession._id),
-          courseId: String(course._id),
-          userId: request.user.userId,
-          visibleToStudents: true,
-        },
+        studentVisibleGradeQuery(course._id, normalizedSession._id, request.user),
         { $set: { feedbackSeenAt: seenAt } }
       );
 
-      const grades = await Grade.find({
-        sessionId: String(normalizedSession._id),
-        courseId: String(course._id),
-        userId: request.user.userId,
-        visibleToStudents: true,
-      })
+      const grades = await Grade.find(
+        studentVisibleGradeQuery(course._id, normalizedSession._id, request.user)
+      )
         .select('feedbackSeenAt marks.questionId marks.feedback marks.feedbackUpdatedAt')
         .lean();
       const feedbackSummary = summarizeFeedbackFromGrades(grades);

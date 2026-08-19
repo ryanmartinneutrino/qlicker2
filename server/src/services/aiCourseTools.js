@@ -4,7 +4,12 @@ import Question from '../models/Question.js';
 import Response from '../models/Response.js';
 import Session from '../models/Session.js';
 import User from '../models/User.js';
-import { getQuestionPoints } from './grading.js';
+import {
+  isCourseMember,
+  studentReviewableSessionQuery,
+  studentVisibleGradeQuery,
+} from '../utils/courseAccess.js';
+import { buildQuestionWithNormalizedOptions, getQuestionPoints } from './grading.js';
 
 const MAX_RESPONSE_PAGE_SIZE = 100;
 const MAX_RESPONSE_CONTENT_CHARS = 30_000;
@@ -12,6 +17,8 @@ const MAX_GRADE_CELLS = 500;
 const DEFAULT_PAGE_SIZE = 50;
 const MAX_COURSE_GRADE_SESSION_COLUMNS = 25;
 const DEFAULT_COURSE_GRADE_SESSION_LIMIT = 10;
+const DEFAULT_STUDENT_SESSION_LIMIT = 25;
+const MAX_STUDENT_SESSION_LIMIT = 50;
 
 function formatStudent(student) {
   const firstname = String(student?.profile?.firstname || '').trim();
@@ -34,6 +41,26 @@ async function requireCourseSession(courseId, sessionId) {
   return session;
 }
 
+async function requireEnrolledStudent(courseId, userId) {
+  const normalizedUserId = String(userId || '');
+  if (!normalizedUserId) throw new Error('Student identity is required');
+  const course = await Course.findById(courseId).select('students instructors inactive').lean();
+  if (!course || !isCourseMember(course, { userId: normalizedUserId, roles: ['student'] })) {
+    throw new Error('Student is not enrolled in this course');
+  }
+}
+
+async function requireStudentReviewableSession(courseId, sessionId, userId) {
+  await requireEnrolledStudent(courseId, userId);
+  const session = await Session.findOne({
+    _id: String(sessionId),
+    courseId: String(courseId),
+    ...studentReviewableSessionQuery({ includeStudentCreated: false }),
+  }).lean();
+  if (!session) throw new Error('Reviewable session not found');
+  return session;
+}
+
 async function loadOrderedQuestions(session) {
   const questionIds = Array.isArray(session.questions) ? session.questions.map(String) : [];
   if (questionIds.length === 0) return [];
@@ -53,6 +80,22 @@ function serializeQuestion(question, index) {
       text: option.plainText || option.content || option.answer || '',
       correct: !!option.correct,
     })),
+  };
+}
+
+function serializeStudentReviewQuestion(question, index) {
+  const normalizedQuestion = buildQuestionWithNormalizedOptions(question);
+  const solutionHtml = String(normalizedQuestion.solution || '');
+  const solutionText = String(normalizedQuestion.solution_plainText || '').trim()
+    || solutionHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  return {
+    ...serializeQuestion(normalizedQuestion, index),
+    content: normalizedQuestion.content || '',
+    correct_numerical: normalizedQuestion.correctNumerical ?? null,
+    tolerance_numerical: normalizedQuestion.toleranceNumerical ?? null,
+    solution: solutionText,
+    solution_html: solutionHtml,
+    points: getQuestionPoints(normalizedQuestion),
   };
 }
 
@@ -118,6 +161,92 @@ export async function listCourseSessions(courseId) {
       reviewable: !!session.reviewable,
       question_count: Array.isArray(session.questions) ? session.questions.length : 0,
     })),
+  };
+}
+
+export async function listStudentReviewableSessions(
+  courseId,
+  userId,
+  { offset = 0, limit = DEFAULT_STUDENT_SESSION_LIMIT } = {}
+) {
+  await requireEnrolledStudent(courseId, userId);
+  const query = {
+    courseId: String(courseId),
+    ...studentReviewableSessionQuery({ includeStudentCreated: false }),
+  };
+  const pageOffset = clampPageValue(offset, 0, Number.MAX_SAFE_INTEGER);
+  const pageSize = clampPageValue(limit, DEFAULT_STUDENT_SESSION_LIMIT, MAX_STUDENT_SESSION_LIMIT)
+    || DEFAULT_STUDENT_SESSION_LIMIT;
+  const [total, sessions] = await Promise.all([
+    Session.countDocuments(query),
+    Session.find(query)
+      .select('_id name description status date quiz quizStart quizEnd practiceQuiz reviewable createdAt questions')
+      .sort({ date: -1, quizStart: -1, createdAt: -1 })
+      .skip(pageOffset)
+      .limit(pageSize)
+      .lean(),
+  ]);
+  return {
+    session_count: total,
+    offset: pageOffset,
+    returned_count: sessions.length,
+    next_offset: pageOffset + sessions.length < total ? pageOffset + sessions.length : null,
+    sessions: sessions.map((session) => ({
+      session_id: String(session._id),
+      name: session.name || '',
+      description: session.description || '',
+      date: session.date || session.quizStart || session.createdAt || null,
+      quiz: !!session.quiz,
+      practice_quiz: !!session.practiceQuiz,
+      question_count: Array.isArray(session.questions) ? session.questions.length : 0,
+    })),
+  };
+}
+
+export async function getStudentReviewableSessionQuestions(courseId, sessionId, userId) {
+  const session = await requireStudentReviewableSession(courseId, sessionId, userId);
+  const questions = await loadOrderedQuestions(session);
+  return {
+    session: { session_id: String(session._id), name: session.name || '' },
+    questions: questions.map(serializeStudentReviewQuestion),
+  };
+}
+
+export async function getStudentReviewableSessionGrade(courseId, sessionId, userId) {
+  const session = await requireStudentReviewableSession(courseId, sessionId, userId);
+  const questions = await loadOrderedQuestions(session);
+  const grade = await Grade.findOne(
+    studentVisibleGradeQuery(courseId, session._id, { userId })
+  ).select('userId sessionId value participation points outOf joined needsGrading marks').lean();
+  if (!grade) {
+    return {
+      session: { session_id: String(session._id), name: session.name || '' },
+      grade: null,
+    };
+  }
+  const marksByQuestionId = new Map((grade.marks || []).map((mark) => [String(mark.questionId), mark]));
+  return {
+    session: { session_id: String(session._id), name: session.name || '' },
+    grade: {
+      percentage: Number(grade.value || 0),
+      participation: Number(grade.participation || 0),
+      points: Number(grade.points || 0),
+      out_of: Number(grade.outOf || 0),
+      joined: !!grade.joined,
+      needs_grading: !!grade.needsGrading,
+      marks: questions.map((question, index) => {
+        const mark = marksByQuestionId.get(String(question._id));
+        return {
+          question_id: String(question._id),
+          number: index + 1,
+          points: mark ? Number(mark.points || 0) : null,
+          out_of: mark ? Number(mark.outOf ?? getQuestionPoints(question)) : getQuestionPoints(question),
+          needs_grading: !!mark?.needsGrading,
+          feedback: mark?.feedback || '',
+          feedback_updated_at: mark?.feedbackUpdatedAt || null,
+        };
+      }),
+    },
   };
 }
 

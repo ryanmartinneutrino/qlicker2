@@ -2,11 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { createCourseMcpClient } from '../../src/services/aiMcp.js';
 
 describe('course AI MCP audience and history', () => {
-  it('gives the student audience no MCP tools', async () => {
-    const mcp = await createCourseMcpClient({ courseId: 'course-1', audience: 'student' });
+  it('gives the student audience only reviewable-session and own-grade tools', async () => {
+    const mcp = await createCourseMcpClient({ courseId: 'course-1', userId: 'student-1', audience: 'student' });
     try {
       const tools = await mcp.client.listTools();
-      expect(tools.tools).toEqual([]);
+      expect(tools.tools.map((tool) => tool.name)).toEqual([
+        'list_reviewable_sessions',
+        'get_reviewable_session_questions',
+        'get_my_reviewable_session_grade',
+      ]);
+      expect(tools.tools.every((tool) => tool.annotations?.readOnlyHint)).toBe(true);
     } finally {
       await mcp.close();
     }

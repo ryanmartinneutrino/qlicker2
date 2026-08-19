@@ -22,6 +22,40 @@ export function isCourseMember(course, user) {
   return isCourseInstructorOrAdmin(course, user) || isCourseStudent(course, user);
 }
 
+export function isStudentOwnedSession(session, user) {
+  const id = userId(user);
+  return !!id && !!session?.studentCreated && String(session.creator || '') === id;
+}
+
+export function getStudentSessionReviewRestriction(
+  session,
+  user,
+  { allowOwnedStudentSession = true } = {}
+) {
+  const ownsStudentSession = allowOwnedStudentSession && isStudentOwnedSession(session, user);
+  if (session?.studentCreated && !ownsStudentSession) return 'unavailable';
+  if (!session?.reviewable && !ownsStudentSession) return 'not-reviewable';
+  if (session?.status !== 'done' && !ownsStudentSession) return 'not-finished';
+  return null;
+}
+
+export function studentReviewableSessionQuery({ includeStudentCreated = false } = {}) {
+  return {
+    reviewable: true,
+    status: 'done',
+    ...(includeStudentCreated ? {} : { studentCreated: { $ne: true } }),
+  };
+}
+
+export function studentVisibleGradeQuery(courseId, sessionId, user) {
+  return {
+    courseId: String(courseId),
+    sessionId: String(sessionId),
+    userId: userId(user),
+    visibleToStudents: true,
+  };
+}
+
 export function resolveCourseAiAudience(course, user) {
   if (userRoles(user).includes('admin')) return 'instructor';
   const id = userId(user);

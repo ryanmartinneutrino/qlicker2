@@ -7,8 +7,11 @@ import {
   getQuestionResponses,
   getSessionGradeTable,
   getSessionQuestions,
+  getStudentReviewableSessionGrade,
+  getStudentReviewableSessionQuestions,
   listCourseSessions,
   listCourseStudents,
+  listStudentReviewableSessions,
 } from './aiCourseTools.js';
 import {
   createCourseQuestion,
@@ -39,6 +42,20 @@ function conversationTurns(messages = []) {
     turns.at(-1).messages.push({ role: message.role, content: String(message.content || '') });
   });
   return turns;
+}
+
+async function connectMcpServer(server) {
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  const client = new Client({ name: 'qlicker-ai-runner', version: '1.0.0' });
+  await server.connect(serverTransport);
+  await client.connect(clientTransport);
+  return {
+    client,
+    async close() {
+      await client.close();
+      await server.close();
+    },
+  };
 }
 
 const questionInputSchema = {
@@ -91,19 +108,48 @@ export async function createCourseMcpClient({
   currentUserMessageId = '',
   onCourseChatUpdated,
 }) {
-  // Student chat deliberately starts without MCP tools. Keeping this boundary
-  // explicit prevents instructor tools from leaking as student features grow.
-  if (audience !== 'instructor') {
-    return {
-      client: {
-        async listTools() { return { tools: [] }; },
-        async callTool() { throw new Error('MCP tools are not available to students'); },
-      },
-      async close() {},
-    };
+  if (!['instructor', 'student'].includes(audience)) {
+    throw new Error('Unsupported course AI audience');
   }
 
   const server = new McpServer({ name: 'qlicker-course-tools', version: '1.0.0' });
+
+  if (audience === 'student') {
+    server.registerTool('list_reviewable_sessions', {
+      title: 'List sessions available for student review',
+      description: 'List only ended, instructor-created sessions in this course that are currently marked reviewable. Results are paginated. Session IDs returned here can be used with the other student review tools.',
+      inputSchema: {
+        offset: z.number().int().min(0).optional(),
+        limit: z.number().int().min(1).max(50).optional(),
+      },
+      annotations: { readOnlyHint: true },
+    }, async ({ offset, limit }) => {
+      try { return toolResult(await listStudentReviewableSessions(courseId, userId, { offset, limit })); }
+      catch (error) { return toolError(error); }
+    });
+
+    server.registerTool('get_reviewable_session_questions', {
+      title: 'Get questions and solutions from a reviewable session',
+      description: 'Get the ordered questions, correct answers, and solutions for an ended session that is currently marked reviewable. Use only a session ID from list_reviewable_sessions. Access is checked again on every call.',
+      inputSchema: { session_id: z.string().min(1) },
+      annotations: { readOnlyHint: true },
+    }, async ({ session_id: sessionId }) => {
+      try { return toolResult(await getStudentReviewableSessionQuestions(courseId, sessionId, userId)); }
+      catch (error) { return toolError(error); }
+    });
+
+    server.registerTool('get_my_reviewable_session_grade', {
+      title: 'Get my grade and feedback for a reviewable session',
+      description: 'Get only the current student’s grade, per-question marks, and instructor feedback for an ended session that is currently marked reviewable. Use only a session ID from list_reviewable_sessions. There is no option to request another student.',
+      inputSchema: { session_id: z.string().min(1) },
+      annotations: { readOnlyHint: true },
+    }, async ({ session_id: sessionId }) => {
+      try { return toolResult(await getStudentReviewableSessionGrade(courseId, sessionId, userId)); }
+      catch (error) { return toolError(error); }
+    });
+
+    return connectMcpServer(server);
+  }
 
   server.registerTool('get_conversation_history', {
     title: 'Get earlier conversation history',
@@ -370,15 +416,5 @@ export async function createCourseMcpClient({
     catch (error) { return toolError(error); }
   });
 
-  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-  const client = new Client({ name: 'qlicker-ai-runner', version: '1.0.0' });
-  await server.connect(serverTransport);
-  await client.connect(clientTransport);
-  return {
-    client,
-    async close() {
-      await client.close();
-      await server.close();
-    },
-  };
+  return connectMcpServer(server);
 }

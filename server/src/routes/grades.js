@@ -4,7 +4,13 @@ import Question from '../models/Question.js';
 import Response from '../models/Response.js';
 import Session from '../models/Session.js';
 import User from '../models/User.js';
-import { isCourseInstructorOrAdmin as isInstructorOrAdmin, isCourseMember } from '../utils/courseAccess.js';
+import {
+  getStudentSessionReviewRestriction,
+  isCourseInstructorOrAdmin as isInstructorOrAdmin,
+  isCourseMember,
+  studentReviewableSessionQuery,
+  studentVisibleGradeQuery,
+} from '../utils/courseAccess.js';
 import {
   calculateResponsePoints,
   ensureSessionMsScoringMethod,
@@ -318,8 +324,12 @@ export default async function gradeRoutes(app) {
 
       const instructorView = isInstructorOrAdmin(course, request.user);
 
-      if (!instructorView && !session.reviewable) {
-        return reply.code(403).send({ error: 'Forbidden', message: 'Session is not reviewable' });
+      if (!instructorView) {
+        const restriction = getStudentSessionReviewRestriction(session, request.user, { allowOwnedStudentSession: false });
+        if (restriction) {
+          const message = restriction === 'not-finished' ? 'Session is not yet finished' : 'Session is not reviewable';
+          return reply.code(403).send({ error: 'Forbidden', message });
+        }
       }
 
       if (instructorView && session.status === 'done') {
@@ -332,15 +342,9 @@ export default async function gradeRoutes(app) {
         });
       }
 
-      const gradeQuery = {
-        sessionId: String(session._id),
-        courseId: String(course._id),
-      };
-
-      if (!instructorView) {
-        gradeQuery.userId = request.user.userId;
-        gradeQuery.visibleToStudents = true;
-      }
+      const gradeQuery = instructorView
+        ? { sessionId: String(session._id), courseId: String(course._id) }
+        : studentVisibleGradeQuery(course._id, session._id, request.user);
 
       const grades = await normalizeGradesManualGradingState(await Grade.find(gradeQuery).lean());
 
@@ -746,8 +750,7 @@ export default async function gradeRoutes(app) {
       if (instructorView) {
         sessionQuery.studentCreated = { $ne: true };
       } else {
-        sessionQuery.reviewable = true;
-        sessionQuery.status = { $ne: 'hidden' };
+        Object.assign(sessionQuery, studentReviewableSessionQuery({ includeStudentCreated: true }));
       }
 
       const sessions = await Session.find(sessionQuery)

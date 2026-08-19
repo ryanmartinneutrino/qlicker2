@@ -27,7 +27,7 @@ function systemMessage(course, audience) {
   if (audience === 'student') {
     return {
       role: 'system',
-      content: `${course.aiStudentChatGuidance || defaultStudentChatGuidance(course.name)} You do not have access to course data or tools. Do not claim to inspect grades, students, sessions, questions, or other private course information. You have been given only the five most recent conversation turns.`,
+      content: `${course.aiStudentChatGuidance || defaultStudentChatGuidance(course.name)} You have access only to tools that list ended sessions currently marked reviewable, retrieve the questions and solutions from those sessions, and retrieve the current student's own grades and instructor feedback for those sessions. Use these tools when the student asks about their reviewable course material or grades. Never claim to access a non-reviewable session, another student's information, course administration, or any other private course data. A session ID returned earlier must still pass the tool's current reviewability check. You have been given only the five most recent conversation turns.`,
     };
   }
   return {
