@@ -11,6 +11,7 @@ import { discoverOllamaModels, discoverOpenAiModels, normalizeAiBackends, serial
 import { queueAiCourseChat, stopAiCourseChat } from '../services/aiChatJobRunner.js';
 import { haltAiGradingJob, runAiGradingJob } from '../services/aiGradingRunner.js';
 import { runAiResponseSummary } from '../services/aiResponseSummaryRunner.js';
+import { notifyCourseChatUpdated } from './courseChat.js';
 
 const READ_LIMIT = { max: 60, timeWindow: '1 minute' };
 const WRITE_LIMIT = { max: 20, timeWindow: '1 minute' };
@@ -277,6 +278,7 @@ export default async function aiRoutes(app) {
       modelId: selected.model.id,
       course,
       user: request.user,
+      onCourseChatUpdated: (payload) => notifyCourseChatUpdated(app, course, payload),
     });
     return reply.code(202).send({ conversation: serializeConversation(conversation.toObject(), true) });
   });

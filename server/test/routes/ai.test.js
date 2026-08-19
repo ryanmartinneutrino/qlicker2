@@ -7,6 +7,7 @@ import Session from '../../src/models/Session.js';
 import Settings from '../../src/models/Settings.js';
 import Grade from '../../src/models/Grade.js';
 import AiGradingJob from '../../src/models/AiGradingJob.js';
+import Post from '../../src/models/Post.js';
 import { getCourseGradeTable, getQuestionResponses, getSessionGradeTable } from '../../src/services/aiCourseTools.js';
 import { authenticatedRequest, createApp, createTestUser, getAuthToken } from '../helpers.js';
 
@@ -282,7 +283,7 @@ describe('AI course configuration and chat', () => {
     });
     expect(fetch).toHaveBeenCalledTimes(2);
     const secondRequest = JSON.parse(fetch.mock.calls[1][1].body);
-    expect(secondRequest.tools.map((tool) => tool.function.name)).toEqual(expect.arrayContaining(['get_conversation_history', 'list_course_students', 'list_course_sessions', 'get_session_questions', 'get_question_responses', 'get_session_grade_table', 'get_course_grade_table', 'create_course_session', 'edit_course_session', 'list_course_questions', 'create_course_question', 'edit_course_question']));
+    expect(secondRequest.tools.map((tool) => tool.function.name)).toEqual(expect.arrayContaining(['get_conversation_history', 'list_course_students', 'list_course_sessions', 'get_session_questions', 'get_question_responses', 'get_session_grade_table', 'get_course_grade_table', 'list_course_chat_topics', 'get_course_chat_topic', 'draft_course_chat_message', 'publish_course_chat_draft', 'create_course_session', 'edit_course_session', 'list_course_questions', 'create_course_question', 'edit_course_question']));
     expect(secondRequest.messages.some((entry) => entry.role === 'tool' && entry.content.includes('student@example.com'))).toBe(true);
   });
 
@@ -315,6 +316,72 @@ describe('AI course configuration and chat', () => {
     expect(quiz).toMatchObject({ quiz: true, status: 'hidden' });
     expect(new Date(quiz.quizEnd).getTime() - new Date(quiz.quizStart).getTime()).toBe(12 * 60 * 60 * 1000);
     expect(new Date(quiz.quizStart).getMinutes()).toBe(0);
+  });
+
+  it('shows a course chat draft and requires its exact later-turn approval before posting', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const professor = await createTestUser({ email: 'ai-course-chat-prof@example.com', roles: ['professor'] });
+    const token = await getAuthToken(app, professor);
+    const course = await createCourse(token);
+    await Course.findByIdAndUpdate(course._id, { $set: { aiEnabled: true, courseChatEnabled: true } });
+    await configureAi(course._id);
+    const target = await Post.create({
+      scopeType: 'course',
+      courseId: course._id,
+      authorId: 'student-1',
+      authorRole: 'student',
+      title: 'When is the assignment due?',
+      body: 'I cannot find the deadline.',
+    });
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: { content: '', tool_calls: [{ function: {
+        name: 'draft_course_chat_message',
+        arguments: {
+          type: 'response',
+          target_topic_id: target._id,
+          body: 'The assignment is due Friday at 5 PM.',
+        },
+      } }] } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: { content: 'Please review this response.' } }), { status: 200 })));
+
+    const created = await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations`, { token });
+    const conversationId = created.json().conversation._id;
+    await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations/${conversationId}/messages`, {
+      token,
+      payload: { content: 'Post a response telling them the deadline is Friday at 5 PM.' },
+    });
+
+    let approvalPhrase = '';
+    await vi.waitFor(async () => {
+      const updated = await authenticatedRequest(app, 'GET', `/api/v1/ai/courses/${course._id}/conversations/${conversationId}`, { token });
+      const assistantContent = updated.json().conversation.messages.at(-1).content;
+      expect(assistantContent).toContain('Course chat draft — not posted');
+      expect(assistantContent).toContain('The assignment is due Friday at 5 PM.');
+      approvalPhrase = assistantContent.match(/Approve course chat draft [A-Za-z0-9]+/)?.[0] || '';
+      expect(approvalPhrase).toBeTruthy();
+    });
+    expect((await Post.findById(target._id).lean()).comments).toHaveLength(0);
+
+    const draftId = approvalPhrase.replace('Approve course chat draft ', '');
+    fetch
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: { content: '', tool_calls: [{ function: {
+        name: 'publish_course_chat_draft',
+        arguments: { draft_id: draftId },
+      } }] } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: { content: 'Approved response published.' } }), { status: 200 }));
+    await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations/${conversationId}/messages`, {
+      token,
+      payload: { content: approvalPhrase },
+    });
+
+    await vi.waitFor(async () => {
+      const post = await Post.findById(target._id).lean();
+      expect(post.comments).toEqual([
+        expect.objectContaining({ _id: draftId, body: 'The assignment is due Friday at 5 PM.', authorRole: 'instructor' }),
+      ]);
+      const updated = await authenticatedRequest(app, 'GET', `/api/v1/ai/courses/${course._id}/conversations/${conversationId}`, { token });
+      expect(updated.json().conversation.messages.at(-1).content).toContain('Published the approved course chat response');
+    });
   });
 
   it('stops an in-progress AI response and preserves the submitted prompt', async (ctx) => {

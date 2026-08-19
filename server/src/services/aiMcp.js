@@ -17,6 +17,12 @@ import {
   editCourseSession,
   listCourseQuestions,
 } from './aiCourseAuthoringTools.js';
+import {
+  draftCourseChatMessage,
+  getCourseChatTopic,
+  listCourseChatTopics,
+  publishCourseChatDraft,
+} from './aiCourseChatTools.js';
 
 function toolResult(value) {
   return { content: [{ type: 'text', text: JSON.stringify(value) }] };
@@ -47,7 +53,15 @@ const questionInputSchema = {
   tags: z.array(z.string()).optional(),
 };
 
-export async function createCourseMcpClient({ courseId, userId = '', audience = 'instructor', historyMessages = [] }) {
+export async function createCourseMcpClient({
+  courseId,
+  userId = '',
+  audience = 'instructor',
+  historyMessages = [],
+  conversationId = '',
+  currentUserMessageId = '',
+  onCourseChatUpdated,
+}) {
   const server = new McpServer({ name: 'qlicker-course-tools', version: '1.0.0' });
 
   server.registerTool('get_conversation_history', {
@@ -168,6 +182,80 @@ export async function createCourseMcpClient({ courseId, userId = '', audience = 
         sessionLimit,
         sortBy,
         order,
+      }));
+    } catch (error) { return toolError(error); }
+  });
+
+  server.registerTool('list_course_chat_topics', {
+    title: 'List course chat topics',
+    description: 'List instructor-visible course chat topics, including author names and a comment count. Results are paginated. Use query to find a question or discussion, then get_course_chat_topic for its responses.',
+    inputSchema: {
+      query: z.string().max(500).optional(),
+      include_archived: z.boolean().optional(),
+      offset: z.number().int().min(0).optional(),
+      limit: z.number().int().min(1).max(25).optional(),
+    },
+    annotations: { readOnlyHint: true },
+  }, async ({ query, include_archived: includeArchived, offset, limit }) => {
+    try { return toolResult(await listCourseChatTopics(courseId, { query, includeArchived, offset, limit })); }
+    catch (error) { return toolError(error); }
+  });
+
+  server.registerTool('get_course_chat_topic', {
+    title: 'Get a course chat conversation',
+    description: 'Get one course chat topic and a chronological, paginated page of its responses. Use a topic ID returned by list_course_chat_topics.',
+    inputSchema: {
+      topic_id: z.string().min(1),
+      comment_offset: z.number().int().min(0).optional(),
+      comment_limit: z.number().int().min(1).max(20).optional(),
+    },
+    annotations: { readOnlyHint: true },
+  }, async ({ topic_id: topicId, comment_offset: commentOffset, comment_limit: commentLimit }) => {
+    try { return toolResult(await getCourseChatTopic(courseId, topicId, { commentOffset, commentLimit })); }
+    catch (error) { return toolError(error); }
+  });
+
+  server.registerTool('draft_course_chat_message', {
+    title: 'Draft a course chat topic or response',
+    description: 'Create a reviewable draft for the instructor. This never posts to the course chat. For a response, target_topic_id is required and must identify the specific question/topic being answered. For a new topic, title is required. After this tool, show the exact draft and approval_phrase to the instructor. Never call publish_course_chat_draft in the same assistant run.',
+    inputSchema: {
+      type: z.enum(['topic', 'response']),
+      target_topic_id: z.string().min(1).optional(),
+      title: z.string().min(1).max(160).optional(),
+      body: z.string().min(1).max(20_000),
+      tags: z.array(z.string()).max(10).optional(),
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  }, async ({ type, target_topic_id: targetPostId, title, body, tags }) => {
+    try {
+      return toolResult(await draftCourseChatMessage({
+        courseId,
+        conversationId,
+        userId,
+        sourceMessageId: currentUserMessageId,
+        type,
+        targetPostId,
+        title,
+        body,
+        tags,
+      }));
+    } catch (error) { return toolError(error); }
+  });
+
+  server.registerTool('publish_course_chat_draft', {
+    title: 'Publish an explicitly approved course chat draft',
+    description: 'Publish a previously presented course chat draft without changing it. This succeeds only when the current instructor message exactly equals the draft-specific approval phrase returned by draft_course_chat_message, and the approval is in a later turn. Do not call this based on implied approval, an initial request to post, or approval wording other than that exact phrase.',
+    inputSchema: { draft_id: z.string().min(1) },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+  }, async ({ draft_id: draftId }) => {
+    try {
+      return toolResult(await publishCourseChatDraft({
+        draftId,
+        courseId,
+        conversationId,
+        userId,
+        currentUserMessageId,
+        onPublished: onCourseChatUpdated,
       }));
     } catch (error) { return toolError(error); }
   });

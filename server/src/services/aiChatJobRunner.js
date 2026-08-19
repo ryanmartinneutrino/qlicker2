@@ -7,7 +7,15 @@ function abortMessage(error) {
   return error?.name === 'AbortError' ? 'AI response stopped' : error?.message || 'AI backend request failed';
 }
 
-export function queueAiCourseChat({ conversationId, pendingMessageId, backend, modelId, course, user }) {
+export function queueAiCourseChat({
+  conversationId,
+  pendingMessageId,
+  backend,
+  modelId,
+  course,
+  user,
+  onCourseChatUpdated,
+}) {
   const controller = new AbortController();
   activeJobs.set(String(conversationId), controller);
 
@@ -24,6 +32,9 @@ export function queueAiCourseChat({ conversationId, pendingMessageId, backend, m
         course,
         user,
         messages: conversation.messages,
+        conversationId: jobKey,
+        currentUserMessageId: String(pendingMessageId),
+        onCourseChatUpdated,
         signal: controller.signal,
       });
       await AiConversation.findOneAndUpdate(filter, {
