@@ -99,11 +99,16 @@ describe('AI course configuration and chat', () => {
     expect(config.json().approvedModels).toEqual([
       expect.objectContaining({ backendId: 'ollama-local', modelId: 'llama3.2', studentAvailable: false }),
     ]);
+    expect(config.json()).toMatchObject({
+      instructorChatMaxToolRounds: 20,
+      studentChatMaxToolRounds: 5,
+    });
 
     const update = await authenticatedRequest(app, 'PATCH', `/api/v1/ai/courses/${course._id}/config`, {
       token,
       payload: {
         enabled: true,
+        instructorChatMaxToolRounds: 24,
         defaultBackendId: 'ollama-local',
         defaultModelId: 'qwen3',
         modelPolicies: [
@@ -115,6 +120,7 @@ describe('AI course configuration and chat', () => {
     expect(update.statusCode).toBe(200);
     const stored = await Course.findById(course._id).lean();
     expect(stored.aiEnabled).toBe(true);
+    expect(stored.aiInstructorChatMaxToolRounds).toBe(24);
     expect(stored.aiDefaultModelId).toBe('qwen3');
     expect(stored.aiModelPolicies).toEqual([
       expect.objectContaining({ backendId: 'ollama-local', modelId: 'llama3.2', studentAvailable: true }),
@@ -126,6 +132,7 @@ describe('AI course configuration and chat', () => {
       payload: {
         studentChatEnabled: true,
         studentChatGuidance: 'Stay focused on mechanics.',
+        studentChatMaxToolRounds: 7,
         studentDefaultBackendId: 'ollama-local',
         studentDefaultModelId: 'llama3.2',
       },
@@ -135,9 +142,18 @@ describe('AI course configuration and chat', () => {
     expect(updatedConfig.json()).toMatchObject({
       studentChatEnabled: true,
       studentChatGuidance: 'Stay focused on mechanics.',
+      instructorChatMaxToolRounds: 24,
+      studentChatMaxToolRounds: 7,
       studentDefaultBackendId: 'ollama-local',
       studentDefaultModelId: 'llama3.2',
     });
+
+    const invalidLimit = await authenticatedRequest(app, 'PATCH', `/api/v1/ai/courses/${course._id}/config`, {
+      token,
+      payload: { instructorChatMaxToolRounds: 0 },
+    });
+    expect(invalidLimit.statusCode).toBe(400);
+    expect((await Course.findById(course._id).lean()).aiInstructorChatMaxToolRounds).toBe(24);
   });
 
   it('persists professor-managed backend tokens across masked saves and an app restart', async (ctx) => {
@@ -315,6 +331,34 @@ describe('AI course configuration and chat', () => {
     const secondRequest = JSON.parse(fetch.mock.calls[1][1].body);
     expect(secondRequest.tools.map((tool) => tool.function.name)).toEqual(expect.arrayContaining(['get_conversation_history', 'list_course_students', 'list_course_sessions', 'get_session_questions', 'get_question_responses', 'get_session_grade_table', 'get_course_grade_table', 'list_course_chat_topics', 'get_course_chat_topic', 'draft_course_chat_message', 'publish_course_chat_draft', 'create_course_session', 'edit_course_session', 'list_course_questions', 'create_course_question', 'edit_course_question']));
     expect(secondRequest.messages.some((entry) => entry.role === 'tool' && entry.content.includes('student@example.com'))).toBe(true);
+  });
+
+  it('uses the course maximum for professor AI chat tool rounds', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const professor = await createTestUser({ email: 'ai-round-limit-prof@example.com', roles: ['professor'] });
+    const token = await getAuthToken(app, professor);
+    const course = await createCourse(token);
+    await Course.findByIdAndUpdate(course._id, { $set: { aiEnabled: true, aiInstructorChatMaxToolRounds: 1 } });
+    await configureAi(course._id);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      message: { content: '', tool_calls: [{ function: { name: 'list_course_students', arguments: {} } }] },
+    }), { status: 200 })));
+
+    const created = await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations`, { token });
+    const conversationId = created.json().conversation._id;
+    await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations/${conversationId}/messages`, {
+      token,
+      payload: { content: 'Keep checking the student list.' },
+    });
+
+    await vi.waitFor(async () => {
+      const updated = await AiConversation.findById(conversationId).lean();
+      expect(updated).toMatchObject({
+        pending: false,
+        pendingError: 'AI backend exceeded the configured maximum of 1 internal tool rounds',
+      });
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 
   it('creates a quiz through the instructor MCP tool and always reports its schedule', async (ctx) => {

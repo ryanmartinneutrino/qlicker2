@@ -2122,6 +2122,18 @@ export default function CourseDetail() {
               }} fullWidth>
                 {getApprovedCourseAiModels(aiConfig).map(({ backend, model }) => <MenuItem key={`${backend.id}-${model.id}`} value={`${backend.id}::${model.id}`}>{`${backend.name || backend.url} — ${model.name}`}</MenuItem>)}
               </TextField>
+              <TextField
+                type="number"
+                label={t('professor.course.instructorAiChatMaxToolRounds')}
+                value={aiConfig.instructorChatMaxToolRounds ?? 20}
+                onChange={(event) => {
+                  const value = Number(event.target.value);
+                  if (Number.isInteger(value) && value >= 1 && value <= 50) handleAiConfigChange({ instructorChatMaxToolRounds: value });
+                }}
+                helperText={t('professor.course.instructorAiChatMaxToolRoundsHelp')}
+                inputProps={{ min: 1, max: 50, step: 1 }}
+                fullWidth
+              />
               <FormControlLabel
                 control={<Switch checked={!!aiConfig.studentChatEnabled} onChange={handleStudentAiChatEnabledChange} />}
                 label={(
@@ -2155,6 +2167,18 @@ export default function CourseDetail() {
                 >
                   {getStudentCourseAiModels(aiConfig).map(({ backend, model }) => <MenuItem key={`${backend.id}-${model.id}`} value={`${backend.id}::${model.id}`}>{`${backend.name || backend.url} — ${model.name}`}</MenuItem>)}
                 </TextField>
+                <TextField
+                  type="number"
+                  label={t('professor.course.studentAiChatMaxToolRounds')}
+                  value={aiConfig.studentChatMaxToolRounds ?? 5}
+                  onChange={(event) => {
+                    const value = Number(event.target.value);
+                    if (Number.isInteger(value) && value >= 1 && value <= 50) handleAiConfigChange({ studentChatMaxToolRounds: value });
+                  }}
+                  helperText={t('professor.course.studentAiChatMaxToolRoundsHelp')}
+                  inputProps={{ min: 1, max: 50, step: 1 }}
+                  fullWidth
+                />
               </> : null}
               {aiCoursePolicy.allowCourseBackend ? <>
                 <Typography variant="body2" color="text.secondary">{t('professor.course.aiBackendHelp')}</Typography>

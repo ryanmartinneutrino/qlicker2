@@ -9,6 +9,10 @@ import { getOrCreateSettingsDocument } from '../utils/settingsSingleton.js';
 import { isCourseInstructorOrAdmin } from '../utils/courseAccess.js';
 import { discoverOllamaModels, discoverOpenAiModels, normalizeAiBackends, serializeAiBackends } from '../services/ai.js';
 import { isAiCourseChatActive, queueAiCourseChat, stopAiCourseChat } from '../services/aiChatJobRunner.js';
+import {
+  courseChatMaxToolRounds,
+  MAX_CHAT_TOOL_ROUNDS,
+} from '../services/aiChatRunner.js';
 import { haltAiGradingJob, runAiGradingJob } from '../services/aiGradingRunner.js';
 import {
   haltAiResponseSummary,
@@ -191,10 +195,12 @@ export default async function aiRoutes(app) {
       defaultModelId,
       modelPolicies,
       approvedModels: availableModels,
+      instructorChatMaxToolRounds: courseChatMaxToolRounds(course, 'instructor'),
       studentChatEnabled: !!course.aiStudentChatEnabled,
       studentChatGuidance: course.aiStudentChatGuidance || defaultStudentChatGuidance(course.name),
       studentDefaultBackendId: studentDefaultModel?.backendId || '',
       studentDefaultModelId: studentDefaultModel?.modelId || '',
+      studentChatMaxToolRounds: courseChatMaxToolRounds(course, 'student'),
     };
   });
 
@@ -224,10 +230,24 @@ export default async function aiRoutes(app) {
     }
     if (body.selectedBackendId !== undefined) updates.aiSelectedBackendId = body.selectedBackendId;
     if (body.selectedModelId !== undefined) updates.aiSelectedModelId = body.selectedModelId;
+    if (body.instructorChatMaxToolRounds !== undefined) {
+      const value = Number(body.instructorChatMaxToolRounds);
+      if (!Number.isInteger(value) || value < 1 || value > MAX_CHAT_TOOL_ROUNDS) {
+        return reply.code(400).send({ error: 'Bad Request', message: `Professor AI chat internal turns must be a whole number from 1 to ${MAX_CHAT_TOOL_ROUNDS}` });
+      }
+      updates.aiInstructorChatMaxToolRounds = value;
+    }
     if (body.studentChatEnabled !== undefined) updates.aiStudentChatEnabled = !!body.studentChatEnabled;
     if (body.studentChatGuidance !== undefined) updates.aiStudentChatGuidance = String(body.studentChatGuidance || '').trim();
     if (body.studentDefaultBackendId !== undefined) updates.aiStudentDefaultBackendId = String(body.studentDefaultBackendId || '');
     if (body.studentDefaultModelId !== undefined) updates.aiStudentDefaultModelId = String(body.studentDefaultModelId || '');
+    if (body.studentChatMaxToolRounds !== undefined) {
+      const value = Number(body.studentChatMaxToolRounds);
+      if (!Number.isInteger(value) || value < 1 || value > MAX_CHAT_TOOL_ROUNDS) {
+        return reply.code(400).send({ error: 'Bad Request', message: `Student AI chat internal turns must be a whole number from 1 to ${MAX_CHAT_TOOL_ROUNDS}` });
+      }
+      updates.aiStudentChatMaxToolRounds = value;
+    }
     const candidate = { ...course, ...updates };
     if (candidate.aiDefaultBackendId || candidate.aiDefaultModelId || candidate.aiSelectedBackendId || candidate.aiSelectedModelId) {
       if (!resolveModel(candidate, settings, policy)) return reply.code(400).send({ error: 'Bad Request', message: 'Choose an approved AI backend and model' });

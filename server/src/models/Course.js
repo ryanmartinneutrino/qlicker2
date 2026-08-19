@@ -112,10 +112,12 @@ const CourseSchema = new mongoose.Schema(
     aiDefaultBackendId: { type: String, default: '' },
     aiDefaultModelId: { type: String, default: '' },
     aiModelPolicies: { type: [AiModelPolicySchema], default: [] },
+    aiInstructorChatMaxToolRounds: { type: Number, default: 20, min: 1, max: 50 },
     aiStudentChatEnabled: { type: Boolean, default: false },
     aiStudentChatGuidance: { type: String, default: '' },
     aiStudentDefaultBackendId: { type: String, default: '' },
     aiStudentDefaultModelId: { type: String, default: '' },
+    aiStudentChatMaxToolRounds: { type: Number, default: 5, min: 1, max: 50 },
   },
   {
     collection: 'courses',

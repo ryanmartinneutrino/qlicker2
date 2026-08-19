@@ -2,9 +2,22 @@ import { createCourseMcpClient } from './aiMcp.js';
 import { requestAiMessage } from './ai.js';
 import { resolveCourseAiAudience } from '../utils/courseAccess.js';
 
-const MAX_TOOL_ROUNDS = 16;
+export const DEFAULT_INSTRUCTOR_CHAT_MAX_TOOL_ROUNDS = 20;
+export const DEFAULT_STUDENT_CHAT_MAX_TOOL_ROUNDS = 5;
+export const MAX_CHAT_TOOL_ROUNDS = 50;
 const MAX_TOOL_RESULT_CHARS = 80_000;
 const MAX_CONVERSATION_TURNS = 5;
+
+function configuredToolRounds(value, fallback) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= MAX_CHAT_TOOL_ROUNDS ? parsed : fallback;
+}
+
+export function courseChatMaxToolRounds(course, audience) {
+  return audience === 'student'
+    ? configuredToolRounds(course?.aiStudentChatMaxToolRounds, DEFAULT_STUDENT_CHAT_MAX_TOOL_ROUNDS)
+    : configuredToolRounds(course?.aiInstructorChatMaxToolRounds, DEFAULT_INSTRUCTOR_CHAT_MAX_TOOL_ROUNDS);
+}
 
 function systemMessage(course) {
   return {
@@ -102,6 +115,7 @@ export async function runAiCourseChat({
 }) {
   const audience = resolveCourseAiAudience(course, user);
   if (!audience) throw new Error('User is not a member of this course');
+  const maxToolRounds = courseChatMaxToolRounds(course, audience);
   const mcp = await createCourseMcpClient({
     courseId: String(course._id),
     userId: String(user?.userId || user?._id || ''),
@@ -120,7 +134,7 @@ export async function runAiCourseChat({
       courseChatDrafts: [],
       courseChatPublications: [],
     };
-    for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
+    for (let round = 0; round < maxToolRounds; round += 1) {
       const response = await requestAiMessage(backend, modelId, providerMessages, toolList.tools || [], signal);
       if (response.toolCalls.length === 0) return responseWithNotices(response.content, notices);
       providerMessages.push(assistantToolCallMessage(response, backend));
@@ -138,7 +152,7 @@ export async function runAiCourseChat({
         providerMessages.push(toolResultMessage(call, serializeToolResult(result), backend));
       }
     }
-    throw new Error('AI backend exceeded the maximum number of tool-call rounds');
+    throw new Error(`AI backend exceeded the configured maximum of ${maxToolRounds} internal tool rounds`);
   } finally {
     await mcp.close();
   }
