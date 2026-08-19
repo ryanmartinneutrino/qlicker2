@@ -129,4 +129,19 @@ describe('AiCourseChat', () => {
     expect(screen.queryByText('AI backend returned an empty response')).not.toBeInTheDocument();
     expect(await screen.findByText('Please create a session')).toBeInTheDocument();
   });
+
+  it('uses the student endpoints and shows student-facing guidance', async () => {
+    const conversation = { _id: 'student-conversation-1', title: '', messages: [] };
+    apiClient.post.mockResolvedValueOnce({ data: { conversation } });
+
+    render(<AiCourseChat courseId="course-1" audience="student" />);
+
+    await screen.findByText('No conversations yet.');
+    expect(apiClient.get).toHaveBeenCalledWith('/ai/student/courses/course-1/config');
+    expect(apiClient.get).toHaveBeenCalledWith('/ai/student/courses/course-1/conversations');
+    fireEvent.click(screen.getByRole('button', { name: 'New conversation' }));
+
+    expect(await screen.findByText(/Ask about this course or its content/)).toBeInTheDocument();
+    expect(apiClient.post).toHaveBeenCalledWith('/ai/student/courses/course-1/conversations');
+  });
 });

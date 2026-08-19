@@ -2505,6 +2505,7 @@
       "title": "AI Chat",
       "newConversation": "New conversation",
       "newConversationGuidance": "Спрашивайте о студентах курса, оценках и успеваемости или создавайте вопросы для занятий.",
+      "studentNewConversationGuidance": "Задавайте вопросы об этом курсе или его материалах. Я могу объяснять понятия, разбирать примеры и помогать в учёбе.",
       "noConversations": "No conversations yet.",
       "send": "Send",
       "stop": "Остановить",

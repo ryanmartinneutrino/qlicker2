@@ -17,6 +17,7 @@ const AiConversationSchema = new mongoose.Schema(
     _id: { type: String, default: () => generateMeteorId() },
     courseId: { type: String, required: true, index: true },
     ownerId: { type: String, required: true, index: true },
+    audience: { type: String, enum: ['instructor', 'student'], default: 'instructor' },
     title: { type: String, default: '' },
     backendId: { type: String, default: '' },
     modelId: { type: String, default: '' },
@@ -30,6 +31,6 @@ const AiConversationSchema = new mongoose.Schema(
   { collection: 'aiConversations', timestamps: false }
 );
 
-AiConversationSchema.index({ courseId: 1, ownerId: 1, updatedAt: -1 });
+AiConversationSchema.index({ courseId: 1, ownerId: 1, audience: 1, updatedAt: -1 });
 
 export default mongoose.model('AiConversation', AiConversationSchema);

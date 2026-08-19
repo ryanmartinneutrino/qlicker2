@@ -306,14 +306,97 @@ describe('AI course configuration and chat', () => {
     const courseOwnerToken = await getAuthToken(app, courseProfessor);
     const studentProfessorToken = await getAuthToken(app, studentProfessor);
     const course = await createCourse(courseOwnerToken);
-    await Course.findByIdAndUpdate(course._id, { $addToSet: { students: studentProfessor._id }, $set: { aiEnabled: true } });
+    await Course.findByIdAndUpdate(course._id, {
+      $addToSet: { students: studentProfessor._id },
+      $set: {
+        aiEnabled: true,
+        aiStudentChatEnabled: true,
+        aiStudentDefaultBackendId: 'ollama-local',
+        aiStudentDefaultModelId: 'llama3.2',
+        aiModelPolicies: [{ backendId: 'ollama-local', modelId: 'llama3.2', studentAvailable: true }],
+      },
+    });
     await configureAi(course._id);
 
     const config = await authenticatedRequest(app, 'GET', `/api/v1/ai/courses/${course._id}/config`, { token: studentProfessorToken });
     const conversation = await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations`, { token: studentProfessorToken });
+    const studentConfig = await authenticatedRequest(app, 'GET', `/api/v1/ai/student/courses/${course._id}/config`, { token: studentProfessorToken });
 
     expect(config.statusCode).toBe(403);
     expect(conversation.statusCode).toBe(403);
+    expect(studentConfig.statusCode).toBe(200);
+  });
+
+  it('provides enrolled students an isolated, tool-free chat with only student-approved models', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const professor = await createTestUser({ email: 'student-ai-owner@example.com', roles: ['professor'] });
+    const student = await createTestUser({ email: 'student-ai-user@example.com', roles: ['student'] });
+    const professorToken = await getAuthToken(app, professor);
+    const studentToken = await getAuthToken(app, student);
+    const course = await createCourse(professorToken);
+    await configureAi(course._id);
+    await Course.findByIdAndUpdate(course._id, { $set: {
+      aiEnabled: true,
+      aiStudentChatEnabled: true,
+      aiStudentChatGuidance: 'Help students understand mechanics without inventing facts.',
+      aiStudentDefaultBackendId: 'ollama-local',
+      aiStudentDefaultModelId: 'llama3.2',
+      aiModelPolicies: [
+        { backendId: 'ollama-local', modelId: 'llama3.2', studentAvailable: true },
+        { backendId: 'ollama-local', modelId: 'qwen3', studentAvailable: false },
+      ],
+      students: [student._id],
+    } });
+
+    const config = await authenticatedRequest(app, 'GET', `/api/v1/ai/student/courses/${course._id}/config`, { token: studentToken });
+    expect(config.statusCode).toBe(200);
+    expect(config.json()).toEqual({
+      enabled: true,
+      approvedModels: [expect.objectContaining({
+        backendId: 'ollama-local',
+        backendName: 'Local Ollama',
+        modelId: 'llama3.2',
+        modelName: 'llama3.2',
+      })],
+      defaultBackendId: 'ollama-local',
+      defaultModelId: 'llama3.2',
+    });
+    expect(JSON.stringify(config.json())).not.toContain('admin-secret');
+    expect(await authenticatedRequest(app, 'GET', `/api/v1/ai/student/courses/${course._id}/config`, { token: professorToken }))
+      .toMatchObject({ statusCode: 403 });
+
+    const created = await authenticatedRequest(app, 'POST', `/api/v1/ai/student/courses/${course._id}/conversations`, { token: studentToken });
+    expect(created.statusCode).toBe(201);
+    const conversationId = created.json().conversation._id;
+    expect(await AiConversation.findById(conversationId).lean()).toMatchObject({ audience: 'student', ownerId: student._id });
+
+    const rejectedModel = await authenticatedRequest(
+      app,
+      'POST',
+      `/api/v1/ai/student/courses/${course._id}/conversations/${conversationId}/messages`,
+      { token: studentToken, payload: { content: 'Use the other model.', backendId: 'ollama-local', modelId: 'qwen3' } }
+    );
+    expect(rejectedModel.statusCode).toBe(400);
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      message: { content: 'A free-body diagram can help you identify each force.' },
+    }), { status: 200 })));
+    const message = await authenticatedRequest(
+      app,
+      'POST',
+      `/api/v1/ai/student/courses/${course._id}/conversations/${conversationId}/messages`,
+      { token: studentToken, payload: { content: 'How should I start a force problem?', backendId: 'ollama-local', modelId: 'llama3.2' } }
+    );
+    expect(message.statusCode).toBe(202);
+    await vi.waitFor(async () => {
+      const updated = await AiConversation.findById(conversationId).lean();
+      expect(updated.messages.at(-1).content).toBe('A free-body diagram can help you identify each force.');
+      expect(updated.pending).toBe(false);
+    });
+    const requestBody = JSON.parse(fetch.mock.calls[0][1].body);
+    expect(requestBody.tools).toBeUndefined();
+    expect(requestBody.messages[0].content).toContain('Help students understand mechanics without inventing facts.');
+    expect(requestBody.messages[0].content).toContain('You do not have access to course data or tools.');
   });
 
   it('runs MCP tools before answering with course data', async (ctx) => {

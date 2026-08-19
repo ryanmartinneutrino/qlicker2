@@ -91,6 +91,18 @@ export async function createCourseMcpClient({
   currentUserMessageId = '',
   onCourseChatUpdated,
 }) {
+  // Student chat deliberately starts without MCP tools. Keeping this boundary
+  // explicit prevents instructor tools from leaking as student features grow.
+  if (audience !== 'instructor') {
+    return {
+      client: {
+        async listTools() { return { tools: [] }; },
+        async callTool() { throw new Error('MCP tools are not available to students'); },
+      },
+      async close() {},
+    };
+  }
+
   const server = new McpServer({ name: 'qlicker-course-tools', version: '1.0.0' });
 
   server.registerTool('get_conversation_history', {
@@ -110,22 +122,6 @@ export async function createCourseMcpClient({
       turns: page,
     });
   });
-
-  // Student chat can use this same MCP boundary later with a smaller, separately
-  // approved tool set. Do not accidentally grant instructor data to that audience.
-  if (audience !== 'instructor') {
-    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-    const client = new Client({ name: 'qlicker-ai-runner', version: '1.0.0' });
-    await server.connect(serverTransport);
-    await client.connect(clientTransport);
-    return {
-      client,
-      async close() {
-        await client.close();
-        await server.close();
-      },
-    };
-  }
 
   server.registerTool('list_course_students', {
     title: 'List course students',

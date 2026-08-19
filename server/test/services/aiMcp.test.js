@@ -2,15 +2,23 @@ import { describe, expect, it } from 'vitest';
 import { createCourseMcpClient } from '../../src/services/aiMcp.js';
 
 describe('course AI MCP audience and history', () => {
-  it('gives the student audience only the role-safe conversation history tool', async () => {
+  it('gives the student audience no MCP tools', async () => {
+    const mcp = await createCourseMcpClient({ courseId: 'course-1', audience: 'student' });
+    try {
+      const tools = await mcp.client.listTools();
+      expect(tools.tools).toEqual([]);
+    } finally {
+      await mcp.close();
+    }
+  });
+
+  it('lets instructors request earlier conversation history', async () => {
     const historyMessages = Array.from({ length: 7 }, (_, index) => ([
       { role: 'user', content: `Question ${index + 1}` },
       { role: 'assistant', content: `Answer ${index + 1}` },
     ])).flat();
-    const mcp = await createCourseMcpClient({ courseId: 'course-1', audience: 'student', historyMessages });
+    const mcp = await createCourseMcpClient({ courseId: 'course-1', audience: 'instructor', historyMessages });
     try {
-      const tools = await mcp.client.listTools();
-      expect(tools.tools.map((tool) => tool.name)).toEqual(['get_conversation_history']);
       const result = await mcp.client.callTool({ name: 'get_conversation_history', arguments: { offset: 0, limit: 2 } });
       const payload = JSON.parse(result.content[0].text);
       expect(payload).toMatchObject({ total_turns: 7, supplied_recent_turns: 5, returned_count: 2, next_offset: 2 });

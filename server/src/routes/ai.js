@@ -6,11 +6,12 @@ import AiResponseSummary from '../models/AiResponseSummary.js';
 import Course from '../models/Course.js';
 import Session from '../models/Session.js';
 import { getOrCreateSettingsDocument } from '../utils/settingsSingleton.js';
-import { isCourseInstructorOrAdmin } from '../utils/courseAccess.js';
+import { isCourseInstructorOrAdmin, resolveCourseAiAudience } from '../utils/courseAccess.js';
 import { discoverOllamaModels, discoverOpenAiModels, normalizeAiBackends, serializeAiBackends } from '../services/ai.js';
 import { isAiCourseChatActive, queueAiCourseChat, stopAiCourseChat } from '../services/aiChatJobRunner.js';
 import {
   courseChatMaxToolRounds,
+  defaultStudentChatGuidance,
   MAX_CHAT_TOOL_ROUNDS,
 } from '../services/aiChatRunner.js';
 import { haltAiGradingJob, runAiGradingJob } from '../services/aiGradingRunner.js';
@@ -31,10 +32,35 @@ async function instructorCourse(request, reply) {
   return course;
 }
 
+async function studentCourse(request, reply) {
+  const course = await Course.findById(request.params.courseId).lean();
+  if (!course) { reply.code(404).send({ error: 'Not Found', message: 'Course not found' }); return null; }
+  if (resolveCourseAiAudience(course, request.user) !== 'student') {
+    reply.code(403).send({ error: 'Forbidden', message: 'Only students enrolled in this course can use student AI chat' });
+    return null;
+  }
+  if (course.inactive) {
+    reply.code(403).send({ error: 'Forbidden', message: 'This course is inactive for students' });
+    return null;
+  }
+  return course;
+}
+
 function coursePolicy(settings, courseId) {
   const id = String(courseId);
   const enabled = !!settings?.AI_Enabled && (settings?.AI_EnabledCourses || []).map(String).includes(id);
   return { enabled, allowCourseBackend: enabled && (settings?.AI_AllowCourseBackendCourses || []).map(String).includes(id) };
+}
+
+async function studentChatContext(request, reply) {
+  const course = await studentCourse(request, reply); if (!course) return null;
+  const settings = await getOrCreateSettingsDocument({ lean: true });
+  const policy = coursePolicy(settings, course._id);
+  if (!policy.enabled || !course.aiEnabled || !course.aiStudentChatEnabled) {
+    reply.code(403).send({ error: 'Forbidden', message: 'Student AI chat is disabled for this course' });
+    return null;
+  }
+  return { course, settings, policy };
 }
 
 function findModel(backends, backendId, modelId) {
@@ -83,6 +109,18 @@ function resolveModel(course, settings, policy, requested = {}) {
   return findModel(availableBackends(course, settings, policy), backendId, modelId);
 }
 
+function resolveStudentModel(course, settings, policy, requested = {}) {
+  const eligibleModels = approvedModels(course, settings, policy).filter((model) => model.studentAvailable);
+  const configured = eligibleModels.find((model) => (
+    model.backendId === course.aiStudentDefaultBackendId && model.modelId === course.aiStudentDefaultModelId
+  ));
+  const fallback = configured || eligibleModels[0] || null;
+  const backendId = requested.backendId || fallback?.backendId || '';
+  const modelId = requested.modelId || fallback?.modelId || '';
+  if (!eligibleModels.some((model) => model.backendId === backendId && model.modelId === modelId)) return null;
+  return findModel(availableBackends(course, settings, policy), backendId, modelId);
+}
+
 function approvedModels(course, settings, policy) {
   const policies = effectiveModelPolicies(course, settings, policy);
   const policyByKey = new Map(policies.map((entry) => [modelKey(entry.backendId, entry.modelId), entry]));
@@ -98,8 +136,8 @@ function approvedModels(course, settings, policy) {
   }));
 }
 
-function defaultStudentChatGuidance(courseName) {
-  return `You are a student-facing AI assistant for the course ${courseName || 'this course'}. Students will ask you questions about the course and about material covered in the course. Always provide helpful answers, but do not make things up. If you do not know the answer to a question then say so. You should strive to provide a source for your responses. Make sure your tone is light-hearted and respectful. Do not answer any inappropriate questions or questions that are unrelated to the course.`;
+function conversationAudienceFilter(audience) {
+  return audience === 'student' ? { audience: 'student' } : { audience: { $ne: 'student' } };
 }
 
 function serializeConversation(doc, includeMessages = false) {
@@ -204,6 +242,22 @@ export default async function aiRoutes(app) {
     };
   });
 
+  app.get('/student/courses/:courseId/config', { preHandler: authenticate, rateLimit: READ_LIMIT }, async (request, reply) => {
+    const context = await studentChatContext(request, reply); if (!context) return undefined;
+    const { course, settings, policy } = context;
+    const models = approvedModels(course, settings, policy).filter((model) => model.studentAvailable);
+    const configured = models.find((model) => (
+      model.backendId === course.aiStudentDefaultBackendId && model.modelId === course.aiStudentDefaultModelId
+    ));
+    const defaultModel = configured || models[0] || null;
+    return {
+      enabled: true,
+      approvedModels: models.map(({ studentAvailable, ...model }) => model),
+      defaultBackendId: defaultModel?.backendId || '',
+      defaultModelId: defaultModel?.modelId || '',
+    };
+  });
+
   app.patch('/courses/:courseId/config', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
     const settings = await getOrCreateSettingsDocument({ lean: true });
@@ -278,19 +332,19 @@ export default async function aiRoutes(app) {
 
   app.get('/courses/:courseId/conversations', { preHandler: authenticate, rateLimit: READ_LIMIT }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
-    const conversations = await AiConversation.find({ courseId: course._id, ownerId: request.user.userId }).sort({ updatedAt: -1 }).lean();
+    const conversations = await AiConversation.find({ courseId: course._id, ownerId: request.user.userId, ...conversationAudienceFilter('instructor') }).sort({ updatedAt: -1 }).lean();
     return { conversations: conversations.map((entry) => serializeConversation(entry)) };
   });
 
   app.post('/courses/:courseId/conversations', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
-    const conversation = await AiConversation.create({ courseId: course._id, ownerId: request.user.userId });
+    const conversation = await AiConversation.create({ courseId: course._id, ownerId: request.user.userId, audience: 'instructor' });
     return reply.code(201).send({ conversation: serializeConversation(conversation.toObject(), true) });
   });
 
   app.get('/courses/:courseId/conversations/:conversationId', { preHandler: authenticate, rateLimit: READ_LIMIT }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
-    let conversation = await AiConversation.findOne({ _id: request.params.conversationId, courseId: course._id, ownerId: request.user.userId }).lean();
+    let conversation = await AiConversation.findOne({ _id: request.params.conversationId, courseId: course._id, ownerId: request.user.userId, ...conversationAudienceFilter('instructor') }).lean();
     if (!conversation) return reply.code(404).send({ error: 'Not Found', message: 'AI conversation not found' });
     conversation = await recoverOrphanedConversation(conversation);
     return { conversation: serializeConversation(conversation, true) };
@@ -298,7 +352,7 @@ export default async function aiRoutes(app) {
 
   app.delete('/courses/:courseId/conversations/:conversationId/pending-error', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
-    let conversation = await AiConversation.findOne({ _id: request.params.conversationId, courseId: course._id, ownerId: request.user.userId }).lean();
+    let conversation = await AiConversation.findOne({ _id: request.params.conversationId, courseId: course._id, ownerId: request.user.userId, ...conversationAudienceFilter('instructor') }).lean();
     if (!conversation) return reply.code(404).send({ error: 'Not Found', message: 'AI conversation not found' });
     conversation = await recoverOrphanedConversation(conversation);
     if (!conversation.pending && conversation.pendingError) {
@@ -314,8 +368,13 @@ export default async function aiRoutes(app) {
 
   app.delete('/courses/:courseId/conversations/:conversationId', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
-    stopAiCourseChat(request.params.conversationId);
-    await AiConversation.deleteOne({ _id: request.params.conversationId, courseId: course._id, ownerId: request.user.userId });
+    const conversation = await AiConversation.findOneAndDelete({
+      _id: request.params.conversationId,
+      courseId: course._id,
+      ownerId: request.user.userId,
+      ...conversationAudienceFilter('instructor'),
+    });
+    if (conversation) stopAiCourseChat(conversation._id);
     return reply.code(204).send();
   });
 
@@ -327,7 +386,7 @@ export default async function aiRoutes(app) {
     if (!policy.enabled || !course.aiEnabled) return reply.code(403).send({ error: 'Forbidden', message: 'AI helper is disabled for this course' });
     const selected = resolveModel(course, settings, policy, request.body || {});
     if (!selected) return reply.code(400).send({ error: 'Bad Request', message: 'Select an approved AI backend and model before chatting' });
-    const conversation = await AiConversation.findOne({ _id: request.params.conversationId, courseId: course._id, ownerId: request.user.userId });
+    const conversation = await AiConversation.findOne({ _id: request.params.conversationId, courseId: course._id, ownerId: request.user.userId, ...conversationAudienceFilter('instructor') });
     if (!conversation) return reply.code(404).send({ error: 'Not Found', message: 'AI conversation not found' });
     if (conversation.pending) return reply.code(409).send({ error: 'Conflict', message: 'An AI response is already in progress for this conversation' });
     conversation.messages.push({ role: 'user', content, contentWysiwyg: String(request.body?.contentWysiwyg || '') });
@@ -355,7 +414,127 @@ export default async function aiRoutes(app) {
   app.post('/courses/:courseId/conversations/:conversationId/stop', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
     const conversation = await AiConversation.findOneAndUpdate(
-      { _id: request.params.conversationId, courseId: course._id, ownerId: request.user.userId, pending: true },
+      { _id: request.params.conversationId, courseId: course._id, ownerId: request.user.userId, pending: true, ...conversationAudienceFilter('instructor') },
+      { $set: { pending: false, pendingMessageId: '', pendingError: 'AI response stopped', updatedAt: new Date() } },
+      { returnDocument: 'after' }
+    );
+    if (!conversation) return reply.code(409).send({ error: 'Conflict', message: 'No AI response is in progress for this conversation' });
+    stopAiCourseChat(conversation._id);
+    return { conversation: serializeConversation(conversation.toObject(), true) };
+  });
+
+  app.get('/student/courses/:courseId/conversations', { preHandler: authenticate, rateLimit: READ_LIMIT }, async (request, reply) => {
+    const context = await studentChatContext(request, reply); if (!context) return undefined;
+    const conversations = await AiConversation.find({
+      courseId: context.course._id,
+      ownerId: request.user.userId,
+      ...conversationAudienceFilter('student'),
+    }).sort({ updatedAt: -1 }).lean();
+    return { conversations: conversations.map((entry) => serializeConversation(entry)) };
+  });
+
+  app.post('/student/courses/:courseId/conversations', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
+    const context = await studentChatContext(request, reply); if (!context) return undefined;
+    const conversation = await AiConversation.create({
+      courseId: context.course._id,
+      ownerId: request.user.userId,
+      audience: 'student',
+    });
+    return reply.code(201).send({ conversation: serializeConversation(conversation.toObject(), true) });
+  });
+
+  app.get('/student/courses/:courseId/conversations/:conversationId', { preHandler: authenticate, rateLimit: READ_LIMIT }, async (request, reply) => {
+    const context = await studentChatContext(request, reply); if (!context) return undefined;
+    let conversation = await AiConversation.findOne({
+      _id: request.params.conversationId,
+      courseId: context.course._id,
+      ownerId: request.user.userId,
+      ...conversationAudienceFilter('student'),
+    }).lean();
+    if (!conversation) return reply.code(404).send({ error: 'Not Found', message: 'AI conversation not found' });
+    conversation = await recoverOrphanedConversation(conversation);
+    return { conversation: serializeConversation(conversation, true) };
+  });
+
+  app.delete('/student/courses/:courseId/conversations/:conversationId/pending-error', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
+    const context = await studentChatContext(request, reply); if (!context) return undefined;
+    let conversation = await AiConversation.findOne({
+      _id: request.params.conversationId,
+      courseId: context.course._id,
+      ownerId: request.user.userId,
+      ...conversationAudienceFilter('student'),
+    }).lean();
+    if (!conversation) return reply.code(404).send({ error: 'Not Found', message: 'AI conversation not found' });
+    conversation = await recoverOrphanedConversation(conversation);
+    if (!conversation.pending && conversation.pendingError) {
+      const cleared = await AiConversation.findOneAndUpdate(
+        { _id: conversation._id, pending: false, ...conversationAudienceFilter('student') },
+        { $set: { pendingError: '' } },
+        { returnDocument: 'after' }
+      ).lean();
+      conversation = cleared || await AiConversation.findById(conversation._id).lean();
+    }
+    return { conversation: serializeConversation(conversation, true) };
+  });
+
+  app.delete('/student/courses/:courseId/conversations/:conversationId', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
+    const context = await studentChatContext(request, reply); if (!context) return undefined;
+    const conversation = await AiConversation.findOneAndDelete({
+      _id: request.params.conversationId,
+      courseId: context.course._id,
+      ownerId: request.user.userId,
+      ...conversationAudienceFilter('student'),
+    });
+    if (conversation) stopAiCourseChat(conversation._id);
+    return reply.code(204).send();
+  });
+
+  app.post('/student/courses/:courseId/conversations/:conversationId/messages', { preHandler: authenticate, rateLimit: { max: 10, timeWindow: '1 minute' } }, async (request, reply) => {
+    const content = String(request.body?.content || '').trim();
+    if (!content) return reply.code(400).send({ error: 'Bad Request', message: 'A message is required' });
+    const context = await studentChatContext(request, reply); if (!context) return undefined;
+    const { course, settings, policy } = context;
+    const selected = resolveStudentModel(course, settings, policy, request.body || {});
+    if (!selected) return reply.code(400).send({ error: 'Bad Request', message: 'Select an AI model made available to students before chatting' });
+    const conversation = await AiConversation.findOne({
+      _id: request.params.conversationId,
+      courseId: course._id,
+      ownerId: request.user.userId,
+      ...conversationAudienceFilter('student'),
+    });
+    if (!conversation) return reply.code(404).send({ error: 'Not Found', message: 'AI conversation not found' });
+    if (conversation.pending) return reply.code(409).send({ error: 'Conflict', message: 'An AI response is already in progress for this conversation' });
+    conversation.messages.push({ role: 'user', content, contentWysiwyg: String(request.body?.contentWysiwyg || '') });
+    const userMessage = conversation.messages.at(-1);
+    conversation.pending = true;
+    conversation.pendingMessageId = String(userMessage._id);
+    conversation.pendingError = '';
+    conversation.backendId = selected.backend.id;
+    conversation.modelId = selected.model.id;
+    conversation.title = conversation.title || content.slice(0, 80);
+    conversation.updatedAt = new Date();
+    await conversation.save();
+    queueAiCourseChat({
+      conversationId: conversation._id,
+      pendingMessageId: userMessage._id,
+      backend: selected.backend,
+      modelId: selected.model.id,
+      course,
+      user: request.user,
+    });
+    return reply.code(202).send({ conversation: serializeConversation(conversation.toObject(), true) });
+  });
+
+  app.post('/student/courses/:courseId/conversations/:conversationId/stop', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
+    const context = await studentChatContext(request, reply); if (!context) return undefined;
+    const conversation = await AiConversation.findOneAndUpdate(
+      {
+        _id: request.params.conversationId,
+        courseId: context.course._id,
+        ownerId: request.user.userId,
+        pending: true,
+        ...conversationAudienceFilter('student'),
+      },
       { $set: { pending: false, pendingMessageId: '', pendingError: 'AI response stopped', updatedAt: new Date() } },
       { returnDocument: 'after' }
     );

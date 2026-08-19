@@ -12,7 +12,7 @@ export function parseAiModelValue(value) {
   return { backendId, modelId };
 }
 
-export default function AiModelSelect({ courseId, value, onChange, disabled = false, fullWidth = true }) {
+export default function AiModelSelect({ courseId, value, onChange, disabled = false, fullWidth = true, audience = 'instructor' }) {
   const { t } = useTranslation();
   const [models, setModels] = useState([]);
   const [error, setError] = useState('');
@@ -21,7 +21,10 @@ export default function AiModelSelect({ courseId, value, onChange, disabled = fa
 
   useEffect(() => {
     let active = true;
-    apiClient.get(`/ai/courses/${courseId}/config`)
+    const configPath = audience === 'student'
+      ? `/ai/student/courses/${courseId}/config`
+      : `/ai/courses/${courseId}/config`;
+    apiClient.get(configPath)
       .then(({ data }) => {
         if (!active) return;
         const nextModels = data.approvedModels || [];
@@ -40,7 +43,7 @@ export default function AiModelSelect({ courseId, value, onChange, disabled = fa
     return () => { active = false; };
   // Selection remains under the parent while configuration is course-scoped.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [courseId, t]);
+  }, [audience, courseId, t]);
 
   if (error) return <Alert severity="error">{error}</Alert>;
   return <TextField

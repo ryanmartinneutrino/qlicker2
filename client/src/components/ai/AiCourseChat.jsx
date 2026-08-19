@@ -21,7 +21,7 @@ function normalizeDraft(value) {
   return { html, plainText: String(value?.plainText ?? extractPlainTextFromHtml(html)) };
 }
 
-export default function AiCourseChat({ courseId }) {
+export default function AiCourseChat({ courseId, audience = 'instructor' }) {
   const { t } = useTranslation();
   const [conversations, setConversations] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -31,6 +31,9 @@ export default function AiCourseChat({ courseId }) {
   const [stopping, setStopping] = useState(false);
   const [error, setError] = useState('');
   const [selectedModel, setSelectedModel] = useState('');
+  const apiBase = audience === 'student'
+    ? `/ai/student/courses/${courseId}`
+    : `/ai/courses/${courseId}`;
 
   const updateConversation = useCallback((conversation, { select = true } = {}) => {
     if (!conversation) return;
@@ -40,7 +43,7 @@ export default function AiCourseChat({ courseId }) {
 
   const loadConversation = useCallback(async (id, { silent = false, clearPendingError = false } = {}) => {
     try {
-      const endpoint = `/ai/courses/${courseId}/conversations/${id}`;
+      const endpoint = `${apiBase}/conversations/${id}`;
       const { data } = clearPendingError
         ? await apiClient.delete(`${endpoint}/pending-error`)
         : await apiClient.get(endpoint);
@@ -51,12 +54,12 @@ export default function AiCourseChat({ courseId }) {
       if (!silent) setError(err.response?.data?.message || t('ai.chat.failedLoad'));
       return null;
     }
-  }, [courseId, t, updateConversation]);
+  }, [apiBase, t, updateConversation]);
 
   const loadConversations = useCallback(async () => {
     setLoading(true); setError('');
     try {
-      const { data } = await apiClient.get(`/ai/courses/${courseId}/conversations`);
+      const { data } = await apiClient.get(`${apiBase}/conversations`);
       const nextConversations = data.conversations || [];
       setConversations(nextConversations);
       if (nextConversations[0]) {
@@ -70,7 +73,7 @@ export default function AiCourseChat({ courseId }) {
     } finally {
       setLoading(false);
     }
-  }, [courseId, loadConversation, t]);
+  }, [apiBase, loadConversation, t]);
 
   useEffect(() => { loadConversations(); }, [loadConversations]);
 
@@ -84,7 +87,7 @@ export default function AiCourseChat({ courseId }) {
 
   const createConversation = async () => {
     try {
-      const { data } = await apiClient.post(`/ai/courses/${courseId}/conversations`);
+      const { data } = await apiClient.post(`${apiBase}/conversations`);
       updateConversation(data.conversation); setError('');
       return data.conversation;
     } catch (err) {
@@ -95,7 +98,7 @@ export default function AiCourseChat({ courseId }) {
 
   const deleteConversation = async (id) => {
     try {
-      await apiClient.delete(`/ai/courses/${courseId}/conversations/${id}`);
+      await apiClient.delete(`${apiBase}/conversations/${id}`);
       setConversations((current) => current.filter((item) => item._id !== id));
       if (selected?._id === id) setSelected(null);
     } catch (err) { setError(err.response?.data?.message || t('ai.chat.failedLoad')); }
@@ -123,7 +126,7 @@ export default function AiCourseChat({ courseId }) {
 
     try {
       const { data } = await apiClient.post(
-        `/ai/courses/${courseId}/conversations/${conversation._id}/messages`,
+        `${apiBase}/conversations/${conversation._id}/messages`,
         { content, contentWysiwyg: submittedDraft.html, ...parseAiModelValue(selectedModel) }
       );
       updateConversation(data.conversation);
@@ -139,7 +142,7 @@ export default function AiCourseChat({ courseId }) {
     if (!selected?.pending || stopping) return;
     setStopping(true);
     try {
-      const { data } = await apiClient.post(`/ai/courses/${courseId}/conversations/${selected._id}/stop`);
+      const { data } = await apiClient.post(`${apiBase}/conversations/${selected._id}/stop`);
       updateConversation(data.conversation);
     } catch (err) {
       setError(err.response?.data?.message || t('ai.chat.failedSend'));
@@ -177,9 +180,9 @@ export default function AiCourseChat({ courseId }) {
     <Paper variant="outlined" sx={{ p: 1.5, display: 'flex', flexDirection: 'column', minHeight: 520 }}>
       {error ? <Alert severity="error" sx={{ mb: 1 }} onClose={() => setError('')}>{error}</Alert> : null}
       {selected?.pendingError ? <Alert severity="warning" sx={{ mb: 1 }} onClose={() => loadConversation(selected._id, { silent: true, clearPendingError: true })}>{selected.pendingError}</Alert> : null}
-      <Box sx={{ mb: 1.5 }}><AiModelSelect courseId={courseId} value={selectedModel} onChange={setSelectedModel} disabled={isThinking} /></Box>
+      <Box sx={{ mb: 1.5 }}><AiModelSelect courseId={courseId} value={selectedModel} onChange={setSelectedModel} disabled={isThinking} audience={audience} /></Box>
       <Box sx={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 1.25, mb: 1.5 }} aria-live="polite">
-        {!selected && !pendingMessage ? <Typography color="text.secondary">{t('ai.chat.selectConversation')}</Typography> : messages.length === 0 && !pendingMessage ? <Alert severity="info" sx={{ alignSelf: 'stretch' }}>{t('ai.chat.newConversationGuidance')}</Alert> : messages.map((message) => <Paper key={message._id} variant="outlined" sx={{ p: 1.25, alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%', bgcolor: message.role === 'user' ? 'action.hover' : 'background.paper' }}>
+        {!selected && !pendingMessage ? <Typography color="text.secondary">{t('ai.chat.selectConversation')}</Typography> : messages.length === 0 && !pendingMessage ? <Alert severity="info" sx={{ alignSelf: 'stretch' }}>{t(audience === 'student' ? 'ai.chat.studentNewConversationGuidance' : 'ai.chat.newConversationGuidance')}</Alert> : messages.map((message) => <Paper key={message._id} variant="outlined" sx={{ p: 1.25, alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%', bgcolor: message.role === 'user' ? 'action.hover' : 'background.paper' }}>
           <Typography variant="caption" color="text.secondary">{message.role === 'user' ? t('ai.chat.you') : t('ai.chat.assistant')}</Typography>
           {message.role === 'assistant'
             ? <AiMarkdownContent content={message.content} />

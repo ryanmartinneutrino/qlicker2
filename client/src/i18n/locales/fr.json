@@ -2456,6 +2456,7 @@
       "title": "AI Chat",
       "newConversation": "New conversation",
       "newConversationGuidance": "Posez des questions sur les étudiants de ce cours, les notes et les résultats, ou créez des questions à utiliser dans vos séances.",
+      "studentNewConversationGuidance": "Posez des questions sur ce cours ou son contenu. Je peux expliquer des notions, travailler des exemples et vous aider à étudier.",
       "noConversations": "No conversations yet.",
       "send": "Send",
       "stop": "Arrêter",

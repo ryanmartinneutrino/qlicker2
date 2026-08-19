@@ -1825,6 +1825,7 @@
       "title": "AI Chat",
       "newConversation": "New conversation",
       "newConversationGuidance": "Ask about students in this course, grades and performance, or create questions to use in your sessions.",
+      "studentNewConversationGuidance": "Ask about this course or its content. I can help explain concepts, work through examples, and support your studying.",
       "noConversations": "No conversations yet.",
       "send": "Send",
       "stop": "Stop",

@@ -2459,6 +2459,7 @@
       "title": "AI Chat",
       "newConversation": "New conversation",
       "newConversationGuidance": "您可以询问本课程的学生、成绩和表现，也可以创建用于课堂的题目。",
+      "studentNewConversationGuidance": "询问有关本课程或课程内容的问题。我可以帮助解释概念、分析示例并辅助你学习。",
       "noConversations": "No conversations yet.",
       "send": "Send",
       "stop": "停止",
