@@ -106,8 +106,8 @@ function serializeSession(session) {
     description: session.description || '',
     type: session.quiz ? 'quiz' : 'interactive',
     status: session.status,
-    quiz_start: session.quizStart || null,
-    quiz_end: session.quizEnd || null,
+    quiz_start: session.quizStart ? new Date(session.quizStart).toISOString() : null,
+    quiz_end: session.quizEnd ? new Date(session.quizEnd).toISOString() : null,
     tags: normalizeTags(session.tags || []).map((tag) => tag.label),
   };
 }

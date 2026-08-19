@@ -36,6 +36,22 @@ describe('course AI MCP audience and history', () => {
         'draft_course_chat_message',
         'publish_course_chat_draft',
       ]));
+      expect(tools.tools.find((tool) => tool.name === 'create_course_session')?.outputSchema).toBeTruthy();
+      expect(tools.tools.find((tool) => tool.name === 'create_course_question')?.outputSchema).toBeTruthy();
+    } finally {
+      await mcp.close();
+    }
+  });
+
+  it('rejects malformed authoring arguments before running the tool', async () => {
+    const mcp = await createCourseMcpClient({ courseId: 'course-1', userId: 'prof-1', audience: 'instructor' });
+    try {
+      const result = await mcp.client.callTool({
+        name: 'create_course_question',
+        arguments: { type: 'multiple_choice', prompt: 'Question', options: 'not-an-array' },
+      });
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain('Input validation error');
     } finally {
       await mcp.close();
     }

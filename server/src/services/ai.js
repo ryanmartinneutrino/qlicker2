@@ -1,5 +1,14 @@
 import { generateMeteorId } from '../utils/meteorId.js';
 
+const AI_RESPONSE_FORMAT_ATTEMPTS = 2;
+
+class AiResponseFormatError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'AiResponseFormatError';
+  }
+}
+
 export function normalizeAiUrl(value) {
   const raw = String(value || '').trim().replace(/\/+$/, '');
   if (!raw) return '';
@@ -75,24 +84,44 @@ export async function requestAiCompletion(backend, modelId, messages, signal = u
   return result.content;
 }
 
-function parseToolArguments(value) {
-  if (value && typeof value === 'object') return value;
-  if (typeof value !== 'string' || !value.trim()) return {};
-  try { return JSON.parse(value); }
-  catch { return {}; }
+function parseToolArguments(value, toolName) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value;
+  if (value === undefined || value === null || value === '') return {};
+  if (typeof value !== 'string') throw new AiResponseFormatError(`AI backend returned non-object arguments for tool ${toolName}`);
+  try {
+    const parsed = JSON.parse(value);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new AiResponseFormatError(`AI backend returned non-object arguments for tool ${toolName}`);
+    }
+    return parsed;
+  }
+  catch (error) {
+    if (error instanceof AiResponseFormatError) throw error;
+    throw new AiResponseFormatError(`AI backend returned invalid JSON arguments for tool ${toolName}`);
+  }
+}
+
+function normalizeMessageContent(value) {
+  if (value === undefined || value === null) return '';
+  if (typeof value === 'string') return value.trim();
+  if (Array.isArray(value)) {
+    return value.map((part) => (part?.type === 'text' ? String(part.text || '') : '')).join('\n').trim();
+  }
+  throw new AiResponseFormatError('AI backend returned chat content in an unsupported format');
 }
 
 function normalizeToolCalls(toolCalls = []) {
+  if (!Array.isArray(toolCalls)) throw new AiResponseFormatError('AI backend returned tool calls in an unsupported format');
   return (Array.isArray(toolCalls) ? toolCalls : []).map((call, index) => {
     const fn = call?.function || call || {};
     const name = String(fn.name || call?.name || '').trim();
-    if (!name) return null;
+    if (!name) throw new AiResponseFormatError('AI backend returned a tool call without a name');
     return {
       id: String(call?.id || `tool-call-${index}`),
       name,
-      arguments: parseToolArguments(fn.arguments ?? call?.arguments),
+      arguments: parseToolArguments(fn.arguments ?? call?.arguments, name),
     };
-  }).filter(Boolean);
+  });
 }
 
 function toolDefinitionsForProvider(tools = []) {
@@ -106,7 +135,7 @@ function toolDefinitionsForProvider(tools = []) {
   }));
 }
 
-export async function requestAiMessage(backend, modelId, messages, tools = [], signal = undefined) {
+async function requestAiMessageOnce(backend, modelId, messages, tools = [], signal = undefined) {
   const headers = { 'content-type': 'application/json' };
   if (backend.apiToken) headers.authorization = `Bearer ${backend.apiToken}`;
   const baseUrl = normalizeAiUrl(backend.url);
@@ -119,10 +148,30 @@ export async function requestAiMessage(backend, modelId, messages, tools = [], s
     body: JSON.stringify(requestBody),
   });
   if (!response.ok) throw new Error(`AI backend request failed (${response.status})`);
-  const payload = await response.json();
+  let payload;
+  try { payload = await response.json(); }
+  catch { throw new AiResponseFormatError('AI backend returned invalid JSON'); }
   const message = isOpenAi ? payload?.choices?.[0]?.message : payload?.message;
-  const content = String(message?.content || '').trim();
-  const toolCalls = normalizeToolCalls(message?.tool_calls);
-  if (!content && toolCalls.length === 0) throw new Error('AI backend returned an empty response');
+  if (!message || typeof message !== 'object') throw new AiResponseFormatError('AI backend returned no chat message');
+  const content = normalizeMessageContent(message.content);
+  const toolCalls = normalizeToolCalls(message.tool_calls === undefined || message.tool_calls === null ? [] : message.tool_calls);
+  if (!content && toolCalls.length === 0) throw new AiResponseFormatError('AI backend returned an empty response');
   return { content, toolCalls };
+}
+
+export async function requestAiMessage(backend, modelId, messages, tools = [], signal = undefined) {
+  let formatError = null;
+  for (let attempt = 0; attempt < AI_RESPONSE_FORMAT_ATTEMPTS; attempt += 1) {
+    const correctiveMessage = attempt === 0 ? [] : [{
+      role: 'system',
+      content: 'Your previous response was rejected because its format was invalid. No tool call from that rejected response was executed. Continue from the existing conversation and tool results without repeating completed work. Return either a non-empty chat message or valid function tool calls whose arguments are strict JSON objects matching the supplied schemas.',
+    }];
+    try {
+      return await requestAiMessageOnce(backend, modelId, [...messages, ...correctiveMessage], tools, signal);
+    } catch (error) {
+      if (!(error instanceof AiResponseFormatError)) throw error;
+      formatError = error;
+    }
+  }
+  throw new Error(`AI backend repeatedly returned an invalid response: ${formatError?.message || 'unknown format error'}`);
 }
