@@ -2184,6 +2184,32 @@ export default function CourseDetail() {
                 <Alert severity="info">{t('professor.course.aiAdminBackendOnly')}</Alert>
               </>}
             </>}
+            <Divider />
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Typography variant="subtitle2">{t('professor.course.copyRubrics')}</Typography>
+              <Typography variant="body2" color="text.secondary">{t('professor.course.copyRubricsHelp')}</Typography>
+              <TextField select size="small" label={t('professor.course.copyRubricsSource')} value={rubricSourceCourseId} onChange={(event) => setRubricSourceCourseId(event.target.value)}>
+                {rubricSourceCourses.map((sourceCourse) => (
+                  <MenuItem key={sourceCourse._id} value={sourceCourse._id}>{buildCourseTitle(sourceCourse)}</MenuItem>
+                ))}
+              </TextField>
+              <Box>
+                <Button variant="outlined" onClick={handleCopyRubrics} disabled={!rubricSourceCourseId || copyingRubrics}>
+                  {copyingRubrics ? t('common.saving') : t('professor.course.copyRubrics')}
+                </Button>
+                <Button variant="outlined" sx={{ ml: 1 }} onClick={openRubricManager}>{t('professor.course.manageRubrics')}</Button>
+              </Box>
+              <Dialog open={rubricManagerOpen} onClose={() => setRubricManagerOpen(false)} fullWidth maxWidth="sm">
+                <DialogTitle>{t('professor.course.manageRubrics')}</DialogTitle>
+                <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                  <TextField select label={t('professor.course.rubricType')} value={rubricKind} onChange={(event) => { setRubricKind(event.target.value); setActiveRubricId(''); setRubricDraft({ name: '', content: '' }); }}><MenuItem value="grading">{t('grades.aiGrading.gradingInstructions')}</MenuItem><MenuItem value="feedback">{t('grades.aiGrading.feedbackToStudentInstructions')}</MenuItem><MenuItem value="summary">{t('professor.course.summaryInstructions')}</MenuItem></TextField>
+                  <Autocomplete options={courseRubrics.filter((entry) => entry.kind === rubricKind)} value={courseRubrics.find((entry) => entry._id === activeRubricId) || null} getOptionLabel={(entry) => entry.name} onChange={(_, entry) => { setActiveRubricId(entry?._id || ''); setRubricDraft(entry ? { name: entry.name, content: entry.content } : { name: '', content: '' }); }} renderInput={(params) => <TextField {...params} label={t('professor.course.selectRubric')} />} />
+                  <TextField label={t('common.name')} value={rubricDraft.name} onChange={(event) => setRubricDraft((current) => ({ ...current, name: event.target.value }))} />
+                  <TextField multiline minRows={5} label={t('professor.course.rubricInstructions')} value={rubricDraft.content} onChange={(event) => setRubricDraft((current) => ({ ...current, content: event.target.value }))} />
+                </DialogContent>
+                <DialogActions><Button color="error" onClick={deleteCourseRubric} disabled={!activeRubricId}>{t('common.delete')}</Button><Button onClick={() => setRubricManagerOpen(false)}>{t('common.close')}</Button><Button variant="contained" onClick={saveCourseRubric} disabled={!rubricDraft.name.trim() || !rubricDraft.content.trim()}>{t('common.save')}</Button></DialogActions>
+              </Dialog>
+            </Box>
           </Box>
         </TabPanel>
       )}
@@ -2257,33 +2283,6 @@ export default function CourseDetail() {
               </Box>
             )}
           />
-          {aiAvailable && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <Typography variant="subtitle2">{t('professor.course.copyRubrics')}</Typography>
-              <Typography variant="body2" color="text.secondary">{t('professor.course.copyRubricsHelp')}</Typography>
-              <TextField select size="small" label={t('professor.course.copyRubricsSource')} value={rubricSourceCourseId} onChange={(event) => setRubricSourceCourseId(event.target.value)}>
-                {rubricSourceCourses.map((sourceCourse) => (
-                  <MenuItem key={sourceCourse._id} value={sourceCourse._id}>{buildCourseTitle(sourceCourse)}</MenuItem>
-                ))}
-              </TextField>
-              <Box>
-                <Button variant="outlined" onClick={handleCopyRubrics} disabled={!rubricSourceCourseId || copyingRubrics}>
-                  {copyingRubrics ? t('common.saving') : t('professor.course.copyRubrics')}
-                </Button>
-                <Button variant="outlined" sx={{ ml: 1 }} onClick={openRubricManager}>{t('professor.course.manageRubrics')}</Button>
-              </Box>
-              <Dialog open={rubricManagerOpen} onClose={() => setRubricManagerOpen(false)} fullWidth maxWidth="sm">
-                <DialogTitle>{t('professor.course.manageRubrics')}</DialogTitle>
-                <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                  <TextField select label={t('professor.course.rubricType')} value={rubricKind} onChange={(event) => { setRubricKind(event.target.value); setActiveRubricId(''); setRubricDraft({ name: '', content: '' }); }}><MenuItem value="grading">{t('grades.aiGrading.gradingInstructions')}</MenuItem><MenuItem value="feedback">{t('grades.aiGrading.feedbackToStudentInstructions')}</MenuItem><MenuItem value="summary">{t('professor.course.summaryInstructions')}</MenuItem></TextField>
-                  <Autocomplete options={courseRubrics.filter((entry) => entry.kind === rubricKind)} value={courseRubrics.find((entry) => entry._id === activeRubricId) || null} getOptionLabel={(entry) => entry.name} onChange={(_, entry) => { setActiveRubricId(entry?._id || ''); setRubricDraft(entry ? { name: entry.name, content: entry.content } : { name: '', content: '' }); }} renderInput={(params) => <TextField {...params} label={t('professor.course.selectRubric')} />} />
-                  <TextField label={t('common.name')} value={rubricDraft.name} onChange={(event) => setRubricDraft((current) => ({ ...current, name: event.target.value }))} />
-                  <TextField multiline minRows={5} label={t('professor.course.rubricInstructions')} value={rubricDraft.content} onChange={(event) => setRubricDraft((current) => ({ ...current, content: event.target.value }))} />
-                </DialogContent>
-                <DialogActions><Button color="error" onClick={deleteCourseRubric} disabled={!activeRubricId}>{t('common.delete')}</Button><Button onClick={() => setRubricManagerOpen(false)}>{t('common.close')}</Button><Button variant="contained" onClick={saveCourseRubric} disabled={!rubricDraft.name.trim() || !rubricDraft.content.trim()}>{t('common.save')}</Button></DialogActions>
-              </Dialog>
-            </Box>
-          )}
           {!ssoEnabled ? (
             <FormControlLabel
               control={(
