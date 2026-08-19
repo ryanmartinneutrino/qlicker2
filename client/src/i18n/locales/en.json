@@ -618,6 +618,15 @@
       "aiSettings": "AI settings",
       "aiModel": "AI model",
       "aiDefaultModel": "Default model",
+      "instructorAiChatMaxToolRounds": "Maximum internal turns for professor AI chat",
+      "instructorAiChatMaxToolRoundsHelp": "Sets how many behind-the-scenes tool steps the assistant may take for one request. Higher values allow more complex work but can take longer.",
+      "enableStudentAiChat": "Enable AI Chat for students",
+      "enableStudentAiChatHelp": "Enable students to use an AI assistant to help them practice course material",
+      "studentAiChatGuidance": "Student AI chat guidance",
+      "studentAiDefaultModel": "Default model for student AI chat",
+      "studentAiChatMaxToolRounds": "Maximum internal turns for student AI chat",
+      "studentAiChatMaxToolRoundsHelp": "Limits how many behind-the-scenes tool steps the student assistant may take for one request.",
+      "studentAiModelUnavailable": "Make at least one approved model available to students before selecting a default.",
       "enableAiHelper": "Enable AI helper",
       "copyRubrics": "Copy AI rubrics",
       "copyRubricsHelp": "Copy reusable grading, feedback, and response-summary guidance from another course you instruct.",
@@ -674,7 +683,7 @@
       "allowStudentQuestionsHelp": "When enabled, students can open the course question library, create practice sessions, and copy practice questions. They can still review finished sessions even when this is off.",
       "topics": "Course topics",
       "topicsPlaceholder": "Add a course topic",
-      "topicsHelp": "Students can only use these course topics on their own questions.",
+      "topicsHelp": "Create tags based on the course topics, use these to tag sessions and questions, allowing you to organize materials and students to easily search for practice questions",
       "quizTimeFormat": "Quiz time format",
       "quizTimeFormatInherit": "Use admin default ({{defaultFormat}})",
       "quizTimeFormatOptions": {
@@ -774,6 +783,7 @@
       "aiChatHelp": "Chat with the AI assistant.",
       "courseActiveHelp": "When the course is active, students can access it.",
       "aiRequiresAdminAuthorization": "Requires admin authorization",
+      "aiHelperHelp": "Enable an AI assistant to help with grading, generate questions, manage sessions and students.",
       "enrollmentCodeHelp": "This is the code students need to enroll in the course."
     },
     "sessionEditor": {
@@ -1074,7 +1084,12 @@
       "summaryInstructions": "Summary instructions",
       "basicSummaryHelp": "Basic summary identifies up to five response themes and example quotations.",
       "aiSummaryInProgress": "Preparing responses: {{completed}} of {{total}}",
-      "aiSummaryGenerating": "Generating AI summary…"
+      "aiSummaryGenerating": "Generating AI summary…",
+      "haltAiResponseSummary": "Halt summary",
+      "haltingAiResponseSummary": "Halting…",
+      "aiSummaryHalted": "AI summary halted. You can generate it again.",
+      "aiSummaryFailed": "AI summary failed. {{error}}",
+      "aiSummaryHaltFailed": "Could not halt the AI summary."
     },
     "secondDesktop": {
       "joinCode": "Join Code",
@@ -1810,6 +1825,7 @@
       "title": "AI Chat",
       "newConversation": "New conversation",
       "newConversationGuidance": "Ask about students in this course, grades and performance, or create questions to use in your sessions.",
+      "studentNewConversationGuidance": "Ask about this course or its content. I can help explain concepts, work through examples, and support your studying.",
       "noConversations": "No conversations yet.",
       "send": "Send",
       "stop": "Stop",

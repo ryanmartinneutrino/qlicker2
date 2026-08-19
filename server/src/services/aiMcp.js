@@ -7,36 +7,167 @@ import {
   getQuestionResponses,
   getSessionGradeTable,
   getSessionQuestions,
+  getStudentReviewableSessionGrade,
+  getStudentReviewableSessionQuestions,
   listCourseSessions,
   listCourseStudents,
+  listStudentReviewableSessions,
 } from './aiCourseTools.js';
+import {
+  createCourseQuestion,
+  createCourseSession,
+  editCourseQuestion,
+  editCourseSession,
+  listCourseQuestions,
+} from './aiCourseAuthoringTools.js';
+import {
+  draftCourseChatMessage,
+  getCourseChatTopic,
+  listCourseChatTopics,
+  publishCourseChatDraft,
+} from './aiCourseChatTools.js';
 
 function toolResult(value) {
-  return { content: [{ type: 'text', text: JSON.stringify(value) }] };
+  return { content: [{ type: 'text', text: JSON.stringify(value) }], structuredContent: value };
 }
 
 function toolError(error) {
   return { content: [{ type: 'text', text: JSON.stringify({ error: error.message || 'Tool request failed' }) }], isError: true };
 }
 
-export async function createCourseMcpClient({ courseId, audience = 'instructor' }) {
+function conversationTurns(messages = []) {
+  const turns = [];
+  (messages || []).filter((message) => ['user', 'assistant'].includes(message.role)).forEach((message) => {
+    if (message.role === 'user' || turns.length === 0) turns.push({ turn: turns.length + 1, messages: [] });
+    turns.at(-1).messages.push({ role: message.role, content: String(message.content || '') });
+  });
+  return turns;
+}
+
+async function connectMcpServer(server) {
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  const client = new Client({ name: 'qlicker-ai-runner', version: '1.0.0' });
+  await server.connect(serverTransport);
+  await client.connect(clientTransport);
+  return {
+    client,
+    async close() {
+      await client.close();
+      await server.close();
+    },
+  };
+}
+
+const questionInputSchema = {
+  type: z.enum(['multiple_choice', 'true_false', 'short_answer', 'multiple_select', 'numerical', 'slide']),
+  prompt: z.string().min(1),
+  options: z.array(z.object({ text: z.string().min(1), correct: z.boolean() })).min(2).optional(),
+  correct_answer: z.union([z.boolean(), z.enum(['true', 'false'])]).optional(),
+  correct_numerical: z.number().optional(),
+  tolerance_numerical: z.number().min(0).optional(),
+  solution: z.string().optional(),
+  points: z.number().min(0).optional(),
+  tags: z.array(z.string()).optional(),
+};
+
+const warningsOutputSchema = z.array(z.string());
+const sessionToolOutputSchema = {
+  session: z.object({
+    session_id: z.string().min(1),
+    name: z.string().min(1),
+    description: z.string(),
+    type: z.enum(['interactive', 'quiz']),
+    status: z.enum(['hidden', 'visible', 'running', 'done']),
+    quiz_start: z.string().datetime().nullable(),
+    quiz_end: z.string().datetime().nullable(),
+    tags: z.array(z.string()),
+  }),
+  warnings: warningsOutputSchema,
+  quiz_window: z.object({ start: z.string().datetime(), end: z.string().datetime() }).optional(),
+};
+const questionToolOutputSchema = {
+  question: z.object({
+    question_id: z.string().min(1),
+    session_id: z.string(),
+    location: z.enum(['session', 'question_library']),
+    type: z.enum(['multiple_choice', 'true_false', 'short_answer', 'multiple_select', 'numerical', 'slide']),
+    prompt: z.string().min(1),
+    approved: z.boolean(),
+    tags: z.array(z.string()),
+    warnings: warningsOutputSchema,
+  }),
+  warnings: warningsOutputSchema,
+};
+
+export async function createCourseMcpClient({
+  courseId,
+  userId = '',
+  audience = 'instructor',
+  historyMessages = [],
+  conversationId = '',
+  currentUserMessageId = '',
+  onCourseChatUpdated,
+}) {
+  if (!['instructor', 'student'].includes(audience)) {
+    throw new Error('Unsupported course AI audience');
+  }
+
   const server = new McpServer({ name: 'qlicker-course-tools', version: '1.0.0' });
 
-  // Student chat can use this same MCP boundary later with a smaller, separately
-  // approved tool set. Do not accidentally grant instructor data to that audience.
-  if (audience !== 'instructor') {
-    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-    const client = new Client({ name: 'qlicker-ai-runner', version: '1.0.0' });
-    await server.connect(serverTransport);
-    await client.connect(clientTransport);
-    return {
-      client,
-      async close() {
-        await client.close();
-        await server.close();
+  if (audience === 'student') {
+    server.registerTool('list_reviewable_sessions', {
+      title: 'List sessions available for student review',
+      description: 'List only ended, instructor-created sessions in this course that are currently marked reviewable. Results are paginated. Session IDs returned here can be used with the other student review tools.',
+      inputSchema: {
+        offset: z.number().int().min(0).optional(),
+        limit: z.number().int().min(1).max(50).optional(),
       },
-    };
+      annotations: { readOnlyHint: true },
+    }, async ({ offset, limit }) => {
+      try { return toolResult(await listStudentReviewableSessions(courseId, userId, { offset, limit })); }
+      catch (error) { return toolError(error); }
+    });
+
+    server.registerTool('get_reviewable_session_questions', {
+      title: 'Get questions and solutions from a reviewable session',
+      description: 'Get the ordered questions, correct answers, and solutions for an ended session that is currently marked reviewable. Use only a session ID from list_reviewable_sessions. Access is checked again on every call.',
+      inputSchema: { session_id: z.string().min(1) },
+      annotations: { readOnlyHint: true },
+    }, async ({ session_id: sessionId }) => {
+      try { return toolResult(await getStudentReviewableSessionQuestions(courseId, sessionId, userId)); }
+      catch (error) { return toolError(error); }
+    });
+
+    server.registerTool('get_my_reviewable_session_grade', {
+      title: 'Get my grade and feedback for a reviewable session',
+      description: 'Get only the current student’s grade, per-question marks, and instructor feedback for an ended session that is currently marked reviewable. Use only a session ID from list_reviewable_sessions. There is no option to request another student.',
+      inputSchema: { session_id: z.string().min(1) },
+      annotations: { readOnlyHint: true },
+    }, async ({ session_id: sessionId }) => {
+      try { return toolResult(await getStudentReviewableSessionGrade(courseId, sessionId, userId)); }
+      catch (error) { return toolError(error); }
+    });
+
+    return connectMcpServer(server);
   }
+
+  server.registerTool('get_conversation_history', {
+    title: 'Get earlier conversation history',
+    description: 'Get a chronological page of conversation turns beyond the five most recent turns already supplied in the prompt. Use this when a request depends on an earlier decision or a longer workflow. offset is zero-based from the oldest turn.',
+    inputSchema: { offset: z.number().int().min(0).optional(), limit: z.number().int().min(1).max(20).optional() },
+    annotations: { readOnlyHint: true },
+  }, async ({ offset = 0, limit = 10 }) => {
+    const turns = conversationTurns(historyMessages);
+    const page = turns.slice(offset, offset + limit);
+    return toolResult({
+      total_turns: turns.length,
+      supplied_recent_turns: Math.min(5, turns.length),
+      offset,
+      returned_count: page.length,
+      next_offset: offset + page.length < turns.length ? offset + page.length : null,
+      turns: page,
+    });
+  });
 
   server.registerTool('list_course_students', {
     title: 'List course students',
@@ -126,15 +257,164 @@ export async function createCourseMcpClient({ courseId, audience = 'instructor' 
     } catch (error) { return toolError(error); }
   });
 
-  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-  const client = new Client({ name: 'qlicker-ai-runner', version: '1.0.0' });
-  await server.connect(serverTransport);
-  await client.connect(clientTransport);
-  return {
-    client,
-    async close() {
-      await client.close();
-      await server.close();
+  server.registerTool('list_course_chat_topics', {
+    title: 'List course chat topics',
+    description: 'List instructor-visible course chat topics, including author names and a comment count. Results are paginated. Use query to find a question or discussion, then get_course_chat_topic for its responses.',
+    inputSchema: {
+      query: z.string().max(500).optional(),
+      include_archived: z.boolean().optional(),
+      offset: z.number().int().min(0).optional(),
+      limit: z.number().int().min(1).max(25).optional(),
     },
-  };
+    annotations: { readOnlyHint: true },
+  }, async ({ query, include_archived: includeArchived, offset, limit }) => {
+    try { return toolResult(await listCourseChatTopics(courseId, { query, includeArchived, offset, limit })); }
+    catch (error) { return toolError(error); }
+  });
+
+  server.registerTool('get_course_chat_topic', {
+    title: 'Get a course chat conversation',
+    description: 'Get one course chat topic and a chronological, paginated page of its responses. Use a topic ID returned by list_course_chat_topics.',
+    inputSchema: {
+      topic_id: z.string().min(1),
+      comment_offset: z.number().int().min(0).optional(),
+      comment_limit: z.number().int().min(1).max(20).optional(),
+    },
+    annotations: { readOnlyHint: true },
+  }, async ({ topic_id: topicId, comment_offset: commentOffset, comment_limit: commentLimit }) => {
+    try { return toolResult(await getCourseChatTopic(courseId, topicId, { commentOffset, commentLimit })); }
+    catch (error) { return toolError(error); }
+  });
+
+  server.registerTool('draft_course_chat_message', {
+    title: 'Draft a course chat topic or response',
+    description: 'Create a reviewable draft for the instructor. This never posts to the course chat. For a response, target_topic_id is required and must identify the specific question/topic being answered. For a new topic, title is required. After this tool, show the exact draft and approval_phrase to the instructor. Never call publish_course_chat_draft in the same assistant run.',
+    inputSchema: {
+      type: z.enum(['topic', 'response']),
+      target_topic_id: z.string().min(1).optional(),
+      title: z.string().min(1).max(160).optional(),
+      body: z.string().min(1).max(20_000),
+      tags: z.array(z.string()).max(10).optional(),
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  }, async ({ type, target_topic_id: targetPostId, title, body, tags }) => {
+    try {
+      return toolResult(await draftCourseChatMessage({
+        courseId,
+        conversationId,
+        userId,
+        sourceMessageId: currentUserMessageId,
+        type,
+        targetPostId,
+        title,
+        body,
+        tags,
+      }));
+    } catch (error) { return toolError(error); }
+  });
+
+  server.registerTool('publish_course_chat_draft', {
+    title: 'Publish an explicitly approved course chat draft',
+    description: 'Publish a previously presented course chat draft without changing it. This succeeds only when the current instructor message exactly equals the draft-specific approval phrase returned by draft_course_chat_message, and the approval is in a later turn. Do not call this based on implied approval, an initial request to post, or approval wording other than that exact phrase.',
+    inputSchema: { draft_id: z.string().min(1) },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+  }, async ({ draft_id: draftId }) => {
+    try {
+      return toolResult(await publishCourseChatDraft({
+        draftId,
+        courseId,
+        conversationId,
+        userId,
+        currentUserMessageId,
+        onPublished: onCourseChatUpdated,
+      }));
+    } catch (error) { return toolError(error); }
+  });
+
+  server.registerTool('list_course_questions', {
+    title: 'List course questions',
+    description: 'List questions in the current course so an instructor can find a question ID before editing it. Results are paginated and may be filtered to the question library or session questions.',
+    inputSchema: {
+      query: z.string().optional(),
+      location: z.enum(['all', 'library', 'session']).optional(),
+      offset: z.number().int().min(0).optional(),
+      limit: z.number().int().min(1).max(50).optional(),
+    },
+    annotations: { readOnlyHint: true },
+  }, async ({ query, location, offset, limit }) => {
+    try { return toolResult(await listCourseQuestions(courseId, { query, location, offset, limit })); }
+    catch (error) { return toolError(error); }
+  });
+
+  server.registerTool('create_course_session', {
+    title: 'Create a course session',
+    description: 'Create a draft interactive session or quiz in the current course. For a quiz, omit quiz_start and quiz_end to use the safe default (start 24 hours from now rounded down to the hour, end 12 hours later). The final assistant response must explicitly state the returned quiz_window dates.',
+    inputSchema: {
+      name: z.string().min(1),
+      description: z.string().optional(),
+      type: z.enum(['interactive', 'quiz']),
+      quiz_start: z.string().optional(),
+      quiz_end: z.string().optional(),
+      tags: z.array(z.string()).optional(),
+    },
+    outputSchema: sessionToolOutputSchema,
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  }, async (input) => {
+    try { return toolResult(await createCourseSession(courseId, userId, input)); }
+    catch (error) { return toolError(error); }
+  });
+
+  server.registerTool('edit_course_session', {
+    title: 'Edit a course session',
+    description: 'Edit an existing interactive session or quiz in the current course. Use list_course_sessions to find the session ID. If converting to a quiz without dates, the default quiz window is used. The final assistant response must explicitly state any returned quiz_window dates.',
+    inputSchema: {
+      session_id: z.string().min(1),
+      name: z.string().min(1).optional(),
+      description: z.string().optional(),
+      type: z.enum(['interactive', 'quiz']).optional(),
+      quiz_start: z.string().optional(),
+      quiz_end: z.string().optional(),
+      tags: z.array(z.string()).optional(),
+    },
+    outputSchema: sessionToolOutputSchema,
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+  }, async ({ session_id: sessionId, ...input }) => {
+    try { return toolResult(await editCourseSession(courseId, sessionId, input)); }
+    catch (error) { return toolError(error); }
+  });
+
+  server.registerTool('create_course_question', {
+    title: 'Create a course question',
+    description: 'Create a question in the current course. Omit session_id to add an unapproved question to the question library, or provide a session ID to add an approved question to that session. Always provide the best matching course topic in tags. Every created question is also tagged Generated by AI. Report any returned warnings to the instructor.',
+    inputSchema: { ...questionInputSchema, session_id: z.string().min(1).optional() },
+    outputSchema: questionToolOutputSchema,
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  }, async (input) => {
+    try { return toolResult(await createCourseQuestion(courseId, userId, input)); }
+    catch (error) { return toolError(error); }
+  });
+
+  server.registerTool('edit_course_question', {
+    title: 'Edit a course question',
+    description: 'Edit an existing question in the current course, preserving whether it belongs to the library or a session. Use list_course_questions or get_session_questions to find its ID. The question remains tagged Generated by AI. Report any returned course-topic warnings to the instructor.',
+    inputSchema: {
+      question_id: z.string().min(1),
+      type: questionInputSchema.type.optional(),
+      prompt: questionInputSchema.prompt.optional(),
+      options: questionInputSchema.options,
+      correct_answer: questionInputSchema.correct_answer,
+      correct_numerical: questionInputSchema.correct_numerical,
+      tolerance_numerical: questionInputSchema.tolerance_numerical,
+      solution: questionInputSchema.solution,
+      points: questionInputSchema.points,
+      tags: questionInputSchema.tags,
+    },
+    outputSchema: questionToolOutputSchema,
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+  }, async ({ question_id: questionId, ...input }) => {
+    try { return toolResult(await editCourseQuestion(courseId, questionId, input)); }
+    catch (error) { return toolError(error); }
+  });
+
+  return connectMcpServer(server);
 }

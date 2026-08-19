@@ -267,7 +267,7 @@ function formatUserDisplayName(user) {
   return user?.emails?.[0]?.address || user?.email || 'Unknown Student';
 }
 
-function buildQuestionWithNormalizedOptions(question) {
+export function buildQuestionWithNormalizedOptions(question) {
   if (!question) return null;
   const normalized = { ...question };
   const options = Array.isArray(question.options) ? question.options.map((option) => ({ ...option })) : [];

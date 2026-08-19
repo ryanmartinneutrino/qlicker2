@@ -617,6 +617,15 @@
       "settings": "Ship Settings",
       "aiModel": "AI Model",
       "aiDefaultModel": "Default model",
+      "instructorAiChatMaxToolRounds": "Most hidden turns fer the professor AI chat",
+      "instructorAiChatMaxToolRoundsHelp": "Sets how many tool steps the assistant may take below decks fer one request. More turns allow trickier work, but may take longer.",
+      "enableStudentAiChat": "Let the crew use AI chat",
+      "enableStudentAiChatHelp": "Let students use an AI matey to practice course material",
+      "studentAiChatGuidance": "Orders fer the student AI chat",
+      "studentAiDefaultModel": "Default model fer student AI chat",
+      "studentAiChatMaxToolRounds": "Most hidden turns fer the student AI chat",
+      "studentAiChatMaxToolRoundsHelp": "Limits how many tool steps the student assistant may take below decks fer one request.",
+      "studentAiModelUnavailable": "Make at least one approved model available to students afore choosing a default.",
       "groups": "Watches",
       "addStudent": "Add Crew member",
       "addInstructor": "Add Officer",
@@ -653,7 +662,7 @@
       "allowStudentQuestionsHelp": "When hoisted, crew can open th' ship riddle chest, chart drill voyages, an' copy drill riddles. They can still recap finished voyages even when this be off.",
       "topics": "Ship topics",
       "topicsPlaceholder": "Add a ship topic",
-      "topicsHelp": "Crew can only use these ship topics on their own riddles.",
+      "topicsHelp": "Make tags from the course topics and use 'em on sessions and questions, keepin' materials shipshape and helpin' students find practice riddles.",
       "quizTimeFormat": "Reckoning time format",
       "quizTimeFormatInherit": "Use admin default ({{defaultFormat}})",
       "quizTimeFormatOptions": {
@@ -774,6 +783,7 @@
       "aiChatHelp": "Chat with th’ AI matey.",
       "courseActiveHelp": "When th’ course be active, crew can access it.",
       "aiRequiresAdminAuthorization": "Needs the admiral’s authorization",
+      "aiHelperHelp": "Enable an AI matey to help grade, make questions, and manage sessions and students.",
       "enrollmentCodeHelp": "This be the code crew need to enroll in the course."
     },
     "sessionEditor": {
@@ -1074,7 +1084,12 @@
       "summaryInstructions": "Summary instructions",
       "basicSummaryHelp": "Basic summary identifies up to five response themes and example quotations.",
       "aiSummaryInProgress": "Readyin' answers: {{completed}} o' {{total}}",
-      "aiSummaryGenerating": "AI be writin' the summary…"
+      "aiSummaryGenerating": "AI be writin' the summary…",
+      "haltAiResponseSummary": "Heave to on summary",
+      "haltingAiResponseSummary": "Heavin' to…",
+      "aiSummaryHalted": "AI summary be halted. Ye can make it anew.",
+      "aiSummaryFailed": "AI summary sank. {{error}}",
+      "aiSummaryHaltFailed": "Could not halt the AI summary."
     },
     "secondDesktop": {
       "joinCode": "Board Code",
@@ -2456,6 +2471,7 @@
       "title": "AI Chat",
       "newConversation": "New conversation",
       "newConversationGuidance": "Ask about students aboard this course, their marks and performance, or craft questions for yer sessions.",
+      "studentNewConversationGuidance": "Ask about this course or its lessons. I can explain ideas, work through examples, and help ye study.",
       "noConversations": "No conversations yet.",
       "send": "Send",
       "stop": "Belay",

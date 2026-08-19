@@ -14,6 +14,7 @@ import { computeWordFrequencies } from '../utils/wordFrequency.js';
 import { computeHistogramData } from '../utils/histogram.js';
 import { buildSessionResponseTracking } from '../utils/sessionResponseTracking.js';
 import { isCourseInstructorOrAdmin as isInstructorOrAdmin } from '../utils/courseAccess.js';
+import { inheritSessionTagsForQuestions, mergeSessionQuestionTags } from '../services/sessionQuestionTags.js';
 
 const createQuestionSchema = {
   body: {
@@ -1143,6 +1144,16 @@ export default async function questionRoutes(app) {
       const normalizedSessionId = String(sessionId || '').trim();
       const roles = request.user.roles || [];
       let course = null;
+      let targetSession = null;
+      if (normalizedSessionId) {
+        targetSession = await Session.findById(normalizedSessionId).lean();
+        if (!targetSession && normalizedCourseId) {
+          return reply.code(404).send({ error: 'Not Found', message: 'Session not found in this course' });
+        }
+        if (targetSession && normalizedCourseId && String(targetSession.courseId) !== normalizedCourseId) {
+          return reply.code(404).send({ error: 'Not Found', message: 'Session not found in this course' });
+        }
+      }
       if (normalizedCourseId) {
         course = await Course.findById(normalizedCourseId).lean();
         if (!course) {
@@ -1196,7 +1207,7 @@ export default async function questionRoutes(app) {
         public: isStudent ? false : (request.body.public || request.body.publicOnQlicker || false),
         publicOnQlicker: isStudent ? false : (request.body.publicOnQlicker || false),
         publicOnQlickerForStudents: isStudent ? false : (request.body.publicOnQlicker ? !!request.body.publicOnQlickerForStudents : false),
-        tags: normalizeTags(tags || []),
+        tags: mergeSessionQuestionTags(tags || [], targetSession?.tags || []),
         imagePath: imagePath || '',
         approved: !isStudent,
         studentCreated: isStudent,
@@ -1753,14 +1764,15 @@ export default async function questionRoutes(app) {
 
       const importTags = normalizeTags(request.body.importTags || []);
 
-      const importedPayloads = request.body.questions.map((question) => (
-        sanitizeImportedQuestion(question, {
+      const importedPayloads = request.body.questions.map((question) => {
+        const payload = sanitizeImportedQuestion(question, {
           courseId: String(course._id),
           sessionId: String(targetSession?._id || ''),
           userId: request.user.userId,
           importTags,
-        })
-      ));
+        });
+        return { ...payload, tags: mergeSessionQuestionTags(payload.tags, targetSession?.tags || []) };
+      });
 
       const validationError = importedPayloads
         .map((question) => multipleChoiceValidationError(question.type, question.options))
@@ -1884,6 +1896,7 @@ export default async function questionRoutes(app) {
           { returnDocument: 'after' }
         ).lean();
 
+        await inheritSessionTagsForQuestions(session, [question._id]);
         return { session: updated, copiedQuestionId: String(question._id) };
       }
 
@@ -1973,6 +1986,8 @@ export default async function questionRoutes(app) {
         { $set: { questions: newOrder } },
         { returnDocument: 'after' }
       );
+
+      await inheritSessionTagsForQuestions(updated.toObject(), newOrder);
 
       return { session: updated.toObject() };
     }

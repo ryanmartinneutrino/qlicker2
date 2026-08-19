@@ -617,6 +617,15 @@
       "settings": "Paramètres du cours",
       "aiModel": "Modèle d’IA",
       "aiDefaultModel": "Modèle par défaut",
+      "instructorAiChatMaxToolRounds": "Nombre maximal d’étapes internes du clavardage IA enseignant",
+      "instructorAiChatMaxToolRoundsHelp": "Définit le nombre d’étapes d’outils que l’assistant peut effectuer en arrière-plan pour une demande. Une valeur plus élevée permet un travail plus complexe, mais peut prendre plus de temps.",
+      "enableStudentAiChat": "Activer le clavardage IA pour les étudiants",
+      "enableStudentAiChatHelp": "Permettre aux étudiants d’utiliser un assistant IA pour pratiquer la matière du cours",
+      "studentAiChatGuidance": "Consignes du clavardage IA pour les étudiants",
+      "studentAiDefaultModel": "Modèle par défaut du clavardage IA étudiant",
+      "studentAiChatMaxToolRounds": "Nombre maximal d’étapes internes du clavardage IA étudiant",
+      "studentAiChatMaxToolRoundsHelp": "Limite le nombre d’étapes d’outils que l’assistant étudiant peut effectuer en arrière-plan pour une demande.",
+      "studentAiModelUnavailable": "Rendez au moins un modèle approuvé accessible aux étudiants avant de choisir un modèle par défaut.",
       "groups": "Groupes",
       "addStudent": "Ajouter un étudiant",
       "addInstructor": "Ajouter un enseignant",
@@ -653,7 +662,7 @@
       "allowStudentQuestionsHelp": "Lorsque cette option est activée, les étudiants peuvent ouvrir la bibliothèque de questions du cours, créer des séances de pratique et copier des questions de pratique. Ils peuvent quand même réviser les séances terminées même si cette option est désactivée.",
       "topics": "Sujets du cours",
       "topicsPlaceholder": "Ajouter un sujet du cours",
-      "topicsHelp": "Les étudiants ne peuvent utiliser que ces sujets du cours sur leurs propres questions.",
+      "topicsHelp": "Créez des étiquettes basées sur les sujets du cours et utilisez-les pour étiqueter les séances et les questions, organiser le matériel et aider les étudiants à rechercher des questions d’entraînement.",
       "quizTimeFormat": "Format d'heure des questionnaires",
       "quizTimeFormatInherit": "Utiliser le format administrateur ({{defaultFormat}})",
       "quizTimeFormatOptions": {
@@ -774,6 +783,7 @@
       "aiChatHelp": "Discutez avec l’assistant IA.",
       "courseActiveHelp": "Lorsque le cours est actif, les étudiants peuvent y accéder.",
       "aiRequiresAdminAuthorization": "Autorisation administrateur requise",
+      "aiHelperHelp": "Activez un assistant IA pour aider à la notation, générer des questions et gérer les séances et les étudiants.",
       "enrollmentCodeHelp": "C’est le code dont les étudiants ont besoin pour s’inscrire au cours."
     },
     "sessionEditor": {
@@ -1074,7 +1084,12 @@
       "summaryInstructions": "Summary instructions",
       "basicSummaryHelp": "Basic summary identifies up to five response themes and example quotations.",
       "aiSummaryInProgress": "Préparation des réponses : {{completed}} sur {{total}}",
-      "aiSummaryGenerating": "Génération du résumé par l’IA…"
+      "aiSummaryGenerating": "Génération du résumé par l’IA…",
+      "haltAiResponseSummary": "Arrêter le résumé",
+      "haltingAiResponseSummary": "Arrêt en cours…",
+      "aiSummaryHalted": "Résumé IA arrêté. Vous pouvez le générer de nouveau.",
+      "aiSummaryFailed": "Échec du résumé IA. {{error}}",
+      "aiSummaryHaltFailed": "Impossible d’arrêter le résumé IA."
     },
     "secondDesktop": {
       "joinCode": "Code d'inscription",
@@ -2441,6 +2456,7 @@
       "title": "AI Chat",
       "newConversation": "New conversation",
       "newConversationGuidance": "Posez des questions sur les étudiants de ce cours, les notes et les résultats, ou créez des questions à utiliser dans vos séances.",
+      "studentNewConversationGuidance": "Posez des questions sur ce cours ou son contenu. Je peux expliquer des notions, travailler des exemples et vous aider à étudier.",
       "noConversations": "No conversations yet.",
       "send": "Send",
       "stop": "Arrêter",

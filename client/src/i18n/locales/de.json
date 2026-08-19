@@ -617,6 +617,15 @@
       "settings": "Kurseinstellungen",
       "aiModel": "KI-Modell",
       "aiDefaultModel": "Standardmodell",
+      "instructorAiChatMaxToolRounds": "Maximale interne Schritte für den KI-Chat der Lehrkraft",
+      "instructorAiChatMaxToolRoundsHelp": "Legt fest, wie viele Werkzeugschritte der Assistent im Hintergrund für eine Anfrage ausführen darf. Höhere Werte ermöglichen komplexere Aufgaben, können aber länger dauern.",
+      "enableStudentAiChat": "KI-Chat für Studierende aktivieren",
+      "enableStudentAiChatHelp": "Studierenden einen KI-Assistenten zum Üben von Kursinhalten bereitstellen",
+      "studentAiChatGuidance": "Anweisungen für den KI-Chat der Studierenden",
+      "studentAiDefaultModel": "Standardmodell für den KI-Chat der Studierenden",
+      "studentAiChatMaxToolRounds": "Maximale interne Schritte für den KI-Chat der Studierenden",
+      "studentAiChatMaxToolRoundsHelp": "Begrenzt die Anzahl der Werkzeugschritte, die der Studierenden-Assistent im Hintergrund für eine Anfrage ausführen darf.",
+      "studentAiModelUnavailable": "Geben Sie mindestens ein genehmigtes Modell für Studierende frei, bevor Sie ein Standardmodell auswählen.",
       "groups": "Gruppen",
       "addStudent": "Studierende hinzufügen",
       "addInstructor": "Dozenten hinzufügen",
@@ -653,7 +662,7 @@
       "allowStudentQuestionsHelp": "Wenn aktiviert, können Studierende die Kurs-Fragenbibliothek öffnen, Übungssitzungen erstellen und Übungsfragen kopieren. Sie können abgeschlossene Sitzungen auch dann überprüfen, wenn diese Option deaktiviert ist.",
       "topics": "Kursthemen",
       "topicsPlaceholder": "Kursthema hinzufügen",
-      "topicsHelp": "Studierende können diese Kursthemen nur für ihre eigenen Fragen verwenden.",
+      "topicsHelp": "Erstellen Sie Tags auf Grundlage der Kursthemen und verwenden Sie diese für Sitzungen und Fragen, um Materialien zu organisieren und Studierenden die Suche nach Übungsfragen zu erleichtern.",
       "quizTimeFormat": "Quiz-Zeitformat",
       "quizTimeFormatInherit": "Standard des Administrators verwenden ({{defaultFormat}})",
       "quizTimeFormatOptions": {
@@ -774,6 +783,7 @@
       "aiChatHelp": "Chatten Sie mit dem KI-Assistenten.",
       "courseActiveHelp": "Wenn der Kurs aktiv ist, können Studierende darauf zugreifen.",
       "aiRequiresAdminAuthorization": "Erfordert eine Administratorfreigabe",
+      "aiHelperHelp": "Aktivieren Sie einen KI-Assistenten, der beim Bewerten, Erstellen von Fragen und Verwalten von Sitzungen und Studierenden hilft.",
       "enrollmentCodeHelp": "Dies ist der Code, den Studierende benötigen, um sich für den Kurs anzumelden."
     },
     "sessionEditor": {
@@ -1074,7 +1084,12 @@
       "summaryInstructions": "Summary instructions",
       "basicSummaryHelp": "Basic summary identifies up to five response themes and example quotations.",
       "aiSummaryInProgress": "Antworten werden vorbereitet: {{completed}} von {{total}}",
-      "aiSummaryGenerating": "KI-Zusammenfassung wird erstellt…"
+      "aiSummaryGenerating": "KI-Zusammenfassung wird erstellt…",
+      "haltAiResponseSummary": "Zusammenfassung anhalten",
+      "haltingAiResponseSummary": "Wird angehalten…",
+      "aiSummaryHalted": "KI-Zusammenfassung angehalten. Sie können sie erneut erstellen.",
+      "aiSummaryFailed": "KI-Zusammenfassung fehlgeschlagen. {{error}}",
+      "aiSummaryHaltFailed": "Die KI-Zusammenfassung konnte nicht angehalten werden."
     },
     "secondDesktop": {
       "joinCode": "Beitrittscode",
@@ -2510,6 +2525,7 @@
       "title": "AI Chat",
       "newConversation": "New conversation",
       "newConversationGuidance": "Fragen Sie nach Studierenden, Noten und Leistungen in diesem Kurs oder erstellen Sie Fragen für Ihre Sitzungen.",
+      "studentNewConversationGuidance": "Stelle Fragen zu diesem Kurs oder seinen Inhalten. Ich kann Konzepte erklären, Beispiele durcharbeiten und dich beim Lernen unterstützen.",
       "noConversations": "No conversations yet.",
       "send": "Send",
       "stop": "Stopp",

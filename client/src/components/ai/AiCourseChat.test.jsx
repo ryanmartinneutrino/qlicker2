@@ -101,4 +101,47 @@ describe('AiCourseChat', () => {
     });
     expect(await screen.findByText('AI response stopped')).toBeInTheDocument();
   });
+
+  it('clears a stale backend error when reloading a conversation', async () => {
+    const failedConversation = {
+      _id: 'conversation-1',
+      title: 'Failed question',
+      pending: false,
+      pendingError: 'AI backend returned an empty response',
+      messages: [{ _id: 'message-1', role: 'user', content: 'Please create a session' }],
+    };
+    const clearedConversation = { ...failedConversation, pendingError: '' };
+    apiClient.get.mockImplementation((url) => {
+      if (url.endsWith('/config')) return Promise.resolve({ data: {
+        approvedModels: [{ backendId: 'backend-1', backendName: 'Backend 1', modelId: 'model-1', modelName: 'Model 1' }],
+        defaultBackendId: 'backend-1',
+        defaultModelId: 'model-1',
+      } });
+      return Promise.resolve({ data: { conversations: [failedConversation] } });
+    });
+    apiClient.delete.mockResolvedValueOnce({ data: { conversation: clearedConversation } });
+
+    render(<AiCourseChat courseId="course-1" />);
+
+    await waitFor(() => {
+      expect(apiClient.delete).toHaveBeenCalledWith('/ai/courses/course-1/conversations/conversation-1/pending-error');
+    });
+    expect(screen.queryByText('AI backend returned an empty response')).not.toBeInTheDocument();
+    expect(await screen.findByText('Please create a session')).toBeInTheDocument();
+  });
+
+  it('uses the student endpoints and shows student-facing guidance', async () => {
+    const conversation = { _id: 'student-conversation-1', title: '', messages: [] };
+    apiClient.post.mockResolvedValueOnce({ data: { conversation } });
+
+    render(<AiCourseChat courseId="course-1" audience="student" />);
+
+    await screen.findByText('No conversations yet.');
+    expect(apiClient.get).toHaveBeenCalledWith('/ai/student/courses/course-1/config');
+    expect(apiClient.get).toHaveBeenCalledWith('/ai/student/courses/course-1/conversations');
+    fireEvent.click(screen.getByRole('button', { name: 'New conversation' }));
+
+    expect(await screen.findByText(/Ask about this course or its content/)).toBeInTheDocument();
+    expect(apiClient.post).toHaveBeenCalledWith('/ai/student/courses/course-1/conversations');
+  });
 });

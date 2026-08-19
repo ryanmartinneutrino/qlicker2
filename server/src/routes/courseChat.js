@@ -349,7 +349,7 @@ function sendToUsersById(app, userIds, event, payload) {
   });
 }
 
-async function notifyCourseChatUpdated(app, course, payload = {}) {
+export async function notifyCourseChatUpdated(app, course, payload = {}) {
   const post = payload?.post || null;
   const authorMetadataMap = post ? await buildAuthorMetadataMap([post]) : new Map();
   const basePayload = {

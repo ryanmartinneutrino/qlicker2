@@ -7,7 +7,17 @@ import Session from '../../src/models/Session.js';
 import Settings from '../../src/models/Settings.js';
 import Grade from '../../src/models/Grade.js';
 import AiGradingJob from '../../src/models/AiGradingJob.js';
-import { getCourseGradeTable, getQuestionResponses, getSessionGradeTable } from '../../src/services/aiCourseTools.js';
+import Post from '../../src/models/Post.js';
+import AiConversation from '../../src/models/AiConversation.js';
+import AiResponseSummary from '../../src/models/AiResponseSummary.js';
+import {
+  getCourseGradeTable,
+  getQuestionResponses,
+  getSessionGradeTable,
+  getStudentReviewableSessionGrade,
+  getStudentReviewableSessionQuestions,
+  listStudentReviewableSessions,
+} from '../../src/services/aiCourseTools.js';
 import { authenticatedRequest, createApp, createTestUser, getAuthToken } from '../helpers.js';
 
 let app;
@@ -96,11 +106,16 @@ describe('AI course configuration and chat', () => {
     expect(config.json().approvedModels).toEqual([
       expect.objectContaining({ backendId: 'ollama-local', modelId: 'llama3.2', studentAvailable: false }),
     ]);
+    expect(config.json()).toMatchObject({
+      instructorChatMaxToolRounds: 20,
+      studentChatMaxToolRounds: 5,
+    });
 
     const update = await authenticatedRequest(app, 'PATCH', `/api/v1/ai/courses/${course._id}/config`, {
       token,
       payload: {
         enabled: true,
+        instructorChatMaxToolRounds: 24,
         defaultBackendId: 'ollama-local',
         defaultModelId: 'qwen3',
         modelPolicies: [
@@ -112,11 +127,40 @@ describe('AI course configuration and chat', () => {
     expect(update.statusCode).toBe(200);
     const stored = await Course.findById(course._id).lean();
     expect(stored.aiEnabled).toBe(true);
+    expect(stored.aiInstructorChatMaxToolRounds).toBe(24);
     expect(stored.aiDefaultModelId).toBe('qwen3');
     expect(stored.aiModelPolicies).toEqual([
       expect.objectContaining({ backendId: 'ollama-local', modelId: 'llama3.2', studentAvailable: true }),
       expect.objectContaining({ backendId: 'ollama-local', modelId: 'qwen3', studentAvailable: false }),
     ]);
+
+    const studentChatUpdate = await authenticatedRequest(app, 'PATCH', `/api/v1/ai/courses/${course._id}/config`, {
+      token,
+      payload: {
+        studentChatEnabled: true,
+        studentChatGuidance: 'Stay focused on mechanics.',
+        studentChatMaxToolRounds: 7,
+        studentDefaultBackendId: 'ollama-local',
+        studentDefaultModelId: 'llama3.2',
+      },
+    });
+    expect(studentChatUpdate.statusCode).toBe(200);
+    const updatedConfig = await authenticatedRequest(app, 'GET', `/api/v1/ai/courses/${course._id}/config`, { token });
+    expect(updatedConfig.json()).toMatchObject({
+      studentChatEnabled: true,
+      studentChatGuidance: 'Stay focused on mechanics.',
+      instructorChatMaxToolRounds: 24,
+      studentChatMaxToolRounds: 7,
+      studentDefaultBackendId: 'ollama-local',
+      studentDefaultModelId: 'llama3.2',
+    });
+
+    const invalidLimit = await authenticatedRequest(app, 'PATCH', `/api/v1/ai/courses/${course._id}/config`, {
+      token,
+      payload: { instructorChatMaxToolRounds: 0 },
+    });
+    expect(invalidLimit.statusCode).toBe(400);
+    expect((await Course.findById(course._id).lean()).aiInstructorChatMaxToolRounds).toBe(24);
   });
 
   it('persists professor-managed backend tokens across masked saves and an app restart', async (ctx) => {
@@ -224,6 +268,44 @@ describe('AI course configuration and chat', () => {
     expect(fetch).toHaveBeenCalledWith('http://ollama.test:11434/api/chat', expect.objectContaining({ method: 'POST' }));
   });
 
+  it('unblocks an orphaned failed AI chat request when the conversation is reloaded', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const professor = await createTestUser({ email: 'ai-orphan-prof@example.com', roles: ['professor'] });
+    const token = await getAuthToken(app, professor);
+    const course = await createCourse(token);
+    const conversation = await AiConversation.create({
+      courseId: course._id,
+      ownerId: professor._id,
+      pending: true,
+      pendingMessageId: 'orphaned-message',
+      messages: [{ _id: 'orphaned-message', role: 'user', content: 'This request failed.' }],
+    });
+
+    const response = await authenticatedRequest(
+      app,
+      'GET',
+      `/api/v1/ai/courses/${course._id}/conversations/${conversation._id}`,
+      { token }
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().conversation).toMatchObject({
+      pending: false,
+      pendingError: 'The previous AI request did not complete. You can send another message.',
+    });
+    expect(await AiConversation.findById(conversation._id).lean()).toMatchObject({ pending: false, pendingMessageId: '' });
+
+    const cleared = await authenticatedRequest(
+      app,
+      'DELETE',
+      `/api/v1/ai/courses/${course._id}/conversations/${conversation._id}/pending-error`,
+      { token }
+    );
+    expect(cleared.statusCode).toBe(200);
+    expect(cleared.json().conversation.pendingError).toBe('');
+    expect((await AiConversation.findById(conversation._id).lean()).pendingError).toBe('');
+  });
+
   it('does not give a professor who is only a student in this course AI privileges', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
     const courseProfessor = await createTestUser({ email: 'course-owner@example.com', roles: ['professor'] });
@@ -231,14 +313,265 @@ describe('AI course configuration and chat', () => {
     const courseOwnerToken = await getAuthToken(app, courseProfessor);
     const studentProfessorToken = await getAuthToken(app, studentProfessor);
     const course = await createCourse(courseOwnerToken);
-    await Course.findByIdAndUpdate(course._id, { $addToSet: { students: studentProfessor._id }, $set: { aiEnabled: true } });
+    await Course.findByIdAndUpdate(course._id, {
+      $addToSet: { students: studentProfessor._id },
+      $set: {
+        aiEnabled: true,
+        aiStudentChatEnabled: true,
+        aiStudentDefaultBackendId: 'ollama-local',
+        aiStudentDefaultModelId: 'llama3.2',
+        aiModelPolicies: [{ backendId: 'ollama-local', modelId: 'llama3.2', studentAvailable: true }],
+      },
+    });
     await configureAi(course._id);
 
     const config = await authenticatedRequest(app, 'GET', `/api/v1/ai/courses/${course._id}/config`, { token: studentProfessorToken });
     const conversation = await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations`, { token: studentProfessorToken });
+    const studentConfig = await authenticatedRequest(app, 'GET', `/api/v1/ai/student/courses/${course._id}/config`, { token: studentProfessorToken });
 
     expect(config.statusCode).toBe(403);
     expect(conversation.statusCode).toBe(403);
+    expect(studentConfig.statusCode).toBe(200);
+  });
+
+  it('provides enrolled students an isolated chat with only student-approved models and review tools', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const professor = await createTestUser({ email: 'student-ai-owner@example.com', roles: ['professor'] });
+    const student = await createTestUser({ email: 'student-ai-user@example.com', roles: ['student'] });
+    const professorToken = await getAuthToken(app, professor);
+    const studentToken = await getAuthToken(app, student);
+    const course = await createCourse(professorToken);
+    await configureAi(course._id);
+    await Course.findByIdAndUpdate(course._id, { $set: {
+      aiEnabled: true,
+      aiStudentChatEnabled: true,
+      aiStudentChatGuidance: 'Help students understand mechanics without inventing facts.',
+      aiStudentDefaultBackendId: 'ollama-local',
+      aiStudentDefaultModelId: 'llama3.2',
+      aiModelPolicies: [
+        { backendId: 'ollama-local', modelId: 'llama3.2', studentAvailable: true },
+        { backendId: 'ollama-local', modelId: 'qwen3', studentAvailable: false },
+      ],
+      students: [student._id],
+    } });
+
+    const config = await authenticatedRequest(app, 'GET', `/api/v1/ai/student/courses/${course._id}/config`, { token: studentToken });
+    expect(config.statusCode).toBe(200);
+    expect(config.json()).toEqual({
+      enabled: true,
+      approvedModels: [expect.objectContaining({
+        backendId: 'ollama-local',
+        backendName: 'Local Ollama',
+        modelId: 'llama3.2',
+        modelName: 'llama3.2',
+      })],
+      defaultBackendId: 'ollama-local',
+      defaultModelId: 'llama3.2',
+    });
+    expect(JSON.stringify(config.json())).not.toContain('admin-secret');
+    expect(await authenticatedRequest(app, 'GET', `/api/v1/ai/student/courses/${course._id}/config`, { token: professorToken }))
+      .toMatchObject({ statusCode: 403 });
+
+    const created = await authenticatedRequest(app, 'POST', `/api/v1/ai/student/courses/${course._id}/conversations`, { token: studentToken });
+    expect(created.statusCode).toBe(201);
+    const conversationId = created.json().conversation._id;
+    expect(await AiConversation.findById(conversationId).lean()).toMatchObject({ audience: 'student', ownerId: student._id });
+
+    const rejectedModel = await authenticatedRequest(
+      app,
+      'POST',
+      `/api/v1/ai/student/courses/${course._id}/conversations/${conversationId}/messages`,
+      { token: studentToken, payload: { content: 'Use the other model.', backendId: 'ollama-local', modelId: 'qwen3' } }
+    );
+    expect(rejectedModel.statusCode).toBe(400);
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      message: { content: 'A free-body diagram can help you identify each force.' },
+    }), { status: 200 })));
+    const message = await authenticatedRequest(
+      app,
+      'POST',
+      `/api/v1/ai/student/courses/${course._id}/conversations/${conversationId}/messages`,
+      { token: studentToken, payload: { content: 'How should I start a force problem?', backendId: 'ollama-local', modelId: 'llama3.2' } }
+    );
+    expect(message.statusCode).toBe(202);
+    await vi.waitFor(async () => {
+      const updated = await AiConversation.findById(conversationId).lean();
+      expect(updated.messages.at(-1).content).toBe('A free-body diagram can help you identify each force.');
+      expect(updated.pending).toBe(false);
+    });
+    const requestBody = JSON.parse(fetch.mock.calls[0][1].body);
+    expect(requestBody.tools.map((tool) => tool.function.name)).toEqual([
+      'list_reviewable_sessions',
+      'get_reviewable_session_questions',
+      'get_my_reviewable_session_grade',
+    ]);
+    expect(requestBody.messages[0].content).toContain('Help students understand mechanics without inventing facts.');
+    expect(requestBody.messages[0].content).toContain('only to tools that list ended sessions currently marked reviewable');
+    expect(requestBody.messages[0].content).toContain('Never claim to access a non-reviewable session');
+  });
+
+  it('limits student AI review data to ended reviewable sessions and the current student', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const professor = await createTestUser({ email: 'student-review-tools-owner@example.com', roles: ['professor'] });
+    const student = await createTestUser({ email: 'student-review-tools-user@example.com', roles: ['student'] });
+    const otherStudent = await createTestUser({ email: 'student-review-tools-other@example.com', roles: ['student'] });
+    const professorToken = await getAuthToken(app, professor);
+    const course = await createCourse(professorToken);
+    await Course.findByIdAndUpdate(course._id, { $set: { students: [student._id, otherStudent._id] } });
+
+    const reviewableQuestion = await Question.create({
+      type: 1,
+      plainText: 'Which force opposes motion?',
+      content: '<p>Which force opposes motion?</p>',
+      options: [
+        { plainText: 'Friction', content: '<p>Friction</p>', correct: true },
+        { plainText: 'Gravity', content: '<p>Gravity</p>', correct: false },
+      ],
+      solution: '<p>Friction acts opposite relative motion.</p>',
+      solution_plainText: 'Friction acts opposite relative motion.',
+      sessionOptions: { points: 2 },
+      creator: professor._id,
+      courseId: course._id,
+    });
+    const privateQuestion = await Question.create({
+      type: 1,
+      plainText: 'Private exam question',
+      options: [
+        { plainText: 'Secret answer', correct: true },
+        { plainText: 'Distractor', correct: false },
+      ],
+      solution_plainText: 'Private solution',
+      creator: professor._id,
+      courseId: course._id,
+    });
+    const reviewableSession = await Session.create({
+      name: 'Reviewable forces session',
+      courseId: course._id,
+      creator: professor._id,
+      status: 'done',
+      reviewable: true,
+      questions: [reviewableQuestion._id],
+    });
+    const privateSession = await Session.create({
+      name: 'Private exam',
+      courseId: course._id,
+      creator: professor._id,
+      status: 'done',
+      reviewable: false,
+      questions: [privateQuestion._id],
+    });
+    const unfinishedSession = await Session.create({
+      name: 'Still running',
+      courseId: course._id,
+      creator: professor._id,
+      status: 'running',
+      reviewable: true,
+      questions: [privateQuestion._id],
+    });
+    const studentCreatedSession = await Session.create({
+      name: 'Another student practice session',
+      courseId: course._id,
+      creator: otherStudent._id,
+      studentCreated: true,
+      status: 'done',
+      reviewable: true,
+      questions: [privateQuestion._id],
+    });
+    await Grade.create({
+      courseId: course._id,
+      sessionId: reviewableSession._id,
+      userId: student._id,
+      name: reviewableSession.name,
+      value: 50,
+      participation: 100,
+      points: 1,
+      outOf: 2,
+      visibleToStudents: true,
+      marks: [{
+        questionId: reviewableQuestion._id,
+        points: 1,
+        outOf: 2,
+        feedback: 'Review the direction of friction.',
+        feedbackUpdatedAt: new Date('2026-08-19T12:00:00.000Z'),
+      }],
+    });
+    await Grade.create({
+      courseId: course._id,
+      sessionId: reviewableSession._id,
+      userId: otherStudent._id,
+      name: reviewableSession.name,
+      value: 100,
+      points: 2,
+      outOf: 2,
+      visibleToStudents: true,
+      marks: [{
+        questionId: reviewableQuestion._id,
+        points: 2,
+        outOf: 2,
+        feedback: 'Feedback belonging only to the other student.',
+      }],
+    });
+    await Grade.create({
+      courseId: course._id,
+      sessionId: privateSession._id,
+      userId: student._id,
+      name: privateSession.name,
+      value: 100,
+      points: 1,
+      outOf: 1,
+      visibleToStudents: true,
+      marks: [{ questionId: privateQuestion._id, points: 1, outOf: 1, feedback: 'Private feedback' }],
+    });
+
+    const listed = await listStudentReviewableSessions(course._id, student._id);
+    expect(listed.sessions.map((session) => session.session_id)).toEqual([reviewableSession._id]);
+    expect(listed.sessions.map((session) => session.session_id)).not.toEqual(expect.arrayContaining([
+      privateSession._id,
+      unfinishedSession._id,
+      studentCreatedSession._id,
+    ]));
+
+    const questions = await getStudentReviewableSessionQuestions(course._id, reviewableSession._id, student._id);
+    expect(questions.questions[0]).toMatchObject({
+      question_id: reviewableQuestion._id,
+      solution: 'Friction acts opposite relative motion.',
+      points: 2,
+      options: [
+        expect.objectContaining({ text: 'Friction', correct: true }),
+        expect.objectContaining({ text: 'Gravity', correct: false }),
+      ],
+    });
+
+    const ownGrade = await getStudentReviewableSessionGrade(course._id, reviewableSession._id, student._id);
+    expect(ownGrade.grade).toMatchObject({
+      percentage: 50,
+      points: 1,
+      out_of: 2,
+      marks: [expect.objectContaining({
+        question_id: reviewableQuestion._id,
+        points: 1,
+        feedback: 'Review the direction of friction.',
+      })],
+    });
+    expect(JSON.stringify(ownGrade)).not.toContain('Feedback belonging only to the other student.');
+    await Grade.updateOne(
+      { courseId: course._id, sessionId: reviewableSession._id, userId: student._id },
+      { $set: { visibleToStudents: false } }
+    );
+    expect((await getStudentReviewableSessionGrade(
+      course._id,
+      reviewableSession._id,
+      student._id
+    )).grade).toBeNull();
+    await expect(getStudentReviewableSessionQuestions(course._id, privateSession._id, student._id))
+      .rejects.toThrow('Reviewable session not found');
+    await expect(getStudentReviewableSessionGrade(course._id, privateSession._id, student._id))
+      .rejects.toThrow('Reviewable session not found');
+    await expect(getStudentReviewableSessionQuestions(course._id, unfinishedSession._id, student._id))
+      .rejects.toThrow('Reviewable session not found');
+    await expect(listStudentReviewableSessions(course._id, 'not-enrolled'))
+      .rejects.toThrow('Student is not enrolled in this course');
   });
 
   it('runs MCP tools before answering with course data', async (ctx) => {
@@ -264,8 +597,187 @@ describe('AI course configuration and chat', () => {
     });
     expect(fetch).toHaveBeenCalledTimes(2);
     const secondRequest = JSON.parse(fetch.mock.calls[1][1].body);
-    expect(secondRequest.tools.map((tool) => tool.function.name)).toEqual(expect.arrayContaining(['list_course_students', 'list_course_sessions', 'get_session_questions', 'get_question_responses', 'get_session_grade_table', 'get_course_grade_table']));
+    expect(secondRequest.tools.map((tool) => tool.function.name)).toEqual(expect.arrayContaining(['get_conversation_history', 'list_course_students', 'list_course_sessions', 'get_session_questions', 'get_question_responses', 'get_session_grade_table', 'get_course_grade_table', 'list_course_chat_topics', 'get_course_chat_topic', 'draft_course_chat_message', 'publish_course_chat_draft', 'create_course_session', 'edit_course_session', 'list_course_questions', 'create_course_question', 'edit_course_question']));
     expect(secondRequest.messages.some((entry) => entry.role === 'tool' && entry.content.includes('student@example.com'))).toBe(true);
+  });
+
+  it('uses the course maximum for professor AI chat tool rounds', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const professor = await createTestUser({ email: 'ai-round-limit-prof@example.com', roles: ['professor'] });
+    const token = await getAuthToken(app, professor);
+    const course = await createCourse(token);
+    await Course.findByIdAndUpdate(course._id, { $set: { aiEnabled: true, aiInstructorChatMaxToolRounds: 1 } });
+    await configureAi(course._id);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      message: { content: '', tool_calls: [{ function: { name: 'list_course_students', arguments: {} } }] },
+    }), { status: 200 })));
+
+    const created = await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations`, { token });
+    const conversationId = created.json().conversation._id;
+    await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations/${conversationId}/messages`, {
+      token,
+      payload: { content: 'Keep checking the student list.' },
+    });
+
+    await vi.waitFor(async () => {
+      const updated = await AiConversation.findById(conversationId).lean();
+      expect(updated).toMatchObject({
+        pending: false,
+        pendingError: 'AI backend exceeded the configured maximum of 1 internal tool rounds',
+      });
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('creates a quiz through the instructor MCP tool and always reports its schedule', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const professor = await createTestUser({ email: 'ai-author-prof@example.com', roles: ['professor'] });
+    const token = await getAuthToken(app, professor);
+    const course = await createCourse(token);
+    await Course.findByIdAndUpdate(course._id, { $set: { aiEnabled: true } });
+    await configureAi(course._id);
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: { content: '', tool_calls: [{ function: {
+        name: 'create_course_session',
+        arguments: { name: 'Generated Quiz', type: 'quiz' },
+      } }] } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: { content: 'The quiz was created.' } }), { status: 200 })));
+
+    const created = await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations`, { token });
+    const conversationId = created.json().conversation._id;
+    await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations/${conversationId}/messages`, {
+      token,
+      payload: { content: 'Create a quiz.' },
+    });
+
+    await vi.waitFor(async () => {
+      const updated = await authenticatedRequest(app, 'GET', `/api/v1/ai/courses/${course._id}/conversations/${conversationId}`, { token });
+      expect(updated.json().conversation.messages.at(-1).content).toContain('Quiz schedule: Generated Quiz');
+    });
+    const quiz = await Session.findOne({ courseId: course._id, name: 'Generated Quiz' }).lean();
+    expect(quiz).toMatchObject({ quiz: true, status: 'hidden' });
+    expect(new Date(quiz.quizEnd).getTime() - new Date(quiz.quizStart).getTime()).toBe(12 * 60 * 60 * 1000);
+    expect(new Date(quiz.quizStart).getMinutes()).toBe(0);
+  });
+
+  it('shows a course chat draft and requires its exact later-turn approval before posting', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const professor = await createTestUser({ email: 'ai-course-chat-prof@example.com', roles: ['professor'] });
+    const token = await getAuthToken(app, professor);
+    const course = await createCourse(token);
+    await Course.findByIdAndUpdate(course._id, { $set: { aiEnabled: true, courseChatEnabled: true } });
+    await configureAi(course._id);
+    const target = await Post.create({
+      scopeType: 'course',
+      courseId: course._id,
+      authorId: 'student-1',
+      authorRole: 'student',
+      title: 'When is the assignment due?',
+      body: 'I cannot find the deadline.',
+    });
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: { content: '', tool_calls: [{ function: {
+        name: 'draft_course_chat_message',
+        arguments: {
+          type: 'response',
+          target_topic_id: target._id,
+          body: 'The assignment is due Friday at 5 PM.',
+        },
+      } }] } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: { content: 'Please review this response.' } }), { status: 200 })));
+
+    const created = await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations`, { token });
+    const conversationId = created.json().conversation._id;
+    await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations/${conversationId}/messages`, {
+      token,
+      payload: { content: 'Post a response telling them the deadline is Friday at 5 PM.' },
+    });
+
+    let approvalPhrase = '';
+    await vi.waitFor(async () => {
+      const updated = await authenticatedRequest(app, 'GET', `/api/v1/ai/courses/${course._id}/conversations/${conversationId}`, { token });
+      const assistantContent = updated.json().conversation.messages.at(-1).content;
+      expect(assistantContent).toContain('Course chat draft — not posted');
+      expect(assistantContent).toContain('The assignment is due Friday at 5 PM.');
+      approvalPhrase = assistantContent.match(/Approve course chat draft [A-Za-z0-9]+/)?.[0] || '';
+      expect(approvalPhrase).toBeTruthy();
+    });
+    expect((await Post.findById(target._id).lean()).comments).toHaveLength(0);
+
+    const draftId = approvalPhrase.replace('Approve course chat draft ', '');
+    fetch
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: { content: '', tool_calls: [{ function: {
+        name: 'publish_course_chat_draft',
+        arguments: { draft_id: draftId },
+      } }] } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: { content: 'Approved response published.' } }), { status: 200 }));
+    await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations/${conversationId}/messages`, {
+      token,
+      payload: { content: approvalPhrase },
+    });
+
+    await vi.waitFor(async () => {
+      const post = await Post.findById(target._id).lean();
+      expect(post.comments).toEqual([
+        expect.objectContaining({ _id: draftId, body: 'The assignment is due Friday at 5 PM.', authorRole: 'instructor' }),
+      ]);
+      const updated = await authenticatedRequest(app, 'GET', `/api/v1/ai/courses/${course._id}/conversations/${conversationId}`, { token });
+      expect(updated.json().conversation.messages.at(-1).content).toContain('Published the approved course chat response');
+    });
+  });
+
+  it('halts an in-progress AI response summary and leaves it ready to regenerate', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const professor = await createTestUser({ email: 'ai-summary-halt-prof@example.com', roles: ['professor'] });
+    const token = await getAuthToken(app, professor);
+    const course = await createCourse(token);
+    await Course.findByIdAndUpdate(course._id, { $set: { aiEnabled: true } });
+    await configureAi(course._id);
+    const question = await Question.create({ type: 2, plainText: 'Explain recursion.', creator: professor._id, courseId: course._id });
+    const session = await Session.create({
+      name: 'Summary session',
+      courseId: course._id,
+      creator: professor._id,
+      status: 'done',
+      questions: [question._id],
+      joined: [],
+    });
+    vi.stubGlobal('fetch', vi.fn((_, options) => new Promise((_, reject) => {
+      options.signal.addEventListener('abort', () => {
+        const error = new Error('aborted');
+        error.name = 'AbortError';
+        reject(error);
+      });
+    })));
+
+    const started = await authenticatedRequest(
+      app,
+      'POST',
+      `/api/v1/ai/courses/${course._id}/sessions/${session._id}/questions/${question._id}/ai-summary`,
+      { token, payload: { instruction: 'Summarize the responses.' } }
+    );
+    expect(started.statusCode).toBe(202);
+    await vi.waitFor(async () => {
+      expect((await AiResponseSummary.findById(started.json().summary._id).lean()).phase).toBe('generating');
+    });
+
+    const halted = await authenticatedRequest(
+      app,
+      'POST',
+      `/api/v1/ai/courses/${course._id}/sessions/${session._id}/questions/${question._id}/ai-summary/halt`,
+      { token }
+    );
+
+    expect(halted.statusCode).toBe(200);
+    expect(halted.json().summary).toMatchObject({ status: 'halted', phase: 'halted' });
+    await vi.waitFor(() => expect(fetch.mock.calls[0][1].signal.aborted).toBe(true));
+    const reloaded = await authenticatedRequest(
+      app,
+      'GET',
+      `/api/v1/ai/courses/${course._id}/sessions/${session._id}/questions/${question._id}/ai-summary`,
+      { token }
+    );
+    expect(reloaded.json().summary).toMatchObject({ status: 'halted', phase: 'halted' });
   });
 
   it('stops an in-progress AI response and preserves the submitted prompt', async (ctx) => {

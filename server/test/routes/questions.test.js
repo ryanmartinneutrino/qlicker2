@@ -1808,7 +1808,9 @@ describe('POST /api/v1/questions/bulk-delete', () => {
 describe('POST /api/v1/sessions/:sessionId/questions', () => {
   it('instructor can add question to session', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
-    const { profToken, session } = await setupCourseAndSession();
+    const { profToken, course, session } = await setupCourseAndSession();
+    await Course.findByIdAndUpdate(course._id, { $set: { tags: [{ value: 'vectors', label: 'Vectors' }] } });
+    await Session.findByIdAndUpdate(session._id, { $set: { tags: [{ value: 'vectors', label: 'Vectors' }] } });
 
     const qRes = await createQuestionAsProf(profToken);
     const question = qRes.json().question;
@@ -1832,6 +1834,7 @@ describe('POST /api/v1/sessions/:sessionId/questions', () => {
     expect(copiedQuestion).toBeTruthy();
     expect(String(copiedQuestion.originalQuestion)).toBe(String(question._id));
     expect(String(copiedQuestion.sessionId)).toBe(String(session._id));
+    expect(copiedQuestion.tags).toEqual([{ value: 'vectors', label: 'Vectors' }]);
   });
 
   it('adding the same source question twice creates distinct session copies', async (ctx) => {

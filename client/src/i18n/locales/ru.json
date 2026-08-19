@@ -617,6 +617,15 @@
       "settings": "Настройки курса",
       "aiModel": "Модель ИИ",
       "aiDefaultModel": "Модель по умолчанию",
+      "instructorAiChatMaxToolRounds": "Максимум внутренних шагов для ИИ-чата преподавателя",
+      "instructorAiChatMaxToolRoundsHelp": "Задаёт количество фоновых шагов с инструментами для одного запроса. Более высокие значения позволяют выполнять более сложные задачи, но могут увеличить время обработки.",
+      "enableStudentAiChat": "Включить ИИ-чат для студентов",
+      "enableStudentAiChatHelp": "Разрешить студентам использовать ИИ-помощника для практики по материалам курса",
+      "studentAiChatGuidance": "Инструкции для студенческого ИИ-чата",
+      "studentAiDefaultModel": "Модель по умолчанию для студенческого ИИ-чата",
+      "studentAiChatMaxToolRounds": "Максимум внутренних шагов для студенческого ИИ-чата",
+      "studentAiChatMaxToolRoundsHelp": "Ограничивает количество фоновых шагов с инструментами, которые студенческий ассистент может выполнить для одного запроса.",
+      "studentAiModelUnavailable": "Сделайте хотя бы одну одобренную модель доступной студентам, прежде чем выбирать модель по умолчанию.",
       "groups": "Группы",
       "addStudent": "Добавить студента",
       "addInstructor": "Добавить преподавателя",
@@ -653,7 +662,7 @@
       "allowStudentQuestionsHelp": "Если включено, студенты могут открывать библиотеку вопросов курса, создавать тренировочные сессии и копировать тренировочные вопросы. Они всё равно могут просматривать завершённые сессии, даже если это отключено.",
       "topics": "Темы курса",
       "topicsPlaceholder": "Добавить тему курса",
-      "topicsHelp": "Студенты могут использовать эти темы курса только для собственных вопросов.",
+      "topicsHelp": "Создавайте теги на основе тем курса и назначайте их занятиям и вопросам, чтобы упорядочить материалы и помочь студентам легко находить тренировочные вопросы.",
       "quizTimeFormat": "Формат времени теста",
       "quizTimeFormatInherit": "Использовать значение администратора по умолчанию ({{defaultFormat}})",
       "quizTimeFormatOptions": {
@@ -774,6 +783,7 @@
       "aiChatHelp": "Общайтесь с ИИ-помощником.",
       "courseActiveHelp": "Когда курс активен, студенты могут получить к нему доступ.",
       "aiRequiresAdminAuthorization": "Требуется авторизация администратора",
+      "aiHelperHelp": "Включите ИИ-помощника для оценивания, создания вопросов и управления занятиями и студентами.",
       "enrollmentCodeHelp": "Это код, необходимый студентам для записи на курс."
     },
     "sessionEditor": {
@@ -1074,7 +1084,12 @@
       "summaryInstructions": "Summary instructions",
       "basicSummaryHelp": "Basic summary identifies up to five response themes and example quotations.",
       "aiSummaryInProgress": "Подготовка ответов: {{completed}} из {{total}}",
-      "aiSummaryGenerating": "Создание сводки ИИ…"
+      "aiSummaryGenerating": "Создание сводки ИИ…",
+      "haltAiResponseSummary": "Остановить сводку",
+      "haltingAiResponseSummary": "Остановка…",
+      "aiSummaryHalted": "Сводка ИИ остановлена. Её можно создать снова.",
+      "aiSummaryFailed": "Не удалось создать сводку ИИ. {{error}}",
+      "aiSummaryHaltFailed": "Не удалось остановить сводку ИИ."
     },
     "secondDesktop": {
       "joinCode": "Код присоединения",
@@ -2490,6 +2505,7 @@
       "title": "AI Chat",
       "newConversation": "New conversation",
       "newConversationGuidance": "Спрашивайте о студентах курса, оценках и успеваемости или создавайте вопросы для занятий.",
+      "studentNewConversationGuidance": "Задавайте вопросы об этом курсе или его материалах. Я могу объяснять понятия, разбирать примеры и помогать в учёбе.",
       "noConversations": "No conversations yet.",
       "send": "Send",
       "stop": "Остановить",

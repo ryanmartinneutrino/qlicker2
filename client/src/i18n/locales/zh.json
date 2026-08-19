@@ -617,6 +617,15 @@
       "settings": "课程设置",
       "aiModel": "AI 模型",
       "aiDefaultModel": "默认模型",
+      "instructorAiChatMaxToolRounds": "教师 AI 聊天的最大内部轮次",
+      "instructorAiChatMaxToolRoundsHelp": "设置助手可在后台为单个请求执行的工具步骤数。较高的值可以完成更复杂的工作，但可能需要更长时间。",
+      "enableStudentAiChat": "为学生启用 AI 聊天",
+      "enableStudentAiChatHelp": "允许学生使用 AI 助手练习课程材料",
+      "studentAiChatGuidance": "学生 AI 聊天指南",
+      "studentAiDefaultModel": "学生 AI 聊天的默认模型",
+      "studentAiChatMaxToolRounds": "学生 AI 聊天的最大内部轮次",
+      "studentAiChatMaxToolRoundsHelp": "限制学生助手可在后台为单个请求执行的工具步骤数。",
+      "studentAiModelUnavailable": "选择默认模型前，请至少允许学生使用一个已批准的模型。",
       "groups": "分组",
       "addStudent": "添加学生",
       "addInstructor": "添加教师",
@@ -653,7 +662,7 @@
       "allowStudentQuestionsHelp": "启用后，学生可以打开课程题库、创建练习环节并复制练习题。即使关闭此项，他们仍可查看已结束的环节。",
       "topics": "课程主题",
       "topicsPlaceholder": "添加课程主题",
-      "topicsHelp": "学生只能在自己的题目上使用这些课程主题。",
+      "topicsHelp": "根据课程主题创建标签，并用它们标记课堂和题目，以便组织材料并帮助学生轻松搜索练习题。",
       "quizTimeFormat": "测验时间格式",
       "quizTimeFormatInherit": "使用管理员默认设置（{{defaultFormat}}）",
       "quizTimeFormatOptions": {
@@ -774,6 +783,7 @@
       "aiChatHelp": "与 AI 助手聊天。",
       "courseActiveHelp": "课程处于激活状态时，学生可以访问它。",
       "aiRequiresAdminAuthorization": "需要管理员授权",
+      "aiHelperHelp": "启用 AI 助手以协助评分、生成题目以及管理课堂和学生。",
       "enrollmentCodeHelp": "这是学生注册该课程所需的代码。"
     },
     "sessionEditor": {
@@ -1074,7 +1084,12 @@
       "summaryInstructions": "Summary instructions",
       "basicSummaryHelp": "Basic summary identifies up to five response themes and example quotations.",
       "aiSummaryInProgress": "正在准备回答：{{completed}} / {{total}}",
-      "aiSummaryGenerating": "正在生成 AI 摘要…"
+      "aiSummaryGenerating": "正在生成 AI 摘要…",
+      "haltAiResponseSummary": "停止摘要",
+      "haltingAiResponseSummary": "正在停止…",
+      "aiSummaryHalted": "AI 摘要已停止。您可以重新生成。",
+      "aiSummaryFailed": "AI 摘要生成失败。{{error}}",
+      "aiSummaryHaltFailed": "无法停止 AI 摘要。"
     },
     "secondDesktop": {
       "joinCode": "加入码",
@@ -2444,6 +2459,7 @@
       "title": "AI Chat",
       "newConversation": "New conversation",
       "newConversationGuidance": "您可以询问本课程的学生、成绩和表现，也可以创建用于课堂的题目。",
+      "studentNewConversationGuidance": "询问有关本课程或课程内容的问题。我可以帮助解释概念、分析示例并辅助你学习。",
       "noConversations": "No conversations yet.",
       "send": "Send",
       "stop": "停止",
