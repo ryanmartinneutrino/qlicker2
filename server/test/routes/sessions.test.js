@@ -4076,6 +4076,9 @@ describe('GET /api/v1/sessions/:id/review', () => {
     expect(body.questions[0].solution).toBe('<p>Basic addition: 2+2=4</p>');
     expect(body.questions[0].options[1].correct).toBe(true);
     expect(body.responses).toBeDefined();
+    expect(body.session.aiGradingLog).toBeUndefined();
+    expect(body.session.joined).toBeUndefined();
+    expect(body.session.submittedQuiz).toBeUndefined();
   });
 
   it('student review payload includes feedback summary for new feedback', async (ctx) => {
@@ -4093,9 +4096,14 @@ describe('GET /api/v1/sessions/:id/review', () => {
         $set: {
           name: session.name,
           visibleToStudents: true,
+          value: 80,
+          points: 4,
+          outOf: 5,
           marks: [
             {
               questionId: question._id,
+              points: 4,
+              outOf: 5,
               feedback: '<p>Please revisit this step.</p>',
               feedbackUpdatedAt: new Date(),
             },
@@ -4112,6 +4120,12 @@ describe('GET /api/v1/sessions/:id/review', () => {
     expect(res.json().feedback).toBeDefined();
     expect(res.json().feedback.hasNewFeedback).toBe(true);
     expect(res.json().feedback.newFeedbackQuestionIds).toContain(question._id);
+    expect(res.json().grade).toMatchObject({ value: 80, points: 4, outOf: 5 });
+    expect(res.json().grade.marks[0]).toMatchObject({ questionId: question._id, points: 4, outOf: 5 });
+    expect(res.json().grade.userId).toBeUndefined();
+    expect(res.json().grade.name).toBeUndefined();
+    expect(res.json().grade.marks[0].responseId).toBeUndefined();
+    expect(res.json().grade.marks[0].aiGraded).toBeUndefined();
   });
 
   it('normalizes review question solution/correct fields for legacy-shaped records', async (ctx) => {

@@ -44,6 +44,7 @@ describe('course AI MCP audience and history', () => {
         'list_course_questions',
         'create_course_question',
         'edit_course_question',
+        'apply_course_action_draft',
         'list_course_chat_topics',
         'get_course_chat_topic',
         'draft_course_chat_message',

@@ -24,5 +24,6 @@ const AiCourseChatDraftSchema = new mongoose.Schema(
 );
 
 AiCourseChatDraftSchema.index({ conversationId: 1, ownerId: 1, createdAt: -1 });
+AiCourseChatDraftSchema.index({ createdAt: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 });
 
 export default mongoose.model('AiCourseChatDraft', AiCourseChatDraftSchema);

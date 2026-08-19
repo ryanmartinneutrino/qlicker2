@@ -1,4 +1,10 @@
-import AiConversation from '../models/AiConversation.js';
+import AiConversation, {
+  MAX_AI_CONVERSATION_MESSAGES,
+  MAX_AI_MESSAGE_CHARS,
+  MAX_AI_MESSAGE_WYSIWYG_CHARS,
+} from '../models/AiConversation.js';
+import AiActionDraft from '../models/AiActionDraft.js';
+import AiCourseChatDraft from '../models/AiCourseChatDraft.js';
 import AiGradingInstruction from '../models/AiGradingInstruction.js';
 import AiGradingJob from '../models/AiGradingJob.js';
 import AiSessionRubric from '../models/AiSessionRubric.js';
@@ -21,15 +27,63 @@ import {
   queueAiResponseSummary,
 } from '../services/aiResponseSummaryRunner.js';
 import { notifyCourseChatUpdated } from './courseChat.js';
+import {
+  appendAiGradingLogEntry,
+  clearAiGradingLogs,
+  finishAiGradingLogRun,
+  getAiGradingLog,
+  startAiGradingLogRun,
+} from '../services/aiLogs.js';
 
 const READ_LIMIT = { max: 60, timeWindow: '1 minute' };
 const WRITE_LIMIT = { max: 20, timeWindow: '1 minute' };
+const MAX_CONVERSATIONS_PER_COURSE = 100;
+const AI_JOB_STALE_MS = 3 * 60 * 1000;
+const MAX_AI_RUBRIC_QUESTIONS = 100;
+const MAX_AI_INSTRUCTION_CHARS = 10_000;
 
 async function instructorCourse(request, reply) {
   const course = await Course.findById(request.params.courseId).lean();
   if (!course) { reply.code(404).send({ error: 'Not Found', message: 'Course not found' }); return null; }
   if (!isCourseInstructorOrAdmin(course, request.user)) { reply.code(403).send({ error: 'Forbidden', message: 'Only course instructors can use AI helper' }); return null; }
   return course;
+}
+
+async function instructorSession(course, sessionId, reply) {
+  const session = await Session.findOne({
+    _id: String(sessionId),
+    courseId: String(course._id),
+    studentCreated: { $ne: true },
+  }).lean();
+  if (!session) reply.code(404).send({ error: 'Not Found', message: 'Session not found in this course' });
+  return session;
+}
+
+function sessionHasQuestion(session, questionId) {
+  return (session?.questions || []).some((id) => String(id) === String(questionId));
+}
+
+function normalizeRubricInstructions(value, session) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const sessionQuestionIds = new Set((session?.questions || []).map(String));
+  const entries = Object.entries(value);
+  if (entries.length > MAX_AI_RUBRIC_QUESTIONS) throw new Error('The grading rubric contains too many questions');
+  return Object.fromEntries(entries.map(([questionId, raw]) => {
+    if (!sessionQuestionIds.has(String(questionId))) throw new Error('Every rubric instruction must belong to this session');
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('Each rubric instruction must be an object');
+    const grading = String(raw.grading || '');
+    const feedback = String(raw.feedback || '');
+    if (grading.length > MAX_AI_INSTRUCTION_CHARS || feedback.length > MAX_AI_INSTRUCTION_CHARS) {
+      throw new Error(`Grading and feedback instructions cannot exceed ${MAX_AI_INSTRUCTION_CHARS.toLocaleString()} characters`);
+    }
+    return [String(questionId), {
+      grading,
+      feedback,
+      gradingInstructionId: String(raw.gradingInstructionId || '').slice(0, 200),
+      feedbackInstructionId: String(raw.feedbackInstructionId || '').slice(0, 200),
+      regrade: !!raw.regrade,
+    }];
+  }));
 }
 
 async function studentCourse(request, reply) {
@@ -151,6 +205,7 @@ function serializeConversation(doc, includeMessages = false) {
 
 async function recoverOrphanedConversation(conversation) {
   if (!conversation?.pending || isAiCourseChatActive(conversation._id)) return conversation;
+  if (new Date(conversation.updatedAt || 0).getTime() > Date.now() - AI_JOB_STALE_MS) return conversation;
   return AiConversation.findOneAndUpdate(
     { _id: conversation._id, pending: true },
     { $set: {
@@ -165,6 +220,7 @@ async function recoverOrphanedConversation(conversation) {
 
 async function recoverOrphanedResponseSummary(summary) {
   if (!summary || !['queued', 'running'].includes(summary.status) || isAiResponseSummaryActive(summary._id)) return summary;
+  if (new Date(summary.updatedAt || 0).getTime() > Date.now() - AI_JOB_STALE_MS) return summary;
   return AiResponseSummary.findOneAndUpdate(
     { _id: summary._id, status: { $in: ['queued', 'running'] } },
     { $set: {
@@ -175,6 +231,24 @@ async function recoverOrphanedResponseSummary(summary) {
     } },
     { returnDocument: 'after' }
   ).lean();
+}
+
+async function recoverStaleAiGradingJob(job) {
+  if (!job || !job.active || !['queued', 'running'].includes(job.status)) return job;
+  if (new Date(job.updatedAt || job.createdAt || 0).getTime() > Date.now() - AI_JOB_STALE_MS) return job;
+  const error = 'The previous AI grading process stopped unexpectedly. Completed grades were preserved.';
+  const recovered = await AiGradingJob.findOneAndUpdate(
+    { _id: job._id, active: true, status: { $in: ['queued', 'running'] } },
+    { $set: { active: false, status: 'failed', error } },
+    { returnDocument: 'after' }
+  ).lean();
+  if (!recovered) return AiGradingJob.findById(job._id).lean();
+  try {
+    await startAiGradingLogRun(recovered, recovered.createdAt || new Date());
+    await appendAiGradingLogEntry(recovered, { status: 'failed', note: error });
+    await finishAiGradingLogRun(recovered._id, 'failed');
+  } catch { /* The job state remains recoverable even if log storage is unavailable. */ }
+  return recovered;
 }
 
 export default async function aiRoutes(app) {
@@ -332,12 +406,14 @@ export default async function aiRoutes(app) {
 
   app.get('/courses/:courseId/conversations', { preHandler: authenticate, rateLimit: READ_LIMIT }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
-    const conversations = await AiConversation.find({ courseId: course._id, ownerId: request.user.userId, ...conversationAudienceFilter('instructor') }).sort({ updatedAt: -1 }).lean();
+    const conversations = await AiConversation.find({ courseId: course._id, ownerId: request.user.userId, ...conversationAudienceFilter('instructor') }).select('-messages').sort({ updatedAt: -1 }).limit(MAX_CONVERSATIONS_PER_COURSE).lean();
     return { conversations: conversations.map((entry) => serializeConversation(entry)) };
   });
 
   app.post('/courses/:courseId/conversations', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
+    const count = await AiConversation.countDocuments({ courseId: course._id, ownerId: request.user.userId, ...conversationAudienceFilter('instructor') });
+    if (count >= MAX_CONVERSATIONS_PER_COURSE) return reply.code(409).send({ error: 'Conflict', message: `A course can have at most ${MAX_CONVERSATIONS_PER_COURSE} AI conversations per user` });
     const conversation = await AiConversation.create({ courseId: course._id, ownerId: request.user.userId, audience: 'instructor' });
     return reply.code(201).send({ conversation: serializeConversation(conversation.toObject(), true) });
   });
@@ -348,6 +424,14 @@ export default async function aiRoutes(app) {
     if (!conversation) return reply.code(404).send({ error: 'Not Found', message: 'AI conversation not found' });
     conversation = await recoverOrphanedConversation(conversation);
     return { conversation: serializeConversation(conversation, true) };
+  });
+
+  app.get('/courses/:courseId/conversations/:conversationId/status', { preHandler: authenticate, rateLimit: READ_LIMIT }, async (request, reply) => {
+    const course = await instructorCourse(request, reply); if (!course) return undefined;
+    let conversation = await AiConversation.findOne({ _id: request.params.conversationId, courseId: course._id, ownerId: request.user.userId, ...conversationAudienceFilter('instructor') }).select('-messages').lean();
+    if (!conversation) return reply.code(404).send({ error: 'Not Found', message: 'AI conversation not found' });
+    conversation = await recoverOrphanedConversation(conversation);
+    return { conversation: serializeConversation(conversation) };
   });
 
   app.delete('/courses/:courseId/conversations/:conversationId/pending-error', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
@@ -374,13 +458,22 @@ export default async function aiRoutes(app) {
       ownerId: request.user.userId,
       ...conversationAudienceFilter('instructor'),
     });
-    if (conversation) stopAiCourseChat(conversation._id);
+    if (conversation) {
+      stopAiCourseChat(conversation._id);
+      await Promise.all([
+        AiActionDraft.deleteMany({ conversationId: conversation._id, ownerId: request.user.userId }),
+        AiCourseChatDraft.deleteMany({ conversationId: conversation._id, ownerId: request.user.userId }),
+      ]);
+    }
     return reply.code(204).send();
   });
 
   app.post('/courses/:courseId/conversations/:conversationId/messages', { preHandler: authenticate, rateLimit: { max: 10, timeWindow: '1 minute' } }, async (request, reply) => {
     const content = String(request.body?.content || '').trim();
     if (!content) return reply.code(400).send({ error: 'Bad Request', message: 'A message is required' });
+    if (content.length > MAX_AI_MESSAGE_CHARS) return reply.code(400).send({ error: 'Bad Request', message: `Messages cannot exceed ${MAX_AI_MESSAGE_CHARS} characters` });
+    const contentWysiwyg = String(request.body?.contentWysiwyg || '');
+    if (contentWysiwyg.length > MAX_AI_MESSAGE_WYSIWYG_CHARS) return reply.code(400).send({ error: 'Bad Request', message: 'Formatted message content is too large' });
     const course = await instructorCourse(request, reply); if (!course) return undefined;
     const settings = await getOrCreateSettingsDocument({ lean: true }); const policy = coursePolicy(settings, course._id);
     if (!policy.enabled || !course.aiEnabled) return reply.code(403).send({ error: 'Forbidden', message: 'AI helper is disabled for this course' });
@@ -389,7 +482,10 @@ export default async function aiRoutes(app) {
     const conversation = await AiConversation.findOne({ _id: request.params.conversationId, courseId: course._id, ownerId: request.user.userId, ...conversationAudienceFilter('instructor') });
     if (!conversation) return reply.code(404).send({ error: 'Not Found', message: 'AI conversation not found' });
     if (conversation.pending) return reply.code(409).send({ error: 'Conflict', message: 'An AI response is already in progress for this conversation' });
-    conversation.messages.push({ role: 'user', content, contentWysiwyg: String(request.body?.contentWysiwyg || '') });
+    if (conversation.messages.length >= MAX_AI_CONVERSATION_MESSAGES) {
+      conversation.messages.splice(0, conversation.messages.length - MAX_AI_CONVERSATION_MESSAGES + 1);
+    }
+    conversation.messages.push({ role: 'user', content, contentWysiwyg });
     const userMessage = conversation.messages.at(-1);
     conversation.pending = true;
     conversation.pendingMessageId = String(userMessage._id);
@@ -429,12 +525,14 @@ export default async function aiRoutes(app) {
       courseId: context.course._id,
       ownerId: request.user.userId,
       ...conversationAudienceFilter('student'),
-    }).sort({ updatedAt: -1 }).lean();
+    }).select('-messages').sort({ updatedAt: -1 }).limit(MAX_CONVERSATIONS_PER_COURSE).lean();
     return { conversations: conversations.map((entry) => serializeConversation(entry)) };
   });
 
   app.post('/student/courses/:courseId/conversations', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
     const context = await studentChatContext(request, reply); if (!context) return undefined;
+    const count = await AiConversation.countDocuments({ courseId: context.course._id, ownerId: request.user.userId, ...conversationAudienceFilter('student') });
+    if (count >= MAX_CONVERSATIONS_PER_COURSE) return reply.code(409).send({ error: 'Conflict', message: `A course can have at most ${MAX_CONVERSATIONS_PER_COURSE} AI conversations per user` });
     const conversation = await AiConversation.create({
       courseId: context.course._id,
       ownerId: request.user.userId,
@@ -454,6 +552,19 @@ export default async function aiRoutes(app) {
     if (!conversation) return reply.code(404).send({ error: 'Not Found', message: 'AI conversation not found' });
     conversation = await recoverOrphanedConversation(conversation);
     return { conversation: serializeConversation(conversation, true) };
+  });
+
+  app.get('/student/courses/:courseId/conversations/:conversationId/status', { preHandler: authenticate, rateLimit: READ_LIMIT }, async (request, reply) => {
+    const context = await studentChatContext(request, reply); if (!context) return undefined;
+    let conversation = await AiConversation.findOne({
+      _id: request.params.conversationId,
+      courseId: context.course._id,
+      ownerId: request.user.userId,
+      ...conversationAudienceFilter('student'),
+    }).select('-messages').lean();
+    if (!conversation) return reply.code(404).send({ error: 'Not Found', message: 'AI conversation not found' });
+    conversation = await recoverOrphanedConversation(conversation);
+    return { conversation: serializeConversation(conversation) };
   });
 
   app.delete('/student/courses/:courseId/conversations/:conversationId/pending-error', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
@@ -492,6 +603,9 @@ export default async function aiRoutes(app) {
   app.post('/student/courses/:courseId/conversations/:conversationId/messages', { preHandler: authenticate, rateLimit: { max: 10, timeWindow: '1 minute' } }, async (request, reply) => {
     const content = String(request.body?.content || '').trim();
     if (!content) return reply.code(400).send({ error: 'Bad Request', message: 'A message is required' });
+    if (content.length > MAX_AI_MESSAGE_CHARS) return reply.code(400).send({ error: 'Bad Request', message: `Messages cannot exceed ${MAX_AI_MESSAGE_CHARS} characters` });
+    const contentWysiwyg = String(request.body?.contentWysiwyg || '');
+    if (contentWysiwyg.length > MAX_AI_MESSAGE_WYSIWYG_CHARS) return reply.code(400).send({ error: 'Bad Request', message: 'Formatted message content is too large' });
     const context = await studentChatContext(request, reply); if (!context) return undefined;
     const { course, settings, policy } = context;
     const selected = resolveStudentModel(course, settings, policy, request.body || {});
@@ -504,7 +618,10 @@ export default async function aiRoutes(app) {
     });
     if (!conversation) return reply.code(404).send({ error: 'Not Found', message: 'AI conversation not found' });
     if (conversation.pending) return reply.code(409).send({ error: 'Conflict', message: 'An AI response is already in progress for this conversation' });
-    conversation.messages.push({ role: 'user', content, contentWysiwyg: String(request.body?.contentWysiwyg || '') });
+    if (conversation.messages.length >= MAX_AI_CONVERSATION_MESSAGES) {
+      conversation.messages.splice(0, conversation.messages.length - MAX_AI_CONVERSATION_MESSAGES + 1);
+    }
+    conversation.messages.push({ role: 'user', content, contentWysiwyg });
     const userMessage = conversation.messages.at(-1);
     conversation.pending = true;
     conversation.pendingMessageId = String(userMessage._id);
@@ -557,6 +674,7 @@ export default async function aiRoutes(app) {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
     const { _id, kind, name, content } = request.body || {};
     if (!['grading', 'feedback', 'summary'].includes(kind) || !String(name || '').trim() || !String(content || '').trim()) return reply.code(400).send({ error: 'Bad Request', message: 'Instruction type, name, and content are required' });
+    if (String(name).trim().length > 200 || String(content).trim().length > MAX_AI_INSTRUCTION_CHARS) return reply.code(400).send({ error: 'Bad Request', message: `Instruction names cannot exceed 200 characters and content cannot exceed ${MAX_AI_INSTRUCTION_CHARS.toLocaleString()} characters` });
     const filter = _id && !['no-feedback', 'basic-summary'].includes(_id) ? { _id, courseId: course._id } : { courseId: course._id, kind, name: String(name).trim() };
     const instruction = await AiGradingInstruction.findOneAndUpdate(filter, { $set: { courseId: course._id, kind, name: String(name).trim(), content: String(content).trim() } }, { upsert: true, new: true, runValidators: true });
     return { instruction };
@@ -596,14 +714,22 @@ export default async function aiRoutes(app) {
 
   app.get('/courses/:courseId/sessions/:sessionId/ai-grading-rubric', { preHandler: authenticate }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
+    const session = await instructorSession(course, request.params.sessionId, reply); if (!session) return undefined;
     const rubric = await AiSessionRubric.findOne({ courseId: course._id, sessionId: request.params.sessionId }).lean();
     return { rubric };
   });
 
   app.put('/courses/:courseId/sessions/:sessionId/ai-grading-rubric', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
-    const questionIds = Array.isArray(request.body?.questionIds) ? request.body.questionIds.map(String) : [];
-    const instructions = request.body?.instructions && typeof request.body.instructions === 'object' ? request.body.instructions : {};
+    const session = await instructorSession(course, request.params.sessionId, reply); if (!session) return undefined;
+    const questionIds = Array.isArray(request.body?.questionIds) ? [...new Set(request.body.questionIds.map(String))] : [];
+    if (questionIds.length > MAX_AI_RUBRIC_QUESTIONS) return reply.code(400).send({ error: 'Bad Request', message: `A grading rubric cannot contain more than ${MAX_AI_RUBRIC_QUESTIONS} questions` });
+    if (questionIds.some((questionId) => !sessionHasQuestion(session, questionId))) {
+      return reply.code(400).send({ error: 'Bad Request', message: 'Every rubric question must belong to this session' });
+    }
+    let instructions;
+    try { instructions = normalizeRubricInstructions(request.body?.instructions, session); }
+    catch (error) { return reply.code(400).send({ error: 'Bad Request', message: error.message }); }
     const rubric = await AiSessionRubric.findOneAndUpdate(
       { courseId: course._id, sessionId: request.params.sessionId },
       { $set: { questionIds, instructions } },
@@ -614,40 +740,57 @@ export default async function aiRoutes(app) {
 
   app.get('/courses/:courseId/sessions/:sessionId/ai-grading', { preHandler: authenticate }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
-    const job = await AiGradingJob.findOne({ courseId: course._id, sessionId: request.params.sessionId }).sort({ createdAt: -1 }).lean();
-    const session = await Session.findById(request.params.sessionId).select('aiGradingLog').lean();
-    return { job, log: session?.aiGradingLog || null };
+    const session = await instructorSession(course, request.params.sessionId, reply); if (!session) return undefined;
+    let job = await AiGradingJob.findOne({ courseId: course._id, sessionId: request.params.sessionId }).sort({ createdAt: -1 }).lean();
+    job = await recoverStaleAiGradingJob(job);
+    const includeLog = ['1', 'true'].includes(String(request.query?.includeLog || '').toLowerCase());
+    return { job, ...(includeLog ? { log: await getAiGradingLog(course._id, session._id) } : {}) };
   });
 
   app.delete('/courses/:courseId/sessions/:sessionId/ai-grading-log', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
-    await Session.updateOne(
-      { _id: request.params.sessionId, courseId: course._id },
-      { $set: { aiGradingLog: { runs: [], updatedAt: new Date() } } }
-    );
+    const session = await instructorSession(course, request.params.sessionId, reply); if (!session) return undefined;
+    await clearAiGradingLogs(course._id, session._id);
     return reply.code(204).send();
   });
 
   app.post('/courses/:courseId/sessions/:sessionId/ai-grading', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
+    const session = await instructorSession(course, request.params.sessionId, reply); if (!session) return undefined;
     const settings = await getOrCreateSettingsDocument({ lean: true }); const policy = coursePolicy(settings, course._id);
     const selectedModel = resolveModel(course, settings, policy, request.body || {});
     if (!policy.enabled || !course.aiEnabled || !selectedModel) return reply.code(400).send({ error: 'Bad Request', message: 'Choose an approved AI model before grading' });
     const { questionIds, instructions = {}, regrade = false } = request.body || {};
     if (!Array.isArray(questionIds) || questionIds.length === 0) return reply.code(400).send({ error: 'Bad Request', message: 'Select at least one question' });
-    const normalizedQuestionIds = questionIds.map(String);
+    const normalizedQuestionIds = [...new Set(questionIds.map(String))];
+    if (normalizedQuestionIds.length > MAX_AI_RUBRIC_QUESTIONS) return reply.code(400).send({ error: 'Bad Request', message: `Select no more than ${MAX_AI_RUBRIC_QUESTIONS} questions` });
+    if (normalizedQuestionIds.some((questionId) => !sessionHasQuestion(session, questionId))) {
+      return reply.code(400).send({ error: 'Bad Request', message: 'Every selected question must belong to this session' });
+    }
+    let normalizedInstructions;
+    try { normalizedInstructions = normalizeRubricInstructions(instructions, session); }
+    catch (error) { return reply.code(400).send({ error: 'Bad Request', message: error.message }); }
     await AiSessionRubric.findOneAndUpdate(
       { courseId: course._id, sessionId: request.params.sessionId },
-      { $set: { questionIds: normalizedQuestionIds, instructions } },
+      { $set: { questionIds: normalizedQuestionIds, instructions: normalizedInstructions } },
       { upsert: true, new: true, runValidators: true }
     );
-    const job = await AiGradingJob.create({ courseId: course._id, sessionId: request.params.sessionId, ownerId: request.user.userId, backendId: selectedModel.backend.id, modelId: selectedModel.model.id, questionIds: normalizedQuestionIds, instructions, regrade: !!regrade });
+    const previousJob = await AiGradingJob.findOne({ courseId: course._id, sessionId: request.params.sessionId, active: true }).sort({ createdAt: -1 }).lean();
+    await recoverStaleAiGradingJob(previousJob);
+    let job;
+    try {
+      job = await AiGradingJob.create({ courseId: course._id, sessionId: request.params.sessionId, ownerId: request.user.userId, backendId: selectedModel.backend.id, modelId: selectedModel.model.id, questionIds: normalizedQuestionIds, instructions: normalizedInstructions, regrade: !!regrade, active: true });
+    } catch (error) {
+      if (error?.code === 11000) return reply.code(409).send({ error: 'Conflict', message: 'AI grading is already in progress for this session' });
+      throw error;
+    }
     setImmediate(() => runAiGradingJob(job._id));
     return reply.code(202).send({ job });
   });
 
   app.post('/courses/:courseId/sessions/:sessionId/ai-grading/halt', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
+    const session = await instructorSession(course, request.params.sessionId, reply); if (!session) return undefined;
     const activeJob = await AiGradingJob.findOne({
       courseId: course._id,
       sessionId: request.params.sessionId,
@@ -656,12 +799,34 @@ export default async function aiRoutes(app) {
     if (!activeJob) return reply.code(409).send({ error: 'Conflict', message: 'No AI grading job is in progress' });
     const job = await haltAiGradingJob(activeJob._id);
     if (!job) return reply.code(409).send({ error: 'Conflict', message: 'The AI grading job has already finished' });
-    const session = await Session.findById(request.params.sessionId).select('aiGradingLog').lean();
-    return { job, log: session?.aiGradingLog || null };
+    return { job, log: await getAiGradingLog(course._id, session._id) };
+  });
+
+  app.get('/courses/:courseId/sessions/:sessionId/ai-summaries', { preHandler: authenticate, rateLimit: READ_LIMIT }, async (request, reply) => {
+    const course = await instructorCourse(request, reply); if (!course) return undefined;
+    const session = await instructorSession(course, request.params.sessionId, reply); if (!session) return undefined;
+    const requestedIds = String(request.query?.questionIds || '')
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean);
+    const questionIds = requestedIds.length > 0
+      ? [...new Set(requestedIds)]
+      : (session.questions || []).map(String);
+    if (questionIds.length > MAX_AI_RUBRIC_QUESTIONS || questionIds.some((id) => !sessionHasQuestion(session, id))) {
+      return reply.code(400).send({ error: 'Bad Request', message: 'Summary questions must belong to this session' });
+    }
+    const summaries = await AiResponseSummary.find({
+      courseId: course._id,
+      sessionId: session._id,
+      questionId: { $in: questionIds },
+    }).lean();
+    return { summaries: await Promise.all(summaries.map(recoverOrphanedResponseSummary)) };
   });
 
   app.get('/courses/:courseId/sessions/:sessionId/questions/:questionId/ai-summary', { preHandler: authenticate }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
+    const session = await instructorSession(course, request.params.sessionId, reply); if (!session) return undefined;
+    if (!sessionHasQuestion(session, request.params.questionId)) return reply.code(404).send({ error: 'Not Found', message: 'Question not found in this session' });
     let summary = await AiResponseSummary.findOne({ courseId: course._id, sessionId: request.params.sessionId, questionId: request.params.questionId }).lean();
     summary = await recoverOrphanedResponseSummary(summary);
     return { summary };
@@ -669,33 +834,45 @@ export default async function aiRoutes(app) {
 
   app.post('/courses/:courseId/sessions/:sessionId/questions/:questionId/ai-summary', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
+    const session = await instructorSession(course, request.params.sessionId, reply); if (!session) return undefined;
+    if (!sessionHasQuestion(session, request.params.questionId)) return reply.code(404).send({ error: 'Not Found', message: 'Question not found in this session' });
     const settings = await getOrCreateSettingsDocument({ lean: true });
     const policy = coursePolicy(settings, course._id);
     const selectedModel = resolveModel(course, settings, policy, request.body || {});
     if (!policy.enabled || !course.aiEnabled || !selectedModel) return reply.code(400).send({ error: 'Bad Request', message: 'Choose an approved AI model before summarizing' });
     const instruction = String(request.body?.instruction || '').trim();
     if (!instruction) return reply.code(400).send({ error: 'Bad Request', message: 'Summary instructions are required' });
-    const summary = await AiResponseSummary.findOneAndUpdate(
-      { courseId: course._id, sessionId: request.params.sessionId, questionId: request.params.questionId },
-      { $set: {
-        status: 'queued',
-        phase: 'queued',
-        instruction,
-        backendId: selectedModel.backend.id,
-        modelId: selectedModel.model.id,
-        completed: 0,
-        total: 0,
-        summary: '',
-        error: '',
-      } },
-      { upsert: true, new: true }
-    );
+    if (instruction.length > 10_000) return reply.code(400).send({ error: 'Bad Request', message: 'Summary instructions cannot exceed 10,000 characters' });
+    const summaryFilter = { courseId: course._id, sessionId: request.params.sessionId, questionId: request.params.questionId };
+    let summary;
+    try {
+      summary = await AiResponseSummary.findOneAndUpdate(
+        { ...summaryFilter, status: { $nin: ['queued', 'running'] } },
+        { $set: {
+          status: 'queued',
+          phase: 'queued',
+          instruction,
+          backendId: selectedModel.backend.id,
+          modelId: selectedModel.model.id,
+          completed: 0,
+          total: 0,
+          summary: '',
+          error: '',
+        } },
+        { upsert: true, new: true }
+      );
+    } catch (error) {
+      if (error?.code === 11000) return reply.code(409).send({ error: 'Conflict', message: 'An AI response summary is already in progress for this question' });
+      throw error;
+    }
     queueAiResponseSummary(summary._id);
     return reply.code(202).send({ summary });
   });
 
   app.post('/courses/:courseId/sessions/:sessionId/questions/:questionId/ai-summary/halt', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
+    const session = await instructorSession(course, request.params.sessionId, reply); if (!session) return undefined;
+    if (!sessionHasQuestion(session, request.params.questionId)) return reply.code(404).send({ error: 'Not Found', message: 'Question not found in this session' });
     const summary = await AiResponseSummary.findOne({
       courseId: course._id,
       sessionId: request.params.sessionId,

@@ -67,7 +67,7 @@ export default function AiCourseChat({ courseId, audience = 'instructor' }) {
           silent: true,
           clearPendingError: !!nextConversations[0].pendingError && !nextConversations[0].pending,
         });
-      }
+      } else setSelected(null);
     } catch (err) {
       setError(err.response?.data?.message || t('ai.chat.failedLoad'));
     } finally {
@@ -75,15 +75,28 @@ export default function AiCourseChat({ courseId, audience = 'instructor' }) {
     }
   }, [apiBase, loadConversation, t]);
 
+  const loadConversationStatus = useCallback(async (id) => {
+    try {
+      const { data } = await apiClient.get(`${apiBase}/conversations/${id}/status`);
+      const status = data.conversation;
+      if (!status) return;
+      setSelected((current) => (current?._id === id ? { ...current, ...status } : current));
+      setConversations((current) => current.map((entry) => (
+        entry._id === id ? { ...entry, ...status } : entry
+      )));
+      if (!status.pending) await loadConversation(id, { silent: true });
+    } catch { /* The next foreground action will surface a persistent error. */ }
+  }, [apiBase, loadConversation]);
+
   useEffect(() => { loadConversations(); }, [loadConversations]);
 
   // A pending flag is persisted on the conversation, so returning to this tab
   // restores the waiting state and this lightweight poll picks up completion.
   useEffect(() => {
     if (!selected?.pending) return undefined;
-    const timer = setInterval(() => { loadConversation(selected._id, { silent: true }); }, 1500);
+    const timer = setInterval(() => { loadConversationStatus(selected._id); }, 2000);
     return () => clearInterval(timer);
-  }, [loadConversation, selected?._id, selected?.pending]);
+  }, [loadConversationStatus, selected?._id, selected?.pending]);
 
   const createConversation = async () => {
     try {

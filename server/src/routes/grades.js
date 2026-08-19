@@ -21,6 +21,7 @@ import {
   normalizeGradesManualGradingState,
   recalculateSessionGrades,
   recomputeGradeAggregates,
+  sanitizeStudentVisibleGrade,
   setSessionGradesVisibility,
 } from '../services/grading.js';
 
@@ -346,7 +347,8 @@ export default async function gradeRoutes(app) {
         ? { sessionId: String(session._id), courseId: String(course._id) }
         : studentVisibleGradeQuery(course._id, session._id, request.user);
 
-      const grades = await normalizeGradesManualGradingState(await Grade.find(gradeQuery).lean());
+      let grades = await normalizeGradesManualGradingState(await Grade.find(gradeQuery).lean());
+      if (!instructorView) grades = grades.map(sanitizeStudentVisibleGrade);
 
       return {
         sessionId: String(session._id),

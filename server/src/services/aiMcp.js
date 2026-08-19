@@ -14,12 +14,9 @@ import {
   listStudentReviewableSessions,
 } from './aiCourseTools.js';
 import {
-  createCourseQuestion,
-  createCourseSession,
-  editCourseQuestion,
-  editCourseSession,
   listCourseQuestions,
 } from './aiCourseAuthoringTools.js';
+import { applyCourseActionDraft, draftCourseAction } from './aiActionDraftTools.js';
 import {
   draftCourseChatMessage,
   getCourseChatTopic,
@@ -60,43 +57,24 @@ async function connectMcpServer(server) {
 
 const questionInputSchema = {
   type: z.enum(['multiple_choice', 'true_false', 'short_answer', 'multiple_select', 'numerical', 'slide']),
-  prompt: z.string().min(1),
-  options: z.array(z.object({ text: z.string().min(1), correct: z.boolean() })).min(2).optional(),
+  prompt: z.string().min(1).max(20_000),
+  options: z.array(z.object({ text: z.string().min(1).max(5_000), correct: z.boolean() })).min(2).max(50).optional(),
   correct_answer: z.union([z.boolean(), z.enum(['true', 'false'])]).optional(),
   correct_numerical: z.number().optional(),
   tolerance_numerical: z.number().min(0).optional(),
-  solution: z.string().optional(),
+  solution: z.string().max(20_000).optional(),
   points: z.number().min(0).optional(),
-  tags: z.array(z.string()).optional(),
+  tags: z.array(z.string().max(200)).max(20).optional(),
 };
 
-const warningsOutputSchema = z.array(z.string());
-const sessionToolOutputSchema = {
-  session: z.object({
-    session_id: z.string().min(1),
-    name: z.string().min(1),
-    description: z.string(),
-    type: z.enum(['interactive', 'quiz']),
-    status: z.enum(['hidden', 'visible', 'running', 'done']),
-    quiz_start: z.string().datetime().nullable(),
-    quiz_end: z.string().datetime().nullable(),
-    tags: z.array(z.string()),
+const actionDraftOutputSchema = {
+  ai_action_draft: z.object({
+    draft_id: z.string().min(1),
+    action: z.enum(['create_session', 'edit_session', 'create_question', 'edit_question']),
+    arguments: z.record(z.string(), z.unknown()),
+    approval_phrase: z.string().min(1),
   }),
-  warnings: warningsOutputSchema,
-  quiz_window: z.object({ start: z.string().datetime(), end: z.string().datetime() }).optional(),
-};
-const questionToolOutputSchema = {
-  question: z.object({
-    question_id: z.string().min(1),
-    session_id: z.string(),
-    location: z.enum(['session', 'question_library']),
-    type: z.enum(['multiple_choice', 'true_false', 'short_answer', 'multiple_select', 'numerical', 'slide']),
-    prompt: z.string().min(1),
-    approved: z.boolean(),
-    tags: z.array(z.string()),
-    warnings: warningsOutputSchema,
-  }),
-  warnings: warningsOutputSchema,
+  applied: z.literal(false),
 };
 
 export async function createCourseMcpClient({
@@ -171,21 +149,27 @@ export async function createCourseMcpClient({
 
   server.registerTool('list_course_students', {
     title: 'List course students',
-    description: 'List students enrolled in the current course, including their names and email addresses. The course is fixed by the current chat context.',
-    inputSchema: {},
+    description: 'List a page of students enrolled in the current course, including names and email addresses. Follow next_offset only when more students are needed.',
+    inputSchema: {
+      offset: z.number().int().min(0).optional(),
+      limit: z.number().int().min(1).max(50).optional(),
+    },
     annotations: { readOnlyHint: true },
-  }, async () => {
-    try { return toolResult(await listCourseStudents(courseId)); }
+  }, async ({ offset, limit }) => {
+    try { return toolResult(await listCourseStudents(courseId, { offset, limit })); }
     catch (error) { return toolError(error); }
   });
 
   server.registerTool('list_course_sessions', {
     title: 'List course sessions',
-    description: 'List non-student-created sessions in the current course. Use this to find a session ID before asking about its questions or responses.',
-    inputSchema: {},
+    description: 'List a page of non-student-created sessions in the current course. Use next_offset when an older session is not on the current page.',
+    inputSchema: {
+      offset: z.number().int().min(0).optional(),
+      limit: z.number().int().min(1).max(50).optional(),
+    },
     annotations: { readOnlyHint: true },
-  }, async () => {
-    try { return toolResult(await listCourseSessions(courseId)); }
+  }, async ({ offset, limit }) => {
+    try { return toolResult(await listCourseSessions(courseId, { offset, limit })); }
     catch (error) { return toolError(error); }
   });
 
@@ -335,7 +319,7 @@ export async function createCourseMcpClient({
     title: 'List course questions',
     description: 'List questions in the current course so an instructor can find a question ID before editing it. Results are paginated and may be filtered to the question library or session questions.',
     inputSchema: {
-      query: z.string().optional(),
+      query: z.string().max(500).optional(),
       location: z.enum(['all', 'library', 'session']).optional(),
       offset: z.number().int().min(0).optional(),
       limit: z.number().int().min(1).max(50).optional(),
@@ -348,55 +332,55 @@ export async function createCourseMcpClient({
 
   server.registerTool('create_course_session', {
     title: 'Create a course session',
-    description: 'Create a draft interactive session or quiz in the current course. For a quiz, omit quiz_start and quiz_end to use the safe default (start 24 hours from now rounded down to the hour, end 12 hours later). The final assistant response must explicitly state the returned quiz_window dates.',
+    description: 'Draft creation of an interactive session or quiz for instructor review. This does not create anything until the instructor replies with the exact approval phrase and apply_course_action_draft succeeds. For a quiz, omit quiz_start and quiz_end to use the safe default when applied.',
     inputSchema: {
-      name: z.string().min(1),
-      description: z.string().optional(),
+      name: z.string().min(1).max(200),
+      description: z.string().max(10_000).optional(),
       type: z.enum(['interactive', 'quiz']),
       quiz_start: z.string().optional(),
       quiz_end: z.string().optional(),
-      tags: z.array(z.string()).optional(),
+      tags: z.array(z.string().max(200)).max(20).optional(),
     },
-    outputSchema: sessionToolOutputSchema,
+    outputSchema: actionDraftOutputSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
   }, async (input) => {
-    try { return toolResult(await createCourseSession(courseId, userId, input)); }
+    try { return toolResult(await draftCourseAction({ courseId, conversationId, userId, sourceMessageId: currentUserMessageId, action: 'create_session', arguments: input })); }
     catch (error) { return toolError(error); }
   });
 
   server.registerTool('edit_course_session', {
     title: 'Edit a course session',
-    description: 'Edit an existing interactive session or quiz in the current course. Use list_course_sessions to find the session ID. If converting to a quiz without dates, the default quiz window is used. The final assistant response must explicitly state any returned quiz_window dates.',
+    description: 'Draft an edit to an existing interactive session or quiz for instructor review. This does not change anything until the exact approval phrase is provided in a later turn and apply_course_action_draft succeeds.',
     inputSchema: {
       session_id: z.string().min(1),
-      name: z.string().min(1).optional(),
-      description: z.string().optional(),
+      name: z.string().min(1).max(200).optional(),
+      description: z.string().max(10_000).optional(),
       type: z.enum(['interactive', 'quiz']).optional(),
       quiz_start: z.string().optional(),
       quiz_end: z.string().optional(),
-      tags: z.array(z.string()).optional(),
+      tags: z.array(z.string().max(200)).max(20).optional(),
     },
-    outputSchema: sessionToolOutputSchema,
+    outputSchema: actionDraftOutputSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
   }, async ({ session_id: sessionId, ...input }) => {
-    try { return toolResult(await editCourseSession(courseId, sessionId, input)); }
+    try { return toolResult(await draftCourseAction({ courseId, conversationId, userId, sourceMessageId: currentUserMessageId, action: 'edit_session', arguments: { session_id: sessionId, ...input } })); }
     catch (error) { return toolError(error); }
   });
 
   server.registerTool('create_course_question', {
     title: 'Create a course question',
-    description: 'Create a question in the current course. Omit session_id to add an unapproved question to the question library, or provide a session ID to add an approved question to that session. Always provide the best matching course topic in tags. Every created question is also tagged Generated by AI. Report any returned warnings to the instructor.',
+    description: 'Draft a question creation for instructor review. Omit session_id for the library or provide a session ID. Nothing is created until the exact approval phrase is provided in a later turn and apply_course_action_draft succeeds.',
     inputSchema: { ...questionInputSchema, session_id: z.string().min(1).optional() },
-    outputSchema: questionToolOutputSchema,
+    outputSchema: actionDraftOutputSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
   }, async (input) => {
-    try { return toolResult(await createCourseQuestion(courseId, userId, input)); }
+    try { return toolResult(await draftCourseAction({ courseId, conversationId, userId, sourceMessageId: currentUserMessageId, action: 'create_question', arguments: input })); }
     catch (error) { return toolError(error); }
   });
 
   server.registerTool('edit_course_question', {
     title: 'Edit a course question',
-    description: 'Edit an existing question in the current course, preserving whether it belongs to the library or a session. Use list_course_questions or get_session_questions to find its ID. The question remains tagged Generated by AI. Report any returned course-topic warnings to the instructor.',
+    description: 'Draft an edit to an existing course question for instructor review. Nothing changes until the exact approval phrase is provided in a later turn and apply_course_action_draft succeeds.',
     inputSchema: {
       question_id: z.string().min(1),
       type: questionInputSchema.type.optional(),
@@ -409,11 +393,28 @@ export async function createCourseMcpClient({
       points: questionInputSchema.points,
       tags: questionInputSchema.tags,
     },
-    outputSchema: questionToolOutputSchema,
+    outputSchema: actionDraftOutputSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
   }, async ({ question_id: questionId, ...input }) => {
-    try { return toolResult(await editCourseQuestion(courseId, questionId, input)); }
+    try { return toolResult(await draftCourseAction({ courseId, conversationId, userId, sourceMessageId: currentUserMessageId, action: 'edit_question', arguments: { question_id: questionId, ...input } })); }
     catch (error) { return toolError(error); }
+  });
+
+  server.registerTool('apply_course_action_draft', {
+    title: 'Apply an explicitly approved course action',
+    description: 'Apply a previously presented session or question action without changing it. This succeeds only when the current instructor message exactly equals the draft-specific approval phrase, in a later turn.',
+    inputSchema: { draft_id: z.string().min(1) },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+  }, async ({ draft_id: draftId }) => {
+    try {
+      return toolResult(await applyCourseActionDraft({
+        draftId,
+        courseId,
+        conversationId,
+        userId,
+        currentUserMessageId,
+      }));
+    } catch (error) { return toolError(error); }
   });
 
   return connectMcpServer(server);

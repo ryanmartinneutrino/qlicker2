@@ -675,6 +675,7 @@ export default function SessionQuestionGradingPanel({
   const [aiGradingOpen, setAiGradingOpen] = useState(false);
   const [aiGradingJob, setAiGradingJob] = useState(null);
   const [aiGradingReportOpen, setAiGradingReportOpen] = useState(false);
+  const [aiGradingReportLoading, setAiGradingReportLoading] = useState(false);
   const [haltingAiGrading, setHaltingAiGrading] = useState(false);
   const [recalculating, setRecalculating] = useState(false);
   const [questionPointsDraft, setQuestionPointsDraft] = useState('');
@@ -842,11 +843,14 @@ export default function SessionQuestionGradingPanel({
         const completed = Number(job?.completed) || 0;
         previousAiGradingStatusRef.current = job?.status || '';
         previousAiGradingCompletedRef.current = completed;
-        setAiGradingJob(job ? { ...job, sessionLog: data.log || null } : null);
+        setAiGradingJob((current) => (job ? {
+          ...job,
+          sessionLog: Object.prototype.hasOwnProperty.call(data, 'log') ? data.log : current?.sessionLog || null,
+        } : null));
         if (['queued', 'running'].includes(job?.status) && completed > previousCompleted) {
           fetchSessionGrades({ background: true });
         }
-        if (['completed', 'halted'].includes(job?.status) && previousStatus !== job.status) {
+        if (['completed', 'halted', 'failed'].includes(job?.status) && previousStatus !== job.status) {
           fetchSessionGrades({ background: true });
           if (job.status === 'completed') onSessionDataRefresh?.();
         }
@@ -858,6 +862,25 @@ export default function SessionQuestionGradingPanel({
     }, 2500);
     return () => { mounted = false; clearInterval(timer); };
   }, [courseId, sessionId, aiGradingJob?.status, fetchSessionGrades, onSessionDataRefresh]);
+
+  const openAiGradingReport = async () => {
+    setAiGradingReportOpen(true);
+    setAiGradingReportLoading(true);
+    try {
+      const { data } = await apiClient.get(`/ai/courses/${courseId}/sessions/${sessionId}/ai-grading`, {
+        params: { includeLog: true },
+      });
+      setAiGradingJob((current) => (data.job ? {
+        ...data.job,
+        sessionLog: data.log || null,
+      } : current));
+    } catch (err) {
+      setGlobalMessageType('error');
+      setGlobalMessage(err.response?.data?.message || t('grades.aiGrading.failedLoad'));
+    } finally {
+      setAiGradingReportLoading(false);
+    }
+  };
 
   const haltAiGrading = async () => {
     setHaltingAiGrading(true);
@@ -1697,7 +1720,7 @@ export default function SessionQuestionGradingPanel({
             {t('grades.aiGrading.assistant')}
           </Button>
         )}
-        {['completed', 'failed', 'halted'].includes(aiGradingJob?.status) ? <Button variant="outlined" onClick={() => setAiGradingReportOpen(true)}>{t('grades.aiGrading.report')}</Button> : null}
+        {['completed', 'failed', 'halted'].includes(aiGradingJob?.status) ? <Button variant="outlined" onClick={openAiGradingReport}>{t('grades.aiGrading.report')}</Button> : null}
         {aiGradingJob?.status === 'failed' ? <Alert severity="warning" sx={{ py: 0 }}>{t('grades.aiGrading.failedReportNotice')}</Alert> : null}
         {aiGradingJob?.status === 'halted' ? <Alert severity="info" sx={{ py: 0 }}>{t('grades.aiGrading.haltedReportNotice')}</Alert> : null}
       </Paper>
@@ -1978,6 +2001,7 @@ export default function SessionQuestionGradingPanel({
       <Dialog open={aiGradingReportOpen} onClose={() => setAiGradingReportOpen(false)} fullWidth maxWidth="md">
         <DialogTitle>{t('grades.aiGrading.report')}</DialogTitle>
         <DialogContent dividers>
+          {aiGradingReportLoading ? <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}><CircularProgress /></Box> : null}
           {aiGradingJob?.status === 'failed' ? <Alert severity="warning" sx={{ mb: 2 }}>{t('grades.aiGrading.failedReportNotice')}{aiGradingJob?.error ? ` ${t('grades.aiGrading.failedReportError', { error: aiGradingJob.error })}` : ''}</Alert> : aiGradingJob?.status === 'halted' ? <Alert severity="info" sx={{ mb: 2 }}>{aiGradingJob?.report?.summary || t('grades.aiGrading.halted')}</Alert> : <Typography sx={{ mb: 2 }}>{aiGradingJob?.report?.summary || t('grades.aiGrading.completed')}</Typography>}
           {(aiGradingJob?.report?.summaries || []).map((summary) => <Typography key={summary.question} variant="body2" sx={{ mb: 0.5 }}>{t('grades.aiGrading.reportSummary', { question: summary.question, graded: summary.graded, zeroed: summary.zeroed })}</Typography>)}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}><Typography variant="subtitle2">{t('grades.aiGrading.log')}</Typography><Button size="small" color="error" onClick={async () => { await apiClient.delete(`/ai/courses/${courseId}/sessions/${sessionId}/ai-grading-log`); setAiGradingJob((current) => current ? { ...current, sessionLog: { runs: [] } } : current); }}>{t('grades.aiGrading.clearLog')}</Button></Box>

@@ -38,6 +38,7 @@ services:
       - NODE_ENV=${NODE_ENV:-production}
       - APP_VERSION=${APP_VERSION:-v2.0.0.b4}
       - DISABLE_RATE_LIMITS=${DISABLE_RATE_LIMITS:-false}
+      - AI_BACKEND_ALLOWED_PRIVATE_HOSTS=${AI_BACKEND_ALLOWED_PRIVATE_HOSTS:-localhost,127.0.0.1,::1,host.docker.internal}
       - REDIS_URL=redis://redis:${REDIS_PORT:-6379}
     volumes:
       - uploads:/app/uploads

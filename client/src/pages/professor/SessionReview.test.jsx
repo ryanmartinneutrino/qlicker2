@@ -420,7 +420,7 @@ describe('SessionReview', () => {
         };
         return { data: payload };
       }
-      if (url.endsWith('/questions/q-1/ai-summary')) return { data: { summary: runningSummary } };
+      if (url.endsWith('/ai-summaries')) return { data: { summaries: [{ ...runningSummary, questionId: 'q-1' }] } };
       return defaultGet(url);
     });
     apiClient.post.mockResolvedValueOnce({

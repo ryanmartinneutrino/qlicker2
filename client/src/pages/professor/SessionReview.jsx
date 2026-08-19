@@ -701,7 +701,64 @@ export default function SessionReview() {
     }
   }, [courseId, sessionId, t]);
 
-  useEffect(() => { if (!questions.length) return undefined; let mounted = true; const load = () => Promise.all(questions.filter((q) => normalizeQuestionType(q) === QUESTION_TYPES.SHORT_ANSWER).map((q) => apiClient.get(`/ai/courses/${courseId}/sessions/${sessionId}/questions/${q._id}/ai-summary`).then(({ data }) => [q._id, data.summary]).catch(() => [q._id, null]))).then((entries) => { if (mounted) setAiSummaries(Object.fromEntries(entries)); }); load(); const timer = setInterval(load, 2500); return () => { mounted = false; clearInterval(timer); }; }, [courseId, sessionId, questions]);
+  useEffect(() => {
+    if (!questions.length) return undefined;
+    let mounted = true;
+    const shortAnswerQuestions = questions.filter((question) => (
+      normalizeQuestionType(question) === QUESTION_TYPES.SHORT_ANSWER
+    ));
+    const questionIds = shortAnswerQuestions.map((question) => String(question._id));
+    apiClient.get(`/ai/courses/${courseId}/sessions/${sessionId}/ai-summaries`, {
+      params: { questionIds: questionIds.join(',') },
+    }).then(({ data }) => {
+      if (!mounted) return;
+      const byQuestionId = Object.fromEntries(
+        (data.summaries || []).map((summary) => [String(summary.questionId), summary])
+      );
+      setAiSummaries(Object.fromEntries(questionIds.map((questionId) => [
+        questionId,
+        byQuestionId[questionId] || null,
+      ])));
+    }).catch(() => {
+      if (mounted) setAiSummaries(Object.fromEntries(questionIds.map((questionId) => [questionId, null])));
+    });
+    return () => { mounted = false; };
+  }, [courseId, sessionId, questions]);
+
+  const activeSummaryQuestionIds = useMemo(() => Object.entries(aiSummaries)
+    .filter(([, summary]) => ['queued', 'running'].includes(summary?.status))
+    .map(([questionId]) => questionId)
+    .sort(), [aiSummaries]);
+  const activeSummaryQuestionKey = activeSummaryQuestionIds.join(',');
+
+  useEffect(() => {
+    if (!activeSummaryQuestionKey) return undefined;
+    const pollingQuestionIds = activeSummaryQuestionKey.split(',').filter(Boolean);
+    let mounted = true;
+    let requestInFlight = false;
+    const loadActive = async () => {
+      if (requestInFlight) return;
+      requestInFlight = true;
+      try {
+        const { data } = await apiClient.get(`/ai/courses/${courseId}/sessions/${sessionId}/ai-summaries`, {
+          params: { questionIds: pollingQuestionIds.join(',') },
+        });
+        const entries = (data.summaries || []).map((summary) => [String(summary.questionId), summary]);
+        if (mounted) {
+          setAiSummaries((current) => ({
+            ...current,
+            ...Object.fromEntries(entries.filter(Boolean)),
+          }));
+        }
+      } catch {
+        // A later poll can recover from a transient request failure.
+      } finally {
+        requestInFlight = false;
+      }
+    };
+    const timer = window.setInterval(loadActive, 2500);
+    return () => { mounted = false; window.clearInterval(timer); };
+  }, [activeSummaryQuestionKey, courseId, sessionId]);
 
   useEffect(() => {
     if (!summaryQuestion) return;

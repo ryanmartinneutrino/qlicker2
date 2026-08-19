@@ -36,6 +36,11 @@ function parseNonNegativeIntEnv(value, fallback) {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
+function parseCsvEnv(value, fallback = []) {
+  if (typeof value !== 'string') return fallback;
+  return value.split(',').map((entry) => entry.trim().toLowerCase()).filter(Boolean);
+}
+
 // Controls Fastify's proxy trust. Accepts `true`/`false`, a hop count (e.g. `1`
 // for a single reverse proxy such as nginx), or a comma-separated IP/subnet
 // allowlist. Defaults to trusting one hop, which is correct for the standard
@@ -110,4 +115,16 @@ export default {
   trustProxy: parseTrustProxyEnv(process.env.TRUST_PROXY, 1),
   disableRateLimits: parseBooleanEnv(process.env.DISABLE_RATE_LIMITS)
     || parseBooleanEnv(process.env.RATE_LIMIT_DISABLED),
+  // Private AI backends are denied unless their hostname is listed here. The
+  // defaults preserve the supported local Ollama development paths.
+  aiBackendAllowedPrivateHosts: parseCsvEnv(
+    process.env.AI_BACKEND_ALLOWED_PRIVATE_HOSTS,
+    nodeEnv === 'production' ? [] : [
+      'localhost',
+      '127.0.0.1',
+      '::1',
+      'host.docker.internal',
+      ...(nodeEnv === 'test' ? ['ollama.test'] : []),
+    ]
+  ),
 };

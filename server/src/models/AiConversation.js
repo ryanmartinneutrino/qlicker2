@@ -1,12 +1,16 @@
 import mongoose from 'mongoose';
 import { generateMeteorId } from '../utils/meteorId.js';
 
+export const MAX_AI_MESSAGE_CHARS = 20_000;
+export const MAX_AI_MESSAGE_WYSIWYG_CHARS = 100_000;
+export const MAX_AI_CONVERSATION_MESSAGES = 400;
+
 const AiMessageSchema = new mongoose.Schema(
   {
     _id: { type: String, default: () => generateMeteorId() },
     role: { type: String, enum: ['user', 'assistant'], required: true },
-    content: { type: String, default: '' },
-    contentWysiwyg: { type: String, default: '' },
+    content: { type: String, default: '', maxlength: MAX_AI_MESSAGE_CHARS },
+    contentWysiwyg: { type: String, default: '', maxlength: MAX_AI_MESSAGE_WYSIWYG_CHARS },
     createdAt: { type: Date, default: Date.now },
   },
   { _id: false }

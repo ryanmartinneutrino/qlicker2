@@ -8,6 +8,21 @@ import {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('discoverOllamaModels', () => {
+  it('rejects cloud metadata and unapproved private network targets before fetching', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(discoverOllamaModels('http://169.254.169.254/latest'))
+      .rejects.toThrow('prohibited metadata service');
+    await expect(discoverOllamaModels('http://10.20.30.40:11434'))
+      .rejects.toThrow('not allowed by the server configuration');
+    await expect(discoverOllamaModels('http://100.100.100.200/latest'))
+      .rejects.toThrow('prohibited network address');
+    await expect(discoverOllamaModels('http://[::ffff:7f00:1]:11434'))
+      .rejects.toThrow('not allowed by the server configuration');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('preserves a base path and forwards a bearer token', async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       models: [{ name: 'local-model' }],
@@ -93,9 +108,9 @@ describe('requestAiMessage', () => {
   });
 
   it('fails cleanly after two invalid model responses', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => (
       new Response(JSON.stringify({ message: { content: '', tool_calls: [] } }), { status: 200 })
-    ));
+    )));
 
     await expect(requestAiMessage(
       { type: 'ollama', url: 'http://localhost:11434' },

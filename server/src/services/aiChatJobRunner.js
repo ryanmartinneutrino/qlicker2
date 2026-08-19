@@ -1,4 +1,5 @@
 import AiConversation from '../models/AiConversation.js';
+import { MAX_AI_CONVERSATION_MESSAGES, MAX_AI_MESSAGE_CHARS } from '../models/AiConversation.js';
 import { runAiCourseChat } from './aiChatRunner.js';
 
 const activeJobs = new Map();
@@ -39,10 +40,11 @@ export function queueAiCourseChat({
         conversationId: jobKey,
         currentUserMessageId: String(pendingMessageId),
         onCourseChatUpdated,
+        onProgress: () => AiConversation.updateOne(filter, { $set: { updatedAt: new Date() } }),
         signal: controller.signal,
       });
       await AiConversation.findOneAndUpdate(filter, {
-        $push: { messages: { role: 'assistant', content } },
+        $push: { messages: { $each: [{ role: 'assistant', content: String(content).slice(0, MAX_AI_MESSAGE_CHARS) }], $slice: -MAX_AI_CONVERSATION_MESSAGES } },
         $set: { pending: false, pendingMessageId: '', pendingError: '', updatedAt: new Date() },
       });
     } catch (error) {

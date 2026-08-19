@@ -557,13 +557,7 @@ export default function SessionReview() {
       setQuestions(data.questions || []);
       setResponsesByQuestion(data.responses || {});
       setFeedbackSummary(data.feedback || buildDefaultFeedbackSummary());
-
-      const shouldLoadGrades = !(data.session?.studentCreated && data.session?.practiceQuiz);
-      const gradeResult = shouldLoadGrades
-        ? await apiClient.get(`/sessions/${sessionId}/grades`).catch(() => null)
-        : null;
-      const grade = gradeResult?.data?.grades?.[0] || null;
-      setSessionGrade(grade);
+      setSessionGrade(data.grade || null);
       setFeedbackActionError('');
       if (!background) {
         setError(null);

@@ -104,6 +104,7 @@ services:
       - NODE_ENV=production
       - APP_VERSION=${APP_VERSION:-v2.0.0.b4}
       - DISABLE_RATE_LIMITS=${DISABLE_RATE_LIMITS:-false}
+      - AI_BACKEND_ALLOWED_PRIVATE_HOSTS=${AI_BACKEND_ALLOWED_PRIVATE_HOSTS:-}
       - REDIS_URL=${REDIS_URL:?Set REDIS_URL in .env}
     volumes:
       - uploads:/app/uploads

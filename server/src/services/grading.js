@@ -718,6 +718,25 @@ export async function normalizeGradesManualGradingState(grades = []) {
   });
 }
 
+export function sanitizeStudentVisibleGrade(grade) {
+  if (!grade) return null;
+  return {
+    value: toFiniteNumber(grade.value, 0),
+    participation: toFiniteNumber(grade.participation, 0),
+    points: toFiniteNumber(grade.points, 0),
+    outOf: toFiniteNumber(grade.outOf, 0),
+    needsGrading: !!grade.needsGrading,
+    marks: (grade.marks || []).map((mark) => ({
+      questionId: mark.questionId,
+      points: toFiniteNumber(mark.points, 0),
+      outOf: toFiniteNumber(mark.outOf, 0),
+      needsGrading: !!mark.needsGrading,
+      feedback: mark.feedback || '',
+      feedbackUpdatedAt: mark.feedbackUpdatedAt || null,
+    })),
+  };
+}
+
 function shouldExcludeQuestionForLowResponses({ question, joinedCount, questionResponseCount }) {
   if (!question) return false;
   if (joinedCount <= 0) return false;

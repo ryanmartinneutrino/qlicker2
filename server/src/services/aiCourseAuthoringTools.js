@@ -23,6 +23,10 @@ function normalizeDate(value, fieldName) {
   return date;
 }
 
+function escapeRegex(value) {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export function defaultQuizWindow(now = new Date()) {
   const start = new Date(now.getTime() + 24 * 60 * 60 * 1000);
   start.setMinutes(0, 0, 0);
@@ -201,8 +205,8 @@ export async function listCourseQuestions(courseId, { query = '', offset = 0, li
   if (location === 'library') filter.sessionId = '';
   if (location === 'session') filter.sessionId = { $ne: '' };
   if (query) filter.$or = [
-    { plainText: { $regex: String(query), $options: 'i' } },
-    { content: { $regex: String(query), $options: 'i' } },
+    { plainText: { $regex: escapeRegex(query), $options: 'i' } },
+    { content: { $regex: escapeRegex(query), $options: 'i' } },
   ];
   const boundedOffset = Math.max(0, Number(offset) || 0);
   const boundedLimit = Math.max(1, Math.min(50, Number(limit) || 25));

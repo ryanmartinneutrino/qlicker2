@@ -33,6 +33,7 @@ import {
   isQuestionAutoGradeable,
   normalizeQuestionType,
   recalculateSessionGrades,
+  sanitizeStudentVisibleGrade,
   summarizeGradeFeedback,
   setSessionGradesVisibility,
 } from '../services/grading.js';
@@ -1599,6 +1600,47 @@ function sanitizeQuizQuestionForStudent(question, { revealAnswers = false } = {}
   return sanitized;
 }
 
+function sanitizeStudentReviewSession(session) {
+  return {
+    _id: session._id,
+    name: session.name || '',
+    description: session.description || '',
+    quiz: !!session.quiz,
+    practiceQuiz: !!session.practiceQuiz,
+    studentCreated: !!session.studentCreated,
+  };
+}
+
+function sanitizeStudentReviewQuestion(question) {
+  const normalized = normalizeQuestionForReview(question);
+  return {
+    _id: normalized._id,
+    type: normalized.type,
+    content: normalized.content || '',
+    plainText: normalized.plainText || '',
+    options: (normalized.options || []).map((option) => ({
+      answer: option.answer || '',
+      content: option.content || '',
+      plainText: option.plainText || '',
+      correct: !!option.correct,
+    })),
+    correctNumerical: normalized.correctNumerical ?? null,
+    toleranceNumerical: normalized.toleranceNumerical ?? null,
+    solution: normalized.solution || '',
+    solution_plainText: normalized.solution_plainText || '',
+    sessionOptions: { points: Number(normalized.sessionOptions?.points || 0) },
+  };
+}
+
+function sanitizeStudentReviewResponse(response) {
+  return {
+    questionId: response.questionId,
+    attempt: response.attempt,
+    answer: response.answer,
+    answerWysiwyg: response.answerWysiwyg || '',
+  };
+}
+
 function buildOptionIndexCounts(answer, options = []) {
   const counts = new Map();
   const values = Array.isArray(answer) ? answer : [answer];
@@ -2471,6 +2513,9 @@ function buildSessionForUser(session, user, { instructorView = false } = {}) {
     delete normalized.currentJoinCode;
   }
   delete normalized.questionResponseCounts;
+  // AI logs are stored separately and are always instructor-only. Remove any
+  // legacy field defensively so old database documents cannot leak it.
+  delete normalized.aiGradingLog;
 
   return normalized;
 }
@@ -4270,7 +4315,7 @@ export default async function sessionRoutes(app) {
       const orderedQuestions = questionIds
         .map((id) => questionMap[String(id)])
         .filter(Boolean);
-      const normalizedQuestions = orderedQuestions.map((question) => normalizeQuestionForReview(question));
+      const normalizedQuestions = orderedQuestions.map(sanitizeStudentReviewQuestion);
 
       // Fetch this student's responses for these questions
       const responses = await Response.find({
@@ -4286,23 +4331,24 @@ export default async function sessionRoutes(app) {
         if (!responsesByQuestion[questionId]) {
           responsesByQuestion[questionId] = [];
         }
-        responsesByQuestion[questionId].push(r);
+        responsesByQuestion[questionId].push(sanitizeStudentReviewResponse(r));
       }
 
       let feedbackSummary = getDefaultFeedbackSummary();
+      let studentGrade = null;
       if (!isInstrOrAdmin) {
-        const grades = await Grade.find(
+        const grade = await Grade.findOne(
           studentVisibleGradeQuery(course._id, normalizedSession._id, request.user)
-        )
-          .select('feedbackSeenAt marks.questionId marks.feedback marks.feedbackUpdatedAt')
-          .lean();
-        feedbackSummary = summarizeFeedbackFromGrades(grades);
+        ).select('value participation points outOf needsGrading feedbackSeenAt marks').lean();
+        feedbackSummary = summarizeFeedbackFromGrades(grade ? [grade] : []);
+        studentGrade = sanitizeStudentVisibleGrade(grade);
       }
 
       return {
-        session: normalizedSession,
+        session: sanitizeStudentReviewSession(normalizedSession),
         questions: normalizedQuestions,
         responses: responsesByQuestion,
+        grade: studentGrade,
         feedback: feedbackSummary,
       };
     }
