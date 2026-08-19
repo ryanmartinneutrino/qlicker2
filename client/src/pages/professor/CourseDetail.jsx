@@ -98,6 +98,14 @@ function getApprovedCourseAiModels(config) {
     .filter(({ backend, model }) => approved.has(`${backend.id}::${model.id}`));
 }
 
+function getStudentCourseAiModels(config) {
+  const studentAvailable = new Set((config?.modelPolicies || [])
+    .filter((entry) => entry.studentAvailable)
+    .map((entry) => `${entry.backendId}::${entry.modelId}`));
+  return getApprovedCourseAiModels(config)
+    .filter(({ backend, model }) => studentAvailable.has(`${backend.id}::${model.id}`));
+}
+
 function sortSessions(items) {
   return [...items].sort((a, b) => {
     const aBucket = getSessionSortBucket(a);
@@ -1188,7 +1196,37 @@ export default function CourseDetail() {
   };
 
   const handleAiModelPoliciesChange = (modelPolicies) => {
-    handleAiConfigChange({ modelPolicies }, { modelPolicies });
+    const nextConfig = { ...aiConfig, modelPolicies };
+    const studentModels = getStudentCourseAiModels(nextConfig);
+    const selectedStudentModelAvailable = studentModels.some(({ backend, model }) => (
+      backend.id === aiConfig.studentDefaultBackendId && model.id === aiConfig.studentDefaultModelId
+    ));
+    const fallbackStudentModel = selectedStudentModelAvailable ? null : studentModels[0];
+    const updates = {
+      modelPolicies,
+      ...(!selectedStudentModelAvailable ? {
+        studentDefaultBackendId: fallbackStudentModel?.backend.id || '',
+        studentDefaultModelId: fallbackStudentModel?.model.id || '',
+      } : {}),
+    };
+    handleAiConfigChange(updates, updates);
+  };
+
+  const handleStudentAiChatEnabledChange = (event) => {
+    const enabled = event.target.checked;
+    const studentModels = getStudentCourseAiModels(aiConfig);
+    const selectedModel = studentModels.find(({ backend, model }) => (
+      backend.id === aiConfig.studentDefaultBackendId && model.id === aiConfig.studentDefaultModelId
+    )) || studentModels[0];
+    const updates = {
+      studentChatEnabled: enabled,
+      ...(enabled ? { studentChatGuidance: aiConfig.studentChatGuidance || '' } : {}),
+      ...(enabled && selectedModel ? {
+        studentDefaultBackendId: selectedModel.backend.id,
+        studentDefaultModelId: selectedModel.model.id,
+      } : {}),
+    };
+    handleAiConfigChange(updates, updates, { saveImmediately: true });
   };
 
   useEffect(() => () => {
@@ -2084,6 +2122,40 @@ export default function CourseDetail() {
               }} fullWidth>
                 {getApprovedCourseAiModels(aiConfig).map(({ backend, model }) => <MenuItem key={`${backend.id}-${model.id}`} value={`${backend.id}::${model.id}`}>{`${backend.name || backend.url} — ${model.name}`}</MenuItem>)}
               </TextField>
+              <FormControlLabel
+                control={<Switch checked={!!aiConfig.studentChatEnabled} onChange={handleStudentAiChatEnabledChange} />}
+                label={(
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                    <Typography>{t('professor.course.enableStudentAiChat')}</Typography>
+                    <Tooltip title={t('professor.course.enableStudentAiChatHelp')} arrow>
+                      <InfoOutlinedIcon fontSize="small" color="action" />
+                    </Tooltip>
+                  </Box>
+                )}
+              />
+              {aiConfig.studentChatEnabled ? <>
+                <TextField
+                  multiline
+                  minRows={6}
+                  label={t('professor.course.studentAiChatGuidance')}
+                  value={aiConfig.studentChatGuidance || ''}
+                  onChange={(event) => handleAiConfigChange({ studentChatGuidance: event.target.value })}
+                  fullWidth
+                />
+                <TextField
+                  select
+                  label={t('professor.course.studentAiDefaultModel')}
+                  value={aiConfig.studentDefaultBackendId && aiConfig.studentDefaultModelId ? `${aiConfig.studentDefaultBackendId}::${aiConfig.studentDefaultModelId}` : ''}
+                  onChange={(event) => {
+                    const [studentDefaultBackendId, studentDefaultModelId] = event.target.value.split('::');
+                    handleAiConfigChange({ studentDefaultBackendId, studentDefaultModelId });
+                  }}
+                  helperText={getStudentCourseAiModels(aiConfig).length ? undefined : t('professor.course.studentAiModelUnavailable')}
+                  fullWidth
+                >
+                  {getStudentCourseAiModels(aiConfig).map(({ backend, model }) => <MenuItem key={`${backend.id}-${model.id}`} value={`${backend.id}::${model.id}`}>{`${backend.name || backend.url} — ${model.name}`}</MenuItem>)}
+                </TextField>
+              </> : null}
               {aiCoursePolicy.allowCourseBackend ? <>
                 <Typography variant="body2" color="text.secondary">{t('professor.course.aiBackendHelp')}</Typography>
                 <AiBackendManager
@@ -2152,9 +2224,38 @@ export default function CourseDetail() {
               </Box>
             )}
           />
+          <Autocomplete
+            multiple
+            freeSolo
+            options={editFields.tags}
+            value={editFields.tags}
+            onChange={(_event, nextValue) => {
+              const normalizedTags = [...new Set(
+                (nextValue || [])
+                  .map((tag) => String(tag?.label || tag?.value || tag || '').trim())
+                  .filter(Boolean)
+              )];
+              setEditFields((current) => ({ ...current, tags: normalizedTags }));
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label={t('professor.course.topics')}
+                placeholder={t('professor.course.topicsPlaceholder')}
+                helperText={t('professor.course.topicsHelp')}
+              />
+            )}
+          />
           <FormControlLabel
-            control={aiAvailable ? <Switch checked={!!course.aiEnabled} onChange={handleAiEnabledChange} /> : <Tooltip title={t('professor.course.aiRequiresAdminAuthorization')} arrow><span><Switch checked={!!course.aiEnabled} onChange={handleAiEnabledChange} disabled /></span></Tooltip>}
-            label={t('professor.course.enableAiHelper')}
+            control={<Switch checked={!!course.aiEnabled} onChange={handleAiEnabledChange} disabled={!aiAvailable} />}
+            label={(
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                <Typography>{t('professor.course.enableAiHelper')}</Typography>
+                <Tooltip title={aiAvailable ? t('professor.course.aiHelperHelp') : t('professor.course.aiRequiresAdminAuthorization')} arrow>
+                  <InfoOutlinedIcon fontSize="small" color="action" />
+                </Tooltip>
+              </Box>
+            )}
           />
           {aiAvailable && (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -2298,30 +2399,6 @@ export default function CourseDetail() {
               sx={{ flex: 1 }}
             />
           </Box>
-          <Autocomplete
-            multiple
-            freeSolo
-            options={editFields.tags}
-            value={editFields.tags}
-            onChange={(_event, nextValue) => {
-              const normalizedTags = [...new Set(
-                (nextValue || [])
-                  .map((tag) => String(tag?.label || tag?.value || tag || '').trim())
-                  .filter(Boolean)
-              )];
-              setEditFields((current) => ({ ...current, tags: normalizedTags }));
-            }}
-            renderInput={(params) => (
-                <TextField
-                  {...params}
-                label={t('professor.course.topics', { defaultValue: 'Course topics' })}
-                placeholder={t('professor.course.topicsPlaceholder', { defaultValue: 'Add a course topic' })}
-                helperText={t('professor.course.topicsHelp', {
-                  defaultValue: 'Students can only use these course topics on their own questions.',
-                })}
-              />
-            )}
-          />
           <Divider sx={{ my: 1 }} />
           <Button variant="outlined" color="error" startIcon={<DeleteIcon />} onClick={() => setDeleteOpen(true)}>
             {t('professor.course.deleteCourse')}

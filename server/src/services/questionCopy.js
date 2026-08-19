@@ -1,6 +1,7 @@
 import Question from '../models/Question.js';
 import Session from '../models/Session.js';
 import { buildSessionResponseTracking } from '../utils/sessionResponseTracking.js';
+import { mergeSessionQuestionTags } from './sessionQuestionTags.js';
 
 function buildCopiedSessionOptions(sessionOptions, { preservePoints = false } = {}) {
   const sourceOptions = sessionOptions && typeof sessionOptions === 'object' ? sessionOptions : {};
@@ -37,6 +38,8 @@ export async function copyQuestionToSession({
   const originalQuestionId = String(sourceObject.originalQuestion || sourceQuestionId);
   const originalCourseId = String(sourceObject.originalCourse || sourceObject.courseId || targetCourseId || '');
   const copiedPayload = { ...sourceObject };
+  const targetSession = await Session.findById(targetSessionId).select('questions questionResponseCounts tags').lean();
+  if (!targetSession) throw new Error('Target session not found');
   delete copiedPayload._id;
   delete copiedPayload.__v;
   delete copiedPayload.updatedAt;
@@ -57,17 +60,17 @@ export async function copyQuestionToSession({
     lastEditedAt: new Date(),
     approved: true,
     studentCreated: !!sourceObject.studentCreated,
+    tags: mergeSessionQuestionTags(sourceObject.tags, targetSession.tags),
   });
 
   if (addToSession) {
-    const session = await Session.findById(targetSessionId).lean();
     const nextQuestionIds = [...new Set([
-      ...((session?.questions || []).map((questionId) => String(questionId))),
+      ...((targetSession.questions || []).map((questionId) => String(questionId))),
       String(copy._id),
     ])];
     const nextResponseTracking = buildSessionResponseTracking(
       nextQuestionIds,
-      session?.questionResponseCounts
+      targetSession.questionResponseCounts
     );
 
     await Session.findByIdAndUpdate(targetSessionId, {

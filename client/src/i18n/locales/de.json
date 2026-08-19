@@ -617,6 +617,11 @@
       "settings": "Kurseinstellungen",
       "aiModel": "KI-Modell",
       "aiDefaultModel": "Standardmodell",
+      "enableStudentAiChat": "KI-Chat für Studierende aktivieren",
+      "enableStudentAiChatHelp": "Studierenden einen KI-Assistenten zum Üben von Kursinhalten bereitstellen",
+      "studentAiChatGuidance": "Anweisungen für den KI-Chat der Studierenden",
+      "studentAiDefaultModel": "Standardmodell für den KI-Chat der Studierenden",
+      "studentAiModelUnavailable": "Geben Sie mindestens ein genehmigtes Modell für Studierende frei, bevor Sie ein Standardmodell auswählen.",
       "groups": "Gruppen",
       "addStudent": "Studierende hinzufügen",
       "addInstructor": "Dozenten hinzufügen",
@@ -653,7 +658,7 @@
       "allowStudentQuestionsHelp": "Wenn aktiviert, können Studierende die Kurs-Fragenbibliothek öffnen, Übungssitzungen erstellen und Übungsfragen kopieren. Sie können abgeschlossene Sitzungen auch dann überprüfen, wenn diese Option deaktiviert ist.",
       "topics": "Kursthemen",
       "topicsPlaceholder": "Kursthema hinzufügen",
-      "topicsHelp": "Studierende können diese Kursthemen nur für ihre eigenen Fragen verwenden.",
+      "topicsHelp": "Erstellen Sie Tags auf Grundlage der Kursthemen und verwenden Sie diese für Sitzungen und Fragen, um Materialien zu organisieren und Studierenden die Suche nach Übungsfragen zu erleichtern.",
       "quizTimeFormat": "Quiz-Zeitformat",
       "quizTimeFormatInherit": "Standard des Administrators verwenden ({{defaultFormat}})",
       "quizTimeFormatOptions": {
@@ -774,6 +779,7 @@
       "aiChatHelp": "Chatten Sie mit dem KI-Assistenten.",
       "courseActiveHelp": "Wenn der Kurs aktiv ist, können Studierende darauf zugreifen.",
       "aiRequiresAdminAuthorization": "Erfordert eine Administratorfreigabe",
+      "aiHelperHelp": "Aktivieren Sie einen KI-Assistenten, der beim Bewerten, Erstellen von Fragen und Verwalten von Sitzungen und Studierenden hilft.",
       "enrollmentCodeHelp": "Dies ist der Code, den Studierende benötigen, um sich für den Kurs anzumelden."
     },
     "sessionEditor": {

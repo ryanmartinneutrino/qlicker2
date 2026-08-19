@@ -617,6 +617,11 @@
       "settings": "Paramètres du cours",
       "aiModel": "Modèle d’IA",
       "aiDefaultModel": "Modèle par défaut",
+      "enableStudentAiChat": "Activer le clavardage IA pour les étudiants",
+      "enableStudentAiChatHelp": "Permettre aux étudiants d’utiliser un assistant IA pour pratiquer la matière du cours",
+      "studentAiChatGuidance": "Consignes du clavardage IA pour les étudiants",
+      "studentAiDefaultModel": "Modèle par défaut du clavardage IA étudiant",
+      "studentAiModelUnavailable": "Rendez au moins un modèle approuvé accessible aux étudiants avant de choisir un modèle par défaut.",
       "groups": "Groupes",
       "addStudent": "Ajouter un étudiant",
       "addInstructor": "Ajouter un enseignant",
@@ -653,7 +658,7 @@
       "allowStudentQuestionsHelp": "Lorsque cette option est activée, les étudiants peuvent ouvrir la bibliothèque de questions du cours, créer des séances de pratique et copier des questions de pratique. Ils peuvent quand même réviser les séances terminées même si cette option est désactivée.",
       "topics": "Sujets du cours",
       "topicsPlaceholder": "Ajouter un sujet du cours",
-      "topicsHelp": "Les étudiants ne peuvent utiliser que ces sujets du cours sur leurs propres questions.",
+      "topicsHelp": "Créez des étiquettes basées sur les sujets du cours et utilisez-les pour étiqueter les séances et les questions, organiser le matériel et aider les étudiants à rechercher des questions d’entraînement.",
       "quizTimeFormat": "Format d'heure des questionnaires",
       "quizTimeFormatInherit": "Utiliser le format administrateur ({{defaultFormat}})",
       "quizTimeFormatOptions": {
@@ -774,6 +779,7 @@
       "aiChatHelp": "Discutez avec l’assistant IA.",
       "courseActiveHelp": "Lorsque le cours est actif, les étudiants peuvent y accéder.",
       "aiRequiresAdminAuthorization": "Autorisation administrateur requise",
+      "aiHelperHelp": "Activez un assistant IA pour aider à la notation, générer des questions et gérer les séances et les étudiants.",
       "enrollmentCodeHelp": "C’est le code dont les étudiants ont besoin pour s’inscrire au cours."
     },
     "sessionEditor": {

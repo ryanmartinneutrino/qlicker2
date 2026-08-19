@@ -617,6 +617,11 @@
       "settings": "课程设置",
       "aiModel": "AI 模型",
       "aiDefaultModel": "默认模型",
+      "enableStudentAiChat": "为学生启用 AI 聊天",
+      "enableStudentAiChatHelp": "允许学生使用 AI 助手练习课程材料",
+      "studentAiChatGuidance": "学生 AI 聊天指南",
+      "studentAiDefaultModel": "学生 AI 聊天的默认模型",
+      "studentAiModelUnavailable": "选择默认模型前，请至少允许学生使用一个已批准的模型。",
       "groups": "分组",
       "addStudent": "添加学生",
       "addInstructor": "添加教师",
@@ -653,7 +658,7 @@
       "allowStudentQuestionsHelp": "启用后，学生可以打开课程题库、创建练习环节并复制练习题。即使关闭此项，他们仍可查看已结束的环节。",
       "topics": "课程主题",
       "topicsPlaceholder": "添加课程主题",
-      "topicsHelp": "学生只能在自己的题目上使用这些课程主题。",
+      "topicsHelp": "根据课程主题创建标签，并用它们标记课堂和题目，以便组织材料并帮助学生轻松搜索练习题。",
       "quizTimeFormat": "测验时间格式",
       "quizTimeFormatInherit": "使用管理员默认设置（{{defaultFormat}}）",
       "quizTimeFormatOptions": {
@@ -774,6 +779,7 @@
       "aiChatHelp": "与 AI 助手聊天。",
       "courseActiveHelp": "课程处于激活状态时，学生可以访问它。",
       "aiRequiresAdminAuthorization": "需要管理员授权",
+      "aiHelperHelp": "启用 AI 助手以协助评分、生成题目以及管理课堂和学生。",
       "enrollmentCodeHelp": "这是学生注册该课程所需的代码。"
     },
     "sessionEditor": {

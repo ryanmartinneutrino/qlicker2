@@ -1049,6 +1049,16 @@ describe('PATCH /api/v1/sessions/:id', () => {
       },
     });
     const session = (await createSessionInCourse(profToken, course._id)).json().session;
+    const question = await Question.create({
+      type: 2,
+      content: 'Existing question',
+      creator: prof._id,
+      owner: prof._id,
+      courseId: course._id,
+      sessionId: session._id,
+      tags: [],
+    });
+    await Session.findByIdAndUpdate(session._id, { $set: { questions: [question._id] } });
 
     const res = await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${session._id}`, {
       token: profToken,
@@ -1062,6 +1072,10 @@ describe('PATCH /api/v1/sessions/:id', () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.json().session.tags).toEqual([
+      { value: 'kinematics', label: 'kinematics' },
+      { value: 'vectors', label: 'vectors' },
+    ]);
+    expect((await Question.findById(question._id).lean()).tags).toEqual([
       { value: 'kinematics', label: 'kinematics' },
       { value: 'vectors', label: 'vectors' },
     ]);

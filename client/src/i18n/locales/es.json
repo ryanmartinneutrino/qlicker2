@@ -617,6 +617,11 @@
       "settings": "Configuración del curso",
       "aiModel": "Modelo de IA",
       "aiDefaultModel": "Modelo predeterminado",
+      "enableStudentAiChat": "Activar el chat de IA para estudiantes",
+      "enableStudentAiChatHelp": "Permitir que los estudiantes usen un asistente de IA para practicar el material del curso",
+      "studentAiChatGuidance": "Instrucciones del chat de IA para estudiantes",
+      "studentAiDefaultModel": "Modelo predeterminado del chat de IA para estudiantes",
+      "studentAiModelUnavailable": "Habilite al menos un modelo aprobado para estudiantes antes de seleccionar uno predeterminado.",
       "groups": "Grupos",
       "addStudent": "Agregar estudiante",
       "addInstructor": "Agregar instructor",
@@ -653,7 +658,7 @@
       "allowStudentQuestionsHelp": "Cuando está habilitado, los estudiantes pueden abrir la biblioteca de preguntas del curso, crear sesiones de práctica y copiar preguntas de práctica. Aun así pueden revisar las sesiones finalizadas cuando esto está desactivado.",
       "topics": "Temas del curso",
       "topicsPlaceholder": "Agregar un tema del curso",
-      "topicsHelp": "Los estudiantes solo pueden usar estos temas del curso en sus propias preguntas.",
+      "topicsHelp": "Cree etiquetas basadas en los temas del curso y úselas para etiquetar sesiones y preguntas, organizar los materiales y facilitar que los estudiantes busquen preguntas de práctica.",
       "quizTimeFormat": "Formato de hora del cuestionario",
       "quizTimeFormatInherit": "Usar el predeterminado del administrador ({{defaultFormat}})",
       "quizTimeFormatOptions": {
@@ -774,6 +779,7 @@
       "aiChatHelp": "Chatea con el asistente de IA.",
       "courseActiveHelp": "Cuando el curso está activo, los estudiantes pueden acceder a él.",
       "aiRequiresAdminAuthorization": "Requiere autorización de administración",
+      "aiHelperHelp": "Active un asistente de IA para ayudar con la calificación, generar preguntas y administrar sesiones y estudiantes.",
       "enrollmentCodeHelp": "Este es el código que los estudiantes necesitan para inscribirse en el curso."
     },
     "sessionEditor": {

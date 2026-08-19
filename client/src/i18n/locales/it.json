@@ -617,6 +617,11 @@
       "settings": "Impostazioni del corso",
       "aiModel": "Modello IA",
       "aiDefaultModel": "Modello predefinito",
+      "enableStudentAiChat": "Abilita la chat IA per gli studenti",
+      "enableStudentAiChatHelp": "Consenti agli studenti di usare un assistente IA per esercitarsi con il materiale del corso",
+      "studentAiChatGuidance": "Istruzioni per la chat IA degli studenti",
+      "studentAiDefaultModel": "Modello predefinito per la chat IA degli studenti",
+      "studentAiModelUnavailable": "Rendi disponibile agli studenti almeno un modello approvato prima di selezionare quello predefinito.",
       "groups": "Gruppi",
       "addStudent": "Aggiungi studente",
       "addInstructor": "Aggiungi docente",
@@ -653,7 +658,7 @@
       "allowStudentQuestionsHelp": "Se attivo, gli studenti possono aprire la libreria delle domande del corso, creare sessioni di pratica e copiare domande di pratica. Possono comunque rivedere le sessioni concluse anche quando questa opzione è disattivata.",
       "topics": "Argomenti del corso",
       "topicsPlaceholder": "Aggiungi un argomento del corso",
-      "topicsHelp": "Gli studenti possono usare questi argomenti del corso solo sulle proprie domande.",
+      "topicsHelp": "Crea tag basati sugli argomenti del corso e usali per contrassegnare sessioni e domande, organizzare i materiali e aiutare gli studenti a cercare facilmente domande di esercitazione.",
       "quizTimeFormat": "Formato orario dei quiz",
       "quizTimeFormatInherit": "Usa il valore predefinito dell'amministratore ({{defaultFormat}})",
       "quizTimeFormatOptions": {
@@ -774,6 +779,7 @@
       "aiChatHelp": "Chatta con l’assistente IA.",
       "courseActiveHelp": "Quando il corso è attivo, gli studenti possono accedervi.",
       "aiRequiresAdminAuthorization": "Richiede l’autorizzazione dell’amministratore",
+      "aiHelperHelp": "Abilita un assistente IA per aiutare con la valutazione, generare domande e gestire sessioni e studenti.",
       "enrollmentCodeHelp": "Questo è il codice di cui gli studenti hanno bisogno per iscriversi al corso."
     },
     "sessionEditor": {

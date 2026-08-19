@@ -942,7 +942,20 @@ export default function StudentCourseDetail() {
         ]}
         tabsProps={{
           variant: 'scrollable',
+          scrollButtons: 'auto',
           allowScrollButtonsMobile: true,
+          sx: {
+            '& .MuiTabs-flexContainer': { flexWrap: 'wrap' },
+            '& .MuiTabs-indicator': { display: 'none' },
+            '& .MuiTab-root': {
+              alignSelf: 'stretch',
+              borderBottom: 2,
+              borderColor: 'transparent',
+            },
+            '& .MuiTab-root.Mui-selected': {
+              borderColor: 'primary.main',
+            },
+          },
         }}
       />
 

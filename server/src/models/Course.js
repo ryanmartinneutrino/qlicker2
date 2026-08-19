@@ -112,6 +112,10 @@ const CourseSchema = new mongoose.Schema(
     aiDefaultBackendId: { type: String, default: '' },
     aiDefaultModelId: { type: String, default: '' },
     aiModelPolicies: { type: [AiModelPolicySchema], default: [] },
+    aiStudentChatEnabled: { type: Boolean, default: false },
+    aiStudentChatGuidance: { type: String, default: '' },
+    aiStudentDefaultBackendId: { type: String, default: '' },
+    aiStudentDefaultModelId: { type: String, default: '' },
   },
   {
     collection: 'courses',

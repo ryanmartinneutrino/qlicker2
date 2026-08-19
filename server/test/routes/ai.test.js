@@ -117,6 +117,24 @@ describe('AI course configuration and chat', () => {
       expect.objectContaining({ backendId: 'ollama-local', modelId: 'llama3.2', studentAvailable: true }),
       expect.objectContaining({ backendId: 'ollama-local', modelId: 'qwen3', studentAvailable: false }),
     ]);
+
+    const studentChatUpdate = await authenticatedRequest(app, 'PATCH', `/api/v1/ai/courses/${course._id}/config`, {
+      token,
+      payload: {
+        studentChatEnabled: true,
+        studentChatGuidance: 'Stay focused on mechanics.',
+        studentDefaultBackendId: 'ollama-local',
+        studentDefaultModelId: 'llama3.2',
+      },
+    });
+    expect(studentChatUpdate.statusCode).toBe(200);
+    const updatedConfig = await authenticatedRequest(app, 'GET', `/api/v1/ai/courses/${course._id}/config`, { token });
+    expect(updatedConfig.json()).toMatchObject({
+      studentChatEnabled: true,
+      studentChatGuidance: 'Stay focused on mechanics.',
+      studentDefaultBackendId: 'ollama-local',
+      studentDefaultModelId: 'llama3.2',
+    });
   });
 
   it('persists professor-managed backend tokens across masked saves and an app restart', async (ctx) => {
@@ -264,8 +282,39 @@ describe('AI course configuration and chat', () => {
     });
     expect(fetch).toHaveBeenCalledTimes(2);
     const secondRequest = JSON.parse(fetch.mock.calls[1][1].body);
-    expect(secondRequest.tools.map((tool) => tool.function.name)).toEqual(expect.arrayContaining(['list_course_students', 'list_course_sessions', 'get_session_questions', 'get_question_responses', 'get_session_grade_table', 'get_course_grade_table']));
+    expect(secondRequest.tools.map((tool) => tool.function.name)).toEqual(expect.arrayContaining(['get_conversation_history', 'list_course_students', 'list_course_sessions', 'get_session_questions', 'get_question_responses', 'get_session_grade_table', 'get_course_grade_table', 'create_course_session', 'edit_course_session', 'list_course_questions', 'create_course_question', 'edit_course_question']));
     expect(secondRequest.messages.some((entry) => entry.role === 'tool' && entry.content.includes('student@example.com'))).toBe(true);
+  });
+
+  it('creates a quiz through the instructor MCP tool and always reports its schedule', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const professor = await createTestUser({ email: 'ai-author-prof@example.com', roles: ['professor'] });
+    const token = await getAuthToken(app, professor);
+    const course = await createCourse(token);
+    await Course.findByIdAndUpdate(course._id, { $set: { aiEnabled: true } });
+    await configureAi(course._id);
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: { content: '', tool_calls: [{ function: {
+        name: 'create_course_session',
+        arguments: { name: 'Generated Quiz', type: 'quiz' },
+      } }] } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: { content: 'The quiz was created.' } }), { status: 200 })));
+
+    const created = await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations`, { token });
+    const conversationId = created.json().conversation._id;
+    await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations/${conversationId}/messages`, {
+      token,
+      payload: { content: 'Create a quiz.' },
+    });
+
+    await vi.waitFor(async () => {
+      const updated = await authenticatedRequest(app, 'GET', `/api/v1/ai/courses/${course._id}/conversations/${conversationId}`, { token });
+      expect(updated.json().conversation.messages.at(-1).content).toContain('Quiz schedule: Generated Quiz');
+    });
+    const quiz = await Session.findOne({ courseId: course._id, name: 'Generated Quiz' }).lean();
+    expect(quiz).toMatchObject({ quiz: true, status: 'hidden' });
+    expect(new Date(quiz.quizEnd).getTime() - new Date(quiz.quizStart).getTime()).toBe(12 * 60 * 60 * 1000);
+    expect(new Date(quiz.quizStart).getMinutes()).toBe(0);
   });
 
   it('stops an in-progress AI response and preserves the submitted prompt', async (ctx) => {

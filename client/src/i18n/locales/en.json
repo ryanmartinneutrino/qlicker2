@@ -618,6 +618,11 @@
       "aiSettings": "AI settings",
       "aiModel": "AI model",
       "aiDefaultModel": "Default model",
+      "enableStudentAiChat": "Enable AI Chat for students",
+      "enableStudentAiChatHelp": "Enable students to use an AI assistant to help them practice course material",
+      "studentAiChatGuidance": "Student AI chat guidance",
+      "studentAiDefaultModel": "Default model for student AI chat",
+      "studentAiModelUnavailable": "Make at least one approved model available to students before selecting a default.",
       "enableAiHelper": "Enable AI helper",
       "copyRubrics": "Copy AI rubrics",
       "copyRubricsHelp": "Copy reusable grading, feedback, and response-summary guidance from another course you instruct.",
@@ -674,7 +679,7 @@
       "allowStudentQuestionsHelp": "When enabled, students can open the course question library, create practice sessions, and copy practice questions. They can still review finished sessions even when this is off.",
       "topics": "Course topics",
       "topicsPlaceholder": "Add a course topic",
-      "topicsHelp": "Students can only use these course topics on their own questions.",
+      "topicsHelp": "Create tags based on the course topics, use these to tag sessions and questions, allowing you to organize materials and students to easily search for practice questions",
       "quizTimeFormat": "Quiz time format",
       "quizTimeFormatInherit": "Use admin default ({{defaultFormat}})",
       "quizTimeFormatOptions": {
@@ -774,6 +779,7 @@
       "aiChatHelp": "Chat with the AI assistant.",
       "courseActiveHelp": "When the course is active, students can access it.",
       "aiRequiresAdminAuthorization": "Requires admin authorization",
+      "aiHelperHelp": "Enable an AI assistant to help with grading, generate questions, manage sessions and students.",
       "enrollmentCodeHelp": "This is the code students need to enroll in the course."
     },
     "sessionEditor": {

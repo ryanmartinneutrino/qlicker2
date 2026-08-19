@@ -89,6 +89,10 @@ function approvedModels(course, settings, policy) {
   }));
 }
 
+function defaultStudentChatGuidance(courseName) {
+  return `You are a student-facing AI assistant for the course ${courseName || 'this course'}. Students will ask you questions about the course and about material covered in the course. Always provide helpful answers, but do not make things up. If you do not know the answer to a question then say so. You should strive to provide a source for your responses. Make sure your tone is light-hearted and respectful. Do not answer any inappropriate questions or questions that are unrelated to the course.`;
+}
+
 function serializeConversation(doc, includeMessages = false) {
   return {
     _id: String(doc._id), title: doc.title || '', backendId: doc.backendId || '', modelId: doc.modelId || '',
@@ -137,6 +141,12 @@ export default async function aiRoutes(app) {
     const modelPolicies = effectiveModelPolicies(course, settings, policy);
     const defaultBackendId = course.aiDefaultBackendId || course.aiSelectedBackendId || settings.AI_DefaultBackendId || '';
     const defaultModelId = course.aiDefaultModelId || course.aiSelectedModelId || settings.AI_DefaultModelId || '';
+    const availableModels = approvedModels(course, settings, policy);
+    const studentModels = availableModels.filter((model) => model.studentAvailable);
+    const configuredStudentModel = studentModels.find((model) => (
+      model.backendId === course.aiStudentDefaultBackendId && model.modelId === course.aiStudentDefaultModelId
+    ));
+    const studentDefaultModel = configuredStudentModel || studentModels[0] || null;
     return {
       ...policy, courseEnabled: !!course.aiEnabled,
       selectedBackendId: course.aiSelectedBackendId || '', selectedModelId: course.aiSelectedModelId || '',
@@ -147,7 +157,11 @@ export default async function aiRoutes(app) {
       defaultBackendId,
       defaultModelId,
       modelPolicies,
-      approvedModels: approvedModels(course, settings, policy),
+      approvedModels: availableModels,
+      studentChatEnabled: !!course.aiStudentChatEnabled,
+      studentChatGuidance: course.aiStudentChatGuidance || defaultStudentChatGuidance(course.name),
+      studentDefaultBackendId: studentDefaultModel?.backendId || '',
+      studentDefaultModelId: studentDefaultModel?.modelId || '',
     };
   });
 
@@ -177,9 +191,26 @@ export default async function aiRoutes(app) {
     }
     if (body.selectedBackendId !== undefined) updates.aiSelectedBackendId = body.selectedBackendId;
     if (body.selectedModelId !== undefined) updates.aiSelectedModelId = body.selectedModelId;
+    if (body.studentChatEnabled !== undefined) updates.aiStudentChatEnabled = !!body.studentChatEnabled;
+    if (body.studentChatGuidance !== undefined) updates.aiStudentChatGuidance = String(body.studentChatGuidance || '').trim();
+    if (body.studentDefaultBackendId !== undefined) updates.aiStudentDefaultBackendId = String(body.studentDefaultBackendId || '');
+    if (body.studentDefaultModelId !== undefined) updates.aiStudentDefaultModelId = String(body.studentDefaultModelId || '');
     const candidate = { ...course, ...updates };
     if (candidate.aiDefaultBackendId || candidate.aiDefaultModelId || candidate.aiSelectedBackendId || candidate.aiSelectedModelId) {
       if (!resolveModel(candidate, settings, policy)) return reply.code(400).send({ error: 'Bad Request', message: 'Choose an approved AI backend and model' });
+    }
+    if (candidate.aiStudentDefaultBackendId || candidate.aiStudentDefaultModelId) {
+      const studentModels = approvedModels(candidate, settings, policy).filter((model) => model.studentAvailable);
+      const studentModel = studentModels.find((model) => (
+        model.backendId === candidate.aiStudentDefaultBackendId
+        && model.modelId === candidate.aiStudentDefaultModelId
+      ));
+      if (!studentModel) {
+        const explicitlySelectedStudentModel = body.studentDefaultBackendId !== undefined || body.studentDefaultModelId !== undefined;
+        if (explicitlySelectedStudentModel) return reply.code(400).send({ error: 'Bad Request', message: 'Choose a model that is available to students' });
+        updates.aiStudentDefaultBackendId = studentModels[0]?.backendId || '';
+        updates.aiStudentDefaultModelId = studentModels[0]?.modelId || '';
+      }
     }
     const updatedCourse = await Course.findByIdAndUpdate(
       course._id,

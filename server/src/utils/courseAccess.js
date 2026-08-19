@@ -21,3 +21,12 @@ export function isCourseMember(course, user) {
   if (course?.inactive && !isCourseInstructorOrAdmin(course, user) && isCourseStudent(course, user)) return false;
   return isCourseInstructorOrAdmin(course, user) || isCourseStudent(course, user);
 }
+
+export function resolveCourseAiAudience(course, user) {
+  if (userRoles(user).includes('admin')) return 'instructor';
+  const id = userId(user);
+  const listedInstructor = !!id && (course?.instructors || []).some((instructorId) => String(instructorId) === id);
+  if (isCourseStudent(course, user) && !listedInstructor) return 'student';
+  if (isCourseInstructorOrAdmin(course, user)) return 'instructor';
+  return null;
+}
