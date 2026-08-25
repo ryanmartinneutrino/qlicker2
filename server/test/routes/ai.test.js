@@ -265,8 +265,12 @@ describe('AI course configuration and chat', () => {
     const token = await getAuthToken(app, professor);
     const course = await createCourse(token);
     await configureAi(course._id);
+    await Settings.updateOne({ _id: 'settings' }, { $set: { 'AI_Backends.0.url': 'http://127.0.0.1:11434' } });
     await Course.findByIdAndUpdate(course._id, { $set: { aiEnabled: true } });
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ message: { content: 'Hello from Ollama' } }), { status: 200 })));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ message: {
+      thinking: 'I should answer this greeting directly.',
+      content: 'Hello from Ollama',
+    } }), { status: 200 })));
 
     const created = await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations`, { token });
     const message = await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations/${created.json().conversation._id}/messages`, { token, payload: { content: 'Hello' } });
@@ -275,9 +279,10 @@ describe('AI course configuration and chat', () => {
     await vi.waitFor(async () => {
       const updated = await authenticatedRequest(app, 'GET', `/api/v1/ai/courses/${course._id}/conversations/${created.json().conversation._id}`, { token });
       expect(updated.json().conversation.messages.map((entry) => entry.content)).toEqual(['Hello', 'Hello from Ollama']);
+      expect(updated.json().conversation.messages.at(-1).thinking).toBe('I should answer this greeting directly.');
       expect(updated.json().conversation.pending).toBe(false);
     });
-    expect(fetch).toHaveBeenCalledWith('http://ollama.test:11434/api/chat', expect.objectContaining({ method: 'POST' }));
+    expect(fetch).toHaveBeenCalledWith('http://127.0.0.1:11434/api/chat', expect.objectContaining({ method: 'POST' }));
   });
 
   it('unblocks an orphaned failed AI chat request when the conversation is reloaded', async (ctx) => {
@@ -776,7 +781,7 @@ describe('AI course configuration and chat', () => {
     expect(await AiActionDraft.countDocuments({ courseId: course._id })).toBe(0);
   });
 
-  it('finishes a creation request when an Ollama-compatible backend rejects a tool-result continuation', async (ctx) => {
+  it('finishes a creation request when an Ollama-compatible backend fails a tool-result continuation', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
     const professor = await createTestUser({ email: 'ai-tool-continuation-prof@example.com', roles: ['professor'] });
     const token = await getAuthToken(app, professor);
@@ -830,8 +835,8 @@ describe('AI course configuration and chat', () => {
         tool_calls: [{ function: { name: 'list_course_sessions', arguments: { query: 'Chapter 8' } } }],
       } }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({
-        detail: "The final message must use the 'user' role.",
-      }), { status: 400 }))
+        detail: 'Could not reach the Ollama embedding endpoint.',
+      }), { status: 500 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ message: {
         content: JSON.stringify({
           session: { name: 'Chapter 8 Quiz', type: 'quiz', description: 'Chapter 8 review' },

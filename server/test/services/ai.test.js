@@ -67,6 +67,38 @@ describe('discoverOpenAiModels', () => {
 });
 
 describe('requestAiMessage', () => {
+  it('streams Ollama thinking output while retaining it with the final response', async () => {
+    const encoder = new TextEncoder();
+    const body = new ReadableStream({
+      start(controller) {
+        [
+          { message: { thinking: 'Check' }, done: false },
+          { message: { thinking: ' the course data.' }, done: false },
+          { message: { content: 'The ' }, done: false },
+          { message: { content: 'answer.' }, done: false },
+          { message: {}, done: true },
+        ].forEach((chunk) => controller.enqueue(encoder.encode(`${JSON.stringify(chunk)}\n`)));
+        controller.close();
+      },
+    });
+    const fetchMock = vi.fn().mockResolvedValue(new Response(body, { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const thinkingUpdates = [];
+
+    const result = await requestAiMessage(
+      { type: 'ollama', url: 'http://localhost:11434' },
+      'local-model',
+      [{ role: 'user', content: 'Answer this.' }],
+      [],
+      undefined,
+      (thinking) => thinkingUpdates.push(thinking)
+    );
+
+    expect(result).toEqual({ content: 'The answer.', thinking: 'Check the course data.', toolCalls: [] });
+    expect(thinkingUpdates).toEqual(['Check', 'Check the course data.']);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ stream: true });
+  });
+
   it('includes a bounded upstream detail in backend request errors', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
       detail: "The final message must use the 'user' role.",

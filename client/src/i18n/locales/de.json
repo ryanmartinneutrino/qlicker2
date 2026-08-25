@@ -2533,6 +2533,7 @@
       "send": "Send",
       "stop": "Stopp",
       "thinking": "Denkt nach…",
+      "thoughtProcess": "Denkprozess der KI",
       "messagePlaceholder": "Ask the AI helper…",
       "deleteConversation": "Delete conversation",
       "selectConversation": "Select or start a conversation.",

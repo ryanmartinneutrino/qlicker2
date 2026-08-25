@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Box, Button, CircularProgress, IconButton, List, ListItemButton, ListItemText, Paper, Typography } from '@mui/material';
-import { Add as AddIcon, DeleteOutline as DeleteIcon, Stop as StopIcon } from '@mui/icons-material';
+import { Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, CircularProgress, IconButton, List, ListItemButton, ListItemText, Paper, Typography } from '@mui/material';
+import { Add as AddIcon, DeleteOutline as DeleteIcon, ExpandMore as ExpandMoreIcon, Stop as StopIcon } from '@mui/icons-material';
 import { useTranslation } from 'react-i18next';
 import apiClient from '../../api/client';
 import StudentRichTextEditor from '../questions/StudentRichTextEditor';
@@ -94,7 +94,7 @@ export default function AiCourseChat({ courseId, audience = 'instructor' }) {
   // restores the waiting state and this lightweight poll picks up completion.
   useEffect(() => {
     if (!selected?.pending) return undefined;
-    const timer = setInterval(() => { loadConversationStatus(selected._id); }, 2000);
+    const timer = setInterval(() => { loadConversationStatus(selected._id); }, 750);
     return () => clearInterval(timer);
   }, [loadConversationStatus, selected?._id, selected?.pending]);
 
@@ -202,14 +202,23 @@ export default function AiCourseChat({ courseId, audience = 'instructor' }) {
           const errorDetail = String(message.content || '').replace(/^AI backend ran into an error:\s*/, '');
           return <Paper key={message._id} variant="outlined" role={isErrorMessage ? 'alert' : undefined} sx={{ p: 1.25, alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%', bgcolor: isErrorMessage ? 'warning.light' : message.role === 'user' ? 'action.hover' : 'background.paper', borderColor: isErrorMessage ? 'warning.main' : undefined, color: isErrorMessage ? 'warning.contrastText' : undefined }}>
           <Typography variant="caption" color={isErrorMessage ? 'inherit' : 'text.secondary'} sx={isErrorMessage ? { fontWeight: 700 } : undefined}>{isErrorMessage ? t('ai.chat.errorLabel') : message.role === 'user' ? t('ai.chat.you') : t('ai.chat.assistant')}</Typography>
+          {message.role === 'assistant' && message.thinking ? <Accordion disableGutters elevation={0} sx={{ mt: 0.75, mb: 0.75, bgcolor: 'action.hover', '&::before': { display: 'none' } }}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />} aria-label={t('ai.chat.thoughtProcess')} sx={{ minHeight: 38, '& .MuiAccordionSummary-content': { my: 0.5 } }}>
+              <Typography variant="body2" color="text.secondary">{t('ai.chat.thoughtProcess')}</Typography>
+            </AccordionSummary>
+            <AccordionDetails sx={{ pt: 0, maxHeight: 280, overflowY: 'auto' }}><AiMarkdownContent content={message.thinking} /></AccordionDetails>
+          </Accordion> : null}
           {message.role === 'assistant'
             ? <AiMarkdownContent content={isErrorMessage ? t('ai.chat.backendError', { detail: errorDetail }) : message.content} />
             : <Typography sx={{ whiteSpace: 'pre-wrap' }}>{message.content}</Typography>}
         </Paper>;
         })}
-        {isThinking ? <Paper variant="outlined" role="status" sx={{ p: 1.25, alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 1, animation: 'ai-thinking-pulse 1.4s ease-in-out infinite', '@keyframes ai-thinking-pulse': { '0%, 100%': { opacity: 0.55 }, '50%': { opacity: 1 } } }}>
-          <CircularProgress size={18} aria-label={t('ai.chat.thinking')} />
-          <Typography>{t('ai.chat.thinking')}</Typography>
+        {isThinking ? <Paper variant="outlined" role="status" sx={{ p: 1.25, alignSelf: 'flex-start', maxWidth: '90%' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, animation: 'ai-thinking-pulse 1.4s ease-in-out infinite', '@keyframes ai-thinking-pulse': { '0%, 100%': { opacity: 0.55 }, '50%': { opacity: 1 } } }}>
+            <CircularProgress size={18} aria-label={t('ai.chat.thinking')} />
+            <Typography>{t('ai.chat.thinking')}</Typography>
+          </Box>
+          {selected?.pendingThinking ? <Box sx={{ mt: 1, pl: 3.25, maxHeight: 280, overflowY: 'auto' }}><AiMarkdownContent content={selected.pendingThinking} /></Box> : null}
         </Paper> : null}
       </Box>
       <StudentRichTextEditor value={draft.html} onChange={(value) => setDraft(normalizeDraft(value))} onKeyDown={handleDraftKeyDown} placeholder={t('ai.chat.messagePlaceholder')} disabled={isThinking} ariaLabel={t('ai.chat.messagePlaceholder')} minHeight={110} />

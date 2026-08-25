@@ -204,7 +204,7 @@ function conversationAudienceFilter(audience) {
 function serializeConversation(doc, includeMessages = false) {
   return {
     _id: String(doc._id), title: doc.title || '', backendId: doc.backendId || '', modelId: doc.modelId || '',
-    pending: !!doc.pending, pendingError: doc.pendingError || '',
+    pending: !!doc.pending, pendingThinking: doc.pendingThinking || '', pendingError: doc.pendingError || '',
     createdAt: doc.createdAt || null, updatedAt: doc.updatedAt || null,
     ...(includeMessages ? { messages: doc.messages || [] } : {}),
   };
@@ -218,6 +218,7 @@ async function recoverOrphanedConversation(conversation) {
     { $set: {
       pending: false,
       pendingMessageId: '',
+      pendingThinking: '',
       pendingError: 'The previous AI request did not complete. You can send another message.',
       updatedAt: new Date(),
     } },
@@ -496,6 +497,7 @@ export default async function aiRoutes(app) {
     const userMessage = conversation.messages.at(-1);
     conversation.pending = true;
     conversation.pendingMessageId = String(userMessage._id);
+    conversation.pendingThinking = '';
     conversation.pendingError = '';
     conversation.backendId = selected.backend.id;
     conversation.modelId = selected.model.id;
@@ -518,7 +520,7 @@ export default async function aiRoutes(app) {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
     const conversation = await AiConversation.findOneAndUpdate(
       { _id: request.params.conversationId, courseId: course._id, ownerId: request.user.userId, pending: true, ...conversationAudienceFilter('instructor') },
-      { $set: { pending: false, pendingMessageId: '', pendingError: 'AI response stopped', updatedAt: new Date() } },
+      { $set: { pending: false, pendingMessageId: '', pendingThinking: '', pendingError: 'AI response stopped', updatedAt: new Date() } },
       { returnDocument: 'after' }
     );
     if (!conversation) return reply.code(409).send({ error: 'Conflict', message: 'No AI response is in progress for this conversation' });
@@ -632,6 +634,7 @@ export default async function aiRoutes(app) {
     const userMessage = conversation.messages.at(-1);
     conversation.pending = true;
     conversation.pendingMessageId = String(userMessage._id);
+    conversation.pendingThinking = '';
     conversation.pendingError = '';
     conversation.backendId = selected.backend.id;
     conversation.modelId = selected.model.id;
@@ -659,7 +662,7 @@ export default async function aiRoutes(app) {
         pending: true,
         ...conversationAudienceFilter('student'),
       },
-      { $set: { pending: false, pendingMessageId: '', pendingError: 'AI response stopped', updatedAt: new Date() } },
+      { $set: { pending: false, pendingMessageId: '', pendingThinking: '', pendingError: 'AI response stopped', updatedAt: new Date() } },
       { returnDocument: 'after' }
     );
     if (!conversation) return reply.code(409).send({ error: 'Conflict', message: 'No AI response is in progress for this conversation' });

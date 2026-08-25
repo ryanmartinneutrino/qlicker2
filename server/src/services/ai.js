@@ -6,6 +6,7 @@ import config from '../config/index.js';
 const AI_RESPONSE_FORMAT_ATTEMPTS = 2;
 const MAX_TOOL_CALLS_PER_RESPONSE = 10;
 const MAX_AI_CHAT_CONTENT_CHARS = 100_000;
+const MAX_AI_CHAT_THINKING_CHARS = 100_000;
 export const AI_REQUEST_TIMEOUT_MIN_SECONDS = 10;
 export const AI_REQUEST_TIMEOUT_MAX_SECONDS = 1_800;
 
@@ -261,6 +262,79 @@ function normalizeMessageContent(value) {
   return content;
 }
 
+function normalizeThinkingContent(message) {
+  const value = message?.thinking ?? message?.reasoning_content ?? message?.reasoning ?? '';
+  if (value === undefined || value === null) return '';
+  if (typeof value !== 'string') throw new AiResponseFormatError('AI backend returned thinking output in an unsupported format');
+  const thinking = value.trim();
+  if (thinking.length > MAX_AI_CHAT_THINKING_CHARS) throw new AiResponseFormatError('AI backend returned thinking output that exceeded the allowed size');
+  return thinking;
+}
+
+function emitThinking(onThinking, thinking) {
+  if (!onThinking || !thinking) return;
+  try {
+    const pending = onThinking(thinking);
+    if (pending?.catch) pending.catch(() => {});
+  } catch {
+    // A progress-display failure must not fail the provider request.
+  }
+}
+
+async function ollamaStreamPayload(response, onThinking) {
+  const reader = response.body?.getReader();
+  if (!reader) throw new AiResponseFormatError('AI backend returned an empty response');
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let total = 0;
+  let parsedAny = false;
+  let content = '';
+  let thinking = '';
+  const toolCalls = [];
+
+  const parseLine = (line) => {
+    const text = line.trim();
+    if (!text) return;
+    let payload;
+    try { payload = JSON.parse(text); }
+    catch { throw new AiResponseFormatError('AI backend returned invalid streaming JSON'); }
+    parsedAny = true;
+    if (payload?.error) throw new Error(`AI backend request failed: ${String(payload.error).slice(0, 500)}`);
+    const message = payload?.message;
+    if (!message || typeof message !== 'object') return;
+    if (message.content !== undefined && message.content !== null) content += String(message.content);
+    const thinkingChunk = message.thinking ?? message.reasoning_content ?? message.reasoning;
+    if (thinkingChunk !== undefined && thinkingChunk !== null) {
+      if (typeof thinkingChunk !== 'string') throw new AiResponseFormatError('AI backend returned thinking output in an unsupported format');
+      thinking += thinkingChunk;
+      if (thinking.length > MAX_AI_CHAT_THINKING_CHARS) throw new AiResponseFormatError('AI backend returned thinking output that exceeded the allowed size');
+      emitThinking(onThinking, thinking);
+    }
+    if (message.tool_calls !== undefined && message.tool_calls !== null) {
+      if (!Array.isArray(message.tool_calls)) throw new AiResponseFormatError('AI backend returned tool calls in an unsupported format');
+      toolCalls.push(...message.tool_calls);
+    }
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > 2_000_000) {
+      await reader.cancel();
+      throw new Error('AI backend response exceeded the allowed size');
+    }
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split(/\r?\n/);
+    buffer = lines.pop() || '';
+    lines.forEach(parseLine);
+  }
+  buffer += decoder.decode();
+  if (buffer.trim()) parseLine(buffer);
+  if (!parsedAny) throw new AiResponseFormatError('AI backend returned invalid streaming JSON');
+  return { message: { content, thinking, tool_calls: toolCalls } };
+}
+
 function normalizeToolCalls(toolCalls = []) {
   if (!Array.isArray(toolCalls)) throw new AiResponseFormatError('AI backend returned tool calls in an unsupported format');
   if (toolCalls.length > MAX_TOOL_CALLS_PER_RESPONSE) throw new AiResponseFormatError(`AI backend returned more than ${MAX_TOOL_CALLS_PER_RESPONSE} tool calls at once`);
@@ -292,7 +366,8 @@ async function requestAiMessageOnce(backend, modelId, messages, tools = [], sign
   if (backend.apiToken) headers.authorization = `Bearer ${backend.apiToken}`;
   const baseUrl = normalizeAiUrl(backend.url);
   const isOpenAi = backend.type === 'openai';
-  const requestBody = { model: modelId, messages, stream: false };
+  const streamThinking = !isOpenAi && typeof requestOptions.onThinking === 'function';
+  const requestBody = { model: modelId, messages, stream: streamThinking };
   if (requestOptions.jsonMode && !isOpenAi) requestBody.format = 'json';
   const requestTimeoutMs = Number.isFinite(Number(backend?.requestTimeoutMs))
     ? Math.max(1_000, Number(backend.requestTimeoutMs))
@@ -306,13 +381,17 @@ async function requestAiMessageOnce(backend, modelId, messages, tools = [], sign
     body: JSON.stringify(requestBody),
   });
   if (!response.ok) throw await backendHttpError(response);
-  const payload = await boundedJson(response);
+  const payload = streamThinking
+    ? await ollamaStreamPayload(response, requestOptions.onThinking)
+    : await boundedJson(response);
   const message = isOpenAi ? payload?.choices?.[0]?.message : payload?.message;
   if (!message || typeof message !== 'object') throw new AiResponseFormatError('AI backend returned no chat message');
   const content = normalizeMessageContent(message.content);
+  const thinking = normalizeThinkingContent(message);
+  if (!streamThinking) emitThinking(requestOptions.onThinking, thinking);
   const toolCalls = normalizeToolCalls(message.tool_calls === undefined || message.tool_calls === null ? [] : message.tool_calls);
   if (!content && toolCalls.length === 0) throw new AiResponseFormatError('AI backend returned an empty response');
-  return { content, toolCalls };
+  return { content, toolCalls, ...(thinking ? { thinking } : {}) };
 }
 
 async function requestAiMessageWithOptions(backend, modelId, messages, tools = [], signal = undefined, requestOptions = {}) {
@@ -332,10 +411,10 @@ async function requestAiMessageWithOptions(backend, modelId, messages, tools = [
   throw new Error(`AI backend repeatedly returned an invalid response: ${formatError?.message || 'unknown format error'}`);
 }
 
-export async function requestAiMessage(backend, modelId, messages, tools = [], signal = undefined) {
-  return requestAiMessageWithOptions(backend, modelId, messages, tools, signal);
+export async function requestAiMessage(backend, modelId, messages, tools = [], signal = undefined, onThinking = undefined) {
+  return requestAiMessageWithOptions(backend, modelId, messages, tools, signal, { onThinking });
 }
 
-export async function requestAiJsonMessage(backend, modelId, messages, signal = undefined) {
-  return requestAiMessageWithOptions(backend, modelId, messages, [], signal, { jsonMode: true });
+export async function requestAiJsonMessage(backend, modelId, messages, signal = undefined, onThinking = undefined) {
+  return requestAiMessageWithOptions(backend, modelId, messages, [], signal, { jsonMode: true, onThinking });
 }

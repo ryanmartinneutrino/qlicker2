@@ -77,6 +77,7 @@ describe('AiCourseChat', () => {
       _id: 'conversation-1',
       title: 'Pending question',
       pending: true,
+      pendingThinking: 'Checking **course notes** before answering.',
       messages: [{ _id: 'message-1', role: 'user', content: 'Please wait' }],
     };
     const stoppedConversation = { ...pendingConversation, pending: false, pendingError: 'AI response stopped' };
@@ -94,6 +95,7 @@ describe('AiCourseChat', () => {
     render(<AiCourseChat courseId="course-1" />);
 
     expect(await screen.findByText('Thinking…')).toBeInTheDocument();
+    expect(screen.getByText('course notes', { selector: 'strong' })).toBeInTheDocument();
     expect(screen.getByLabelText('AI chat message')).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
 
@@ -101,6 +103,41 @@ describe('AiCourseChat', () => {
       expect(apiClient.post).toHaveBeenCalledWith('/ai/courses/course-1/conversations/conversation-1/stop');
     });
     expect(await screen.findByText('AI response stopped')).toBeInTheDocument();
+  });
+
+  it('collapses completed thinking output and lets the user expand it', async () => {
+    const conversation = {
+      _id: 'conversation-1',
+      title: 'Answered question',
+      pending: false,
+      messages: [
+        { _id: 'message-1', role: 'user', content: 'Explain the result.' },
+        {
+          _id: 'message-2',
+          role: 'assistant',
+          thinking: 'First inspect **the given values**.',
+          content: 'Here is the final answer.',
+        },
+      ],
+    };
+    apiClient.get.mockImplementation((url) => {
+      if (url.endsWith('/config')) return Promise.resolve({ data: {
+        approvedModels: [{ backendId: 'backend-1', backendName: 'Backend 1', modelId: 'model-1', modelName: 'Model 1' }],
+        defaultBackendId: 'backend-1',
+        defaultModelId: 'model-1',
+      } });
+      if (url.endsWith('/conversations')) return Promise.resolve({ data: { conversations: [conversation] } });
+      return Promise.resolve({ data: { conversation } });
+    });
+
+    render(<AiCourseChat courseId="course-1" />);
+
+    expect(await screen.findByText('Here is the final answer.')).toBeInTheDocument();
+    const disclosure = screen.getByRole('button', { name: 'AI thinking' });
+    expect(disclosure).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(disclosure);
+    expect(disclosure).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('the given values', { selector: 'strong' })).toBeInTheDocument();
   });
 
   it('clears a stale backend error when reloading a conversation', async () => {

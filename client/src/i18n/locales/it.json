@@ -2534,6 +2534,7 @@
       "send": "Send",
       "stop": "Interrompi",
       "thinking": "Elaborazione in corso…",
+      "thoughtProcess": "Ragionamento dell’IA",
       "messagePlaceholder": "Ask the AI helper…",
       "deleteConversation": "Delete conversation",
       "selectConversation": "Select or start a conversation.",

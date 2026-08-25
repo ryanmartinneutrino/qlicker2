@@ -2513,6 +2513,7 @@
       "send": "Send",
       "stop": "Остановить",
       "thinking": "ИИ думает…",
+      "thoughtProcess": "Размышления ИИ",
       "messagePlaceholder": "Ask the AI helper…",
       "deleteConversation": "Delete conversation",
       "selectConversation": "Select or start a conversation.",

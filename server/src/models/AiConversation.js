@@ -3,6 +3,7 @@ import { generateMeteorId } from '../utils/meteorId.js';
 
 export const MAX_AI_MESSAGE_CHARS = 20_000;
 export const MAX_AI_MESSAGE_WYSIWYG_CHARS = 100_000;
+export const MAX_AI_THINKING_CHARS = 100_000;
 export const MAX_AI_CONVERSATION_MESSAGES = 400;
 
 const AiMessageSchema = new mongoose.Schema(
@@ -11,6 +12,7 @@ const AiMessageSchema = new mongoose.Schema(
     role: { type: String, enum: ['user', 'assistant'], required: true },
     content: { type: String, default: '', maxlength: MAX_AI_MESSAGE_CHARS },
     contentWysiwyg: { type: String, default: '', maxlength: MAX_AI_MESSAGE_WYSIWYG_CHARS },
+    thinking: { type: String, default: '', maxlength: MAX_AI_THINKING_CHARS },
     isError: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now },
   },
@@ -28,6 +30,7 @@ const AiConversationSchema = new mongoose.Schema(
     modelId: { type: String, default: '' },
     pending: { type: Boolean, default: false },
     pendingMessageId: { type: String, default: '' },
+    pendingThinking: { type: String, default: '', maxlength: MAX_AI_THINKING_CHARS },
     pendingError: { type: String, default: '' },
     messages: { type: [AiMessageSchema], default: [] },
     createdAt: { type: Date, default: Date.now },

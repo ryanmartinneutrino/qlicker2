@@ -7,6 +7,7 @@ export const DEFAULT_INSTRUCTOR_CHAT_MAX_TOOL_ROUNDS = 20;
 export const DEFAULT_STUDENT_CHAT_MAX_TOOL_ROUNDS = 5;
 export const MAX_CHAT_TOOL_ROUNDS = 50;
 const MAX_TOOL_RESULT_CHARS = 80_000;
+const MAX_THINKING_CHARS = 100_000;
 const MAX_CONVERSATION_TURNS = 5;
 const MAX_AUTHORING_RECOVERY_ATTEMPTS = 1;
 
@@ -77,6 +78,33 @@ function creationStillIncomplete(goals, progress) {
   return goals.session && progress.sessionsCreated < 1;
 }
 
+function createThinkingCollector(onThinking) {
+  const completed = [];
+  let current = '';
+  const value = () => [...completed, current].filter(Boolean).join('\n\n').slice(0, MAX_THINKING_CHARS);
+  const publish = () => {
+    const transcript = value();
+    if (transcript) onThinking?.(transcript);
+  };
+  return {
+    update(next) {
+      current = String(next || '').trim();
+      publish();
+    },
+    complete(finalValue = '') {
+      current = String(finalValue || current || '').trim();
+      if (current) completed.push(current);
+      current = '';
+      publish();
+    },
+    value,
+  };
+}
+
+function completedChat(content, thinking) {
+  return { content: String(content || ''), thinking: thinking.value() };
+}
+
 const creationPlanQuestionSchema = z.object({
   type: z.enum(['multiple_choice', 'true_false', 'short_answer', 'multiple_select', 'numerical', 'slide']),
   prompt: z.string().min(1).max(20_000),
@@ -145,7 +173,7 @@ async function callCreationTool(mcp, name, arguments_) {
   return parsed;
 }
 
-async function executeCreationPlanFallback({ backend, modelId, messages, goals, progress, mcp, notices, signal }) {
+async function executeCreationPlanFallback({ backend, modelId, messages, goals, progress, mcp, notices, signal, thinking }) {
   const latestRequest = [...messages].reverse().find((message) => message.role === 'user')?.content || '';
   const remainingQuestionCount = Math.max(0, goals.questionCount - progress.questionsCreated);
   const fallbackGoals = { ...goals, questionCount: remainingQuestionCount };
@@ -155,7 +183,8 @@ async function executeCreationPlanFallback({ backend, modelId, messages, goals, 
       content: `Return only valid JSON for a non-destructive Qlicker creation plan. Do not include markdown, commentary, IDs, approval steps, edits, or deletions. Use exactly this shape: {"session":{"name":string,"type":"interactive|quiz","description":string,"tags":[string]},"questions":[{"type":"multiple_choice|true_false|short_answer|multiple_select|numerical|slide","prompt":string,"options":[{"text":string,"correct":boolean}],"correct_answer":"true|false","correct_numerical":number,"tolerance_numerical":number,"solution":string,"points":number,"tags":[string]}]}. Use null for session only when no session was requested. Produce exactly ${remainingQuestionCount} question(s). Multiple-choice questions must have at least two options and exactly one correct option.`,
     },
     { role: 'user', content: String(latestRequest) },
-  ], signal);
+  ], signal, thinking.update);
+  thinking.complete(planResponse.thinking);
   if (planResponse.toolCalls.length) throw new Error('AI backend returned tool calls instead of the requested course creation plan');
   const plan = parseCreationPlan(planResponse.content, fallbackGoals);
   let sessionResult = null;
@@ -229,9 +258,9 @@ function toolResultMessage(call, content, backend) {
     : { role: 'tool', tool_name: call.name, content };
 }
 
-function isRejectedToolContinuation(error, providerMessages) {
+function isFailedToolContinuation(error, providerMessages) {
   return error instanceof AiBackendHttpError
-    && [400, 422].includes(error.status)
+    && ([400, 409, 422].includes(error.status) || error.status >= 500)
     && providerMessages.at(-1)?.role === 'tool';
 }
 
@@ -282,6 +311,7 @@ export async function runAiCourseChat({
   currentUserMessageId,
   onCourseChatUpdated,
   onProgress,
+  onThinking,
   signal,
 }) {
   const audience = resolveCourseAiAudience(course, user);
@@ -309,16 +339,25 @@ export async function runAiCourseChat({
     };
     const creationGoals = audience === 'instructor' ? instructorCreationGoals(messages) : null;
     const creationProgress = { sessionsCreated: 0, questionsCreated: 0 };
+    const thinking = createThinkingCollector(onThinking);
     let authoringRecoveryAttempts = 0;
     for (let round = 0; round < maxToolRounds; round += 1) {
       let response;
       try {
-        response = await requestAiMessage(backend, modelId, providerMessages, toolList.tools || [], signal);
+        response = await requestAiMessage(
+          backend,
+          modelId,
+          providerMessages,
+          toolList.tools || [],
+          signal,
+          thinking.update
+        );
       } catch (error) {
         await onProgress?.();
         if (creationStillIncomplete(creationGoals, creationProgress)
-          && isRejectedToolContinuation(error, providerMessages)) {
-          return await executeCreationPlanFallback({
+          && isFailedToolContinuation(error, providerMessages)) {
+          thinking.complete();
+          const content = await executeCreationPlanFallback({
             backend,
             modelId,
             messages,
@@ -327,11 +366,14 @@ export async function runAiCourseChat({
             mcp,
             notices,
             signal,
+            thinking,
           });
+          return completedChat(content, thinking);
         }
         throw error;
       }
       await onProgress?.();
+      thinking.complete(response.thinking);
       if (response.toolCalls.length === 0) {
         if (creationStillIncomplete(creationGoals, creationProgress)) {
           if (authoringRecoveryAttempts < MAX_AUTHORING_RECOVERY_ATTEMPTS && round + 1 < maxToolRounds) {
@@ -340,7 +382,7 @@ export async function runAiCourseChat({
             providerMessages.push(authoringRecoveryMessage(creationGoals, creationProgress));
             continue;
           }
-          return await executeCreationPlanFallback({
+          const content = await executeCreationPlanFallback({
             backend,
             modelId,
             messages,
@@ -349,9 +391,11 @@ export async function runAiCourseChat({
             mcp,
             notices,
             signal,
+            thinking,
           });
+          return completedChat(content, thinking);
         }
-        return responseWithNotices(response.content, notices);
+        return completedChat(responseWithNotices(response.content, notices), thinking);
       }
       providerMessages.push(assistantToolCallMessage(response, backend));
       for (const call of response.toolCalls) {
