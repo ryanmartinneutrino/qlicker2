@@ -2504,7 +2504,9 @@
       "messagePlaceholder": "Ask the AI helper…",
       "deleteConversation": "Delete conversation",
       "selectConversation": "Select or start a conversation.",
-      "assistant": "AI assistant",
+      "assistant": "Asistente de IA",
+      "errorLabel": "Error de IA",
+      "backendError": "El backend de IA encontró un error: {{detail}}",
       "you": "You",
       "failedLoad": "Could not load AI conversations.",
       "failedSend": "Could not send the message."

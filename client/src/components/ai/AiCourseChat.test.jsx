@@ -130,6 +130,35 @@ describe('AiCourseChat', () => {
     expect(await screen.findByText('Please create a session')).toBeInTheDocument();
   });
 
+  it('renders persisted backend failures as warning messages', async () => {
+    const failedConversation = {
+      _id: 'conversation-1',
+      title: 'Timed out question',
+      pending: false,
+      pendingError: '',
+      messages: [
+        { _id: 'message-1', role: 'user', content: 'Please help' },
+        { _id: 'message-2', role: 'assistant', content: 'AI backend ran into an error: request timed out', isError: true },
+      ],
+    };
+    apiClient.get.mockImplementation((url) => {
+      if (url.endsWith('/config')) return Promise.resolve({ data: {
+        approvedModels: [{ backendId: 'backend-1', backendName: 'Backend 1', modelId: 'model-1', modelName: 'Model 1' }],
+        defaultBackendId: 'backend-1',
+        defaultModelId: 'model-1',
+      } });
+      if (url.endsWith('/conversations')) return Promise.resolve({ data: { conversations: [failedConversation] } });
+      return Promise.resolve({ data: { conversation: failedConversation } });
+    });
+
+    render(<AiCourseChat courseId="course-1" />);
+
+    const warning = await screen.findByRole('alert');
+    expect(warning).toHaveTextContent('AI error');
+    expect(warning).toHaveTextContent('The AI backend ran into an error: request timed out');
+    expect(warning).toHaveStyle({ borderColor: '#ed6c02' });
+  });
+
   it('uses the student endpoints and shows student-facing guidance', async () => {
     const conversation = { _id: 'student-conversation-1', title: '', messages: [] };
     apiClient.post.mockResolvedValueOnce({ data: { conversation } });

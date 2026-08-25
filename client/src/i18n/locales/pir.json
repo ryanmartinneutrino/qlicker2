@@ -2479,7 +2479,9 @@
       "messagePlaceholder": "Ask the AI helper…",
       "deleteConversation": "Delete conversation",
       "selectConversation": "Select or start a conversation.",
-      "assistant": "AI assistant",
+      "assistant": "AI matey",
+      "errorLabel": "AI mishap",
+      "backendError": "Th’ AI backend ran into rough seas: {{detail}}",
       "you": "You",
       "failedLoad": "Could not load AI conversations.",
       "failedSend": "Could not send the message."

@@ -11,6 +11,7 @@ const AiMessageSchema = new mongoose.Schema(
     role: { type: String, enum: ['user', 'assistant'], required: true },
     content: { type: String, default: '', maxlength: MAX_AI_MESSAGE_CHARS },
     contentWysiwyg: { type: String, default: '', maxlength: MAX_AI_MESSAGE_WYSIWYG_CHARS },
+    isError: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now },
   },
   { _id: false }

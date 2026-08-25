@@ -1834,6 +1834,8 @@
       "deleteConversation": "Delete conversation",
       "selectConversation": "Select or start a conversation.",
       "assistant": "AI assistant",
+      "errorLabel": "AI error",
+      "backendError": "The AI backend ran into an error: {{detail}}",
       "you": "You",
       "failedLoad": "Could not load AI conversations.",
       "failedSend": "Could not send the message."

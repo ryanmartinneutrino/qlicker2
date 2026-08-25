@@ -2533,7 +2533,9 @@
       "messagePlaceholder": "Ask the AI helper…",
       "deleteConversation": "Delete conversation",
       "selectConversation": "Select or start a conversation.",
-      "assistant": "AI assistant",
+      "assistant": "KI-Assistent",
+      "errorLabel": "KI-Fehler",
+      "backendError": "Beim KI-Backend ist ein Fehler aufgetreten: {{detail}}",
       "you": "You",
       "failedLoad": "Could not load AI conversations.",
       "failedSend": "Could not send the message."

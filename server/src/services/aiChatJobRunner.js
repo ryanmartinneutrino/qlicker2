@@ -53,7 +53,7 @@ export function queueAiCourseChat({
         // Keep a visible assistant turn when a provider fails. Otherwise the
         // user only sees a banner and the conversation appears to have ignored
         // their message.
-        $push: { messages: { $each: [{ role: 'assistant', content: `AI backend ran into an error: ${detail}` }], $slice: -MAX_AI_CONVERSATION_MESSAGES } },
+        $push: { messages: { $each: [{ role: 'assistant', content: `AI backend ran into an error: ${detail}`, isError: true }], $slice: -MAX_AI_CONVERSATION_MESSAGES } },
         $set: { pending: false, pendingMessageId: '', pendingError: detail, updatedAt: new Date() },
       });
     } finally {

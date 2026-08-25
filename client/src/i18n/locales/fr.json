@@ -2464,7 +2464,9 @@
       "messagePlaceholder": "Ask the AI helper…",
       "deleteConversation": "Delete conversation",
       "selectConversation": "Select or start a conversation.",
-      "assistant": "AI assistant",
+      "assistant": "Assistant IA",
+      "errorLabel": "Erreur de l’IA",
+      "backendError": "Le service d’IA a rencontré une erreur : {{detail}}",
       "you": "You",
       "failedLoad": "Could not load AI conversations.",
       "failedSend": "Could not send the message."

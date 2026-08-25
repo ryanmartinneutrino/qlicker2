@@ -121,6 +121,10 @@ export default {
   // remain blocked in services/ai.js. Set this to false to require the
   // explicit hostname allowlist below.
   aiBackendAllowPrivateHosts: parseOptionalBooleanEnv(process.env.AI_BACKEND_ALLOW_PRIVATE_HOSTS, true),
+  // Provider calls can include several tool definitions and large course
+  // contexts. Keep this above slower backends' own generation timeout while
+  // still guaranteeing that abandoned requests eventually terminate.
+  aiBackendRequestTimeoutMs: Math.max(1_000, parseNonNegativeIntEnv(process.env.AI_BACKEND_REQUEST_TIMEOUT_MS, 300_000)),
   // Used only when AI_BACKEND_ALLOW_PRIVATE_HOSTS=false.
   aiBackendAllowedPrivateHosts: parseCsvEnv(
     process.env.AI_BACKEND_ALLOWED_PRIVATE_HOSTS,

@@ -258,7 +258,9 @@ async function requestAiMessageOnce(backend, modelId, messages, tools = [], sign
   if (tools.length > 0) requestBody.tools = toolDefinitionsForProvider(tools);
   const response = await aiFetch(isOpenAi ? `${baseUrl}/chat/completions` : `${baseUrl}/api/chat`, {
     method: 'POST', headers,
-    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(90_000)]) : AbortSignal.timeout(90_000),
+    signal: signal
+      ? AbortSignal.any([signal, AbortSignal.timeout(config.aiBackendRequestTimeoutMs)])
+      : AbortSignal.timeout(config.aiBackendRequestTimeoutMs),
     body: JSON.stringify(requestBody),
   });
   if (!response.ok) throw new Error(`AI backend request failed (${response.status})`);

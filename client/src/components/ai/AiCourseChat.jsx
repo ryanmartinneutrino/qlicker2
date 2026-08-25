@@ -195,12 +195,18 @@ export default function AiCourseChat({ courseId, audience = 'instructor' }) {
       {selected?.pendingError ? <Alert severity="warning" sx={{ mb: 1 }} onClose={() => loadConversation(selected._id, { silent: true, clearPendingError: true })}>{selected.pendingError}</Alert> : null}
       <Box sx={{ mb: 1.5 }}><AiModelSelect courseId={courseId} value={selectedModel} onChange={setSelectedModel} disabled={isThinking} audience={audience} /></Box>
       <Box sx={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 1.25, mb: 1.5 }} aria-live="polite">
-        {!selected && !pendingMessage ? <Typography color="text.secondary">{t('ai.chat.selectConversation')}</Typography> : messages.length === 0 && !pendingMessage ? <Alert severity="info" sx={{ alignSelf: 'stretch' }}>{t(audience === 'student' ? 'ai.chat.studentNewConversationGuidance' : 'ai.chat.newConversationGuidance')}</Alert> : messages.map((message) => <Paper key={message._id} variant="outlined" sx={{ p: 1.25, alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%', bgcolor: message.role === 'user' ? 'action.hover' : 'background.paper' }}>
-          <Typography variant="caption" color="text.secondary">{message.role === 'user' ? t('ai.chat.you') : t('ai.chat.assistant')}</Typography>
+        {!selected && !pendingMessage ? <Typography color="text.secondary">{t('ai.chat.selectConversation')}</Typography> : messages.length === 0 && !pendingMessage ? <Alert severity="info" sx={{ alignSelf: 'stretch' }}>{t(audience === 'student' ? 'ai.chat.studentNewConversationGuidance' : 'ai.chat.newConversationGuidance')}</Alert> : messages.map((message) => {
+          const isErrorMessage = message.role === 'assistant' && (
+            message.isError || String(message.content || '').startsWith('AI backend ran into an error:')
+          );
+          const errorDetail = String(message.content || '').replace(/^AI backend ran into an error:\s*/, '');
+          return <Paper key={message._id} variant="outlined" role={isErrorMessage ? 'alert' : undefined} sx={{ p: 1.25, alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%', bgcolor: isErrorMessage ? 'warning.light' : message.role === 'user' ? 'action.hover' : 'background.paper', borderColor: isErrorMessage ? 'warning.main' : undefined, color: isErrorMessage ? 'warning.contrastText' : undefined }}>
+          <Typography variant="caption" color={isErrorMessage ? 'inherit' : 'text.secondary'} sx={isErrorMessage ? { fontWeight: 700 } : undefined}>{isErrorMessage ? t('ai.chat.errorLabel') : message.role === 'user' ? t('ai.chat.you') : t('ai.chat.assistant')}</Typography>
           {message.role === 'assistant'
-            ? <AiMarkdownContent content={message.content} />
+            ? <AiMarkdownContent content={isErrorMessage ? t('ai.chat.backendError', { detail: errorDetail }) : message.content} />
             : <Typography sx={{ whiteSpace: 'pre-wrap' }}>{message.content}</Typography>}
-        </Paper>)}
+        </Paper>;
+        })}
         {isThinking ? <Paper variant="outlined" role="status" sx={{ p: 1.25, alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 1, animation: 'ai-thinking-pulse 1.4s ease-in-out infinite', '@keyframes ai-thinking-pulse': { '0%, 100%': { opacity: 0.55 }, '50%': { opacity: 1 } } }}>
           <CircularProgress size={18} aria-label={t('ai.chat.thinking')} />
           <Typography>{t('ai.chat.thinking')}</Typography>

@@ -2513,7 +2513,9 @@
       "messagePlaceholder": "Ask the AI helper…",
       "deleteConversation": "Delete conversation",
       "selectConversation": "Select or start a conversation.",
-      "assistant": "AI assistant",
+      "assistant": "ИИ-помощник",
+      "errorLabel": "Ошибка ИИ",
+      "backendError": "На стороне ИИ произошла ошибка: {{detail}}",
       "you": "You",
       "failedLoad": "Could not load AI conversations.",
       "failedSend": "Could not send the message."
