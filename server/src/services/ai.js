@@ -6,6 +6,15 @@ import config from '../config/index.js';
 const AI_RESPONSE_FORMAT_ATTEMPTS = 2;
 const MAX_TOOL_CALLS_PER_RESPONSE = 10;
 const MAX_AI_CHAT_CONTENT_CHARS = 100_000;
+export const AI_REQUEST_TIMEOUT_MIN_SECONDS = 10;
+export const AI_REQUEST_TIMEOUT_MAX_SECONDS = 1_800;
+
+export function normalizeAiRequestTimeoutSeconds(value) {
+  const fallback = Math.round(config.aiBackendRequestTimeoutMs / 1_000);
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(AI_REQUEST_TIMEOUT_MIN_SECONDS, Math.min(AI_REQUEST_TIMEOUT_MAX_SECONDS, Math.round(parsed)));
+}
 
 class AiResponseFormatError extends Error {
   constructor(message) {
@@ -255,12 +264,15 @@ async function requestAiMessageOnce(backend, modelId, messages, tools = [], sign
   const baseUrl = normalizeAiUrl(backend.url);
   const isOpenAi = backend.type === 'openai';
   const requestBody = { model: modelId, messages, stream: false };
+  const requestTimeoutMs = Number.isFinite(Number(backend?.requestTimeoutMs))
+    ? Math.max(1_000, Number(backend.requestTimeoutMs))
+    : config.aiBackendRequestTimeoutMs;
   if (tools.length > 0) requestBody.tools = toolDefinitionsForProvider(tools);
   const response = await aiFetch(isOpenAi ? `${baseUrl}/chat/completions` : `${baseUrl}/api/chat`, {
     method: 'POST', headers,
     signal: signal
-      ? AbortSignal.any([signal, AbortSignal.timeout(config.aiBackendRequestTimeoutMs)])
-      : AbortSignal.timeout(config.aiBackendRequestTimeoutMs),
+      ? AbortSignal.any([signal, AbortSignal.timeout(requestTimeoutMs)])
+      : AbortSignal.timeout(requestTimeoutMs),
     body: JSON.stringify(requestBody),
   });
   if (!response.ok) throw new Error(`AI backend request failed (${response.status})`);

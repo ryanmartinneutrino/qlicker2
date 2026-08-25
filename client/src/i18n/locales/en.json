@@ -558,7 +558,9 @@
       "allowCourseBackend": "Allow instructor-configured backend",
       "disabledHelp": "Enable AI helper above before configuring a backend or permitting courses.",
       "failedSave": "Failed to save AI settings.",
-      "backendHelp": "Add one or more AI backends, discover their Ollama models, then select the default model used by courses unless an instructor chooses another available model."
+      "backendHelp": "Add one or more AI backends, discover their Ollama models, then select the default model used by courses unless an instructor chooses another available model.",
+      "requestTimeout": "AI request timeout (seconds)",
+      "requestTimeoutHelp": "Maximum time for each AI backend request. Allowed range: 10–1800 seconds."
     },
     "courses": {
       "searchPlaceholder": "Search courses by code, section, name, or semester",

@@ -193,7 +193,7 @@ export default function AiCourseChat({ courseId, audience = 'instructor' }) {
     <Paper variant="outlined" sx={{ p: 1.5, display: 'flex', flexDirection: 'column', minHeight: 520 }}>
       {error ? <Alert severity="error" sx={{ mb: 1 }} onClose={() => setError('')}>{error}</Alert> : null}
       {selected?.pendingError ? <Alert severity="warning" sx={{ mb: 1 }} onClose={() => loadConversation(selected._id, { silent: true, clearPendingError: true })}>{selected.pendingError}</Alert> : null}
-      <Box sx={{ mb: 1.5 }}><AiModelSelect courseId={courseId} value={selectedModel} onChange={setSelectedModel} disabled={isThinking} audience={audience} /></Box>
+      <Box sx={{ mb: 1.5 }}><AiModelSelect courseId={courseId} value={selectedModel} onChange={setSelectedModel} disabled={isThinking} audience={audience} task="chat" /></Box>
       <Box sx={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 1.25, mb: 1.5 }} aria-live="polite">
         {!selected && !pendingMessage ? <Typography color="text.secondary">{t('ai.chat.selectConversation')}</Typography> : messages.length === 0 && !pendingMessage ? <Alert severity="info" sx={{ alignSelf: 'stretch' }}>{t(audience === 'student' ? 'ai.chat.studentNewConversationGuidance' : 'ai.chat.newConversationGuidance')}</Alert> : messages.map((message) => {
           const isErrorMessage = message.role === 'assistant' && (

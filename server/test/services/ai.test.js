@@ -2,10 +2,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   discoverOllamaModels,
   discoverOpenAiModels,
+  normalizeAiRequestTimeoutSeconds,
   requestAiMessage,
 } from '../../src/services/ai.js';
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 describe('discoverOllamaModels', () => {
   it('rejects cloud metadata and prohibited network targets while allowing configured private backends', async () => {
@@ -61,6 +65,26 @@ describe('discoverOpenAiModels', () => {
 });
 
 describe('requestAiMessage', () => {
+  it('normalizes administrator request timeouts to the supported range', () => {
+    expect(normalizeAiRequestTimeoutSeconds(420)).toBe(420);
+    expect(normalizeAiRequestTimeoutSeconds(1)).toBe(10);
+    expect(normalizeAiRequestTimeoutSeconds(10_000)).toBe(1_800);
+  });
+
+  it('uses the request timeout attached to the selected backend', async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ message: { content: 'Done' } }), { status: 200 })));
+
+    await requestAiMessage(
+      { type: 'ollama', url: 'http://localhost:11434', requestTimeoutMs: 420_000 },
+      'local-model',
+      [{ role: 'user', content: 'Hello' }]
+    );
+
+    expect(timeoutSpy).toHaveBeenCalledWith(420_000);
+    timeoutSpy.mockRestore();
+  });
+
   it('retries an empty model response with corrective format guidance', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({ message: { content: '' } }), { status: 200 }))

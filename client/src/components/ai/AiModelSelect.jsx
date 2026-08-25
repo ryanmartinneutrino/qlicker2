@@ -12,12 +12,13 @@ export function parseAiModelValue(value) {
   return { backendId, modelId };
 }
 
-export default function AiModelSelect({ courseId, value, onChange, disabled = false, fullWidth = true, audience = 'instructor' }) {
+export default function AiModelSelect({ courseId, value, onChange, disabled = false, fullWidth = true, audience = 'instructor', task = '' }) {
   const { t } = useTranslation();
   const [models, setModels] = useState([]);
   const [error, setError] = useState('');
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  const persistenceKey = task ? `qlicker.ai.model.${audience}.${courseId}.${task}` : '';
 
   useEffect(() => {
     let active = true;
@@ -29,11 +30,16 @@ export default function AiModelSelect({ courseId, value, onChange, disabled = fa
         if (!active) return;
         const nextModels = data.approvedModels || [];
         const defaultValue = aiModelValue(data.defaultBackendId, data.defaultModelId);
+        const persistedValue = persistenceKey ? localStorage.getItem(persistenceKey) || '' : '';
         setModels(nextModels);
-        if (!value || !nextModels.some((model) => aiModelValue(model.backendId, model.modelId) === value)) {
+        const availableValues = new Set(nextModels.map((model) => aiModelValue(model.backendId, model.modelId)));
+        if (persistedValue && availableValues.has(persistedValue) && persistedValue !== value) {
+          onChangeRef.current(persistedValue);
+        } else if (!value || !availableValues.has(value)) {
           const nextValue = nextModels.some((model) => aiModelValue(model.backendId, model.modelId) === defaultValue)
             ? defaultValue
             : aiModelValue(nextModels[0]?.backendId, nextModels[0]?.modelId);
+          if (persistenceKey && nextValue) localStorage.setItem(persistenceKey, nextValue);
           onChangeRef.current(nextValue);
         }
       })
@@ -43,7 +49,7 @@ export default function AiModelSelect({ courseId, value, onChange, disabled = fa
     return () => { active = false; };
   // Selection remains under the parent while configuration is course-scoped.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [audience, courseId, t]);
+  }, [audience, courseId, persistenceKey, t]);
 
   if (error) return <Alert severity="error">{error}</Alert>;
   return <TextField
@@ -51,7 +57,10 @@ export default function AiModelSelect({ courseId, value, onChange, disabled = fa
     size="small"
     label={t('ai.models.modelForTask')}
     value={value || ''}
-    onChange={(event) => onChange(event.target.value)}
+    onChange={(event) => {
+      if (persistenceKey) localStorage.setItem(persistenceKey, event.target.value);
+      onChange(event.target.value);
+    }}
     disabled={disabled || models.length === 0}
     fullWidth={fullWidth}
   >

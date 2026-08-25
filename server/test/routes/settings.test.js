@@ -48,6 +48,7 @@ describe('PATCH /api/v1/settings', () => {
         AI_ApiToken: 'admin-ai-token',
         AI_EnabledCourses: ['course-1'],
         AI_AllowCourseBackendCourses: ['course-1'],
+        AI_RequestTimeoutSeconds: 420,
       },
     });
 
@@ -59,10 +60,12 @@ describe('PATCH /api/v1/settings', () => {
       AI_ApiTokenSet: true,
       AI_EnabledCourses: ['course-1'],
       AI_AllowCourseBackendCourses: ['course-1'],
+      AI_RequestTimeoutSeconds: 420,
     });
     const stored = await Settings.findById('settings').lean();
     expect(stored.AI_ApiToken).toBe('admin-ai-token');
     expect(stored.AI_EnabledCourses).toEqual(['course-1']);
+    expect(stored.AI_RequestTimeoutSeconds).toBe(420);
   });
 
   it('updates SSO fields even when legacy settings contain invalid storageType', async (ctx) => {

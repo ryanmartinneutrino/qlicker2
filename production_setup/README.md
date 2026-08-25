@@ -816,7 +816,7 @@ production_setup/
 | `ENABLE_API_DOCS` | No | `false` in production | Enables the public Swagger/OpenAPI UI at `/docs`; leave disabled for internet-facing deployments unless required |
 | `AI_BACKEND_ALLOW_PRIVATE_HOSTS` | No | `true` | Allow administrator-configured AI backends on private networks; set to `false` to enforce the hostname allowlist |
 | `AI_BACKEND_ALLOWED_PRIVATE_HOSTS` | No | none | Comma-separated exact private-network AI backend hostnames used when `AI_BACKEND_ALLOW_PRIVATE_HOSTS=false` |
-| `AI_BACKEND_REQUEST_TIMEOUT_MS` | No | `300000` | Maximum time in milliseconds for each AI provider request; increase for slower local or retrieval-augmented backends |
+| `AI_BACKEND_REQUEST_TIMEOUT_MS` | No | `300000` | Initial/fallback AI provider timeout in milliseconds; after setup, administrators can change the global timeout in Admin → AI settings |
 | `BACKUP_HOST_PATH` | No | `./backups` | Host path bind-mounted at `/backups` in `mongo` and `backup-manager` |
 | `BACKUP_CHECK_INTERVAL_SECONDS` | No | `60` | Backup manager polling interval |
 | `TZ` | No | `UTC` | Timezone used by the backup manager container |

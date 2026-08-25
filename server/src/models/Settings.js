@@ -161,6 +161,7 @@ const SettingsSchema = new mongoose.Schema(
     AI_Backends: { type: [AiBackendSchema], default: [] },
     AI_DefaultBackendId: { type: String, default: '' },
     AI_DefaultModelId: { type: String, default: '' },
+    AI_RequestTimeoutSeconds: { type: Number, default: 300, min: 10, max: 1800 },
 
     // i18n / locale settings
     locale: { type: String, default: 'en' },

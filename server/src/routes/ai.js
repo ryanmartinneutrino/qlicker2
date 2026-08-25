@@ -13,7 +13,7 @@ import Course from '../models/Course.js';
 import Session from '../models/Session.js';
 import { getOrCreateSettingsDocument } from '../utils/settingsSingleton.js';
 import { isCourseInstructorOrAdmin, resolveCourseAiAudience } from '../utils/courseAccess.js';
-import { discoverOllamaModels, discoverOpenAiModels, normalizeAiBackends, serializeAiBackends } from '../services/ai.js';
+import { discoverOllamaModels, discoverOpenAiModels, normalizeAiBackends, normalizeAiRequestTimeoutSeconds, serializeAiBackends } from '../services/ai.js';
 import { isAiCourseChatActive, queueAiCourseChat, stopAiCourseChat } from '../services/aiChatJobRunner.js';
 import {
   courseChatMaxToolRounds,
@@ -128,10 +128,11 @@ function modelKey(backendId, modelId) {
 }
 
 function availableBackends(course, settings, policy) {
+  const requestTimeoutMs = normalizeAiRequestTimeoutSeconds(settings.AI_RequestTimeoutSeconds) * 1_000;
   return [
     ...normalizeAiBackends(settings.AI_Backends || []),
     ...(policy.allowCourseBackend ? normalizeAiBackends(course.aiBackends || []) : []),
-  ];
+  ].map((backend) => ({ ...backend, requestTimeoutMs }));
 }
 
 function normalizeModelPolicies(value) {

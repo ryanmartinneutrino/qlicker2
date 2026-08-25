@@ -6,7 +6,7 @@ import Session from '../models/Session.js';
 import Settings from '../models/Settings.js';
 import User from '../models/User.js';
 import AiGradingJob from '../models/AiGradingJob.js';
-import { normalizeAiBackends, requestAiCompletion } from './ai.js';
+import { normalizeAiBackends, normalizeAiRequestTimeoutSeconds, requestAiCompletion } from './ai.js';
 import {
   appendAiGradingLogEntry,
   finishAiGradingLogRun,
@@ -26,8 +26,12 @@ function findModel(backends, backendId, modelId) {
 function resolveModel(course, settings, requestedBackendId = '', requestedModelId = '') {
   const backendId = requestedBackendId || course.aiDefaultBackendId || course.aiSelectedBackendId || settings.AI_DefaultBackendId;
   const modelId = requestedModelId || course.aiDefaultModelId || course.aiSelectedModelId || settings.AI_DefaultModelId;
-  return findModel(normalizeAiBackends(settings.AI_Backends || []), backendId, modelId)
+  const selected = findModel(normalizeAiBackends(settings.AI_Backends || []), backendId, modelId)
     || findModel(normalizeAiBackends(course.aiBackends || []), backendId, modelId);
+  return selected ? {
+    ...selected,
+    backend: { ...selected.backend, requestTimeoutMs: normalizeAiRequestTimeoutSeconds(settings.AI_RequestTimeoutSeconds) * 1_000 },
+  } : null;
 }
 
 function plainText(value, maximumCharacters = 20_000) {

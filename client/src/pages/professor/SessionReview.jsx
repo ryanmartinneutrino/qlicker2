@@ -1832,7 +1832,7 @@ export default function SessionReview() {
         <DialogTitle>{t('professor.sessionReview.generateAiResponseSummary')}</DialogTitle>
         <DialogContent dividers>
           {summaryError ? <Alert severity="error" sx={{ mb: 2 }}>{summaryError}</Alert> : null}
-          <Box sx={{ mb: 2 }}><AiModelSelect courseId={courseId} value={summaryModel} onChange={setSummaryModel} /></Box>
+          <Box sx={{ mb: 2 }}><AiModelSelect courseId={courseId} value={summaryModel} onChange={setSummaryModel} task="response-summary" /></Box>
           <AiSummaryInstructionForm
             instructionId={summaryInstructionId}
             instruction={summaryInstruction}

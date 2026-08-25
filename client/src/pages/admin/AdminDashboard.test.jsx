@@ -501,6 +501,20 @@ describe('AdminDashboard', () => {
     expect(screen.getByRole('button', { name: /Course 1/i })).toBeInTheDocument();
   });
 
+  it('persists the global AI request timeout from the admin AI tab', async () => {
+    settingsState = { ...settingsState, AI_Enabled: true, AI_RequestTimeoutSeconds: 300 };
+    renderDashboard();
+
+    fireEvent.click(await screen.findByRole('tab', { name: /^AI$/i }));
+    const timeoutField = await screen.findByRole('spinbutton', { name: 'AI request timeout (seconds)' });
+    expect(timeoutField).toHaveValue(300);
+    fireEvent.change(timeoutField, { target: { value: '420' } });
+
+    await waitFor(() => expect(apiClientMock.patch).toHaveBeenCalledWith('/settings', expect.objectContaining({
+      AI_RequestTimeoutSeconds: 420,
+    })));
+  });
+
   it('loads every course in the AI and video policy tabs', async () => {
     settingsState = { ...settingsState, Jitsi_Enabled: true };
     coursesState = Array.from({ length: 501 }, (_, index) => buildCourse({

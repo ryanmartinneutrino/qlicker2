@@ -3,7 +3,7 @@ import Session from '../models/Session.js';
 import Response from '../models/Response.js';
 import Settings from '../models/Settings.js';
 import AiResponseSummary from '../models/AiResponseSummary.js';
-import { normalizeAiBackends, requestAiCompletion } from './ai.js';
+import { normalizeAiBackends, normalizeAiRequestTimeoutSeconds, requestAiCompletion } from './ai.js';
 
 const activeSummaryJobs = new Map();
 
@@ -20,11 +20,12 @@ function selected(course, settings, requestedBackendId = '', requestedModelId = 
     || course.aiDefaultModelId
     || course.aiSelectedModelId
     || settings.AI_DefaultModelId;
+  const requestTimeoutMs = normalizeAiRequestTimeoutSeconds(settings.AI_RequestTimeoutSeconds) * 1_000;
   return [
     ...normalizeAiBackends(settings.AI_Backends || []),
     ...normalizeAiBackends(course.aiBackends || []),
   ].map((backend) => ({
-    backend,
+    backend: { ...backend, requestTimeoutMs },
     model: backend.models.find((model) => model.id === modelId && model.available !== false),
   })).find((entry) => entry.backend.id === backendId && entry.model);
 }

@@ -28,6 +28,7 @@ vi.mock('../questions/StudentRichTextEditor', () => ({
 describe('AiCourseChat', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    localStorage.clear();
     i18n.changeLanguage('en');
     apiClient.get.mockImplementation((url) => Promise.resolve(url.endsWith('/config') ? { data: {
       approvedModels: [{ backendId: 'backend-1', backendName: 'Backend 1', modelId: 'model-1', modelName: 'Model 1' }],
