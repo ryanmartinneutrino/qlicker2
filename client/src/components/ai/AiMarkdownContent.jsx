@@ -7,7 +7,8 @@ import remarkMath from 'remark-math';
 function normalizeMarkdownMath(value) {
   return String(value || '')
     .replace(/\\\[([\s\S]*?)\\\]/g, (_, math) => `$$\n${math.trim()}\n$$`)
-    .replace(/\\\(([\s\S]*?)\\\)/g, (_, math) => `$${math.trim()}$`);
+    .replace(/\\\(([\s\S]*?)\\\)/g, (_, math) => `$${math.trim()}$`)
+    .replace(/(^|\s)\(\s*([^\n]+?)\s*\((?=\s|$)/g, (_, prefix, math) => `${prefix}$${math.trim()}$`);
 }
 
 const markdownSx = {

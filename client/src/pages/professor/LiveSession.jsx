@@ -411,6 +411,7 @@ function LiveSessionContent() {
   const [activePanel, setActivePanel] = useState('question');
   const [chatRefreshToken, setChatRefreshToken] = useState(0);
   const [chatEvent, setChatEvent] = useState(null);
+  const [chatUnseenCount, setChatUnseenCount] = useState(0);
   const activePanelRef = useRef('question');
   const pendingChatRefreshRef = useRef(false);
 
@@ -474,6 +475,9 @@ function LiveSessionContent() {
   }, [fetchLive]);
 
   const queueChatRefresh = useCallback((eventPayload = null) => {
+    if (activePanel !== 'chat' && ['post-created', 'comment-added'].includes(eventPayload?.changeType)) {
+      setChatUnseenCount((count) => count + 1);
+    }
     if (activePanel === 'chat' && eventPayload) {
       pendingChatRefreshRef.current = false;
       setChatEvent((prev) => ({
@@ -490,6 +494,10 @@ function LiveSessionContent() {
     }
 
     pendingChatRefreshRef.current = true;
+  }, [activePanel]);
+
+  useEffect(() => {
+    if (activePanel === 'chat') setChatUnseenCount(0);
   }, [activePanel]);
 
   useEffect(() => { fetchLive(); }, [fetchLive]);
@@ -1117,7 +1125,11 @@ function LiveSessionContent() {
         'aria-label': t('professor.liveSession.showStudentsPanel', { count: joinedCount }),
       },
     },
-    ...(chatEnabled ? [{ value: 'chat', label: t('sessionChat.chat') }] : []),
+    ...(chatEnabled ? [{
+      value: 'chat',
+      label: <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>{t('sessionChat.chat')}{chatUnseenCount > 0 ? <Chip size="small" color="primary" label={chatUnseenCount} sx={{ height: 20 }} /> : null}</Box>,
+      menuLabel: t('sessionChat.chat'),
+    }] : []),
   ];
 
   // --------------------------------------------------
@@ -1301,7 +1313,8 @@ function LiveSessionContent() {
             <LiveSessionPanelNavigation
               value={activePanel}
               onChange={setActivePanel}
-              tabs={panelTabs}
+          tabs={panelTabs}
+          compactAdornment={chatEnabled && chatUnseenCount > 0 ? <Chip size="small" color="primary" label={chatUnseenCount} /> : null}
               ariaLabel={t('professor.liveSession.panelsLabel')}
               disablePaper
               sx={{ mb: 0.5 }}
@@ -1786,6 +1799,7 @@ function LiveSessionContent() {
             value={activePanel}
             onChange={setActivePanel}
             tabs={panelTabs}
+            compactAdornment={chatEnabled && chatUnseenCount > 0 ? <Chip size="small" color="primary" label={chatUnseenCount} /> : null}
             ariaLabel={t('professor.liveSession.panelsLabel')}
           />
           <SessionChatPanel
@@ -1804,6 +1818,7 @@ function LiveSessionContent() {
             value={activePanel}
             onChange={setActivePanel}
             tabs={panelTabs}
+            compactAdornment={chatEnabled && chatUnseenCount > 0 ? <Chip size="small" color="primary" label={chatUnseenCount} /> : null}
             ariaLabel={t('professor.liveSession.panelsLabel')}
           />
           <Paper

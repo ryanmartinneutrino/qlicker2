@@ -66,7 +66,8 @@ async function validateAiEndpoint(value) {
   if (['169.254.169.254', 'metadata.google.internal', 'metadata'].includes(hostname)) {
     throw new Error('AI backend URL points to a prohibited metadata service');
   }
-  const privateHostAllowed = (config.aiBackendAllowedPrivateHosts || []).includes(hostname);
+  const privateHostAllowed = config.aiBackendAllowPrivateHosts
+    || (config.aiBackendAllowedPrivateHosts || []).includes(hostname);
   let addresses;
   if (isIP(hostname)) addresses = [{ address: hostname }];
   else {

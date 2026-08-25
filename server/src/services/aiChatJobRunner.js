@@ -48,8 +48,13 @@ export function queueAiCourseChat({
         $set: { pending: false, pendingMessageId: '', pendingError: '', updatedAt: new Date() },
       });
     } catch (error) {
+      const detail = abortMessage(error);
       await AiConversation.findOneAndUpdate(filter, {
-        $set: { pending: false, pendingMessageId: '', pendingError: abortMessage(error), updatedAt: new Date() },
+        // Keep a visible assistant turn when a provider fails. Otherwise the
+        // user only sees a banner and the conversation appears to have ignored
+        // their message.
+        $push: { messages: { $each: [{ role: 'assistant', content: `AI backend ran into an error: ${detail}` }], $slice: -MAX_AI_CONVERSATION_MESSAGES } },
+        $set: { pending: false, pendingMessageId: '', pendingError: detail, updatedAt: new Date() },
       });
     } finally {
       if (activeJobs.get(jobKey) === controller) activeJobs.delete(jobKey);

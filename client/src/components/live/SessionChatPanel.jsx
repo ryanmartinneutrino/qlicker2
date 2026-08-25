@@ -27,6 +27,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import apiClient from '../../api/client';
 import StudentRichTextEditor, { MathPreview } from '../questions/StudentRichTextEditor';
+import AiMarkdownContent from '../ai/AiMarkdownContent';
 import {
   extractPlainTextFromHtml,
   prepareRichTextInput,
@@ -215,6 +216,8 @@ function RichContent({ html, fallback }) {
   }, [prepared]);
 
   if (!prepared) return null;
+  // Session chat also receives LLM-authored Markdown, not only editor HTML.
+  if (!/<\/?[a-z][\s\S]*>/i.test(html || '') && fallback) return <AiMarkdownContent content={fallback} />;
 
   return (
     <Box

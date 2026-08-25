@@ -34,6 +34,7 @@ import { useTranslation } from 'react-i18next';
 import apiClient from '../../api/client';
 import StudentIdentity from '../common/StudentIdentity';
 import StudentRichTextEditor from '../questions/StudentRichTextEditor';
+import AiMarkdownContent from '../ai/AiMarkdownContent';
 import {
   extractPlainTextFromHtml,
   prepareRichTextInput,
@@ -153,6 +154,8 @@ function RichContent({ html, fallback }) {
   }, [prepared]);
 
   if (!prepared) return null;
+  // LLM-generated posts are commonly Markdown rather than editor HTML.
+  if (!/<\/?[a-z][\s\S]*>/i.test(html || '') && fallback) return <AiMarkdownContent content={fallback} />;
 
   return (
     <Box

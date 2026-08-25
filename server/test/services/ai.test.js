@@ -8,19 +8,18 @@ import {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('discoverOllamaModels', () => {
-  it('rejects cloud metadata and unapproved private network targets before fetching', async () => {
+  it('rejects cloud metadata and prohibited network targets while allowing configured private backends', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(discoverOllamaModels('http://169.254.169.254/latest'))
       .rejects.toThrow('prohibited metadata service');
-    await expect(discoverOllamaModels('http://10.20.30.40:11434'))
-      .rejects.toThrow('not allowed by the server configuration');
+    fetchMock.mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ models: [] }), { status: 200 })));
+    await expect(discoverOllamaModels('http://10.20.30.40:11434')).resolves.toEqual([]);
     await expect(discoverOllamaModels('http://100.100.100.200/latest'))
       .rejects.toThrow('prohibited network address');
-    await expect(discoverOllamaModels('http://[::ffff:7f00:1]:11434'))
-      .rejects.toThrow('not allowed by the server configuration');
-    expect(fetchMock).not.toHaveBeenCalled();
+    await expect(discoverOllamaModels('http://[::ffff:7f00:1]:11434')).resolves.toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it('preserves a base path and forwards a bearer token', async () => {

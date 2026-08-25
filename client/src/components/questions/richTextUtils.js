@@ -188,6 +188,14 @@ function normalizeLatexForKatex(latex) {
     .replace(/\\end\{align\*?\}/g, '\\end{aligned}');
 }
 
+// Older Qlicker content used literal parenthesis delimiters ("( x^2 (") for
+// inline TeX. Normalize that legacy notation before KaTeX sees the content.
+function convertLegacyParenthesisMath(value) {
+  return String(value || '').replace(/(^|[\s>])\(\s*([^\n<][\s\S]*?)\s*\((?=[\s<.,;:!?)]|$)/g, (match, prefix, latex) => (
+    `${prefix}\\(${latex.trim()}\\)`
+  ));
+}
+
 function convertLegacyMathScriptTags(html) {
   if (!html || typeof document === 'undefined') return html;
   const { root, toHtml } = createInertContainer(html);
@@ -303,6 +311,7 @@ export function prepareRichTextInput(value, fallback = '', options = {}) {
   if (!source) return '';
 
   let normalized = stripTransientBlobUrls(source);
+  normalized = convertLegacyParenthesisMath(normalized);
   normalized = convertLegacyMathScriptTags(normalized);
   normalized = convertStoredMathNodesToDelimiters(normalized);
 

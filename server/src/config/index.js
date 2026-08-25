@@ -115,8 +115,13 @@ export default {
   trustProxy: parseTrustProxyEnv(process.env.TRUST_PROXY, 1),
   disableRateLimits: parseBooleanEnv(process.env.DISABLE_RATE_LIMITS)
     || parseBooleanEnv(process.env.RATE_LIMIT_DISABLED),
-  // Private AI backends are denied unless their hostname is listed here. The
-  // defaults preserve the supported local Ollama development paths.
+  // AI backends are administrator-configured integrations. Permit private
+  // network endpoints by default so installations can use an arbitrary
+  // on-premise/provider endpoint; metadata and otherwise prohibited ranges
+  // remain blocked in services/ai.js. Set this to false to require the
+  // explicit hostname allowlist below.
+  aiBackendAllowPrivateHosts: parseOptionalBooleanEnv(process.env.AI_BACKEND_ALLOW_PRIVATE_HOSTS, true),
+  // Used only when AI_BACKEND_ALLOW_PRIVATE_HOSTS=false.
   aiBackendAllowedPrivateHosts: parseCsvEnv(
     process.env.AI_BACKEND_ALLOWED_PRIVATE_HOSTS,
     nodeEnv === 'production' ? [] : [

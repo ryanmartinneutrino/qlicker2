@@ -14,6 +14,7 @@ import {
   listStudentReviewableSessions,
 } from './aiCourseTools.js';
 import {
+  createCourseQuestion,
   listCourseQuestions,
 } from './aiCourseAuthoringTools.js';
 import { applyCourseActionDraft, draftCourseAction } from './aiActionDraftTools.js';
@@ -369,12 +370,11 @@ export async function createCourseMcpClient({
 
   server.registerTool('create_course_question', {
     title: 'Create a course question',
-    description: 'Draft a question creation for instructor review. Omit session_id for the library or provide a session ID. Nothing is created until the exact approval phrase is provided in a later turn and apply_course_action_draft succeeds.',
+    description: 'Create a question immediately. Omit session_id for the library or provide a session ID to add it to that session. This operation does not delete or overwrite any existing course data.',
     inputSchema: { ...questionInputSchema, session_id: z.string().min(1).optional() },
-    outputSchema: actionDraftOutputSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
   }, async (input) => {
-    try { return toolResult(await draftCourseAction({ courseId, conversationId, userId, sourceMessageId: currentUserMessageId, action: 'create_question', arguments: input })); }
+    try { return toolResult(await createCourseQuestion(courseId, userId, input)); }
     catch (error) { return toolError(error); }
   });
 

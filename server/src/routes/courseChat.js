@@ -628,6 +628,24 @@ export default async function courseChatRoutes(app) {
     };
   });
 
+  app.patch('/courses/:id/chat/posts/:postId', {
+    preHandler: [authenticate, courseChatWriteRateLimitPreHandler],
+    schema: { body: { type: 'object', properties: { title: { type: 'string', minLength: 1, maxLength: 160 }, body: { type: 'string' }, bodyWysiwyg: { type: 'string' } }, additionalProperties: false } },
+  }, async (request, reply) => {
+    const { course } = await loadCourseChatContext(request.params.id);
+    if (!course) return reply.code(404).send({ error: 'Not Found', message: 'Course not found' });
+    if (!isCourseMember(course, request.user) || !course.courseChatEnabled) return reply.code(403).send({ error: 'Forbidden', message: 'Course chat is not available' });
+    const post = await Post.findOne({ _id: request.params.postId, scopeType: 'course', courseId: String(course._id), archivedAt: null }).lean();
+    if (!post) return reply.code(404).send({ error: 'Not Found', message: 'Post not found' });
+    if (String(post.authorId || '') !== String(request.user.userId || '')) return reply.code(403).send({ error: 'Forbidden', message: 'You can only edit your own posts' });
+    const bodyWysiwyg = normalizeText(request.body?.bodyWysiwyg);
+    const body = normalizeText(request.body?.body || stripHtmlToPlainText(bodyWysiwyg));
+    if (!body && !bodyWysiwyg) return reply.code(400).send({ error: 'Bad Request', message: 'Post content is required' });
+    const updated = await Post.findByIdAndUpdate(post._id, { $set: { title: normalizeText(request.body?.title || post.title), body, bodyWysiwyg, updatedAt: new Date() } }, { returnDocument: 'after' }).lean();
+    await notifyCourseChatUpdated(app, course, { changeType: 'post-edited', postId: String(post._id), post: updated });
+    return { success: true, postId: String(post._id) };
+  });
+
   app.post('/courses/:id/chat/posts/:postId/comments', {
     preHandler: [authenticate, courseChatWriteRateLimitPreHandler],
     rateLimit: COURSE_CHAT_WRITE_RATE_LIMIT,
@@ -780,6 +798,27 @@ export default async function courseChatRoutes(app) {
       viewerHasUpvoted: !!request.body.upvoted,
       upvoteCount: nextUpvoteUserIds.length,
     };
+  });
+
+  app.patch('/courses/:id/chat/posts/:postId/comments/:commentId', {
+    preHandler: [authenticate, courseChatWriteRateLimitPreHandler],
+    schema: { body: { type: 'object', properties: { body: { type: 'string' }, bodyWysiwyg: { type: 'string' } }, additionalProperties: false } },
+  }, async (request, reply) => {
+    const { course } = await loadCourseChatContext(request.params.id);
+    if (!course) return reply.code(404).send({ error: 'Not Found', message: 'Course not found' });
+    if (!isCourseMember(course, request.user) || !course.courseChatEnabled) return reply.code(403).send({ error: 'Forbidden', message: 'Course chat is not available' });
+    const post = await Post.findOne({ _id: request.params.postId, scopeType: 'course', courseId: String(course._id), archivedAt: null }).lean();
+    if (!post) return reply.code(404).send({ error: 'Not Found', message: 'Post not found' });
+    const comment = (post.comments || []).find((entry) => String(entry?._id) === String(request.params.commentId));
+    if (!comment) return reply.code(404).send({ error: 'Not Found', message: 'Comment not found' });
+    if (String(comment.authorId || '') !== String(request.user.userId || '')) return reply.code(403).send({ error: 'Forbidden', message: 'You can only edit your own comments' });
+    const bodyWysiwyg = normalizeText(request.body?.bodyWysiwyg);
+    const body = normalizeText(request.body?.body || stripHtmlToPlainText(bodyWysiwyg));
+    if (!body && !bodyWysiwyg) return reply.code(400).send({ error: 'Bad Request', message: 'Comment content is required' });
+    const comments = post.comments.map((entry) => String(entry?._id) === String(comment._id) ? { ...entry, body, bodyWysiwyg, updatedAt: new Date() } : entry);
+    const updated = await Post.findByIdAndUpdate(post._id, { $set: { comments, updatedAt: new Date() } }, { returnDocument: 'after' }).lean();
+    await notifyCourseChatUpdated(app, course, { changeType: 'comment-edited', postId: String(post._id), post: updated });
+    return { success: true, postId: String(post._id), commentId: String(comment._id) };
   });
 
   app.patch('/courses/:id/chat/posts/:postId/archive', {
