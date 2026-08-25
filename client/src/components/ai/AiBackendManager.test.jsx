@@ -36,6 +36,28 @@ describe('AiBackendManager', () => {
     expect(onDefaultChange).toHaveBeenCalledWith('backend-1', 'model-1');
   });
 
+  it('defaults an administrator model name and allows a friendly override', () => {
+    const onChange = vi.fn();
+    render(<AiBackendManager
+      backends={[{
+        id: 'backend-1', name: 'Shared backend', url: 'http://ollama.test:11434',
+        models: [{ id: 'model-1', name: 'Model 1', available: true }],
+      }]}
+      onChange={onChange}
+      onDefaultChange={vi.fn()}
+    />);
+
+    const nameField = screen.getByLabelText('Model 1: User-facing model name');
+    expect(nameField).toHaveValue('Shared backend — Model 1');
+    fireEvent.change(nameField, { target: { value: 'Friendly model' } });
+
+    expect(onChange).toHaveBeenCalledWith([
+      expect.objectContaining({
+        models: [expect.objectContaining({ id: 'model-1', displayName: 'Friendly model' })],
+      }),
+    ]);
+  });
+
   it('requests an immediate save when an API token field loses focus', () => {
     const onChange = vi.fn();
     const backends = [{ id: 'backend-1', url: 'http://ollama.test:11434', apiToken: 'secret', models: [] }];
@@ -85,7 +107,7 @@ describe('AiBackendManager', () => {
       courseId: 'course-1',
     }));
     expect(onChange).toHaveBeenCalledWith([
-      expect.objectContaining({ models: [{ id: 'model-2', name: 'Model 2', available: true }] }),
+      expect.objectContaining({ models: [{ id: 'model-2', name: 'Model 2', displayName: '', available: true }] }),
     ]);
   });
 
@@ -116,6 +138,35 @@ describe('AiBackendManager', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Model 1: Available to students' }));
     expect(onModelPoliciesChange).toHaveBeenLastCalledWith([
       { backendId: 'backend-1', modelId: 'model-1', studentAvailable: true },
+    ]);
+  });
+
+  it('inherits the administrator model name until a professor overrides it', () => {
+    const onModelPoliciesChange = vi.fn();
+    render(<AiBackendManager
+      backends={[{
+        id: 'backend-1', name: 'Shared backend', url: 'http://ollama.test:11434',
+        models: [{ id: 'model-1', name: 'Model 1', displayName: 'Admin-friendly model', available: true }],
+      }]}
+      courseId="course-1"
+      readOnly
+      canAddBackends={false}
+      onChange={vi.fn()}
+      modelPolicies={[{ backendId: 'backend-1', modelId: 'model-1', studentAvailable: true }]}
+      onModelPoliciesChange={onModelPoliciesChange}
+    />);
+
+    const nameField = screen.getByLabelText('Model 1: User-facing model name');
+    expect(nameField).toHaveValue('Admin-friendly model');
+    fireEvent.change(nameField, { target: { value: 'Course-friendly model' } });
+
+    expect(onModelPoliciesChange).toHaveBeenCalledWith([
+      {
+        backendId: 'backend-1',
+        modelId: 'model-1',
+        displayName: 'Course-friendly model',
+        studentAvailable: true,
+      },
     ]);
   });
 });

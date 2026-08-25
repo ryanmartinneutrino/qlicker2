@@ -65,7 +65,7 @@ export default function AiModelSelect({ courseId, value, onChange, disabled = fa
     fullWidth={fullWidth}
   >
     {models.map((model) => <MenuItem key={aiModelValue(model.backendId, model.modelId)} value={aiModelValue(model.backendId, model.modelId)}>
-      {`${model.backendName} — ${model.modelName}`}
+      {model.displayName || `${model.backendName} — ${model.modelName}`}
     </MenuItem>)}
   </TextField>;
 }

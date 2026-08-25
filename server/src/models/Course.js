@@ -5,6 +5,7 @@ const AiModelSchema = new mongoose.Schema(
   {
     id: { type: String, required: true },
     name: { type: String, required: true },
+    displayName: { type: String, default: '', maxlength: 200 },
     available: { type: Boolean, default: true },
   },
   { _id: false }
@@ -26,6 +27,7 @@ const AiModelPolicySchema = new mongoose.Schema(
   {
     backendId: { type: String, required: true },
     modelId: { type: String, required: true },
+    displayName: { type: String, default: '', maxlength: 200 },
     studentAvailable: { type: Boolean, default: false },
   },
   { _id: false }

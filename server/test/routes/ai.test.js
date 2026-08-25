@@ -43,7 +43,7 @@ async function configureAi(courseId) {
     AI_Enabled: true,
     AI_EnabledCourses: [courseId],
     AI_Backends: [{ id: 'ollama-local', name: 'Local Ollama', type: 'ollama', url: 'http://ollama.test:11434', apiToken: 'admin-secret', models: [
-      { id: 'llama3.2', name: 'llama3.2', available: true },
+      { id: 'llama3.2', name: 'llama3.2', displayName: 'Friendly Llama', available: true },
       { id: 'qwen3', name: 'qwen3', available: true },
     ] }],
     AI_DefaultBackendId: 'ollama-local', AI_DefaultModelId: 'llama3.2',
@@ -108,7 +108,9 @@ describe('AI course configuration and chat', () => {
     expect(config.json().adminBackends[0].apiTokenSet).toBe(true);
     expect(JSON.stringify(config.json())).not.toContain('admin-secret');
     expect(config.json().approvedModels).toEqual([
-      expect.objectContaining({ backendId: 'ollama-local', modelId: 'llama3.2', studentAvailable: false }),
+      expect.objectContaining({
+        backendId: 'ollama-local', modelId: 'llama3.2', displayName: 'Friendly Llama', studentAvailable: false,
+      }),
     ]);
     expect(config.json()).toMatchObject({
       instructorChatMaxToolRounds: 20,
@@ -124,7 +126,7 @@ describe('AI course configuration and chat', () => {
         defaultModelId: 'qwen3',
         modelPolicies: [
           { backendId: 'ollama-local', modelId: 'llama3.2', studentAvailable: true },
-          { backendId: 'ollama-local', modelId: 'qwen3', studentAvailable: false },
+          { backendId: 'ollama-local', modelId: 'qwen3', displayName: 'Course Qwen', studentAvailable: false },
         ],
       },
     });
@@ -135,7 +137,9 @@ describe('AI course configuration and chat', () => {
     expect(stored.aiDefaultModelId).toBe('qwen3');
     expect(stored.aiModelPolicies).toEqual([
       expect.objectContaining({ backendId: 'ollama-local', modelId: 'llama3.2', studentAvailable: true }),
-      expect.objectContaining({ backendId: 'ollama-local', modelId: 'qwen3', studentAvailable: false }),
+      expect.objectContaining({
+        backendId: 'ollama-local', modelId: 'qwen3', displayName: 'Course Qwen', studentAvailable: false,
+      }),
     ]);
 
     const studentChatUpdate = await authenticatedRequest(app, 'PATCH', `/api/v1/ai/courses/${course._id}/config`, {
@@ -158,6 +162,10 @@ describe('AI course configuration and chat', () => {
       studentDefaultBackendId: 'ollama-local',
       studentDefaultModelId: 'llama3.2',
     });
+    expect(updatedConfig.json().approvedModels).toEqual(expect.arrayContaining([
+      expect.objectContaining({ modelId: 'llama3.2', displayName: 'Friendly Llama' }),
+      expect.objectContaining({ modelId: 'qwen3', displayName: 'Course Qwen' }),
+    ]));
 
     const invalidLimit = await authenticatedRequest(app, 'PATCH', `/api/v1/ai/courses/${course._id}/config`, {
       token,

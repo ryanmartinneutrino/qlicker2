@@ -141,7 +141,12 @@ function normalizeModelPolicies(value) {
   value.forEach((entry) => {
     const backendId = String(entry?.backendId || '');
     const modelId = String(entry?.modelId || '');
-    if (backendId && modelId) unique.set(modelKey(backendId, modelId), { backendId, modelId, studentAvailable: !!entry?.studentAvailable });
+    if (backendId && modelId) unique.set(modelKey(backendId, modelId), {
+      backendId,
+      modelId,
+      displayName: String(entry?.displayName || '').trim().slice(0, 200),
+      studentAvailable: !!entry?.studentAvailable,
+    });
   });
   return [...unique.values()];
 }
@@ -186,6 +191,7 @@ function approvedModels(course, settings, policy) {
       backendName: backend.name || backend.url,
       modelId: model.id,
       modelName: model.name,
+      displayName: modelPolicy.displayName || model.displayName || `${backend.name || backend.url} — ${model.name}`,
       studentAvailable: modelPolicy.studentAvailable,
     }] : [];
   }));

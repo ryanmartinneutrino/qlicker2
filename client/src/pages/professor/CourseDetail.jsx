@@ -19,7 +19,7 @@ import {
 import { useTheme } from '@mui/material/styles';
 import apiClient, { getUsableAccessToken } from '../../api/client';
 import { closeWebSocketQuietly } from '../../utils/liveSocket';
-import { getAvailableAiModels, hasIncompleteAiBackend } from '../../utils/aiBackends';
+import { getAiModelDisplayName, getAvailableAiModels, hasIncompleteAiBackend } from '../../utils/aiBackends';
 import { isCurrentUserCourseInstructorOrAdmin } from '../../utils/courseAccess';
 import { buildCourseSelectionLabel, buildCourseTitle, sortCoursesByRecent } from '../../utils/courseTitle';
 import {
@@ -93,9 +93,14 @@ function getSessionSortTime(session) {
 
 function getApprovedCourseAiModels(config) {
   if (!config) return [];
-  const approved = new Set((config.modelPolicies || []).map((entry) => `${entry.backendId}::${entry.modelId}`));
+  const approved = new Map((config.modelPolicies || []).map((entry) => [`${entry.backendId}::${entry.modelId}`, entry]));
   return getAvailableAiModels([...(config.adminBackends || []), ...(config.courseBackends || [])])
-    .filter(({ backend, model }) => approved.has(`${backend.id}::${model.id}`));
+    .filter(({ backend, model }) => approved.has(`${backend.id}::${model.id}`))
+    .map(({ backend, model }) => ({
+      backend,
+      model,
+      displayName: getAiModelDisplayName(backend, model, approved.get(`${backend.id}::${model.id}`)?.displayName),
+    }));
 }
 
 function getStudentCourseAiModels(config) {
@@ -2120,7 +2125,7 @@ export default function CourseDetail() {
                 const [defaultBackendId, defaultModelId] = event.target.value.split('::');
                 handleAiCourseDefaultChange(defaultBackendId, defaultModelId);
               }} fullWidth>
-                {getApprovedCourseAiModels(aiConfig).map(({ backend, model }) => <MenuItem key={`${backend.id}-${model.id}`} value={`${backend.id}::${model.id}`}>{`${backend.name || backend.url} — ${model.name}`}</MenuItem>)}
+                {getApprovedCourseAiModels(aiConfig).map(({ backend, model, displayName }) => <MenuItem key={`${backend.id}-${model.id}`} value={`${backend.id}::${model.id}`}>{displayName}</MenuItem>)}
               </TextField>
               <TextField
                 type="number"
@@ -2165,7 +2170,7 @@ export default function CourseDetail() {
                   helperText={getStudentCourseAiModels(aiConfig).length ? undefined : t('professor.course.studentAiModelUnavailable')}
                   fullWidth
                 >
-                  {getStudentCourseAiModels(aiConfig).map(({ backend, model }) => <MenuItem key={`${backend.id}-${model.id}`} value={`${backend.id}::${model.id}`}>{`${backend.name || backend.url} — ${model.name}`}</MenuItem>)}
+                  {getStudentCourseAiModels(aiConfig).map(({ backend, model, displayName }) => <MenuItem key={`${backend.id}-${model.id}`} value={`${backend.id}::${model.id}`}>{displayName}</MenuItem>)}
                 </TextField>
                 <TextField
                   type="number"

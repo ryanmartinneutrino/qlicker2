@@ -7,3 +7,8 @@ export function getAvailableAiModels(backends = []) {
     .filter((model) => model.available !== false)
     .map((model) => ({ backend, model })));
 }
+
+export function getAiModelDisplayName(backend, model, override = '') {
+  return String(override || model?.displayName || '').trim()
+    || `${backend?.name || backend?.url || ''} — ${model?.name || model?.id || ''}`;
+}

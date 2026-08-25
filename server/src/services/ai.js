@@ -147,6 +147,7 @@ export function normalizeAiBackends(value = []) {
     models: (Array.isArray(backend?.models) ? backend.models : []).map((model) => ({
       id: String(model?.id || model?.name || '').trim(),
       name: String(model?.name || model?.id || '').trim(),
+      displayName: String(model?.displayName || '').trim().slice(0, 200),
       available: model?.available !== false,
     })).filter((model) => model.id && model.name),
   })).filter((backend) => backend.url && backend.id);

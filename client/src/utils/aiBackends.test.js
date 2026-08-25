@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getAvailableAiModels, hasIncompleteAiBackend } from './aiBackends';
+import { getAiModelDisplayName, getAvailableAiModels, hasIncompleteAiBackend } from './aiBackends';
 
 describe('hasIncompleteAiBackend', () => {
   it('keeps a newly-added backend as a local draft until it has a URL', () => {
@@ -15,5 +15,14 @@ describe('hasIncompleteAiBackend', () => {
       backend: expect.objectContaining({ id: 'backend-1' }),
       model: expect.objectContaining({ id: 'available' }),
     }]);
+  });
+
+  it('uses a custom model name and falls back to the existing backend-model label', () => {
+    const backend = { name: 'Backend' };
+    const model = { id: 'model-1', name: 'Model 1' };
+
+    expect(getAiModelDisplayName(backend, model)).toBe('Backend — Model 1');
+    expect(getAiModelDisplayName(backend, { ...model, displayName: 'Admin name' })).toBe('Admin name');
+    expect(getAiModelDisplayName(backend, { ...model, displayName: 'Admin name' }, 'Course name')).toBe('Course name');
   });
 });

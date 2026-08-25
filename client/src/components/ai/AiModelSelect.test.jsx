@@ -34,12 +34,19 @@ describe('AiModelSelect persistence', () => {
   });
 
   it('stores a selection under its course, audience, and task key', async () => {
+    apiClient.get.mockResolvedValue({ data: {
+      ...config,
+      approvedModels: [
+        config.approvedModels[0],
+        { ...config.approvedModels[1], displayName: 'Friendly Model 2' },
+      ],
+    } });
     const onChange = vi.fn();
     render(<AiModelSelect courseId="course-1" task="response-summary" value="backend-1::model-1" onChange={onChange} />);
 
     const select = await screen.findByRole('combobox', { name: 'Model for this task' });
     fireEvent.mouseDown(select);
-    fireEvent.click(within(await screen.findByRole('listbox')).getByRole('option', { name: 'Backend — Model 2' }));
+    fireEvent.click(within(await screen.findByRole('listbox')).getByRole('option', { name: 'Friendly Model 2' }));
 
     expect(onChange).toHaveBeenCalledWith('backend-1::model-2');
     expect(localStorage.getItem('qlicker.ai.model.instructor.course-1.response-summary')).toBe('backend-1::model-2');

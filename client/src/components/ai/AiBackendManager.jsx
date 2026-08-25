@@ -5,6 +5,7 @@ import {
 import { Add as AddIcon, DeleteOutline as DeleteIcon, Refresh as DiscoverIcon } from '@mui/icons-material';
 import { useTranslation } from 'react-i18next';
 import apiClient from '../../api/client';
+import { getAiModelDisplayName } from '../../utils/aiBackends';
 
 function newBackend() {
   return { id: `backend-${crypto.randomUUID()}`, name: '', type: 'ollama', url: '', apiToken: '', models: [] };
@@ -46,7 +47,7 @@ export default function AiBackendManager({
       onModelPoliciesChange(modelPolicies.filter((entry) => !(entry.backendId === backendId && entry.modelId === modelId)));
       return;
     }
-    const next = { backendId, modelId, studentAvailable: existing?.studentAvailable || false, ...update };
+    const next = { ...existing, backendId, modelId, studentAvailable: existing?.studentAvailable || false, ...update };
     delete next.approved;
     onModelPoliciesChange([
       ...modelPolicies.filter((entry) => !(entry.backendId === backendId && entry.modelId === modelId)),
@@ -64,7 +65,11 @@ export default function AiBackendManager({
         ...(courseId ? { courseId } : {}),
       });
       const existing = new Map((backend.models || []).map((model) => [model.id, model]));
-      updateBackend(backend.id, { models: (data.models || []).map((model) => ({ ...model, available: existing.get(model.id)?.available !== false })) });
+      updateBackend(backend.id, { models: (data.models || []).map((model) => ({
+        ...model,
+        displayName: existing.get(model.id)?.displayName || '',
+        available: existing.get(model.id)?.available !== false,
+      })) });
       setExpandedModels((current) => ({ ...current, [backend.id]: true }));
     } catch (err) { setError(err.response?.data?.message || t('ai.backends.discoveryFailed')); }
     finally { setDiscovering((current) => ({ ...current, [backend.id]: false })); }
@@ -119,12 +124,31 @@ export default function AiBackendManager({
           {visibleModels.map((model) => {
             const modelPolicy = policyFor(backend.id, model.id);
             const isDefault = defaultBackendId === backend.id && defaultModelId === model.id;
+            const defaultDisplayName = getAiModelDisplayName(backend, model);
             return <Box key={model.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
               {courseId ? <>
                 <FormControlLabel control={<Checkbox checked={!!modelPolicy} disabled={isDefault} onChange={(event) => updateModelPolicy(backend.id, model.id, { approved: event.target.checked })} />} label={model.name} />
+                <TextField
+                  size="small"
+                  label={t('ai.backends.displayName')}
+                  value={modelPolicy?.displayName || defaultDisplayName}
+                  disabled={!modelPolicy}
+                  onChange={(event) => updateModelPolicy(backend.id, model.id, { displayName: event.target.value })}
+                  inputProps={{ maxLength: 200, 'aria-label': `${model.name}: ${t('ai.backends.displayName')}` }}
+                  sx={{ flex: '1 1 260px' }}
+                />
                 {modelPolicy ? <FormControlLabel control={<Checkbox inputProps={{ 'aria-label': `${model.name}: ${t('ai.backends.availableToStudents')}` }} checked={!!modelPolicy.studentAvailable} onChange={(event) => updateModelPolicy(backend.id, model.id, { studentAvailable: event.target.checked })} />} label={t('ai.backends.availableToStudents')} /> : null}
               </> : <>
                 <FormControlLabel control={<Checkbox checked={model.available !== false} onChange={(event) => updateBackend(backend.id, { models: backend.models.map((entry) => entry.id === model.id ? { ...entry, available: event.target.checked } : entry) })} />} label={model.name} />
+                <TextField
+                  size="small"
+                  label={t('ai.backends.displayName')}
+                  value={model.displayName || defaultDisplayName}
+                  disabled={model.available === false}
+                  onChange={(event) => updateBackend(backend.id, { models: backend.models.map((entry) => entry.id === model.id ? { ...entry, displayName: event.target.value } : entry) })}
+                  inputProps={{ maxLength: 200, 'aria-label': `${model.name}: ${t('ai.backends.displayName')}` }}
+                  sx={{ flex: '1 1 260px' }}
+                />
                 <Button size="small" variant={isDefault ? 'contained' : 'outlined'} onClick={() => onDefaultChange(backend.id, model.id)}>{t('ai.backends.makeDefault')}</Button>
               </>}
             </Box>;

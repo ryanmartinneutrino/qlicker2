@@ -12,6 +12,7 @@ const AiModelSchema = new mongoose.Schema(
   {
     id: { type: String, required: true },
     name: { type: String, required: true },
+    displayName: { type: String, default: '', maxlength: 200 },
     available: { type: Boolean, default: true },
   },
   { _id: false }

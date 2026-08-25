@@ -2515,6 +2515,7 @@
       "apiToken": "API token (optional)",
       "discoveryFailed": "Could not find models on this backend.",
       "modelsHelp": "Only checked models are available for course AI use.",
+      "displayName": "Anzeigename des Modells",
       "availableToStudents": "Für Studierende verfügbar",
       "showAvailableModels": "Verfügbare Modelle anzeigen",
       "makeDefault": "Make default"
