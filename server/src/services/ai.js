@@ -259,12 +259,13 @@ function toolDefinitionsForProvider(tools = []) {
   }));
 }
 
-async function requestAiMessageOnce(backend, modelId, messages, tools = [], signal = undefined) {
+async function requestAiMessageOnce(backend, modelId, messages, tools = [], signal = undefined, requestOptions = {}) {
   const headers = { 'content-type': 'application/json' };
   if (backend.apiToken) headers.authorization = `Bearer ${backend.apiToken}`;
   const baseUrl = normalizeAiUrl(backend.url);
   const isOpenAi = backend.type === 'openai';
   const requestBody = { model: modelId, messages, stream: false };
+  if (requestOptions.jsonMode && !isOpenAi) requestBody.format = 'json';
   const requestTimeoutMs = Number.isFinite(Number(backend?.requestTimeoutMs))
     ? Math.max(1_000, Number(backend.requestTimeoutMs))
     : config.aiBackendRequestTimeoutMs;
@@ -286,7 +287,7 @@ async function requestAiMessageOnce(backend, modelId, messages, tools = [], sign
   return { content, toolCalls };
 }
 
-export async function requestAiMessage(backend, modelId, messages, tools = [], signal = undefined) {
+async function requestAiMessageWithOptions(backend, modelId, messages, tools = [], signal = undefined, requestOptions = {}) {
   let formatError = null;
   for (let attempt = 0; attempt < AI_RESPONSE_FORMAT_ATTEMPTS; attempt += 1) {
     const correctiveMessage = attempt === 0 ? [] : [{
@@ -294,11 +295,19 @@ export async function requestAiMessage(backend, modelId, messages, tools = [], s
       content: 'Your previous response was rejected because its format was invalid. No tool call from that rejected response was executed. Continue from the existing conversation and tool results without repeating completed work. Return either a non-empty chat message or valid function tool calls whose arguments are strict JSON objects matching the supplied schemas.',
     }];
     try {
-      return await requestAiMessageOnce(backend, modelId, [...messages, ...correctiveMessage], tools, signal);
+      return await requestAiMessageOnce(backend, modelId, [...messages, ...correctiveMessage], tools, signal, requestOptions);
     } catch (error) {
       if (!(error instanceof AiResponseFormatError)) throw error;
       formatError = error;
     }
   }
   throw new Error(`AI backend repeatedly returned an invalid response: ${formatError?.message || 'unknown format error'}`);
+}
+
+export async function requestAiMessage(backend, modelId, messages, tools = [], signal = undefined) {
+  return requestAiMessageWithOptions(backend, modelId, messages, tools, signal);
+}
+
+export async function requestAiJsonMessage(backend, modelId, messages, signal = undefined) {
+  return requestAiMessageWithOptions(backend, modelId, messages, [], signal, { jsonMode: true });
 }

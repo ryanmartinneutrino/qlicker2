@@ -15,6 +15,7 @@ import {
 } from './aiCourseTools.js';
 import {
   createCourseQuestion,
+  createCourseSession,
   listCourseQuestions,
 } from './aiCourseAuthoringTools.js';
 import { applyCourseActionDraft, draftCourseAction } from './aiActionDraftTools.js';
@@ -76,6 +77,36 @@ const actionDraftOutputSchema = {
     approval_phrase: z.string().min(1),
   }),
   applied: z.literal(false),
+};
+
+const sessionCreationOutputSchema = {
+  session: z.object({
+    session_id: z.string().min(1),
+    name: z.string(),
+    description: z.string(),
+    type: z.enum(['interactive', 'quiz']),
+    status: z.string(),
+    quiz_start: z.string().nullable(),
+    quiz_end: z.string().nullable(),
+    tags: z.array(z.string()),
+  }),
+  created: z.boolean(),
+  warnings: z.array(z.string()),
+  quiz_window: z.object({ start: z.string(), end: z.string() }).optional(),
+};
+
+const questionCreationOutputSchema = {
+  question: z.object({
+    question_id: z.string().min(1),
+    session_id: z.string(),
+    location: z.enum(['session', 'question_library']),
+    type: z.string(),
+    prompt: z.string(),
+    approved: z.boolean(),
+    tags: z.array(z.string()),
+    warnings: z.array(z.string()),
+  }),
+  warnings: z.array(z.string()),
 };
 
 export async function createCourseMcpClient({
@@ -163,14 +194,15 @@ export async function createCourseMcpClient({
 
   server.registerTool('list_course_sessions', {
     title: 'List course sessions',
-    description: 'List a page of non-student-created sessions in the current course. Use next_offset when an older session is not on the current page.',
+    description: 'List a page of non-student-created sessions in the current course. Filter by name or description when looking for a named session. Use next_offset when an older session is not on the current page.',
     inputSchema: {
+      query: z.string().max(500).optional(),
       offset: z.number().int().min(0).optional(),
       limit: z.number().int().min(1).max(50).optional(),
     },
     annotations: { readOnlyHint: true },
-  }, async ({ offset, limit }) => {
-    try { return toolResult(await listCourseSessions(courseId, { offset, limit })); }
+  }, async ({ query, offset, limit }) => {
+    try { return toolResult(await listCourseSessions(courseId, { query, offset, limit })); }
     catch (error) { return toolError(error); }
   });
 
@@ -333,7 +365,7 @@ export async function createCourseMcpClient({
 
   server.registerTool('create_course_session', {
     title: 'Create a course session',
-    description: 'Draft creation of an interactive session or quiz for instructor review. This does not create anything until the instructor replies with the exact approval phrase and apply_course_action_draft succeeds. For a quiz, omit quiz_start and quiz_end to use the safe default when applied.',
+    description: 'Create an interactive session or quiz immediately; no approval is required. First use list_course_sessions to avoid duplicates. If an instructor asks for questions in the session, use the returned session.session_id in create_course_question calls. An existing instructor session with the same name and type is safely reused. For a quiz, omit quiz_start and quiz_end to use the safe default.',
     inputSchema: {
       name: z.string().min(1).max(200),
       description: z.string().max(10_000).optional(),
@@ -342,10 +374,10 @@ export async function createCourseMcpClient({
       quiz_end: z.string().optional(),
       tags: z.array(z.string().max(200)).max(20).optional(),
     },
-    outputSchema: actionDraftOutputSchema,
+    outputSchema: sessionCreationOutputSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
   }, async (input) => {
-    try { return toolResult(await draftCourseAction({ courseId, conversationId, userId, sourceMessageId: currentUserMessageId, action: 'create_session', arguments: input })); }
+    try { return toolResult(await createCourseSession(courseId, userId, input)); }
     catch (error) { return toolError(error); }
   });
 
@@ -372,6 +404,7 @@ export async function createCourseMcpClient({
     title: 'Create a course question',
     description: 'Create a question immediately. Omit session_id for the library or provide a session ID to add it to that session. This operation does not delete or overwrite any existing course data.',
     inputSchema: { ...questionInputSchema, session_id: z.string().min(1).optional() },
+    outputSchema: questionCreationOutputSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
   }, async (input) => {
     try { return toolResult(await createCourseQuestion(courseId, userId, input)); }
@@ -401,8 +434,8 @@ export async function createCourseMcpClient({
   });
 
   server.registerTool('apply_course_action_draft', {
-    title: 'Apply an explicitly approved course action',
-    description: 'Apply a previously presented session or question action without changing it. This succeeds only when the current instructor message exactly equals the draft-specific approval phrase, in a later turn.',
+    title: 'Apply an explicitly approved course edit',
+    description: 'Apply a previously presented edit to an existing session or question without changing the draft. Creation does not use this tool. This succeeds only when the current instructor message exactly equals the draft-specific approval phrase, in a later turn.',
     inputSchema: { draft_id: z.string().min(1) },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
   }, async ({ draft_id: draftId }) => {

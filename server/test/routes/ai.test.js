@@ -672,27 +672,20 @@ describe('AI course configuration and chat', () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
-  it('requires explicit later-turn approval before creating a quiz and reports its schedule', async (ctx) => {
+  it('creates a quiz immediately without approval and reports its schedule', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
     const professor = await createTestUser({ email: 'ai-author-prof@example.com', roles: ['professor'] });
     const token = await getAuthToken(app, professor);
     const course = await createCourse(token);
     await Course.findByIdAndUpdate(course._id, { $set: { aiEnabled: true } });
     await configureAi(course._id);
+    await Settings.updateOne({ _id: 'settings' }, { $set: { 'AI_Backends.0.url': 'http://127.0.0.1:11434' } });
     vi.stubGlobal('fetch', vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({ message: { content: '', tool_calls: [{ function: {
         name: 'create_course_session',
         arguments: { name: 'Generated Quiz', type: 'quiz' },
       } }] } }), { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ message: { content: 'Please review the proposed quiz.' } }), { status: 200 }))
-      .mockImplementationOnce(async () => {
-        const draft = await AiActionDraft.findOne({ courseId: course._id, action: 'create_session' }).lean();
-        return new Response(JSON.stringify({ message: { content: '', tool_calls: [{ function: {
-          name: 'apply_course_action_draft',
-          arguments: { draft_id: draft._id },
-        } }] } }), { status: 200 });
-      })
-      .mockResolvedValueOnce(new Response(JSON.stringify({ message: { content: 'The approved quiz was created.' } }), { status: 200 })));
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: { content: 'The quiz was created.' } }), { status: 200 })));
 
     const created = await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations`, { token });
     const conversationId = created.json().conversation._id;
@@ -703,22 +696,79 @@ describe('AI course configuration and chat', () => {
 
     await vi.waitFor(async () => {
       const updated = await authenticatedRequest(app, 'GET', `/api/v1/ai/courses/${course._id}/conversations/${conversationId}`, { token });
-      expect(updated.json().conversation.messages.at(-1).content).toContain('AI course action draft — not applied');
-    });
-    expect(await Session.findOne({ courseId: course._id, name: 'Generated Quiz' }).lean()).toBeNull();
-    const draft = await AiActionDraft.findOne({ courseId: course._id, action: 'create_session' }).lean();
-    await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations/${conversationId}/messages`, {
-      token,
-      payload: { content: `Approve AI course action ${draft._id}` },
-    });
-    await vi.waitFor(async () => {
-      const updated = await authenticatedRequest(app, 'GET', `/api/v1/ai/courses/${course._id}/conversations/${conversationId}`, { token });
       expect(updated.json().conversation.messages.at(-1).content).toContain('Quiz schedule: Generated Quiz');
     });
     const quiz = await Session.findOne({ courseId: course._id, name: 'Generated Quiz' }).lean();
     expect(quiz).toMatchObject({ quiz: true, status: 'hidden' });
     expect(new Date(quiz.quizEnd).getTime() - new Date(quiz.quizStart).getTime()).toBe(12 * 60 * 60 * 1000);
     expect(new Date(quiz.quizStart).getMinutes()).toBe(0);
+    expect(await AiActionDraft.countDocuments({ courseId: course._id })).toBe(0);
+  });
+
+  it('recovers when a model asks for approval instead of creating questions in an existing session', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const professor = await createTestUser({ email: 'ai-author-recovery-prof@example.com', roles: ['professor'] });
+    const token = await getAuthToken(app, professor);
+    const course = await createCourse(token);
+    await Course.findByIdAndUpdate(course._id, { $set: { aiEnabled: true } });
+    await configureAi(course._id);
+    await Settings.updateOne({ _id: 'settings' }, { $set: { 'AI_Backends.0.url': 'http://127.0.0.1:11434' } });
+    const session = await Session.create({
+      name: 'L6', courseId: course._id, creator: professor._id, status: 'hidden', questions: [],
+    });
+    const questions = [
+      {
+        type: 'multiple_choice', prompt: 'Which condition conserves angular momentum?',
+        options: [{ text: 'Zero net external torque', correct: true }, { text: 'Constant linear speed', correct: false }],
+      },
+      {
+        type: 'multiple_choice', prompt: 'What is angular momentum for a rigid body?',
+        options: [{ text: 'I times omega', correct: true }, { text: 'Mass times acceleration', correct: false }],
+      },
+      {
+        type: 'multiple_choice', prompt: 'What does an external torque change?',
+        options: [{ text: 'Angular momentum', correct: true }, { text: 'Rest mass', correct: false }],
+      },
+    ];
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: {
+        content: 'I need to draft this action and receive your approval before creating L6.',
+      } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: {
+        content: '```plaintext\nlist_course_sessions(query="L6")\ncreate_course_question(...)\n```',
+      } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: {
+        content: JSON.stringify({
+          session: { name: 'L6', type: 'interactive', description: 'Angular momentum practice' },
+          questions,
+        }),
+      } }), { status: 200 })));
+
+    const created = await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations`, { token });
+    const conversationId = created.json().conversation._id;
+    await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations/${conversationId}/messages`, {
+      token,
+      payload: { content: 'Create an interactive session called L6 and include three multiple-choice questions about angular momentum.' },
+    });
+
+    await vi.waitFor(async () => {
+      const updated = await authenticatedRequest(app, 'GET', `/api/v1/ai/courses/${course._id}/conversations/${conversationId}`, { token });
+      expect(updated.json().conversation.messages.at(-1).content).toContain('Used existing session “L6”');
+      expect(updated.json().conversation.messages.at(-1).content).toContain('Created 3 questions');
+    });
+    expect(fetch).toHaveBeenCalledTimes(3);
+    const recoveryRequest = JSON.parse(fetch.mock.calls[1][1].body);
+    expect(recoveryRequest.messages).toContainEqual(expect.objectContaining({
+      role: 'system',
+      content: expect.stringContaining('do not ask for approval'),
+    }));
+    const fallbackRequest = JSON.parse(fetch.mock.calls[2][1].body);
+    expect(fallbackRequest).toMatchObject({ format: 'json' });
+    expect(fallbackRequest.tools).toBeUndefined();
+    const storedSession = await Session.findById(session._id).lean();
+    expect(storedSession.questions).toHaveLength(3);
+    expect(await Question.countDocuments({ courseId: course._id, sessionId: session._id })).toBe(3);
+    expect(await AiActionDraft.countDocuments({ courseId: course._id })).toBe(0);
   });
 
   it('shows a course chat draft and requires its exact later-turn approval before posting', async (ctx) => {

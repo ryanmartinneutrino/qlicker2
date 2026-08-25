@@ -134,6 +134,22 @@ export async function createCourseSession(courseId, userId, input, now = new Dat
   const type = input.type === 'quiz' ? 'quiz' : 'interactive';
   const name = String(input.name || '').trim();
   if (!name) throw new Error('Session name is required');
+  const existing = await Session.findOne({
+    courseId: String(course._id),
+    name: { $regex: `^${escapeRegex(name)}$`, $options: 'i' },
+    studentCreated: { $ne: true },
+  }).sort({ createdAt: -1 }).lean();
+  if (existing) {
+    const existingType = existing.quiz ? 'quiz' : 'interactive';
+    if (existingType !== type) {
+      throw new Error(`A session named "${existing.name}" already exists as ${existingType}. Use that session or choose a different name.`);
+    }
+    return {
+      session: serializeSession(existing),
+      created: false,
+      warnings: [`Session "${existing.name}" already existed and was reused.`],
+    };
+  }
   const { resolved, unknown } = resolveCourseTags(course, input.tags);
   const warnings = unknown.length ? [`These requested course topics were not configured and were not added: ${unknown.join(', ')}.`] : [];
   const quizWindow = type === 'quiz' ? resolveQuizWindow({ quizStart: input.quiz_start, quizEnd: input.quiz_end }, now) : null;
@@ -155,6 +171,7 @@ export async function createCourseSession(courseId, userId, input, now = new Dat
   await Course.findByIdAndUpdate(course._id, { $addToSet: { sessions: session._id } });
   return {
     session: serializeSession(session),
+    created: true,
     warnings,
     ...(quizWindow ? { quiz_window: { start: quizWindow.start.toISOString(), end: quizWindow.end.toISOString() } } : {}),
   };

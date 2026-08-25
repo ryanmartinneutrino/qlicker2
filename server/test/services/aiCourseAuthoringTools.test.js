@@ -8,6 +8,7 @@ import {
   createCourseSession,
   defaultQuizWindow,
 } from '../../src/services/aiCourseAuthoringTools.js';
+import { listCourseSessions } from '../../src/services/aiCourseTools.js';
 
 describe('AI course authoring tools', () => {
   it('rounds the default quiz start to the hour 24 hours ahead and ends it 12 hours later', () => {
@@ -26,7 +27,20 @@ describe('AI course authoring tools', () => {
     const quizResult = await createCourseSession(course._id, 'prof-1', {
       name: 'AI Quiz', type: 'quiz', tags: ['Kinematics'],
     }, new Date('2026-08-19T09:47:31.000Z'));
+    expect(quizResult.created).toBe(true);
     expect(quizResult.quiz_window).toEqual({ start: '2026-08-20T09:00:00.000Z', end: '2026-08-20T21:00:00.000Z' });
+
+    const reusedQuiz = await createCourseSession(course._id, 'prof-1', {
+      name: 'ai quiz', type: 'quiz',
+    });
+    expect(reusedQuiz).toMatchObject({
+      created: false,
+      session: { session_id: quizResult.session.session_id, name: 'AI Quiz' },
+    });
+    expect(await Session.countDocuments({ courseId: course._id, name: 'AI Quiz' })).toBe(1);
+    expect((await listCourseSessions(course._id, { query: 'ai quiz' })).sessions).toEqual([
+      expect.objectContaining({ session_id: quizResult.session.session_id, name: 'AI Quiz' }),
+    ]);
 
     const libraryResult = await createCourseQuestion(course._id, 'prof-1', {
       type: 'short_answer', prompt: 'Define velocity.', tags: ['Kinematics'], points: 2,

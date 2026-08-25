@@ -3,6 +3,7 @@ import {
   courseChatMaxToolRounds,
   DEFAULT_INSTRUCTOR_CHAT_MAX_TOOL_ROUNDS,
   DEFAULT_STUDENT_CHAT_MAX_TOOL_ROUNDS,
+  instructorCreationGoals,
   recentConversationMessages,
 } from '../../src/services/aiChatRunner.js';
 
@@ -28,6 +29,26 @@ describe('recentConversationMessages', () => {
       { role: 'user', content: 'Question 7' },
       { role: 'assistant', content: 'Response 7' },
     ]);
+  });
+});
+
+describe('instructorCreationGoals', () => {
+  it('detects a combined session and counted-question creation request', () => {
+    expect(instructorCreationGoals([{
+      role: 'user',
+      content: 'Create an interactive session called L6 and include three multiple-choice questions.',
+    }])).toEqual({ session: true, questions: true, questionCount: 3 });
+  });
+
+  it('does not turn how-to questions into course mutations', () => {
+    expect(instructorCreationGoals([{
+      role: 'user',
+      content: 'How do I create a session?',
+    }])).toBeNull();
+    expect(instructorCreationGoals([{
+      role: 'user',
+      content: 'Do not create a session; just explain the workflow.',
+    }])).toBeNull();
   });
 });
 

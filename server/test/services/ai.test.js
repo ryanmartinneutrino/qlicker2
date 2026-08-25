@@ -3,6 +3,7 @@ import {
   discoverOllamaModels,
   discoverOpenAiModels,
   normalizeAiRequestTimeoutSeconds,
+  requestAiJsonMessage,
   requestAiMessage,
 } from '../../src/services/ai.js';
 
@@ -83,6 +84,21 @@ describe('requestAiMessage', () => {
 
     expect(timeoutSpy).toHaveBeenCalledWith(420_000);
     timeoutSpy.mockRestore();
+  });
+
+  it('requests native JSON mode from Ollama for validated creation-plan fallbacks', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      message: { content: '{"session":null,"questions":[]}' },
+    }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(requestAiJsonMessage(
+      { type: 'ollama', url: 'http://localhost:11434' },
+      'local-model',
+      [{ role: 'user', content: 'Return JSON.' }]
+    )).resolves.toMatchObject({ content: '{"session":null,"questions":[]}', toolCalls: [] });
+
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ format: 'json' });
   });
 
   it('retries an empty model response with corrective format guidance', async () => {

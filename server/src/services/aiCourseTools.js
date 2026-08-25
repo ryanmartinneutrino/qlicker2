@@ -36,6 +36,10 @@ function sessionSortTime(session) {
   return new Date(session?.date || session?.quizStart || session?.createdAt || 0).getTime();
 }
 
+function escapeRegex(value) {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 async function requireCourseSession(courseId, sessionId) {
   const session = await Session.findOne({ _id: String(sessionId), courseId: String(courseId) }).lean();
   if (!session || session.studentCreated) throw new Error('Session not found in this course');
@@ -159,13 +163,18 @@ export async function listCourseStudents(courseId, { offset = 0, limit = DEFAULT
   };
 }
 
-export async function listCourseSessions(courseId, { offset = 0, limit = DEFAULT_PAGE_SIZE } = {}) {
-  const query = { courseId: String(courseId), studentCreated: { $ne: true } };
+export async function listCourseSessions(courseId, { query = '', offset = 0, limit = DEFAULT_PAGE_SIZE } = {}) {
+  const filter = { courseId: String(courseId), studentCreated: { $ne: true } };
+  const search = String(query || '').trim();
+  if (search) {
+    const pattern = { $regex: escapeRegex(search), $options: 'i' };
+    filter.$or = [{ name: pattern }, { description: pattern }];
+  }
   const pageOffset = clampPageValue(offset, 0, Number.MAX_SAFE_INTEGER);
   const pageSize = clampPageValue(limit, DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE) || DEFAULT_PAGE_SIZE;
   const [total, sessions] = await Promise.all([
-    Session.countDocuments(query),
-    Session.find(query)
+    Session.countDocuments(filter),
+    Session.find(filter)
       .select('_id name description status date quiz quizStart quizEnd practiceQuiz reviewable createdAt questions')
       .sort({ date: -1, quizStart: -1, createdAt: -1 })
       .skip(pageOffset)
