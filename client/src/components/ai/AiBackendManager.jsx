@@ -120,14 +120,26 @@ export default function AiBackendManager({
         {readOnly ? <Button size="small" variant="outlined" startIcon={<DiscoverIcon />} disabled={!backend.url || discovering[backend.id]} onClick={() => discover(backend)}>{t('ai.backends.showAvailableModels')}</Button> : null}
         {visibleModels.length > 0 ? <>
           <Divider sx={{ my: 1.25 }} />
-          <Typography variant="caption" color="text.secondary">{t('ai.backends.modelsHelp')}</Typography>
-          {visibleModels.map((model) => {
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75 }}>{t('ai.backends.modelsHelp')}</Typography>
+          {visibleModels.map((model, modelIndex) => {
             const modelPolicy = policyFor(backend.id, model.id);
             const isDefault = defaultBackendId === backend.id && defaultModelId === model.id;
             const defaultDisplayName = getAiModelDisplayName(backend, model);
-            return <Box key={model.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            const modelRowSx = {
+              display: 'grid',
+              gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(180px, 0.75fr) minmax(260px, 1.25fr) auto' },
+              alignItems: 'center',
+              columnGap: 1.5,
+              rowGap: 0.75,
+              py: 1,
+              borderTop: modelIndex ? 1 : 0,
+              borderColor: 'divider',
+            };
+            const availabilitySx = { m: 0, minWidth: 0 };
+            const nameFieldSx = { width: '100%', gridColumn: courseId ? { xs: '1', md: '2 / -1' } : undefined };
+            return <Box key={model.id} sx={modelRowSx}>
               {courseId ? <>
-                <FormControlLabel control={<Checkbox checked={!!modelPolicy} disabled={isDefault} onChange={(event) => updateModelPolicy(backend.id, model.id, { approved: event.target.checked })} />} label={model.name} />
+                <FormControlLabel sx={availabilitySx} control={<Checkbox checked={!!modelPolicy} disabled={isDefault} onChange={(event) => updateModelPolicy(backend.id, model.id, { approved: event.target.checked })} />} label={model.name} />
                 <TextField
                   size="small"
                   label={t('ai.backends.displayName')}
@@ -135,11 +147,15 @@ export default function AiBackendManager({
                   disabled={!modelPolicy}
                   onChange={(event) => updateModelPolicy(backend.id, model.id, { displayName: event.target.value })}
                   inputProps={{ maxLength: 200, 'aria-label': `${model.name}: ${t('ai.backends.displayName')}` }}
-                  sx={{ flex: '1 1 260px' }}
+                  sx={nameFieldSx}
                 />
-                {modelPolicy ? <FormControlLabel control={<Checkbox inputProps={{ 'aria-label': `${model.name}: ${t('ai.backends.availableToStudents')}` }} checked={!!modelPolicy.studentAvailable} onChange={(event) => updateModelPolicy(backend.id, model.id, { studentAvailable: event.target.checked })} />} label={t('ai.backends.availableToStudents')} /> : null}
+                {modelPolicy ? <FormControlLabel
+                  sx={{ m: 0, gridColumn: { xs: '1', md: '2 / -1' }, justifySelf: 'start' }}
+                  control={<Checkbox size="small" inputProps={{ 'aria-label': `${model.name}: ${t('ai.backends.availableToStudents')}` }} checked={!!modelPolicy.studentAvailable} onChange={(event) => updateModelPolicy(backend.id, model.id, { studentAvailable: event.target.checked })} />}
+                  label={t('ai.backends.availableToStudents')}
+                /> : null}
               </> : <>
-                <FormControlLabel control={<Checkbox checked={model.available !== false} onChange={(event) => updateBackend(backend.id, { models: backend.models.map((entry) => entry.id === model.id ? { ...entry, available: event.target.checked } : entry) })} />} label={model.name} />
+                <FormControlLabel sx={availabilitySx} control={<Checkbox checked={model.available !== false} onChange={(event) => updateBackend(backend.id, { models: backend.models.map((entry) => entry.id === model.id ? { ...entry, available: event.target.checked } : entry) })} />} label={model.name} />
                 <TextField
                   size="small"
                   label={t('ai.backends.displayName')}
@@ -147,9 +163,9 @@ export default function AiBackendManager({
                   disabled={model.available === false}
                   onChange={(event) => updateBackend(backend.id, { models: backend.models.map((entry) => entry.id === model.id ? { ...entry, displayName: event.target.value } : entry) })}
                   inputProps={{ maxLength: 200, 'aria-label': `${model.name}: ${t('ai.backends.displayName')}` }}
-                  sx={{ flex: '1 1 260px' }}
+                  sx={nameFieldSx}
                 />
-                <Button size="small" variant={isDefault ? 'contained' : 'outlined'} onClick={() => onDefaultChange(backend.id, model.id)}>{t('ai.backends.makeDefault')}</Button>
+                <Button size="small" sx={{ justifySelf: { xs: 'start', md: 'stretch' } }} variant={isDefault ? 'contained' : 'outlined'} onClick={() => onDefaultChange(backend.id, model.id)}>{t('ai.backends.makeDefault')}</Button>
               </>}
             </Box>;
           })}
