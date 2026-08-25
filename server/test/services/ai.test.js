@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  AiBackendHttpError,
   discoverOllamaModels,
   discoverOpenAiModels,
   normalizeAiRequestTimeoutSeconds,
@@ -66,6 +67,25 @@ describe('discoverOpenAiModels', () => {
 });
 
 describe('requestAiMessage', () => {
+  it('includes a bounded upstream detail in backend request errors', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      detail: "The final message must use the 'user' role.",
+    }), { status: 400 })));
+
+    const error = await requestAiMessage(
+      { type: 'ollama', url: 'http://localhost:11434' },
+      'local-model',
+      [{ role: 'user', content: 'Create a quiz.' }]
+    ).catch((caught) => caught);
+
+    expect(error).toMatchObject({
+      name: 'AiBackendHttpError',
+      status: 400,
+      detail: "The final message must use the 'user' role.",
+    });
+    expect(error).toBeInstanceOf(AiBackendHttpError);
+  });
+
   it('normalizes administrator request timeouts to the supported range', () => {
     expect(normalizeAiRequestTimeoutSeconds(420)).toBe(420);
     expect(normalizeAiRequestTimeoutSeconds(1)).toBe(10);

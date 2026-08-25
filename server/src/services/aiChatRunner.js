@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { createCourseMcpClient } from './aiMcp.js';
-import { requestAiJsonMessage, requestAiMessage } from './ai.js';
+import { AiBackendHttpError, requestAiJsonMessage, requestAiMessage } from './ai.js';
 import { resolveCourseAiAudience } from '../utils/courseAccess.js';
 
 export const DEFAULT_INSTRUCTOR_CHAT_MAX_TOOL_ROUNDS = 20;
@@ -226,7 +226,13 @@ function assistantToolCallMessage(response, backend) {
 function toolResultMessage(call, content, backend) {
   return backend.type === 'openai'
     ? { role: 'tool', tool_call_id: call.id, content }
-    : { role: 'tool', content };
+    : { role: 'tool', tool_name: call.name, content };
+}
+
+function isRejectedToolContinuation(error, providerMessages) {
+  return error instanceof AiBackendHttpError
+    && [400, 422].includes(error.status)
+    && providerMessages.at(-1)?.role === 'tool';
 }
 
 function parsedToolResult(result) {
@@ -305,7 +311,26 @@ export async function runAiCourseChat({
     const creationProgress = { sessionsCreated: 0, questionsCreated: 0 };
     let authoringRecoveryAttempts = 0;
     for (let round = 0; round < maxToolRounds; round += 1) {
-      const response = await requestAiMessage(backend, modelId, providerMessages, toolList.tools || [], signal);
+      let response;
+      try {
+        response = await requestAiMessage(backend, modelId, providerMessages, toolList.tools || [], signal);
+      } catch (error) {
+        await onProgress?.();
+        if (creationStillIncomplete(creationGoals, creationProgress)
+          && isRejectedToolContinuation(error, providerMessages)) {
+          return await executeCreationPlanFallback({
+            backend,
+            modelId,
+            messages,
+            goals: creationGoals,
+            progress: creationProgress,
+            mcp,
+            notices,
+            signal,
+          });
+        }
+        throw error;
+      }
       await onProgress?.();
       if (response.toolCalls.length === 0) {
         if (creationStillIncomplete(creationGoals, creationProgress)) {

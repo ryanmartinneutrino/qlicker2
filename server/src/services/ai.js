@@ -23,6 +23,16 @@ class AiResponseFormatError extends Error {
   }
 }
 
+export class AiBackendHttpError extends Error {
+  constructor(status, detail = '') {
+    const normalizedDetail = String(detail || '').trim();
+    super(`AI backend request failed (${status})${normalizedDetail ? `: ${normalizedDetail}` : ''}`);
+    this.name = 'AiBackendHttpError';
+    this.status = status;
+    this.detail = normalizedDetail;
+  }
+}
+
 export function normalizeAiUrl(value) {
   const raw = String(value || '').trim().replace(/\/+$/, '');
   if (!raw) return '';
@@ -134,6 +144,24 @@ async function boundedJson(response) {
   const text = await boundedResponseText(response);
   try { return JSON.parse(text); }
   catch { throw new AiResponseFormatError('AI backend returned invalid JSON'); }
+}
+
+async function backendHttpError(response) {
+  const raw = await boundedResponseText(response, 16_000).catch(() => '');
+  let detail = String(raw || '').trim();
+  if (detail) {
+    try {
+      const payload = JSON.parse(detail);
+      const candidate = payload?.detail ?? payload?.message ?? payload?.error;
+      if (candidate !== undefined && candidate !== null) {
+        detail = typeof candidate === 'string' ? candidate : JSON.stringify(candidate);
+      }
+    } catch {
+      // Keep a plain-text upstream error response as-is.
+    }
+  }
+  detail = detail.replace(/\s+/g, ' ').slice(0, 500);
+  return new AiBackendHttpError(response.status, detail);
 }
 
 export function normalizeAiBackends(value = []) {
@@ -277,7 +305,7 @@ async function requestAiMessageOnce(backend, modelId, messages, tools = [], sign
       : AbortSignal.timeout(requestTimeoutMs),
     body: JSON.stringify(requestBody),
   });
-  if (!response.ok) throw new Error(`AI backend request failed (${response.status})`);
+  if (!response.ok) throw await backendHttpError(response);
   const payload = await boundedJson(response);
   const message = isOpenAi ? payload?.choices?.[0]?.message : payload?.message;
   if (!message || typeof message !== 'object') throw new AiResponseFormatError('AI backend returned no chat message');

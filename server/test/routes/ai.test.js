@@ -625,6 +625,7 @@ describe('AI course configuration and chat', () => {
     const course = await createCourse(token);
     await Course.findByIdAndUpdate(course._id, { $addToSet: { students: student._id }, $set: { aiEnabled: true } });
     await configureAi(course._id);
+    await Settings.updateOne({ _id: 'settings' }, { $set: { 'AI_Backends.0.url': 'http://127.0.0.1:11434' } });
 
     vi.stubGlobal('fetch', vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({ message: { content: '', tool_calls: [{ function: { name: 'list_course_students', arguments: {} } }] } }), { status: 200 }))
@@ -641,7 +642,11 @@ describe('AI course configuration and chat', () => {
     expect(fetch).toHaveBeenCalledTimes(2);
     const secondRequest = JSON.parse(fetch.mock.calls[1][1].body);
     expect(secondRequest.tools.map((tool) => tool.function.name)).toEqual(expect.arrayContaining(['get_conversation_history', 'list_course_students', 'list_course_sessions', 'get_session_questions', 'get_question_responses', 'get_session_grade_table', 'get_course_grade_table', 'list_course_chat_topics', 'get_course_chat_topic', 'draft_course_chat_message', 'publish_course_chat_draft', 'create_course_session', 'edit_course_session', 'list_course_questions', 'create_course_question', 'edit_course_question', 'apply_course_action_draft']));
-    expect(secondRequest.messages.some((entry) => entry.role === 'tool' && entry.content.includes('student@example.com'))).toBe(true);
+    expect(secondRequest.messages).toContainEqual(expect.objectContaining({
+      role: 'tool',
+      tool_name: 'list_course_students',
+      content: expect.stringContaining('student@example.com'),
+    }));
   });
 
   it('uses the course maximum for professor AI chat tool rounds', async (ctx) => {
@@ -768,6 +773,97 @@ describe('AI course configuration and chat', () => {
     const storedSession = await Session.findById(session._id).lean();
     expect(storedSession.questions).toHaveLength(3);
     expect(await Question.countDocuments({ courseId: course._id, sessionId: session._id })).toBe(3);
+    expect(await AiActionDraft.countDocuments({ courseId: course._id })).toBe(0);
+  });
+
+  it('finishes a creation request when an Ollama-compatible backend rejects a tool-result continuation', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const professor = await createTestUser({ email: 'ai-tool-continuation-prof@example.com', roles: ['professor'] });
+    const token = await getAuthToken(app, professor);
+    const course = await createCourse(token);
+    await Course.findByIdAndUpdate(course._id, { $set: { aiEnabled: true } });
+    await configureAi(course._id);
+    await Settings.updateOne({ _id: 'settings' }, { $set: { 'AI_Backends.0.url': 'http://127.0.0.1:11434' } });
+    const questions = [
+      {
+        type: 'multiple_choice',
+        prompt: 'Which statement best describes conservation of energy?',
+        options: [
+          { text: 'Energy changes form but the total remains constant in an isolated system.', correct: true },
+          { text: 'Energy is always converted entirely into heat.', correct: false },
+        ],
+      },
+      {
+        type: 'numerical',
+        prompt: 'A 2 kg object moves at 3 m/s. What is its kinetic energy in joules?',
+        correct_numerical: 9,
+        tolerance_numerical: 0.01,
+      },
+      {
+        type: 'multiple_choice',
+        prompt: 'What quantity is transferred when a force acts through a distance?',
+        options: [
+          { text: 'Work', correct: true },
+          { text: 'Momentum only', correct: false },
+        ],
+      },
+      {
+        type: 'multiple_choice',
+        prompt: 'Which energy depends on height in a uniform gravitational field?',
+        options: [
+          { text: 'Gravitational potential energy', correct: true },
+          { text: 'Rest energy only', correct: false },
+        ],
+      },
+      {
+        type: 'multiple_choice',
+        prompt: 'When is mechanical energy conserved?',
+        options: [
+          { text: 'When only conservative forces do work', correct: true },
+          { text: 'Whenever speed is constant', correct: false },
+        ],
+      },
+    ];
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: {
+        content: '',
+        tool_calls: [{ function: { name: 'list_course_sessions', arguments: { query: 'Chapter 8' } } }],
+      } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        detail: "The final message must use the 'user' role.",
+      }), { status: 400 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ message: {
+        content: JSON.stringify({
+          session: { name: 'Chapter 8 Quiz', type: 'quiz', description: 'Chapter 8 review' },
+          questions,
+        }),
+      } }), { status: 200 })));
+
+    const created = await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations`, { token });
+    const conversationId = created.json().conversation._id;
+    await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations/${conversationId}/messages`, {
+      token,
+      payload: { content: 'Can you prepare a quiz with 5 questions that test the material from chapter 8? Include both numerical and conceptual questions.' },
+    });
+
+    await vi.waitFor(async () => {
+      const updated = await authenticatedRequest(app, 'GET', `/api/v1/ai/courses/${course._id}/conversations/${conversationId}`, { token });
+      expect(updated.json().conversation.messages.at(-1).content).toContain('Created session “Chapter 8 Quiz”');
+      expect(updated.json().conversation.messages.at(-1).content).toContain('Created 5 questions');
+    });
+    expect(fetch).toHaveBeenCalledTimes(3);
+    const rejectedContinuation = JSON.parse(fetch.mock.calls[1][1].body);
+    expect(rejectedContinuation.messages.at(-1)).toMatchObject({
+      role: 'tool',
+      tool_name: 'list_course_sessions',
+    });
+    const fallbackRequest = JSON.parse(fetch.mock.calls[2][1].body);
+    expect(fallbackRequest).toMatchObject({ format: 'json' });
+    expect(fallbackRequest.tools).toBeUndefined();
+    const quiz = await Session.findOne({ courseId: course._id, name: 'Chapter 8 Quiz' }).lean();
+    expect(quiz).toMatchObject({ quiz: true, status: 'hidden' });
+    expect(quiz.questions).toHaveLength(5);
+    expect(await Question.countDocuments({ courseId: course._id, sessionId: quiz._id })).toBe(5);
     expect(await AiActionDraft.countDocuments({ courseId: course._id })).toBe(0);
   });
 
