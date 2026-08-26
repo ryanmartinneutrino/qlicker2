@@ -156,16 +156,16 @@ export async function runAiResponseSummary(id, suppliedController = null) {
     const joined = session.joined?.length || 0;
     const header = `${joined} students joined the session; ${latest.length} entered a meaningful response.`;
     const chunks = chunkTextItems(latest);
+    await AiResponseSummary.updateOne(
+      { _id: jobId, status: 'running' },
+      { $set: { phase: 'generating', updatedAt: new Date() } }
+    );
     const partials = await summarizeChunks(model, job.instruction, chunks, controller.signal, async (increment) => {
       await AiResponseSummary.updateOne(
         { _id: jobId, status: 'running' },
         { $inc: { completed: increment }, $set: { updatedAt: new Date() } }
       );
     });
-    await AiResponseSummary.updateOne(
-      { _id: jobId, status: 'running' },
-      { $set: { phase: 'generating', updatedAt: new Date() } }
-    );
     const combined = await combinePartialSummaries(model, job.instruction, partials, header, controller.signal);
     const summary = `${header}\n\n${combined}`;
     await AiResponseSummary.findOneAndUpdate(

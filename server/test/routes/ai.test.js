@@ -42,7 +42,7 @@ async function configureAi(courseId) {
   await Settings.findOneAndUpdate({ _id: 'settings' }, { $set: {
     AI_Enabled: true,
     AI_EnabledCourses: [courseId],
-    AI_Backends: [{ id: 'ollama-local', name: 'Local Ollama', type: 'ollama', url: 'http://ollama.test:11434', apiToken: 'admin-secret', models: [
+    AI_Backends: [{ id: 'ollama-local', name: 'Local Ollama', type: 'ollama', url: 'http://127.0.0.1:11434', apiToken: 'admin-secret', models: [
       { id: 'llama3.2', name: 'llama3.2', displayName: 'Friendly Llama', available: true },
       { id: 'qwen3', name: 'qwen3', available: true },
     ] }],
@@ -186,7 +186,7 @@ describe('AI course configuration and chat', () => {
       id: 'course-ollama',
       name: 'Course Ollama',
       type: 'ollama',
-      url: 'http://course-ollama.test:11434',
+      url: 'http://127.0.0.1:11435',
       apiToken: 'persistent-course-token',
       models: [{ id: 'course-model', name: 'course-model', available: true }],
     };
@@ -221,13 +221,13 @@ describe('AI course configuration and chat', () => {
         backendId: 'course-ollama',
         courseId: course._id,
         type: 'ollama',
-        url: 'http://course-ollama.test:11434',
+        url: 'http://127.0.0.1:11435',
         apiToken: '',
       },
     });
     expect(discovered.statusCode).toBe(200);
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://course-ollama.test:11434/api/tags',
+      'http://127.0.0.1:11435/api/tags',
       expect.objectContaining({ headers: { authorization: 'Bearer persistent-course-token' } })
     );
   });
@@ -247,14 +247,14 @@ describe('AI course configuration and chat', () => {
       payload: {
         backendId: 'ollama-local',
         type: 'ollama',
-        url: 'http://ollama.test:11434',
+        url: 'http://127.0.0.1:11434',
         apiToken: '',
       },
     });
 
     expect(discovered.statusCode).toBe(200);
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://ollama.test:11434/api/tags',
+      'http://127.0.0.1:11434/api/tags',
       expect.objectContaining({ headers: { authorization: 'Bearer admin-secret' } })
     );
   });
@@ -413,6 +413,7 @@ describe('AI course configuration and chat', () => {
       ownerId: professor._id,
       pending: true,
       pendingMessageId: 'orphaned-message',
+      updatedAt: new Date(Date.now() - 4 * 60 * 1000),
       messages: [{ _id: 'orphaned-message', role: 'user', content: 'This request failed.' }],
     });
 
@@ -1071,6 +1072,12 @@ describe('AI course configuration and chat', () => {
       status: 'done',
       questions: [question._id],
       joined: [],
+    });
+    await ResponseModel.create({
+      attempt: 1,
+      questionId: question._id,
+      studentUserId: 'summary-student',
+      answer: 'Recursion solves a problem using smaller instances of the same problem.',
     });
     vi.stubGlobal('fetch', vi.fn((_, options) => new Promise((_, reject) => {
       options.signal.addEventListener('abort', () => {

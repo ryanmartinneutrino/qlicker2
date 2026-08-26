@@ -101,7 +101,7 @@ describe('requestAiMessage', () => {
       artifacts: [{ kind: 'image', path: '/api/files/chart.png', filename: 'chart.png' }],
     });
     expect(thinkingUpdates).toEqual(['Check', 'Check the course data.']);
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ stream: true });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ stream: true, think: true });
   });
 
   it('includes a bounded upstream detail in backend request errors', async () => {

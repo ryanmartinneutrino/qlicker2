@@ -105,6 +105,35 @@ describe('AiCourseChat', () => {
     expect(await screen.findByText('AI response stopped')).toBeInTheDocument();
   });
 
+  it('shows newly streamed thinking returned by status polling while a response is active', async () => {
+    const pendingConversation = {
+      _id: 'conversation-1',
+      title: 'Thinking question',
+      pending: true,
+      pendingThinking: '',
+      messages: [{ _id: 'message-1', role: 'user', content: 'Work through this.' }],
+    };
+    apiClient.get.mockImplementation((url) => {
+      if (url.endsWith('/config')) return Promise.resolve({ data: {
+        approvedModels: [{ backendId: 'backend-1', backendName: 'Backend 1', modelId: 'model-1', modelName: 'Model 1' }],
+        defaultBackendId: 'backend-1',
+        defaultModelId: 'model-1',
+      } });
+      if (url.endsWith('/conversations')) return Promise.resolve({ data: { conversations: [pendingConversation] } });
+      if (url.endsWith('/status')) return Promise.resolve({ data: { conversation: {
+        ...pendingConversation,
+        pendingThinking: 'Now checking **the intermediate result**.',
+      } } });
+      return Promise.resolve({ data: { conversation: pendingConversation } });
+    });
+
+    render(<AiCourseChat courseId="course-1" />);
+
+    expect(await screen.findByText('Thinking…')).toBeInTheDocument();
+    expect(await screen.findByText('the intermediate result', { selector: 'strong' }, { timeout: 2000 })).toBeInTheDocument();
+    expect(apiClient.get).toHaveBeenCalledWith('/ai/courses/course-1/conversations/conversation-1/status');
+  });
+
   it('collapses completed thinking output and lets the user expand it', async () => {
     const conversation = {
       _id: 'conversation-1',

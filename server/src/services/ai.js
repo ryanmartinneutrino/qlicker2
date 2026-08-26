@@ -391,6 +391,7 @@ async function requestAiMessageOnce(backend, modelId, messages, tools = [], sign
   const isOpenAi = backend.type === 'openai';
   const streamThinking = !isOpenAi && typeof requestOptions.onThinking === 'function';
   const requestBody = { model: modelId, messages, stream: streamThinking };
+  if (streamThinking) requestBody.think = true;
   if (requestOptions.jsonMode && !isOpenAi) requestBody.format = 'json';
   const requestTimeoutMs = Number.isFinite(Number(backend?.requestTimeoutMs))
     ? Math.max(1_000, Number(backend.requestTimeoutMs))
