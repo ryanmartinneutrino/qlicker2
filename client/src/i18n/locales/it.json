@@ -2555,7 +2555,7 @@
       "generatedAudio": "Audio generato",
       "generatedFile": "File generato",
       "downloadArtifact": "Scarica {{filename}}",
-      "artifactUnavailable": "Questo artefatto non è disponibile o potrebbe essere scaduto."
+      "artifactUnavailable": "Questo artefatto è scaduto o non è più disponibile. Chiedi all’IA di generarlo di nuovo."
     }
   }
 }

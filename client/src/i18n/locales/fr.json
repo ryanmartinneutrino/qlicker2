@@ -2485,7 +2485,7 @@
       "generatedAudio": "Audio généré",
       "generatedFile": "Fichier généré",
       "downloadArtifact": "Télécharger {{filename}}",
-      "artifactUnavailable": "Cet artefact n’est pas disponible ou a peut-être expiré."
+      "artifactUnavailable": "Cet artefact a expiré ou n’est plus disponible. Demandez à l’IA de le générer à nouveau."
     }
   }
 }

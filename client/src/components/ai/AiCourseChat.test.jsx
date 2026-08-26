@@ -257,11 +257,16 @@ describe('AiCourseChat', () => {
     const image = await screen.findByAltText('A velocity chart');
     expect(image).toHaveAttribute('src', '/ai/media/conversation-1/image-1');
     expect(screen.getByLabelText('Spoken explanation')).toHaveAttribute('src', '/ai/media/conversation-1/audio-1');
-    expect(screen.getByRole('link', { name: 'Download data.csv' })).toHaveAttribute('href', '/ai/media/conversation-1/file-1');
+    const fileDownload = screen.getByRole('button', { name: 'Download data.csv' });
     expect(document.body.textContent).not.toContain('/api/files/private-chart.png');
 
+    apiClient.get.mockRejectedValueOnce({ response: { status: 410, data: { reason: 'expired' } } });
+    fireEvent.click(fileDownload);
+    expect(await screen.findByText('This artifact has expired or is no longer available. Ask the AI to generate it again.')).toBeInTheDocument();
+    expect(apiClient.get).toHaveBeenLastCalledWith('/ai/media/conversation-1/file-1', { baseURL: '/', responseType: 'blob' });
+
     fireEvent.error(image);
-    expect(await screen.findByText('This artifact is unavailable or may have expired.')).toBeInTheDocument();
+    expect(await screen.findAllByText('This artifact has expired or is no longer available. Ask the AI to generate it again.')).toHaveLength(2);
   });
 
   it('uses the student endpoints and shows student-facing guidance', async () => {

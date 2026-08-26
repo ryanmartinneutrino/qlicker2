@@ -295,7 +295,7 @@ export async function aiMediaRoutes(app) {
     }
     if (upstream.status === 404 || upstream.status === 410) {
       upstream.body?.cancel().catch(() => {});
-      return reply.code(410).send({ error: 'Gone', message: 'This artifact is no longer available' });
+      return reply.code(410).send({ error: 'Gone', reason: 'expired', message: 'This artifact is no longer available' });
     }
     if (!upstream.ok) {
       upstream.body?.cancel().catch(() => {});

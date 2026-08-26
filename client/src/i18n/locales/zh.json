@@ -2488,7 +2488,7 @@
       "generatedAudio": "生成的音频",
       "generatedFile": "生成的文件",
       "downloadArtifact": "下载 {{filename}}",
-      "artifactUnavailable": "此文件不可用或可能已过期。"
+      "artifactUnavailable": "此文件已过期或不再可用。请让 AI 重新生成。"
     }
   }
 }

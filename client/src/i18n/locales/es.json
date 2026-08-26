@@ -2525,7 +2525,7 @@
       "generatedAudio": "Audio generado",
       "generatedFile": "Archivo generado",
       "downloadArtifact": "Descargar {{filename}}",
-      "artifactUnavailable": "Este artefacto no está disponible o puede haber caducado."
+      "artifactUnavailable": "Este artefacto ha caducado o ya no está disponible. Pide a la IA que lo genere de nuevo."
     }
   }
 }

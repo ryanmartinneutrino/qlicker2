@@ -355,6 +355,12 @@ describe('AI course configuration and chat', () => {
     fetchMock.mockResolvedValueOnce(new Response('', { status: 404 }));
     const expired = await authenticatedRequest(app, 'GET', `/ai/media/${conversation._id}/artifact-image-1`, { token });
     expect(expired.statusCode).toBe(410);
+    expect(expired.json()).toMatchObject({ error: 'Gone', reason: 'expired' });
+
+    fetchMock.mockResolvedValueOnce(new Response('', { status: 410 }));
+    const alreadyGone = await authenticatedRequest(app, 'GET', `/ai/media/${conversation._id}/artifact-image-1`, { token });
+    expect(alreadyGone.statusCode).toBe(410);
+    expect(alreadyGone.json()).toMatchObject({ error: 'Gone', reason: 'expired' });
 
     fetchMock.mockRejectedValueOnce(new Error('Qrag is offline'));
     const unavailable = await authenticatedRequest(app, 'GET', `/ai/media/${conversation._id}/artifact-image-1`, { token });

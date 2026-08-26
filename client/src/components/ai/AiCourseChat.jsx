@@ -24,8 +24,31 @@ function normalizeDraft(value) {
 function AiMessageArtifacts({ conversationId, artifacts = [] }) {
   const { t } = useTranslation();
   const [unavailable, setUnavailable] = useState({});
+  const [downloading, setDownloading] = useState({});
   if (!conversationId || !artifacts.length) return null;
   const markUnavailable = (artifactId) => setUnavailable((current) => ({ ...current, [artifactId]: true }));
+  const downloadArtifact = async (artifact, url) => {
+    setDownloading((current) => ({ ...current, [artifact._id]: true }));
+    try {
+      const { data } = await apiClient.get(url, { baseURL: '/', responseType: 'blob' });
+      const objectUrl = window.URL.createObjectURL(data);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = artifact.filename || 'artifact';
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      try {
+        link.click();
+      } finally {
+        link.remove();
+        window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 0);
+      }
+    } catch {
+      markUnavailable(artifact._id);
+    } finally {
+      setDownloading((current) => ({ ...current, [artifact._id]: false }));
+    }
+  };
   return <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 1 }}>
     {artifacts.map((artifact) => {
       const url = `/ai/media/${encodeURIComponent(conversationId)}/${encodeURIComponent(artifact._id)}`;
@@ -47,7 +70,7 @@ function AiMessageArtifacts({ conversationId, artifacts = [] }) {
           <Box component="audio" controls preload="metadata" src={url} aria-label={label} onError={() => markUnavailable(artifact._id)} sx={{ display: 'block', width: '100%', maxWidth: 520 }} />
         </Box>;
       }
-      return <Button key={artifact._id} component="a" href={url} download={artifact.filename || true} variant="outlined" size="small" sx={{ alignSelf: 'flex-start' }}>
+      return <Button key={artifact._id} type="button" onClick={() => downloadArtifact(artifact, url)} disabled={!!downloading[artifact._id]} variant="outlined" size="small" sx={{ alignSelf: 'flex-start' }}>
         {t('ai.chat.downloadArtifact', { filename: artifact.filename || label })}
       </Button>;
     })}

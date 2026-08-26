@@ -2500,7 +2500,7 @@
       "generatedAudio": "Generated audio",
       "generatedFile": "Generated file",
       "downloadArtifact": "Download {{filename}}",
-      "artifactUnavailable": "This artifact be unavailable or may have expired."
+      "artifactUnavailable": "This artifact be expired or lost to the depths. Ask the AI to make it anew."
     }
   }
 }

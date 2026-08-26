@@ -2554,7 +2554,7 @@
       "generatedAudio": "Erzeugte Audiodatei",
       "generatedFile": "Erzeugte Datei",
       "downloadArtifact": "{{filename}} herunterladen",
-      "artifactUnavailable": "Dieses Artefakt ist nicht verfügbar oder möglicherweise abgelaufen."
+      "artifactUnavailable": "Dieses Artefakt ist abgelaufen oder nicht mehr verfügbar. Bitten Sie die KI, es erneut zu erstellen."
     }
   }
 }

@@ -1854,7 +1854,7 @@
       "generatedAudio": "Generated audio",
       "generatedFile": "Generated file",
       "downloadArtifact": "Download {{filename}}",
-      "artifactUnavailable": "This artifact is unavailable or may have expired."
+      "artifactUnavailable": "This artifact has expired or is no longer available. Ask the AI to generate it again."
     }
   },
   "semesters": {
