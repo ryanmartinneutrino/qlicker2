@@ -4,6 +4,7 @@ import {
   DEFAULT_INSTRUCTOR_CHAT_MAX_TOOL_ROUNDS,
   DEFAULT_STUDENT_CHAT_MAX_TOOL_ROUNDS,
   instructorCreationGoals,
+  normalizeAiArtifacts,
   recentConversationMessages,
 } from '../../src/services/aiChatRunner.js';
 
@@ -29,6 +30,35 @@ describe('recentConversationMessages', () => {
       { role: 'user', content: 'Question 7' },
       { role: 'assistant', content: 'Response 7' },
     ]);
+  });
+});
+
+describe('normalizeAiArtifacts', () => {
+  it('keeps only safe root-relative artifact metadata and mints opaque IDs', () => {
+    const [artifact] = normalizeAiArtifacts([
+      {
+        kind: 'image',
+        path: '/api/files/generated/chart.png',
+        filename: 'chart.png',
+        mime_type: 'IMAGE/PNG',
+        label: 'Velocity chart',
+        apiToken: 'must-not-survive',
+      },
+      { kind: 'audio', path: 'https://qrag.example/private.mp3' },
+      { kind: 'file', path: '/api/files/%2e%2e/secret' },
+      { kind: 'file', path: '//other-host/secret' },
+    ]);
+
+    expect(artifact).toMatchObject({
+      kind: 'image',
+      sourcePath: '/api/files/generated/chart.png',
+      filename: 'chart.png',
+      mimeType: 'image/png',
+      label: 'Velocity chart',
+    });
+    expect(artifact._id).toEqual(expect.any(String));
+    expect(artifact).not.toHaveProperty('apiToken');
+    expect(normalizeAiArtifacts(Array.from({ length: 20 }, (_, index) => ({ path: `/api/files/${index}`, kind: 'file' })))).toHaveLength(10);
   });
 });
 

@@ -3,6 +3,7 @@ import {
   MAX_AI_CONVERSATION_MESSAGES,
   MAX_AI_MESSAGE_CHARS,
   MAX_AI_THINKING_CHARS,
+  MAX_AI_ARTIFACTS_PER_MESSAGE,
 } from '../models/AiConversation.js';
 import { runAiCourseChat } from './aiChatRunner.js';
 
@@ -82,8 +83,9 @@ export function queueAiCourseChat({
       await thinking.flush();
       const content = typeof result === 'string' ? result : result?.content || '';
       const completedThinking = String(result?.thinking || thinking.value() || '').slice(0, MAX_AI_THINKING_CHARS);
+      const artifacts = Array.isArray(result?.artifacts) ? result.artifacts.slice(0, MAX_AI_ARTIFACTS_PER_MESSAGE) : [];
       await AiConversation.findOneAndUpdate(filter, {
-        $push: { messages: { $each: [{ role: 'assistant', content: String(content).slice(0, MAX_AI_MESSAGE_CHARS), thinking: completedThinking }], $slice: -MAX_AI_CONVERSATION_MESSAGES } },
+        $push: { messages: { $each: [{ role: 'assistant', content: String(content).slice(0, MAX_AI_MESSAGE_CHARS), thinking: completedThinking, artifacts }], $slice: -MAX_AI_CONVERSATION_MESSAGES } },
         $set: { pending: false, pendingMessageId: '', pendingThinking: '', pendingError: '', updatedAt: new Date() },
       });
     } catch (error) {

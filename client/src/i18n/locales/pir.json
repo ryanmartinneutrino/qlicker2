@@ -2495,7 +2495,12 @@
       "backendError": "Th’ AI backend ran into rough seas: {{detail}}",
       "you": "You",
       "failedLoad": "Could not load AI conversations.",
-      "failedSend": "Could not send the message."
+      "failedSend": "Could not send the message.",
+      "generatedImage": "Generated image",
+      "generatedAudio": "Generated audio",
+      "generatedFile": "Generated file",
+      "downloadArtifact": "Download {{filename}}",
+      "artifactUnavailable": "This artifact be unavailable or may have expired."
     }
   }
 }

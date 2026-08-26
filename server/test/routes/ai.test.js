@@ -29,7 +29,7 @@ beforeEach(async (ctx) => {
   app = await createApp();
 });
 
-afterEach(async () => { if (app) await app.close(); app = null; vi.restoreAllMocks(); });
+afterEach(async () => { if (app) await app.close(); app = null; vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 async function createCourse(token) {
   const response = await authenticatedRequest(app, 'POST', '/api/v1/courses', { token, payload: {
@@ -270,6 +270,7 @@ describe('AI course configuration and chat', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ message: {
       thinking: 'I should answer this greeting directly.',
       content: 'Hello from Ollama',
+      qrag_artifacts: [{ kind: 'image', path: '/api/files/generated/hello.png', filename: 'hello.png', label: 'Hello image' }],
     } }), { status: 200 })));
 
     const created = await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations`, { token });
@@ -280,9 +281,126 @@ describe('AI course configuration and chat', () => {
       const updated = await authenticatedRequest(app, 'GET', `/api/v1/ai/courses/${course._id}/conversations/${created.json().conversation._id}`, { token });
       expect(updated.json().conversation.messages.map((entry) => entry.content)).toEqual(['Hello', 'Hello from Ollama']);
       expect(updated.json().conversation.messages.at(-1).thinking).toBe('I should answer this greeting directly.');
+      expect(updated.json().conversation.messages.at(-1).artifacts).toEqual([
+        expect.objectContaining({ kind: 'image', filename: 'hello.png', label: 'Hello image' }),
+      ]);
+      expect(JSON.stringify(updated.json())).not.toContain('/api/files/generated/hello.png');
       expect(updated.json().conversation.pending).toBe(false);
     });
+    expect((await AiConversation.findById(created.json().conversation._id).lean()).messages.at(-1).artifacts[0].sourcePath)
+      .toBe('/api/files/generated/hello.png');
     expect(fetch).toHaveBeenCalledWith('http://127.0.0.1:11434/api/chat', expect.objectContaining({ method: 'POST' }));
+  });
+
+  it('serves stored AI artifacts without exposing Qrag paths or tokens', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const professor = await createTestUser({ email: 'ai-artifact-prof@example.com', roles: ['professor'] });
+    const outsider = await createTestUser({ email: 'ai-artifact-outsider@example.com', roles: ['professor'] });
+    const token = await getAuthToken(app, professor);
+    const outsiderToken = await getAuthToken(app, outsider);
+    const course = await createCourse(token);
+    await configureAi(course._id);
+    await Settings.updateOne({ _id: 'settings' }, { $set: { 'AI_Backends.0.url': 'http://127.0.0.1:11434/ollama' } });
+    const conversation = await AiConversation.create({
+      courseId: course._id,
+      ownerId: professor._id,
+      audience: 'instructor',
+      backendId: 'ollama-local',
+      modelId: 'llama3.2',
+      messages: [{
+        role: 'assistant',
+        content: 'Generated chart',
+        artifacts: [{
+          _id: 'artifact-image-1',
+          kind: 'image',
+          sourcePath: '/api/files/generated/chart.png',
+          filename: 'chart.png',
+          mimeType: 'image/png',
+          label: 'Generated chart',
+        }],
+      }],
+    });
+    const fetchMock = vi.fn().mockResolvedValue(new Response(new Uint8Array([1, 2, 3]), {
+      status: 206,
+      headers: { 'content-type': 'image/png', 'content-range': 'bytes 0-2/3', 'accept-ranges': 'bytes' },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const details = await authenticatedRequest(app, 'GET', `/api/v1/ai/courses/${course._id}/conversations/${conversation._id}`, { token });
+    expect(details.statusCode).toBe(200);
+    expect(details.json().conversation.messages[0].artifacts[0]).toEqual({
+      _id: 'artifact-image-1', kind: 'image', filename: 'chart.png', mimeType: 'image/png', label: 'Generated chart',
+    });
+    expect(JSON.stringify(details.json())).not.toContain('/api/files/generated/chart.png');
+    expect(JSON.stringify(details.json())).not.toContain('admin-secret');
+
+    const media = await authenticatedRequest(app, 'GET', `/ai/media/${conversation._id}/artifact-image-1`, {
+      token,
+      headers: { range: 'bytes=0-2' },
+    });
+    expect(media.statusCode).toBe(206);
+    expect(media.headers['content-type']).toContain('image/png');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:11434/api/files/generated/chart.png',
+      expect.objectContaining({ headers: { authorization: 'Bearer admin-secret', range: 'bytes=0-2' } })
+    );
+
+    fetchMock.mockClear();
+    const denied = await authenticatedRequest(app, 'GET', `/ai/media/${conversation._id}/artifact-image-1`, { token: outsiderToken });
+    const fabricated = await authenticatedRequest(app, 'GET', `/ai/media/${conversation._id}/not-real`, { token });
+    expect(denied.statusCode).toBe(404);
+    expect(fabricated.statusCode).toBe(404);
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    fetchMock.mockResolvedValueOnce(new Response('', { status: 404 }));
+    const expired = await authenticatedRequest(app, 'GET', `/ai/media/${conversation._id}/artifact-image-1`, { token });
+    expect(expired.statusCode).toBe(410);
+
+    fetchMock.mockRejectedValueOnce(new Error('Qrag is offline'));
+    const unavailable = await authenticatedRequest(app, 'GET', `/ai/media/${conversation._id}/artifact-image-1`, { token });
+    const stillReadable = await authenticatedRequest(app, 'GET', `/api/v1/ai/courses/${course._id}/conversations/${conversation._id}`, { token });
+    expect(unavailable.statusCode).toBe(502);
+    expect(stillReadable.statusCode).toBe(200);
+  });
+
+  it('allows an enrolled student to fetch only artifacts from their own student conversation', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const professor = await createTestUser({ email: 'ai-artifact-student-owner@example.com', roles: ['professor'] });
+    const student = await createTestUser({ email: 'ai-artifact-student@example.com', roles: ['student'] });
+    const otherStudent = await createTestUser({ email: 'ai-artifact-other-student@example.com', roles: ['student'] });
+    const professorToken = await getAuthToken(app, professor);
+    const studentToken = await getAuthToken(app, student);
+    const otherToken = await getAuthToken(app, otherStudent);
+    const course = await createCourse(professorToken);
+    await configureAi(course._id);
+    await Settings.updateOne({ _id: 'settings' }, { $set: { 'AI_Backends.0.url': 'http://127.0.0.1:11434' } });
+    await Course.findByIdAndUpdate(course._id, { $set: {
+      students: [student._id, otherStudent._id],
+      aiEnabled: true,
+      aiStudentChatEnabled: true,
+    } });
+    const conversation = await AiConversation.create({
+      courseId: course._id,
+      ownerId: student._id,
+      audience: 'student',
+      backendId: 'ollama-local',
+      messages: [{ role: 'assistant', content: 'Listen', artifacts: [{
+        _id: 'student-audio-1', kind: 'audio', sourcePath: '/api/files/audio/help.mp3', filename: 'help.mp3', mimeType: 'audio/mpeg',
+      }] }],
+    });
+    const fetchMock = vi.fn().mockResolvedValue(new Response(new Uint8Array([1, 2]), {
+      status: 200,
+      headers: { 'content-type': 'audio/mpeg' },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const allowed = await authenticatedRequest(app, 'GET', `/ai/media/${conversation._id}/student-audio-1`, { token: studentToken });
+    const denied = await authenticatedRequest(app, 'GET', `/ai/media/${conversation._id}/student-audio-1`, { token: otherToken });
+
+    expect(allowed.statusCode).toBe(200);
+    expect(allowed.headers['content-type']).toContain('audio/mpeg');
+    expect(denied.statusCode).toBe(404);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('unblocks an orphaned failed AI chat request when the conversation is reloaded', async (ctx) => {

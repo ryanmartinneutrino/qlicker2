@@ -1,3 +1,4 @@
+import { Readable } from 'node:stream';
 import AiConversation, {
   MAX_AI_CONVERSATION_MESSAGES,
   MAX_AI_MESSAGE_CHARS,
@@ -13,7 +14,8 @@ import Course from '../models/Course.js';
 import Session from '../models/Session.js';
 import { getOrCreateSettingsDocument } from '../utils/settingsSingleton.js';
 import { isCourseInstructorOrAdmin, resolveCourseAiAudience } from '../utils/courseAccess.js';
-import { discoverOllamaModels, discoverOpenAiModels, normalizeAiBackends, normalizeAiRequestTimeoutSeconds, serializeAiBackends } from '../services/ai.js';
+import { discoverOllamaModels, discoverOpenAiModels, fetchAiArtifact, normalizeAiBackends, normalizeAiRequestTimeoutSeconds, serializeAiBackends } from '../services/ai.js';
+import { authenticateAccessTokenOrRefreshCookie } from '../middleware/auth.js';
 import { isAiCourseChatActive, queueAiCourseChat, stopAiCourseChat } from '../services/aiChatJobRunner.js';
 import {
   courseChatMaxToolRounds,
@@ -206,8 +208,112 @@ function serializeConversation(doc, includeMessages = false) {
     _id: String(doc._id), title: doc.title || '', backendId: doc.backendId || '', modelId: doc.modelId || '',
     pending: !!doc.pending, pendingThinking: doc.pendingThinking || '', pendingError: doc.pendingError || '',
     createdAt: doc.createdAt || null, updatedAt: doc.updatedAt || null,
-    ...(includeMessages ? { messages: doc.messages || [] } : {}),
+    ...(includeMessages ? { messages: (doc.messages || []).map((message) => ({
+      _id: String(message._id),
+      role: message.role,
+      content: message.content || '',
+      contentWysiwyg: message.contentWysiwyg || '',
+      thinking: message.thinking || '',
+      isError: !!message.isError,
+      createdAt: message.createdAt || null,
+      artifacts: (message.artifacts || []).map((artifact) => ({
+        _id: String(artifact._id),
+        kind: artifact.kind,
+        filename: artifact.filename || '',
+        mimeType: artifact.mimeType || '',
+        label: artifact.label || '',
+      })),
+    })) } : {}),
   };
+}
+
+function safeArtifactFilename(value) {
+  return String(value || 'artifact').replace(/[\u0000-\u001f\u007f"\\/]/g, '_').trim().slice(0, 200) || 'artifact';
+}
+
+function encodeArtifactFilename(value) {
+  return encodeURIComponent(value).replace(/['()*]/g, (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`);
+}
+
+function artifactContentType(artifact, upstream) {
+  const candidate = String(artifact.mimeType || upstream.headers.get('content-type') || '').split(';', 1)[0].trim().toLowerCase();
+  if (artifact.kind === 'image' && /^image\/(?:png|jpeg|gif|webp|avif)$/.test(candidate)) return candidate;
+  if (artifact.kind === 'audio' && /^audio\/(?:mpeg|mp4|ogg|wav|webm|aac|flac|x-wav)$/.test(candidate)) return candidate;
+  return 'application/octet-stream';
+}
+
+function copyArtifactHeader(reply, upstream, name) {
+  const value = upstream.headers.get(name);
+  if (value) reply.header(name, value);
+}
+
+async function accessibleArtifactConversation(request) {
+  const conversation = await AiConversation.findOne({
+    _id: String(request.params.conversationId),
+    ownerId: String(request.user?.userId || ''),
+  }).lean();
+  if (!conversation) return null;
+  const course = await Course.findById(conversation.courseId).lean();
+  if (!course) return null;
+  if (conversation.audience === 'student') {
+    if (resolveCourseAiAudience(course, request.user) !== 'student' || course.inactive || !course.aiEnabled || !course.aiStudentChatEnabled) return null;
+    const settings = await getOrCreateSettingsDocument({ lean: true });
+    if (!coursePolicy(settings, course._id).enabled) return null;
+    return { conversation, course, settings };
+  }
+  if (!isCourseInstructorOrAdmin(course, request.user)) return null;
+  return { conversation, course, settings: await getOrCreateSettingsDocument({ lean: true }) };
+}
+
+export async function aiMediaRoutes(app) {
+  app.get('/media/:conversationId/:artifactId', {
+    preHandler: authenticateAccessTokenOrRefreshCookie,
+    config: { rateLimit: { max: 300, timeWindow: '1 minute' } },
+  }, async (request, reply) => {
+    const context = await accessibleArtifactConversation(request);
+    if (!context) return reply.code(404).send({ error: 'Not Found', message: 'Artifact not found' });
+    const artifact = (context.conversation.messages || [])
+      .flatMap((message) => message.artifacts || [])
+      .find((entry) => String(entry._id) === String(request.params.artifactId));
+    if (!artifact) return reply.code(404).send({ error: 'Not Found', message: 'Artifact not found' });
+
+    const backends = [
+      ...normalizeAiBackends(context.settings.AI_Backends || []),
+      ...normalizeAiBackends(context.course.aiBackends || []),
+    ];
+    const timeoutMs = Math.min(normalizeAiRequestTimeoutSeconds(context.settings.AI_RequestTimeoutSeconds) * 1_000, 60_000);
+    const backend = backends.find((entry) => entry.id === context.conversation.backendId);
+    if (!backend) return reply.code(502).send({ error: 'Bad Gateway', message: 'The artifact backend is no longer available' });
+
+    const range = /^bytes=(?:\d+-\d*|-\d+)$/.test(String(request.headers.range || '')) ? String(request.headers.range) : undefined;
+    let upstream;
+    try {
+      upstream = await fetchAiArtifact({ ...backend, requestTimeoutMs: timeoutMs }, artifact.sourcePath, { range });
+    } catch (error) {
+      request.log.warn({ err: error, conversationId: context.conversation._id, artifactId: artifact._id }, 'Failed to fetch AI artifact');
+      return reply.code(502).send({ error: 'Bad Gateway', message: 'The artifact backend could not be reached' });
+    }
+    if (upstream.status === 404 || upstream.status === 410) {
+      upstream.body?.cancel().catch(() => {});
+      return reply.code(410).send({ error: 'Gone', message: 'This artifact is no longer available' });
+    }
+    if (!upstream.ok) {
+      upstream.body?.cancel().catch(() => {});
+      return reply.code(502).send({ error: 'Bad Gateway', message: 'The artifact backend returned an error' });
+    }
+    if (!upstream.body) return reply.code(502).send({ error: 'Bad Gateway', message: 'The artifact backend returned an empty response' });
+
+    const contentType = artifactContentType(artifact, upstream);
+    const disposition = contentType === 'application/octet-stream' ? 'attachment' : 'inline';
+    const filename = safeArtifactFilename(artifact.filename);
+    reply.code(upstream.status === 206 ? 206 : 200);
+    reply.type(contentType);
+    reply.header('Cache-Control', 'private, max-age=3600');
+    reply.header('X-Content-Type-Options', 'nosniff');
+    reply.header('Content-Disposition', `${disposition}; filename*=UTF-8''${encodeArtifactFilename(filename)}`);
+    ['content-length', 'content-range', 'accept-ranges'].forEach((name) => copyArtifactHeader(reply, upstream, name));
+    return reply.send(Readable.fromWeb(upstream.body));
+  });
 }
 
 async function recoverOrphanedConversation(conversation) {

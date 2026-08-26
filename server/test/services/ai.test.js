@@ -75,7 +75,7 @@ describe('requestAiMessage', () => {
           { message: { thinking: 'Check' }, done: false },
           { message: { thinking: ' the course data.' }, done: false },
           { message: { content: 'The ' }, done: false },
-          { message: { content: 'answer.' }, done: false },
+          { message: { content: 'answer.', qrag_artifacts: [{ kind: 'image', path: '/api/files/chart.png', filename: 'chart.png' }] }, done: false },
           { message: {}, done: true },
         ].forEach((chunk) => controller.enqueue(encoder.encode(`${JSON.stringify(chunk)}\n`)));
         controller.close();
@@ -94,7 +94,12 @@ describe('requestAiMessage', () => {
       (thinking) => thinkingUpdates.push(thinking)
     );
 
-    expect(result).toEqual({ content: 'The answer.', thinking: 'Check the course data.', toolCalls: [] });
+    expect(result).toEqual({
+      content: 'The answer.',
+      thinking: 'Check the course data.',
+      toolCalls: [],
+      artifacts: [{ kind: 'image', path: '/api/files/chart.png', filename: 'chart.png' }],
+    });
     expect(thinkingUpdates).toEqual(['Check', 'Check the course data.']);
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ stream: true });
   });
@@ -164,7 +169,7 @@ describe('requestAiMessage', () => {
       'local-model',
       [{ role: 'user', content: 'Create a question' }],
       [{ name: 'create_course_question', inputSchema: { type: 'object', properties: {} } }]
-    )).resolves.toEqual({ content: 'Recovered response', toolCalls: [] });
+    )).resolves.toEqual({ content: 'Recovered response', toolCalls: [], artifacts: [] });
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const retryBody = JSON.parse(fetchMock.mock.calls[1][1].body);

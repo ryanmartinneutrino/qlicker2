@@ -197,6 +197,44 @@ describe('AiCourseChat', () => {
     expect(warning).toHaveStyle({ borderColor: '#ed6c02' });
   });
 
+  it('renders artifact media only through opaque Qlicker URLs and shows expired media as a warning', async () => {
+    const conversation = {
+      _id: 'conversation-1',
+      title: 'Generated media',
+      pending: false,
+      messages: [{
+        _id: 'message-1',
+        role: 'assistant',
+        content: 'Here are the requested artifacts.',
+        artifacts: [
+          { _id: 'image-1', kind: 'image', filename: 'chart.png', label: 'A velocity chart', sourcePath: '/api/files/private-chart.png' },
+          { _id: 'audio-1', kind: 'audio', filename: 'explanation.mp3', label: 'Spoken explanation' },
+          { _id: 'file-1', kind: 'file', filename: 'data.csv' },
+        ],
+      }],
+    };
+    apiClient.get.mockImplementation((url) => {
+      if (url.endsWith('/config')) return Promise.resolve({ data: {
+        approvedModels: [{ backendId: 'backend-1', backendName: 'Backend 1', modelId: 'model-1', modelName: 'Model 1' }],
+        defaultBackendId: 'backend-1',
+        defaultModelId: 'model-1',
+      } });
+      if (url.endsWith('/conversations')) return Promise.resolve({ data: { conversations: [conversation] } });
+      return Promise.resolve({ data: { conversation } });
+    });
+
+    render(<AiCourseChat courseId="course-1" />);
+
+    const image = await screen.findByAltText('A velocity chart');
+    expect(image).toHaveAttribute('src', '/ai/media/conversation-1/image-1');
+    expect(screen.getByLabelText('Spoken explanation')).toHaveAttribute('src', '/ai/media/conversation-1/audio-1');
+    expect(screen.getByRole('link', { name: 'Download data.csv' })).toHaveAttribute('href', '/ai/media/conversation-1/file-1');
+    expect(document.body.textContent).not.toContain('/api/files/private-chart.png');
+
+    fireEvent.error(image);
+    expect(await screen.findByText('This artifact is unavailable or may have expired.')).toBeInTheDocument();
+  });
+
   it('uses the student endpoints and shows student-facing guidance', async () => {
     const conversation = { _id: 'student-conversation-1', title: '', messages: [] };
     apiClient.post.mockResolvedValueOnce({ data: { conversation } });

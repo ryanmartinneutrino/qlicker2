@@ -2,6 +2,8 @@ import { z } from 'zod';
 import { createCourseMcpClient } from './aiMcp.js';
 import { AiBackendHttpError, requestAiJsonMessage, requestAiMessage } from './ai.js';
 import { resolveCourseAiAudience } from '../utils/courseAccess.js';
+import { generateMeteorId } from '../utils/meteorId.js';
+import { MAX_AI_ARTIFACTS_PER_MESSAGE } from '../models/AiConversation.js';
 
 export const DEFAULT_INSTRUCTOR_CHAT_MAX_TOOL_ROUNDS = 20;
 export const DEFAULT_STUDENT_CHAT_MAX_TOOL_ROUNDS = 5;
@@ -101,8 +103,44 @@ function createThinkingCollector(onThinking) {
   };
 }
 
-function completedChat(content, thinking) {
-  return { content: String(content || ''), thinking: thinking.value() };
+function cleanArtifactText(value, maximum) {
+  return String(value || '').replace(/[\u0000\r\n]/g, ' ').trim().slice(0, maximum);
+}
+
+function safeArtifactPath(value) {
+  const path = String(value || '').trim();
+  if (!path.startsWith('/') || path.startsWith('//') || path.includes('\\') || /[\u0000-\u001f\u007f]/.test(path)) return '';
+  let decoded;
+  try { decoded = decodeURIComponent(path); }
+  catch { return ''; }
+  if (decoded.includes('\\') || /[\u0000-\u001f\u007f]/.test(decoded) || decoded.split('/').some((segment) => segment === '..')) return '';
+  try {
+    const parsed = new URL(path, 'https://artifact.invalid');
+    if (parsed.origin !== 'https://artifact.invalid' || parsed.pathname !== path.split(/[?#]/, 1)[0]) return '';
+  } catch { return ''; }
+  return path.slice(0, 2_000);
+}
+
+export function normalizeAiArtifacts(value) {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return [];
+    const sourcePath = safeArtifactPath(entry.path);
+    if (!sourcePath) return [];
+    const kind = ['image', 'audio', 'file'].includes(entry.kind) ? entry.kind : 'file';
+    return [{
+      _id: generateMeteorId(),
+      kind,
+      sourcePath,
+      filename: cleanArtifactText(entry.filename, 300),
+      mimeType: cleanArtifactText(entry.mime_type, 200).toLowerCase(),
+      label: cleanArtifactText(entry.label, 300),
+    }];
+  }).slice(0, MAX_AI_ARTIFACTS_PER_MESSAGE);
+}
+
+function completedChat(content, thinking, artifacts = []) {
+  return { content: String(content || ''), thinking: thinking.value(), artifacts: normalizeAiArtifacts(artifacts) };
 }
 
 const creationPlanQuestionSchema = z.object({
@@ -395,7 +433,7 @@ export async function runAiCourseChat({
           });
           return completedChat(content, thinking);
         }
-        return completedChat(responseWithNotices(response.content, notices), thinking);
+        return completedChat(responseWithNotices(response.content, notices), thinking, response.artifacts);
       }
       providerMessages.push(assistantToolCallMessage(response, backend));
       for (const call of response.toolCalls) {

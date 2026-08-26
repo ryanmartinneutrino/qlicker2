@@ -21,6 +21,39 @@ function normalizeDraft(value) {
   return { html, plainText: String(value?.plainText ?? extractPlainTextFromHtml(html)) };
 }
 
+function AiMessageArtifacts({ conversationId, artifacts = [] }) {
+  const { t } = useTranslation();
+  const [unavailable, setUnavailable] = useState({});
+  if (!conversationId || !artifacts.length) return null;
+  const markUnavailable = (artifactId) => setUnavailable((current) => ({ ...current, [artifactId]: true }));
+  return <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 1 }}>
+    {artifacts.map((artifact) => {
+      const url = `/ai/media/${encodeURIComponent(conversationId)}/${encodeURIComponent(artifact._id)}`;
+      const label = artifact.label || artifact.filename || t(
+        artifact.kind === 'image' ? 'ai.chat.generatedImage' : artifact.kind === 'audio' ? 'ai.chat.generatedAudio' : 'ai.chat.generatedFile'
+      );
+      if (unavailable[artifact._id]) {
+        return <Alert key={artifact._id} severity="warning">{t('ai.chat.artifactUnavailable')}</Alert>;
+      }
+      if (artifact.kind === 'image') {
+        return <Box key={artifact._id}>
+          <Box component="img" src={url} alt={label} onError={() => markUnavailable(artifact._id)} sx={{ display: 'block', maxWidth: '100%', maxHeight: 520, borderRadius: 1 }} />
+          {artifact.label ? <Typography variant="caption" color="text.secondary">{artifact.label}</Typography> : null}
+        </Box>;
+      }
+      if (artifact.kind === 'audio') {
+        return <Box key={artifact._id}>
+          {artifact.label ? <Typography variant="body2" sx={{ mb: 0.5 }}>{artifact.label}</Typography> : null}
+          <Box component="audio" controls preload="metadata" src={url} aria-label={label} onError={() => markUnavailable(artifact._id)} sx={{ display: 'block', width: '100%', maxWidth: 520 }} />
+        </Box>;
+      }
+      return <Button key={artifact._id} component="a" href={url} download={artifact.filename || true} variant="outlined" size="small" sx={{ alignSelf: 'flex-start' }}>
+        {t('ai.chat.downloadArtifact', { filename: artifact.filename || label })}
+      </Button>;
+    })}
+  </Box>;
+}
+
 export default function AiCourseChat({ courseId, audience = 'instructor' }) {
   const { t } = useTranslation();
   const [conversations, setConversations] = useState([]);
@@ -211,6 +244,7 @@ export default function AiCourseChat({ courseId, audience = 'instructor' }) {
           {message.role === 'assistant'
             ? <AiMarkdownContent content={isErrorMessage ? t('ai.chat.backendError', { detail: errorDetail }) : message.content} />
             : <Typography sx={{ whiteSpace: 'pre-wrap' }}>{message.content}</Typography>}
+          {message.role === 'assistant' ? <AiMessageArtifacts conversationId={selected?._id} artifacts={message.artifacts} /> : null}
         </Paper>;
         })}
         {isThinking ? <Paper variant="outlined" role="status" sx={{ p: 1.25, alignSelf: 'flex-start', maxWidth: '90%' }}>

@@ -122,6 +122,24 @@ async function aiFetch(value, options = {}, redirectsRemaining = 3) {
   return aiFetch(redirectedUrl, redirectedOptions, redirectsRemaining - 1);
 }
 
+export async function fetchAiArtifact(backend, sourcePath, { range } = {}) {
+  const path = String(sourcePath || '');
+  if (!path.startsWith('/') || path.startsWith('//')) throw new Error('Invalid AI artifact path');
+  const base = new URL(normalizeAiUrl(backend?.url));
+  const endpoint = new URL(path, `${base.origin}/`).toString();
+  const headers = {};
+  if (backend?.apiToken) headers.authorization = `Bearer ${backend.apiToken}`;
+  if (range) headers.range = range;
+  const requestTimeoutMs = Number.isFinite(Number(backend?.requestTimeoutMs))
+    ? Math.max(1_000, Number(backend.requestTimeoutMs))
+    : config.aiBackendRequestTimeoutMs;
+  return aiFetch(endpoint, {
+    method: 'GET',
+    headers,
+    signal: AbortSignal.timeout(requestTimeoutMs),
+  });
+}
+
 async function boundedResponseText(response, maximumBytes = 2_000_000) {
   const reader = response.body?.getReader();
   if (!reader) return '';
@@ -291,6 +309,7 @@ async function ollamaStreamPayload(response, onThinking) {
   let content = '';
   let thinking = '';
   const toolCalls = [];
+  const artifacts = [];
 
   const parseLine = (line) => {
     const text = line.trim();
@@ -314,6 +333,10 @@ async function ollamaStreamPayload(response, onThinking) {
       if (!Array.isArray(message.tool_calls)) throw new AiResponseFormatError('AI backend returned tool calls in an unsupported format');
       toolCalls.push(...message.tool_calls);
     }
+    if (message.qrag_artifacts !== undefined && message.qrag_artifacts !== null) {
+      if (!Array.isArray(message.qrag_artifacts)) throw new AiResponseFormatError('AI backend returned artifacts in an unsupported format');
+      artifacts.push(...message.qrag_artifacts);
+    }
   };
 
   while (true) {
@@ -332,7 +355,7 @@ async function ollamaStreamPayload(response, onThinking) {
   buffer += decoder.decode();
   if (buffer.trim()) parseLine(buffer);
   if (!parsedAny) throw new AiResponseFormatError('AI backend returned invalid streaming JSON');
-  return { message: { content, thinking, tool_calls: toolCalls } };
+  return { message: { content, thinking, tool_calls: toolCalls, qrag_artifacts: artifacts } };
 }
 
 function normalizeToolCalls(toolCalls = []) {
@@ -390,8 +413,10 @@ async function requestAiMessageOnce(backend, modelId, messages, tools = [], sign
   const thinking = normalizeThinkingContent(message);
   if (!streamThinking) emitThinking(requestOptions.onThinking, thinking);
   const toolCalls = normalizeToolCalls(message.tool_calls === undefined || message.tool_calls === null ? [] : message.tool_calls);
-  if (!content && toolCalls.length === 0) throw new AiResponseFormatError('AI backend returned an empty response');
-  return { content, toolCalls, ...(thinking ? { thinking } : {}) };
+  const artifacts = message.qrag_artifacts === undefined || message.qrag_artifacts === null ? [] : message.qrag_artifacts;
+  if (!Array.isArray(artifacts)) throw new AiResponseFormatError('AI backend returned artifacts in an unsupported format');
+  if (!content && toolCalls.length === 0 && artifacts.length === 0) throw new AiResponseFormatError('AI backend returned an empty response');
+  return { content, toolCalls, artifacts, ...(thinking ? { thinking } : {}) };
 }
 
 async function requestAiMessageWithOptions(backend, modelId, messages, tools = [], signal = undefined, requestOptions = {}) {

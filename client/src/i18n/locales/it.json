@@ -2550,7 +2550,12 @@
       "backendError": "Il backend IA ha riscontrato un errore: {{detail}}",
       "you": "You",
       "failedLoad": "Could not load AI conversations.",
-      "failedSend": "Could not send the message."
+      "failedSend": "Could not send the message.",
+      "generatedImage": "Immagine generata",
+      "generatedAudio": "Audio generato",
+      "generatedFile": "File generato",
+      "downloadArtifact": "Scarica {{filename}}",
+      "artifactUnavailable": "Questo artefatto non è disponibile o potrebbe essere scaduto."
     }
   }
 }

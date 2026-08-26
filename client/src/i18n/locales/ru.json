@@ -2529,7 +2529,12 @@
       "backendError": "На стороне ИИ произошла ошибка: {{detail}}",
       "you": "You",
       "failedLoad": "Could not load AI conversations.",
-      "failedSend": "Could not send the message."
+      "failedSend": "Could not send the message.",
+      "generatedImage": "Созданное изображение",
+      "generatedAudio": "Созданная аудиозапись",
+      "generatedFile": "Созданный файл",
+      "downloadArtifact": "Скачать {{filename}}",
+      "artifactUnavailable": "Этот материал недоступен или срок его хранения истёк."
     }
   }
 }

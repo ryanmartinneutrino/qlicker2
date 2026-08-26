@@ -1849,7 +1849,12 @@
       "backendError": "The AI backend ran into an error: {{detail}}",
       "you": "You",
       "failedLoad": "Could not load AI conversations.",
-      "failedSend": "Could not send the message."
+      "failedSend": "Could not send the message.",
+      "generatedImage": "Generated image",
+      "generatedAudio": "Generated audio",
+      "generatedFile": "Generated file",
+      "downloadArtifact": "Download {{filename}}",
+      "artifactUnavailable": "This artifact is unavailable or may have expired."
     }
   },
   "semesters": {

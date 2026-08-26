@@ -2549,7 +2549,12 @@
       "backendError": "Beim KI-Backend ist ein Fehler aufgetreten: {{detail}}",
       "you": "You",
       "failedLoad": "Could not load AI conversations.",
-      "failedSend": "Could not send the message."
+      "failedSend": "Could not send the message.",
+      "generatedImage": "Erzeugtes Bild",
+      "generatedAudio": "Erzeugte Audiodatei",
+      "generatedFile": "Erzeugte Datei",
+      "downloadArtifact": "{{filename}} herunterladen",
+      "artifactUnavailable": "Dieses Artefakt ist nicht verfügbar oder möglicherweise abgelaufen."
     }
   }
 }
