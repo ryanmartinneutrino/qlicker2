@@ -4441,13 +4441,19 @@ describe('session chat quick posts', () => {
     expect(initialChatRes.json().posts).toHaveLength(0);
     expect(initialChatRes.json().quickPostOptions).toEqual([
       expect.objectContaining({
+        questionNumber: 2,
+        upvoteCount: 0,
+        viewerHasUpvoted: false,
+      }),
+      expect.objectContaining({
         questionNumber: 1,
         upvoteCount: 0,
         viewerHasUpvoted: false,
       }),
     ]);
 
-    const toggleQuickPostRes = await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/chat/quick-posts/1/toggle`, {
+    const wsSendToUsersSpy = vi.spyOn(app, 'wsSendToUsers');
+    const toggleQuickPostRes = await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/chat/quick-posts/2/toggle`, {
       token: studentToken,
     });
     expect(toggleQuickPostRes.statusCode).toBe(200);
@@ -4460,11 +4466,11 @@ describe('session chat quick posts', () => {
       isQuickPost: true,
     }).lean();
     expect(quickPosts).toHaveLength(2);
-    const questionOneQuickPost = quickPosts.find((post) => Number(post.quickPostQuestionNumber) === 1);
-    expect(questionOneQuickPost).toBeTruthy();
-    expect(Number(questionOneQuickPost.upvoteCount)).toBe(1);
-    expect((questionOneQuickPost.upvoteUserIds || []).map(String)).toContain(String(student._id));
-    expect(questionOneQuickPost.body).toBe("I didn't understand question 1");
+    const currentQuestionQuickPost = quickPosts.find((post) => Number(post.quickPostQuestionNumber) === 2);
+    expect(currentQuestionQuickPost).toBeTruthy();
+    expect(Number(currentQuestionQuickPost.upvoteCount)).toBe(1);
+    expect((currentQuestionQuickPost.upvoteUserIds || []).map(String)).toContain(String(student._id));
+    expect(currentQuestionQuickPost.body).toBe("I didn't understand question 2");
 
     const updatedChatRes = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/chat`, {
       token: studentToken,
@@ -4473,17 +4479,52 @@ describe('session chat quick posts', () => {
     expect(updatedChatRes.json().posts).toEqual([
       expect.objectContaining({
         isQuickPost: true,
-        quickPostQuestionNumber: 1,
+        quickPostQuestionNumber: 2,
         upvoteCount: 1,
         viewerHasUpvoted: true,
       }),
     ]);
     expect(updatedChatRes.json().quickPostOptions).toEqual([
       expect.objectContaining({
-        questionNumber: 1,
+        questionNumber: 2,
         upvoteCount: 1,
         viewerHasUpvoted: true,
       }),
+      expect.objectContaining({
+        questionNumber: 1,
+        upvoteCount: 0,
+        viewerHasUpvoted: false,
+      }),
+    ]);
+
+    const secondStudent = await createTestUser({ email: 'student-two@example.com', roles: ['student'] });
+    const secondStudentToken = await getAuthToken(app, secondStudent);
+    await authenticatedRequest(app, 'POST', '/api/v1/courses/enroll', {
+      token: secondStudentToken,
+      payload: { enrollmentCode: course.enrollmentCode },
+    });
+    await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/join`, {
+      token: secondStudentToken,
+      payload: {},
+    });
+    const secondVoteRes = await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/chat/quick-posts/2/toggle`, {
+      token: secondStudentToken,
+    });
+    expect(secondVoteRes.statusCode).toBe(200);
+    expect(secondVoteRes.json().upvoteCount).toBe(2);
+    expect(await Post.countDocuments({
+      scopeType: 'session',
+      sessionId: String(session._id),
+      isQuickPost: true,
+      quickPostQuestionNumber: 2,
+    })).toBe(1);
+    const quickPostEvents = wsSendToUsersSpy.mock.calls
+      .filter(([, event, payload]) => event === 'session:chat-updated' && payload?.changeType === 'quick-post-toggled');
+    expect(quickPostEvents.map(([, , payload]) => payload.becameVisible)).toEqual([
+      true,
+      true,
+      false,
+      false,
     ]);
 
     expect(String(questionOne._id)).not.toBe(String(questionTwo._id));
@@ -4578,7 +4619,7 @@ describe('session chat quick posts', () => {
       token: studentToken,
     });
     expect(chatRes.statusCode).toBe(200);
-    expect(chatRes.json().currentQuestionNumber).toBe(3);
+    expect(chatRes.json().currentQuestionNumber).toBe(2);
     expect(chatRes.json().quickPostOptions.map((post) => post.questionNumber)).toEqual([2, 1]);
 
     const quickPosts = await Post.find({
@@ -4986,6 +5027,63 @@ describe('session chat quick posts', () => {
         }),
       ],
     ]));
+  });
+
+  it('lets students and professors edit only their own session chat posts', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const { profToken, course, studentToken } = await setupCourseWithStudent();
+
+    const sessionRes = await createSessionInCourse(profToken, course._id, { name: 'Edit Chat Session' });
+    const session = sessionRes.json().session;
+    await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${session._id}/chat-settings`, {
+      token: profToken,
+      payload: { chatEnabled: true },
+    });
+    await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/start`, {
+      token: profToken,
+    });
+    await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/join`, {
+      token: studentToken,
+      payload: {},
+    });
+
+    const studentPostRes = await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/chat/posts`, {
+      token: studentToken,
+      payload: { body: 'Student original', bodyWysiwyg: '<p>Student original</p>' },
+    });
+    expect(studentPostRes.statusCode).toBe(200);
+
+    const professorEditingStudentRes = await authenticatedRequest(
+      app,
+      'PATCH',
+      `/api/v1/sessions/${session._id}/chat/posts/${studentPostRes.json().postId}`,
+      { token: profToken, payload: { body: 'Professor overwrite' } }
+    );
+    expect(professorEditingStudentRes.statusCode).toBe(403);
+
+    const studentEditRes = await authenticatedRequest(
+      app,
+      'PATCH',
+      `/api/v1/sessions/${session._id}/chat/posts/${studentPostRes.json().postId}`,
+      { token: studentToken, payload: { body: 'Student revised', bodyWysiwyg: '<p>Student revised</p>' } }
+    );
+    expect(studentEditRes.statusCode).toBe(200);
+    expect((await Post.findById(studentPostRes.json().postId).lean()).body).toBe('Student revised');
+
+    const professorPostRes = await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/chat/posts`, {
+      token: profToken,
+      payload: { body: 'Professor original' },
+    });
+    expect(professorPostRes.statusCode).toBe(200);
+
+    const professorEditRes = await authenticatedRequest(
+      app,
+      'PATCH',
+      `/api/v1/sessions/${session._id}/chat/posts/${professorPostRes.json().postId}`,
+      { token: profToken, payload: { body: 'Professor revised' } }
+    );
+    expect(professorEditRes.statusCode).toBe(200);
+    expect((await Post.findById(professorPostRes.json().postId).lean()).body).toBe('Professor revised');
   });
 
   it('broadcasts updated post deltas when a student deletes their own comment', async (ctx) => {

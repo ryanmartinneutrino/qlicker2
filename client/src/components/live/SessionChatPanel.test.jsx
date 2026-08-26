@@ -48,6 +48,7 @@ describe('SessionChatPanel', () => {
         posts: [],
       },
     });
+    apiClient.patch.mockResolvedValue({ data: { success: true } });
   });
 
   it('loads chat once on mount and only refetches when refreshToken changes', async () => {
@@ -151,7 +152,7 @@ describe('SessionChatPanel', () => {
     );
 
     expect(await screen.findByText('Need more explanation?')).toBeInTheDocument();
-    expect(screen.getByText('Choose an earlier question to add your vote to a shared request for clarification.')).toBeInTheDocument();
+    expect(screen.getByText('Choose the current or an earlier question to add your vote to a shared request for clarification.')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Request explanation' }));
 
@@ -429,6 +430,69 @@ describe('SessionChatPanel', () => {
 
     await waitFor(() => {
       expect(apiClient.delete).toHaveBeenCalledWith('/sessions/session-1/chat/posts/normal-own-post');
+    });
+  });
+
+  it('lets an author edit their own non-quick post but not another author\'s post', async () => {
+    apiClient.get.mockResolvedValue({
+      data: {
+        richTextChatEnabled: true,
+        canPost: true,
+        canVote: true,
+        canEditOwnPost: true,
+        canDeleteOwnPost: true,
+        canDismiss: false,
+        canComment: true,
+        canViewNames: false,
+        quickPosts: [],
+        posts: [
+          {
+            _id: 'own-post',
+            body: 'My original post',
+            bodyWysiwyg: '<p>My original post</p>',
+            createdAt: null,
+            updatedAt: null,
+            upvoteCount: 0,
+            viewerHasUpvoted: false,
+            isOwnPost: true,
+            isQuickPost: false,
+            dismissed: false,
+            authorRole: 'student',
+            authorName: null,
+            comments: [],
+          },
+          {
+            _id: 'other-post',
+            body: 'Another student post',
+            bodyWysiwyg: '',
+            createdAt: null,
+            updatedAt: null,
+            upvoteCount: 0,
+            viewerHasUpvoted: false,
+            isOwnPost: false,
+            isQuickPost: false,
+            dismissed: false,
+            authorRole: 'student',
+            authorName: null,
+            comments: [],
+          },
+        ],
+      },
+    });
+
+    render(<SessionChatPanel sessionId="session-1" enabled role="student" />);
+
+    expect(await screen.findByText('My original post')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Edit' })).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.change(screen.getByLabelText('Edit session chat post'), { target: { value: '<p>My revised post</p>' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(apiClient.patch).toHaveBeenCalledWith('/sessions/session-1/chat/posts/own-post', {
+        body: 'My revised post',
+        bodyWysiwyg: '<p>My revised post</p>',
+      });
     });
   });
 

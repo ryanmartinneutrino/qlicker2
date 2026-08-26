@@ -944,11 +944,12 @@ async function loadSessionChatQuestionMetadata(session) {
 
   orderedQuestions.forEach((question, index) => {
     const questionId = normalizeAnswerValue(question?._id);
+    const responseCollectionEnabled = isQuestionResponseCollectionEnabled(question);
     if (currentQuestionId && questionId === currentQuestionId) {
-      currentQuestionNumber = questionsBeforeCurrentPage + 1;
+      currentQuestionNumber = questionsBeforeCurrentPage + (responseCollectionEnabled ? 1 : 0);
     }
 
-    if (!isQuestionResponseCollectionEnabled(question)) return;
+    if (!responseCollectionEnabled) return;
 
     const questionNumber = responseQuestionEntries.length + 1;
     responseQuestionEntries.push({
@@ -1189,7 +1190,7 @@ function isQuickPostOptionVisible(post, { includeDismissed = false, currentQuest
   if (!includeDismissed && post?.dismissedAt) return false;
   const questionNumber = Number(post?.quickPostQuestionNumber) || 0;
   if (questionNumber <= 0) return false;
-  return currentQuestionNumber === null || questionNumber < currentQuestionNumber;
+  return currentQuestionNumber === null || questionNumber <= currentQuestionNumber;
 }
 
 function compareChatPosts(a, b) {
@@ -1407,7 +1408,7 @@ async function loadSessionChatPayload({ session, course, request }) {
       viewerHasUpvoted: post.viewerHasUpvoted,
     }))
     .filter((post) => Number(post.questionNumber) > 0 && (
-      currentQuestionNumber === null || post.questionNumber < currentQuestionNumber
+      currentQuestionNumber === null || post.questionNumber <= currentQuestionNumber
     ))
     .sort((a, b) => b.questionNumber - a.questionNumber);
   const quickPostOptions = posts
@@ -1428,6 +1429,7 @@ async function loadSessionChatPayload({ session, course, request }) {
     canPost: flags.canWrite,
     canComment: flags.canWrite,
     canVote: flags.canWrite && !flags.isInstructorView,
+    canEditOwnPost: flags.canWrite && isRichTextChatEnabled(session),
     canDeleteOwnPost: flags.canWrite,
     canDeleteOwnComment: flags.canWrite,
     canDeleteAnyComment: flags.canModerate,
@@ -6456,8 +6458,8 @@ export default async function sessionRoutes(app) {
       if (!Number.isInteger(questionNumber) || questionNumber <= 0) {
         return reply.code(400).send({ error: 'Bad Request', message: 'Invalid quick-post question number' });
       }
-      if (currentQuestionNumber != null && questionNumber >= currentQuestionNumber) {
-        return reply.code(400).send({ error: 'Bad Request', message: 'Quick posts are only available for earlier questions' });
+      if (currentQuestionNumber != null && questionNumber > currentQuestionNumber) {
+        return reply.code(400).send({ error: 'Bad Request', message: 'Quick posts are only available for the current or earlier questions' });
       }
 
       await ensureSessionQuickPosts(session, questionMetadata);
@@ -6496,6 +6498,7 @@ export default async function sessionRoutes(app) {
 
       await notifyChatUpdated(app, course, session, {
         changeType: 'quick-post-toggled',
+        becameVisible: Number(post.upvoteCount || 0) <= 0 && Number(updated?.upvoteCount || 0) > 0,
         postId: String(post._id),
         post: updated,
         currentQuestionNumber,
@@ -6507,6 +6510,81 @@ export default async function sessionRoutes(app) {
         viewerHasUpvoted: !hasUpvoted,
         upvoteCount: Number(updated?.upvoteCount || 0),
       };
+    }
+  );
+
+  app.patch(
+    '/sessions/:id/chat/posts/:postId',
+    {
+      preHandler: authenticate,
+      rateLimit: { max: 40, timeWindow: '1 minute' },
+      config: { rateLimit: { max: 40, timeWindow: '1 minute' } },
+      schema: {
+        body: {
+          type: 'object',
+          properties: {
+            body: { type: 'string' },
+            bodyWysiwyg: { type: 'string' },
+          },
+          additionalProperties: false,
+        },
+      },
+    },
+    async (request, reply) => {
+      const { session, course } = await loadSessionChatContext(request.params.id);
+      if (!session) {
+        return reply.code(404).send({ error: 'Not Found', message: 'Session not found' });
+      }
+      if (!course) {
+        return reply.code(404).send({ error: 'Not Found', message: 'Course not found' });
+      }
+      if (!isCourseMember(course, request.user)) {
+        return reply.code(403).send({ error: 'Forbidden', message: 'Not a member of this course' });
+      }
+
+      const viewMode = getChatViewMode(request, isInstructorOrAdmin(course, request.user));
+      const flags = getChatPermissionFlags({ session, course, request, viewMode });
+      if (!flags.canWrite || !session.chatEnabled || !isRichTextChatEnabled(session)) {
+        return reply.code(403).send({ error: 'Forbidden', message: 'Post editing is not available' });
+      }
+
+      const post = await Post.findOne({
+        _id: request.params.postId,
+        scopeType: 'session',
+        sessionId: String(session._id),
+      }).lean();
+      if (!post) {
+        return reply.code(404).send({ error: 'Not Found', message: 'Post not found' });
+      }
+      if (String(post.authorId || '') !== String(request.user.userId || '')) {
+        return reply.code(403).send({ error: 'Forbidden', message: 'You can only edit your own posts' });
+      }
+      if (post.isQuickPost) {
+        return reply.code(403).send({ error: 'Forbidden', message: 'Quick posts cannot be edited' });
+      }
+      if (post.dismissedAt) {
+        return reply.code(403).send({ error: 'Forbidden', message: 'Dismissed posts cannot be edited' });
+      }
+
+      const bodyWysiwyg = normalizeAnswerValue(request.body?.bodyWysiwyg);
+      const body = normalizeAnswerValue(request.body?.body || stripHtmlToPlainText(bodyWysiwyg));
+      if (!body && !bodyWysiwyg) {
+        return reply.code(400).send({ error: 'Bad Request', message: 'Post content is required' });
+      }
+
+      const updated = await Post.findByIdAndUpdate(
+        post._id,
+        { $set: { body, bodyWysiwyg, updatedAt: new Date() } },
+        { returnDocument: 'after' }
+      ).lean();
+
+      await notifyChatUpdated(app, course, session, {
+        changeType: 'post-edited',
+        postId: String(post._id),
+        post: updated,
+      });
+
+      return { success: true, postId: String(post._id) };
     }
   );
 
@@ -6562,7 +6640,7 @@ export default async function sessionRoutes(app) {
 
       const questionMetadata = await loadSessionChatQuestionMetadata(session);
       const currentQuestionNumber = questionMetadata.currentQuestionNumber;
-      if (post.isQuickPost && currentQuestionNumber != null && Number(post.quickPostQuestionNumber) >= currentQuestionNumber) {
+      if (post.isQuickPost && currentQuestionNumber != null && Number(post.quickPostQuestionNumber) > currentQuestionNumber) {
         return reply.code(400).send({ error: 'Bad Request', message: 'This quick post is not available yet' });
       }
 

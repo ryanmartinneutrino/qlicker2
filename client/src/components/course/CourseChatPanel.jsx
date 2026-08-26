@@ -25,6 +25,7 @@ import {
   ArchiveOutlined as ArchiveIcon,
   ChatBubbleOutline as CommentIcon,
   DeleteOutline as DeleteIcon,
+  EditOutlined as EditIcon,
   ExpandLess as ExpandLessIcon,
   ExpandMore as ExpandMoreIcon,
   RestoreFromTrash as UnarchiveIcon,
@@ -281,6 +282,10 @@ export default function CourseChatPanel({
   const [deletingCommentId, setDeletingCommentId] = useState('');
   const [votingCommentId, setVotingCommentId] = useState('');
   const [submittingPost, setSubmittingPost] = useState(false);
+  const [editingPostId, setEditingPostId] = useState('');
+  const [editTitleDraft, setEditTitleDraft] = useState('');
+  const [editBodyDraft, setEditBodyDraft] = useState('');
+  const [savingPostId, setSavingPostId] = useState('');
   const chatDataRef = useRef(initialData);
   const fetchInFlightRef = useRef(false);
   const queuedRefreshRef = useRef(false);
@@ -441,6 +446,40 @@ export default function CourseChatPanel({
       setError(err.response?.data?.message || t('courseChat.failedToVote'));
     }
   }, [courseId, fetchChat, shouldRefetchAfterStudentMutation, t]);
+
+  const beginEditingPost = useCallback((post) => {
+    setEditingPostId(post._id);
+    setEditTitleDraft(post.title || '');
+    setEditBodyDraft(prepareRichTextInput(post.bodyWysiwyg, post.body));
+  }, []);
+
+  const cancelEditingPost = useCallback(() => {
+    setEditingPostId('');
+    setEditTitleDraft('');
+    setEditBodyDraft('');
+  }, []);
+
+  const handleEditPost = useCallback(async (postId) => {
+    const editHasContent = normalizeDraftPlainText(editBodyDraft).length > 0 || editBodyDraft.trim().length > 0;
+    if (!editTitleDraft.trim() || !editHasContent || savingPostId) return;
+    setSavingPostId(postId);
+    try {
+      await apiClient.patch(`/courses/${courseId}/chat/posts/${postId}`, {
+        title: editTitleDraft.trim(),
+        body: normalizeDraftPlainText(editBodyDraft),
+        bodyWysiwyg: editBodyDraft,
+      });
+      cancelEditingPost();
+      setError(null);
+      if (shouldRefetchAfterStudentMutation) {
+        await fetchChat();
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || t('courseChat.failedToEdit'));
+    } finally {
+      setSavingPostId('');
+    }
+  }, [cancelEditingPost, courseId, editBodyDraft, editTitleDraft, fetchChat, savingPostId, shouldRefetchAfterStudentMutation, t]);
 
   const handleVoteComment = useCallback(async (postId, commentId, upvoted) => {
     setVotingCommentId(commentId);
@@ -658,6 +697,8 @@ export default function CourseChatPanel({
         <Alert severity="info">{t('courseChat.noPosts')}</Alert>
       ) : filteredPosts.map((post) => {
         const expanded = !!expandedPosts[post._id];
+        const isEditing = editingPostId === post._id;
+        const canEditPost = !post.isArchived && post.isOwnPost;
         const canDeletePost = !post.isArchived && (canDeleteAnyPost || (canDeleteOwnPost && post.isOwnPost));
         return (
           <Paper key={post._id} variant="outlined" sx={{ p: 2, opacity: post.isArchived ? 0.82 : 1 }}>
@@ -702,6 +743,13 @@ export default function CourseChatPanel({
                       </IconButton>
                     </Tooltip>
                   ) : null}
+                  {canEditPost ? (
+                    <Tooltip title={t('courseChat.editPost')}>
+                      <IconButton size="small" aria-label={t('courseChat.editPost')} onClick={() => beginEditingPost(post)}>
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  ) : null}
                   {canDeletePost ? (
                     <Tooltip title={t('courseChat.deletePost')}>
                       <IconButton size="small" color="error" aria-label={t('courseChat.deletePost')} onClick={() => handleDeletePost(post._id)}>
@@ -720,7 +768,36 @@ export default function CourseChatPanel({
                 </Stack>
               ) : null}
 
-              <RichContent html={post.bodyWysiwyg} fallback={post.body} />
+              {isEditing ? (
+                <Stack spacing={1.25}>
+                  <TextField
+                    size="small"
+                    label={t('courseChat.topic')}
+                    value={editTitleDraft}
+                    onChange={(event) => setEditTitleDraft(event.target.value)}
+                    inputProps={{ maxLength: 160 }}
+                  />
+                  <StudentRichTextEditor
+                    value={editBodyDraft}
+                    onChange={({ html }) => setEditBodyDraft(html)}
+                    placeholder={t('courseChat.postPlaceholder')}
+                    ariaLabel={t('courseChat.editPostEditorLabel')}
+                    enableVideo
+                  />
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, flexWrap: 'wrap' }}>
+                    <Button onClick={cancelEditingPost}>{t('common.cancel')}</Button>
+                    <Button
+                      variant="contained"
+                      onClick={() => handleEditPost(post._id)}
+                      disabled={!editTitleDraft.trim() || (!normalizeDraftPlainText(editBodyDraft) && !editBodyDraft.trim()) || savingPostId === post._id}
+                    >
+                      {t('common.save')}
+                    </Button>
+                  </Box>
+                </Stack>
+              ) : (
+                <RichContent html={post.bodyWysiwyg} fallback={post.body} />
+              )}
 
               <Tooltip title={t('courseChat.toggleComments')}>
                 <Button

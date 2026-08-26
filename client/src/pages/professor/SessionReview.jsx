@@ -9,6 +9,7 @@ import {
 import {
   Download as DownloadIcon,
   Edit as EditIcon,
+  Login as JoinIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
 } from '@mui/icons-material';
@@ -1246,14 +1247,27 @@ export default function SessionReview() {
       <Box sx={{ mb: 2 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 1 }}>
           <BackLinkButton label={t('professor.sessionReview.backToCourse')} onClick={() => navigate(backToCoursePath)} />
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={<EditIcon />}
-            onClick={() => navigate(editSessionPath, { state: { returnTab: resolvedReturnTab, returnTo: 'review' } })}
-          >
-            {t('professor.sessionReview.editSession')}
-          </Button>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            {liveInteractiveSession ? (
+              <Button
+                size="small"
+                variant="contained"
+                color="success"
+                startIcon={<JoinIcon />}
+                onClick={() => navigate(`/prof/course/${courseId}/session/${sessionId}/live`)}
+              >
+                {t('professor.sessionReview.joinLiveSession')}
+              </Button>
+            ) : null}
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<EditIcon />}
+              onClick={() => navigate(editSessionPath, { state: { returnTab: resolvedReturnTab, returnTo: 'review' } })}
+            >
+              {t('professor.sessionReview.editSession')}
+            </Button>
+          </Box>
         </Box>
         {courseTitle ? (
           <Typography variant="h5" sx={{ fontWeight: 700, lineHeight: 1.15 }}>

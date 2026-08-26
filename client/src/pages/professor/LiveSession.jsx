@@ -10,9 +10,9 @@ import {
   ArrowBack as PrevIcon, ArrowForward as NextIcon,
   Stop as StopIcon, OpenInNew as OpenInNewIcon,
   Check as CheckIcon,
+  Edit as EditIcon,
   Replay as AttemptIcon,
   Refresh as RefreshIcon,
-  Settings as SettingsIcon,
 } from '@mui/icons-material';
 import apiClient from '../../api/client';
 import {
@@ -475,7 +475,9 @@ function LiveSessionContent() {
   }, [fetchLive]);
 
   const queueChatRefresh = useCallback((eventPayload = null) => {
-    if (activePanel !== 'chat' && ['post-created', 'comment-added'].includes(eventPayload?.changeType)) {
+    const addsUnreadPost = ['post-created', 'comment-added'].includes(eventPayload?.changeType)
+      || (eventPayload?.changeType === 'quick-post-toggled' && eventPayload?.becameVisible);
+    if (activePanel !== 'chat' && addsUnreadPost) {
       setChatUnseenCount((count) => count + 1);
     }
     if (activePanel === 'chat' && eventPayload) {
@@ -499,6 +501,11 @@ function LiveSessionContent() {
   useEffect(() => {
     if (activePanel === 'chat') setChatUnseenCount(0);
   }, [activePanel]);
+
+  const handlePanelChange = useCallback((nextPanel) => {
+    if (nextPanel === 'chat') setChatUnseenCount(0);
+    setActivePanel(nextPanel);
+  }, []);
 
   useEffect(() => { fetchLive(); }, [fetchLive]);
   useEffect(() => registerRefreshHandler(fetchLive), [fetchLive, registerRefreshHandler]);
@@ -1127,7 +1134,7 @@ function LiveSessionContent() {
     },
     ...(chatEnabled ? [{
       value: 'chat',
-      label: <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>{t('sessionChat.chat')}{chatUnseenCount > 0 ? <Chip size="small" color="primary" label={chatUnseenCount} sx={{ height: 20 }} /> : null}</Box>,
+      label: <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>{t('sessionChat.chat')}{chatUnseenCount > 0 ? <Chip size="small" color="error" label={chatUnseenCount} sx={{ height: 20 }} /> : null}</Box>,
       menuLabel: t('sessionChat.chat'),
     }] : []),
   ];
@@ -1215,15 +1222,15 @@ function LiveSessionContent() {
             </Button>
           </Tooltip>
 
-          <Tooltip title={t('professor.liveSession.sessionSettings')}>
+          <Tooltip title={t('professor.liveSession.editSession')}>
             <Button
               size="small"
               variant="outlined"
-              startIcon={<SettingsIcon />}
+              startIcon={<EditIcon />}
               onClick={() => navigate(`/prof/course/${courseId}/session/${sessionId}`)}
-              aria-label={t('professor.liveSession.sessionSettings')}
+              aria-label={t('professor.liveSession.editSession')}
             >
-              {t('professor.liveSession.settings')}
+              {t('professor.liveSession.editSession')}
             </Button>
           </Tooltip>
 
@@ -1312,9 +1319,9 @@ function LiveSessionContent() {
           >
             <LiveSessionPanelNavigation
               value={activePanel}
-              onChange={setActivePanel}
+              onChange={handlePanelChange}
           tabs={panelTabs}
-          compactAdornment={chatEnabled && chatUnseenCount > 0 ? <Chip size="small" color="primary" label={chatUnseenCount} /> : null}
+          compactAdornment={chatEnabled && chatUnseenCount > 0 ? <Chip size="small" color="error" label={chatUnseenCount} /> : null}
               ariaLabel={t('professor.liveSession.panelsLabel')}
               disablePaper
               sx={{ mb: 0.5 }}
@@ -1797,9 +1804,9 @@ function LiveSessionContent() {
         <>
           <LiveSessionPanelNavigation
             value={activePanel}
-            onChange={setActivePanel}
+            onChange={handlePanelChange}
             tabs={panelTabs}
-            compactAdornment={chatEnabled && chatUnseenCount > 0 ? <Chip size="small" color="primary" label={chatUnseenCount} /> : null}
+            compactAdornment={chatEnabled && chatUnseenCount > 0 ? <Chip size="small" color="error" label={chatUnseenCount} /> : null}
             ariaLabel={t('professor.liveSession.panelsLabel')}
           />
           <SessionChatPanel
@@ -1816,9 +1823,9 @@ function LiveSessionContent() {
         <>
           <LiveSessionPanelNavigation
             value={activePanel}
-            onChange={setActivePanel}
+            onChange={handlePanelChange}
             tabs={panelTabs}
-            compactAdornment={chatEnabled && chatUnseenCount > 0 ? <Chip size="small" color="primary" label={chatUnseenCount} /> : null}
+            compactAdornment={chatEnabled && chatUnseenCount > 0 ? <Chip size="small" color="error" label={chatUnseenCount} /> : null}
             ariaLabel={t('professor.liveSession.panelsLabel')}
           />
           <Paper

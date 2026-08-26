@@ -101,6 +101,64 @@ describe('course chat routes', () => {
     expect(res.json().posts[0].authorRole).toBe('instructor');
   });
 
+  it('lets students and professors edit only their own course chat posts', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const prof = await createTestUser({ email: 'chat-edit-prof@example.com', roles: ['professor'] });
+    const profToken = await getAuthToken(app, prof);
+    const course = await createCourse(profToken, { courseChatEnabled: true });
+    const student = await createTestUser({ email: 'chat-edit-student@example.com', roles: ['student'] });
+    const studentToken = await getAuthToken(app, student);
+    await authenticatedRequest(app, 'POST', '/api/v1/courses/enroll', {
+      token: studentToken,
+      payload: { enrollmentCode: course.enrollmentCode },
+    });
+    await Course.findByIdAndUpdate(course._id, { $set: { courseChatEnabled: true } });
+
+    const studentPostRes = await authenticatedRequest(app, 'POST', `/api/v1/courses/${course._id}/chat/posts`, {
+      token: studentToken,
+      payload: { title: 'Student topic', body: 'Student original' },
+    });
+    expect(studentPostRes.statusCode).toBe(201);
+
+    const professorEditingStudentRes = await authenticatedRequest(
+      app,
+      'PATCH',
+      `/api/v1/courses/${course._id}/chat/posts/${studentPostRes.json().postId}`,
+      { token: profToken, payload: { title: 'Overwrite', body: 'Professor overwrite' } }
+    );
+    expect(professorEditingStudentRes.statusCode).toBe(403);
+
+    const studentEditRes = await authenticatedRequest(
+      app,
+      'PATCH',
+      `/api/v1/courses/${course._id}/chat/posts/${studentPostRes.json().postId}`,
+      { token: studentToken, payload: { title: 'Student revised topic', body: 'Student revised' } }
+    );
+    expect(studentEditRes.statusCode).toBe(200);
+
+    const professorPostRes = await authenticatedRequest(app, 'POST', `/api/v1/courses/${course._id}/chat/posts`, {
+      token: profToken,
+      payload: { title: 'Professor topic', body: 'Professor original' },
+    });
+    expect(professorPostRes.statusCode).toBe(201);
+    const professorEditRes = await authenticatedRequest(
+      app,
+      'PATCH',
+      `/api/v1/courses/${course._id}/chat/posts/${professorPostRes.json().postId}`,
+      { token: profToken, payload: { title: 'Professor revised topic', body: 'Professor revised' } }
+    );
+    expect(professorEditRes.statusCode).toBe(200);
+
+    expect(await Post.findById(studentPostRes.json().postId).lean()).toEqual(expect.objectContaining({
+      title: 'Student revised topic',
+      body: 'Student revised',
+    }));
+    expect(await Post.findById(professorPostRes.json().postId).lean()).toEqual(expect.objectContaining({
+      title: 'Professor revised topic',
+      body: 'Professor revised',
+    }));
+  });
+
   it('counts unseen posts and comments until the chat is opened', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
     const prof = await createTestUser({ email: 'chat-prof-3@example.com', roles: ['professor'] });

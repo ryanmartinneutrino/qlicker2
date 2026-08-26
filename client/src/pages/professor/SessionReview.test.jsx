@@ -18,6 +18,7 @@ function renderSessionReview() {
     <MemoryRouter initialEntries={['/prof/course/course-1/session/session-1/review']}>
       <Routes>
         <Route path="/prof/course/:courseId/session/:sessionId/review" element={<SessionReview />} />
+        <Route path="/prof/course/:courseId/session/:sessionId/live" element={<div>Live session destination</div>} />
       </Routes>
     </MemoryRouter>
   );
@@ -167,6 +168,23 @@ describe('SessionReview', () => {
 
       throw new Error(`Unexpected GET ${url}`);
     });
+  });
+
+  it('offers a direct return to a running interactive session', async () => {
+    const defaultGet = apiClient.get.getMockImplementation();
+    apiClient.get.mockImplementation(async (url) => {
+      if (url === '/sessions/session-1/results') {
+        return { data: buildResultsPayload({ status: 'running', quiz: false, practiceQuiz: false }) };
+      }
+      return defaultGet(url);
+    });
+
+    renderSessionReview();
+
+    const joinButton = await screen.findByRole('button', { name: 'Join live session' });
+    expect(screen.getByRole('button', { name: 'Edit session' })).toBeInTheDocument();
+    fireEvent.click(joinButton);
+    expect(await screen.findByText('Live session destination')).toBeInTheDocument();
   });
 
   it('shows the consolidated response data table, sorts rows, and exports the visible CSV', async () => {
