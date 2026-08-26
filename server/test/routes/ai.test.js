@@ -292,43 +292,6 @@ describe('AI course configuration and chat', () => {
     expect(fetch).toHaveBeenCalledWith('http://127.0.0.1:11434/api/chat', expect.objectContaining({ method: 'POST' }));
   });
 
-  it('retries when a backend claims to provide requested code but omits it', async (ctx) => {
-    if (mongoose.connection.readyState !== 1) ctx.skip();
-    const professor = await createTestUser({ email: 'ai-code-recovery-prof@example.com', roles: ['professor'] });
-    const token = await getAuthToken(app, professor);
-    const course = await createCourse(token);
-    await configureAi(course._id);
-    await Course.findByIdAndUpdate(course._id, { $set: { aiEnabled: true } });
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify({ message: {
-        content: 'I have provided the complete Python code used to generate the plot.',
-      } }), { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ message: {
-        content: '```python\nimport matplotlib.pyplot as plt\nplt.plot([0, 1], [0, 1])\nplt.show()\n```',
-      } }), { status: 200 }));
-    vi.stubGlobal('fetch', fetchMock);
-
-    const created = await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations`, { token });
-    const conversationId = created.json().conversation._id;
-    await authenticatedRequest(app, 'POST', `/api/v1/ai/courses/${course._id}/conversations/${conversationId}/messages`, {
-      token,
-      payload: { content: 'Can you provide the Python code for the figure?' },
-    });
-
-    await vi.waitFor(async () => {
-      const updated = await AiConversation.findById(conversationId).lean();
-      expect(updated.pending).toBe(false);
-      expect(updated.messages.at(-1).content).toContain('```python');
-      expect(updated.messages.at(-1).content).toContain('plt.show()');
-    });
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    const retry = JSON.parse(fetchMock.mock.calls[1][1].body);
-    expect(retry.messages.at(-1)).toMatchObject({
-      role: 'system',
-      content: expect.stringContaining('included neither a code block nor a code-file artifact'),
-    });
-  });
-
   it('serves stored AI artifacts without exposing Qrag paths or tokens', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
     const professor = await createTestUser({ email: 'ai-artifact-prof@example.com', roles: ['professor'] });

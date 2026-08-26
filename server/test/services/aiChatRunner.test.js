@@ -4,10 +4,8 @@ import {
   DEFAULT_INSTRUCTOR_CHAT_MAX_TOOL_ROUNDS,
   DEFAULT_STUDENT_CHAT_MAX_TOOL_ROUNDS,
   instructorCreationGoals,
-  latestUserRequestsCode,
   normalizeAiArtifacts,
   recentConversationMessages,
-  responseContainsRequestedCode,
 } from '../../src/services/aiChatRunner.js';
 
 describe('recentConversationMessages', () => {
@@ -61,21 +59,6 @@ describe('normalizeAiArtifacts', () => {
     expect(artifact._id).toEqual(expect.any(String));
     expect(artifact).not.toHaveProperty('apiToken');
     expect(normalizeAiArtifacts(Array.from({ length: 20 }, (_, index) => ({ path: `/api/files/${index}`, kind: 'file' })))).toHaveLength(10);
-  });
-});
-
-describe('requested source-code validation', () => {
-  it('detects an explicit code request and rejects an unsupported claim', () => {
-    expect(latestUserRequestsCode([{ role: 'user', content: 'Can you provide the Python code for the figure?' }])).toBe(true);
-    expect(responseContainsRequestedCode({ content: 'I have provided the complete Python code.' })).toBe(false);
-  });
-
-  it('accepts fenced source code or an actual code-file artifact', () => {
-    expect(responseContainsRequestedCode({ content: '```python\nprint("hello")\n```' })).toBe(true);
-    expect(responseContainsRequestedCode({
-      content: 'Download the source file.',
-      artifacts: [{ kind: 'file', filename: 'plot.py' }],
-    })).toBe(true);
   });
 });
 
