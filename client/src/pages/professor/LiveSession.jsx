@@ -1125,6 +1125,11 @@ function LiveSessionContent() {
           : t('professor.liveSession.questionControls'),
       },
     },
+    ...(chatEnabled ? [{
+      value: 'chat',
+      label: <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>{t('sessionChat.chat')}{chatUnseenCount > 0 ? <Chip size="small" color="error" label={chatUnseenCount} sx={{ height: 20 }} /> : null}</Box>,
+      menuLabel: t('sessionChat.chat'),
+    }] : []),
     {
       value: 'students',
       label: t('professor.liveSession.studentsTab'),
@@ -1132,11 +1137,6 @@ function LiveSessionContent() {
         'aria-label': t('professor.liveSession.showStudentsPanel', { count: joinedCount }),
       },
     },
-    ...(chatEnabled ? [{
-      value: 'chat',
-      label: <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>{t('sessionChat.chat')}{chatUnseenCount > 0 ? <Chip size="small" color="error" label={chatUnseenCount} sx={{ height: 20 }} /> : null}</Box>,
-      menuLabel: t('sessionChat.chat'),
-    }] : []),
   ];
 
   // --------------------------------------------------
