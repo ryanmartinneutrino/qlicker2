@@ -4,15 +4,18 @@ import {
   Box, Typography, Button, Paper, Alert, Snackbar, CircularProgress, Chip,
   Dialog, DialogTitle, DialogContent, DialogActions, IconButton, Tooltip,
   Switch, FormControlLabel, TextField, Divider, useMediaQuery,
-  Radio, RadioGroup, FormControl, FormLabel,
+  Radio, RadioGroup, FormControl, FormLabel, Collapse, InputAdornment,
 } from '@mui/material';
 import {
   ArrowBack as PrevIcon, ArrowForward as NextIcon,
   Stop as StopIcon, OpenInNew as OpenInNewIcon,
   Check as CheckIcon,
   Edit as EditIcon,
+  ExpandLess as ExpandLessIcon,
+  ExpandMore as ExpandMoreIcon,
   Replay as AttemptIcon,
   Refresh as RefreshIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
 import apiClient from '../../api/client';
 import {
@@ -42,6 +45,7 @@ import {
 } from '../../contexts/LiveSessionWebSocketContext';
 import useLiveSessionTelemetry from '../../hooks/useLiveSessionTelemetry';
 import { applyLiveResponseAddedDelta, sortResponsesNewestFirst } from '../../utils/responses';
+import { filterStudentsByIdentity } from '../../utils/studentFiltering';
 
 // ---------------------------------------------------------------------------
 // Constants & helpers
@@ -415,6 +419,8 @@ function LiveSessionContent() {
   const [error, setError] = useState(null);
   const [msg, setMsg] = useState(null);
   const [pendingActionKey, setPendingActionKey] = useState(null);
+  const [unjoinedStudentsExpanded, setUnjoinedStudentsExpanded] = useState(true);
+  const [unjoinedStudentsFilter, setUnjoinedStudentsFilter] = useState('');
 
   // End session dialog
   const [endDialogOpen, setEndDialogOpen] = useState(false);
@@ -1066,6 +1072,10 @@ function LiveSessionContent() {
     const joinedIds = new Set((session?.joined || []).map((id) => String(id)));
     return enrolledStudents.filter((student) => !joinedIds.has(String(student?._id || '')));
   }, [enrolledStudents, session?.joined]);
+  const filteredUnjoinedStudents = useMemo(
+    () => filterStudentsByIdentity(unjoinedStudents, unjoinedStudentsFilter),
+    [unjoinedStudents, unjoinedStudentsFilter]
+  );
 
   const questionIds = session?.questions || [];
   const qIdx = session ? questionIds.indexOf(session.currentQuestion) : -1;
@@ -1894,53 +1904,98 @@ function LiveSessionContent() {
 
             {session.joinCodeEnabled ? (
               <Box sx={{ mb: 2 }}>
-                <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                  {t('professor.liveSession.waitingToJoin', { count: unjoinedStudents.length })}
-                </Typography>
-                {unjoinedStudents.length === 0 ? (
-                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                    {t('professor.liveSession.allEnrolledStudentsJoined')}
+                <Button
+                  color="inherit"
+                  fullWidth
+                  aria-expanded={unjoinedStudentsExpanded}
+                  aria-controls="unjoined-students-section"
+                  onClick={() => setUnjoinedStudentsExpanded((expanded) => !expanded)}
+                  endIcon={unjoinedStudentsExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                  sx={{ justifyContent: 'space-between', px: 0.5, mb: 1, textTransform: 'none' }}
+                >
+                  <Typography component="span" variant="subtitle2">
+                    {t('professor.liveSession.waitingToJoin', { count: unjoinedStudents.length })}
                   </Typography>
-                ) : (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    {unjoinedStudents.map((student) => {
-                      const admitPending = pendingActionKey === `student:admit:${student._id}`;
-                      return (
-                        <Paper
-                          key={student._id}
-                          variant="outlined"
-                          sx={{
-                            p: 1.1,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            gap: 1,
-                            flexWrap: 'wrap',
-                          }}
-                        >
-                          <StudentIdentity
-                            student={student}
-                            avatarSize={34}
-                            nameVariant="body2"
-                            emailVariant="caption"
-                            nameWeight={600}
-                            sx={{ flex: '1 1 220px', minWidth: 0 }}
-                          />
-                          <Button
-                            size="small"
-                            variant="contained"
-                            disabled={!!pendingActionKey}
-                            onClick={() => handleAdmitStudent(student._id)}
-                          >
-                            {admitPending
-                              ? t('professor.liveSession.admittingStudent')
-                              : t('professor.liveSession.admitStudent')}
-                          </Button>
-                        </Paper>
-                      );
-                    })}
+                  <Box component="span" sx={SR_ONLY_SX}>
+                    {unjoinedStudentsExpanded
+                      ? t('professor.liveSession.collapseWaitingStudents')
+                      : t('professor.liveSession.expandWaitingStudents')}
                   </Box>
-                )}
+                </Button>
+                <Collapse in={unjoinedStudentsExpanded} timeout="auto">
+                  <Box id="unjoined-students-section">
+                    {unjoinedStudents.length === 0 ? (
+                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                        {t('professor.liveSession.allEnrolledStudentsJoined')}
+                      </Typography>
+                    ) : (
+                      <>
+                        <TextField
+                          fullWidth
+                          size="small"
+                          label={t('professor.liveSession.filterWaitingStudents')}
+                          placeholder={t('professor.liveSession.filterWaitingStudentsPlaceholder')}
+                          value={unjoinedStudentsFilter}
+                          onChange={(event) => setUnjoinedStudentsFilter(event.target.value)}
+                          slotProps={{
+                            input: {
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <SearchIcon fontSize="small" />
+                                </InputAdornment>
+                              ),
+                            },
+                          }}
+                          sx={{ mb: 1 }}
+                        />
+                        {filteredUnjoinedStudents.length === 0 ? (
+                          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                            {t('professor.liveSession.noWaitingStudentsMatch')}
+                          </Typography>
+                        ) : (
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                            {filteredUnjoinedStudents.map((student) => {
+                              const admitPending = pendingActionKey === `student:admit:${student._id}`;
+                              return (
+                                <Paper
+                                  key={student._id}
+                                  variant="outlined"
+                                  sx={{
+                                    p: 1.1,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    gap: 1,
+                                    flexWrap: 'wrap',
+                                  }}
+                                >
+                                  <StudentIdentity
+                                    student={student}
+                                    avatarSize={34}
+                                    nameVariant="body2"
+                                    emailVariant="caption"
+                                    nameWeight={600}
+                                    sx={{ flex: '1 1 220px', minWidth: 0 }}
+                                  />
+                                  <Button
+                                    size="small"
+                                    variant="contained"
+                                    disabled={!!pendingActionKey}
+                                    onClick={() => handleAdmitStudent(student._id)}
+                                  >
+                                    {admitPending
+                                      ? t('professor.liveSession.admittingStudent')
+                                      : t('professor.liveSession.admitStudent')}
+                                  </Button>
+                                </Paper>
+                              );
+                            })}
+                          </Box>
+                        )}
+                      </>
+                    )}
+                  </Box>
+                </Collapse>
                 <Divider sx={{ mt: 2 }} />
               </Box>
             ) : null}

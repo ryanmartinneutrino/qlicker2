@@ -293,6 +293,11 @@ test('live session flow carries multiple student responses through to the profes
 
   await studentPage.getByLabel('Join code').fill(joinCode);
   await studentPage.getByRole('button', { name: /join session/i }).click();
+  await expect(studentPage.getByText(/waiting for question/i)).toBeVisible();
+  await expect(studentPage.getByText('What is 2 + 2?')).not.toBeVisible();
+
+  await professorPage.getByLabel(/join period/i).click();
+  await expect(professorPage.getByLabel(/join period/i)).not.toBeChecked();
   await expect(studentPage.getByText('What is 2 + 2?')).toBeVisible();
   await studentPage.getByLabel('Option B').check();
   await studentPage.getByRole('button', { name: /submit response/i }).click();
@@ -306,15 +311,23 @@ test('live session flow carries multiple student responses through to the profes
   await loginViaUi(secondStudentPage, secondStudent.email, secondStudent.password, /\/student$/);
   await secondStudentPage.goto(`/student/course/${course._id}`);
   await secondStudentPage.getByRole('button', { name: new RegExp(sessionName, 'i') }).first().click();
-  await expect(secondStudentPage.getByLabel('Join code')).toBeVisible();
+  await expect(secondStudentPage.getByText(/waiting for the instructor to open passcode entry/i)).toBeVisible();
 
-  await professorPage.getByLabel(/join period/i).click();
-  await expect(professorPage.getByLabel(/join period/i)).not.toBeChecked();
   await professorPage.getByRole('tab', { name: /show students panel/i }).click();
+  const waitingStudentFilter = professorPage.getByLabel(/filter students not yet in the session/i);
+  await waitingStudentFilter.fill('not-present');
+  await expect(professorPage.getByText(/no students match this filter/i)).toBeVisible();
+  await waitingStudentFilter.fill(secondStudent.lastname);
   const admitButton = professorPage
     .locator('.MuiPaper-root', { hasText: secondStudent.email })
     .getByRole('button', { name: /^Admit$/i })
     .first();
+  await expect(admitButton).toBeVisible();
+
+  await professorPage.getByRole('button', { name: /collapse students not yet in the session/i }).click();
+  await expect(waitingStudentFilter).not.toBeVisible();
+  await professorPage.getByRole('button', { name: /expand students not yet in the session/i }).click();
+  await expect(waitingStudentFilter).toHaveValue(secondStudent.lastname);
   await expect(admitButton).toBeVisible();
   await admitButton.click();
 
