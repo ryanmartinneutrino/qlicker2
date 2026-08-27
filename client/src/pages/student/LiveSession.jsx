@@ -749,10 +749,10 @@ function LiveSessionContent() {
   }
 
   // --------------------------------------------------
-  // Render: waiting phase (question hidden)
+  // Render: waiting phase (join period active or question hidden)
   // --------------------------------------------------
 
-  if (questionHidden || !currentQ) {
+  if (session.joinCodeActive || questionHidden || !currentQ) {
     if (!chatEnabled) {
       return (
         <Box sx={{ p: 4, maxWidth: 600, mx: 'auto', textAlign: 'center' }}>
