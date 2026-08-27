@@ -11,6 +11,7 @@ export default function ResponsiveTabsNavigation({
   tabsProps = {},
   dropdownSx = {},
   compactAdornment = null,
+  wrap = false,
 }) {
   const { t } = useTranslation();
   const compact = useMediaQuery('(max-width:799px)');
@@ -43,6 +44,29 @@ export default function ResponsiveTabsNavigation({
   }
 
   const { sx: tabsSx, ...restTabsProps } = tabsProps;
+  const wrappedTabsSx = wrap ? {
+    '& .MuiTabs-scroller': {
+      overflow: 'visible !important',
+    },
+    '& .MuiTabs-list, & .MuiTabs-flexContainer': {
+      flexWrap: 'wrap',
+      width: '100%',
+    },
+    '& .MuiTabs-scrollButtons': {
+      display: 'none',
+    },
+    '& .MuiTabs-indicator': {
+      display: 'none',
+    },
+    '& .MuiTab-root': {
+      alignSelf: 'stretch',
+      borderBottom: 2,
+      borderColor: 'transparent',
+    },
+    '& .MuiTab-root.Mui-selected': {
+      borderColor: 'primary.main',
+    },
+  } : {};
 
   return (
     <Tabs
@@ -50,7 +74,7 @@ export default function ResponsiveTabsNavigation({
       onChange={(_, nextValue) => onChange(nextValue)}
       aria-label={ariaLabel}
       {...restTabsProps}
-      sx={tabsSx}
+      sx={tabsSx ? [wrappedTabsSx, tabsSx] : wrappedTabsSx}
     >
       {normalizedTabs.map((tab) => (
         <Tab

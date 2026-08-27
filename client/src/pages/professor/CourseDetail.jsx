@@ -1899,6 +1899,7 @@ export default function CourseDetail() {
         onChange={handleTabChange}
         ariaLabel={t('common.view')}
         dropdownLabel={t('common.view')}
+        wrap
         tabs={tabItems}
         dropdownSx={{ mb: 1.5, minWidth: 260, maxWidth: 420 }}
         tabsProps={{
@@ -1906,16 +1907,7 @@ export default function CourseDetail() {
           scrollButtons: 'auto',
           allowScrollButtonsMobile: true,
           sx: {
-            '& .MuiTabs-flexContainer': { flexWrap: 'wrap' },
-            '& .MuiTabs-indicator': { display: 'none' },
-            '& .MuiTab-root': {
-              alignSelf: 'stretch',
-              borderBottom: 2,
-              borderColor: 'transparent',
-            },
-            '& .MuiTab-root.Mui-selected': {
-              borderColor: 'primary.main',
-            },
+            mb: 0.5,
           },
         }}
       />
