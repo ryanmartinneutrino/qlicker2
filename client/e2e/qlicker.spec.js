@@ -34,12 +34,24 @@ async function closeContextSafely(context) {
   }
 }
 
+async function expectTabHeadersToWrap(page, tablist) {
+  await expect.poll(async () => {
+    const rowOffsets = await tablist.getByRole('tab').evaluateAll((tabs) => (
+      [...new Set(tabs.map((tab) => Math.round(tab.getBoundingClientRect().top)))]
+    ));
+    return rowOffsets.length;
+  }).toBeGreaterThan(1);
+  await expect(tablist.locator('..')).not.toHaveCSS('overflow-x', 'auto');
+}
+
 test('login flow redirects an admin user to the admin dashboard', async ({ page, request }) => {
   const { admin } = await seedUsers(request, { professor: false, student: false });
 
   await loginViaUi(page, admin.email, admin.password, /\/admin$/);
 
   await expect(page).toHaveURL(/\/admin$/);
+  await page.setViewportSize({ width: 800, height: 900 });
+  await expectTabHeadersToWrap(page, page.getByRole('tablist', { name: 'View' }));
   await page.getByRole('tab', { name: /^Usage Statistics$/i }).click();
   await expect(page.getByRole('heading', { name: /^Usage Statistics$/i })).toBeVisible();
   await expect(page.getByText(/^Past hour$/i)).toBeVisible();
@@ -217,6 +229,16 @@ test('live session flow carries multiple student responses through to the profes
   await addInstructorToCourseViaApi(request, admin.token, course._id, professor.user._id);
   await enrollStudentViaApi(request, student.token, course.enrollmentCode);
   await enrollStudentViaApi(request, secondStudent.token, course.enrollmentCode);
+  const { response: courseSettingsResponse, body: courseSettingsBody } = await apiJson(
+    request,
+    'PATCH',
+    `/courses/${course._id}`,
+    {
+      token: admin.token,
+      payload: { allowStudentQuestions: true, courseChatEnabled: true },
+    },
+  );
+  expect(courseSettingsResponse.status(), JSON.stringify(courseSettingsBody)).toBe(200);
 
   const sessionName = `Live ${Date.now()}`;
   const session = await createSessionViaApi(request, admin.token, course._id, { name: sessionName });
@@ -232,6 +254,12 @@ test('live session flow carries multiple student responses through to the profes
   await loginViaUi(professorPage, professor.email, professor.password, /\/prof$/);
   await professorPage.goto(`/prof/course/${course._id}`);
   await expect(professorPage).toHaveURL(new RegExp(`/prof/course/${course._id}$`));
+  await professorPage.setViewportSize({ width: 800, height: 900 });
+  await expectTabHeadersToWrap(
+    professorPage,
+    professorPage.getByRole('tablist', { name: 'View' }),
+  );
+  await professorPage.setViewportSize({ width: 1280, height: 720 });
   await professorPage.getByRole('button', { name: new RegExp(`Launch session ${sessionName}`, 'i') }).click();
   await expect(professorPage).toHaveURL(new RegExp(`/prof/course/${course._id}/session/${session._id}/live$`));
 
@@ -254,6 +282,12 @@ test('live session flow carries multiple student responses through to the profes
   await loginViaUi(studentPage, student.email, student.password, /\/student$/);
   await studentPage.goto(`/student/course/${course._id}`);
   await expect(studentPage).toHaveURL(new RegExp(`/student/course/${course._id}$`));
+  await studentPage.setViewportSize({ width: 800, height: 900 });
+  await expectTabHeadersToWrap(
+    studentPage,
+    studentPage.getByRole('tablist', { name: 'View' }),
+  );
+  await studentPage.setViewportSize({ width: 1280, height: 720 });
   await studentPage.getByRole('button', { name: new RegExp(sessionName, 'i') }).first().click();
   await expect(studentPage).toHaveURL(new RegExp(`/student/course/${course._id}/session/${session._id}/live$`));
 

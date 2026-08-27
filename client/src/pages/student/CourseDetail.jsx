@@ -942,6 +942,7 @@ export default function StudentCourseDetail() {
         }}
         ariaLabel={t('common.view')}
         dropdownLabel={t('common.view')}
+        wrap
         dropdownSx={{ mb: 1.5 }}
         tabs={[
           { value: lecturesTabIndex, label: `${t('student.course.lectures')} (${interactiveSessionCount})` },
@@ -976,16 +977,7 @@ export default function StudentCourseDetail() {
           scrollButtons: 'auto',
           allowScrollButtonsMobile: true,
           sx: {
-            '& .MuiTabs-flexContainer': { flexWrap: 'wrap' },
-            '& .MuiTabs-indicator': { display: 'none' },
-            '& .MuiTab-root': {
-              alignSelf: 'stretch',
-              borderBottom: 2,
-              borderColor: 'transparent',
-            },
-            '& .MuiTab-root.Mui-selected': {
-              borderColor: 'primary.main',
-            },
+            mb: 0.5,
           },
         }}
       />

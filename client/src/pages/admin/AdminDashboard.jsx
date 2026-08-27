@@ -2861,6 +2861,7 @@ export default function AdminDashboard() {
         onChange={setTab}
         ariaLabel={t('common.view')}
         dropdownLabel={t('common.view')}
+        wrap
         dropdownSx={{ mb: 1.5 }}
         tabs={[
           { value: 0, label: t('admin.tabs.settings') },
