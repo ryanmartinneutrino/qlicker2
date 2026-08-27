@@ -138,6 +138,45 @@ function applyAttemptChanged(prev, payload) {
   };
 }
 
+function applyVisibilityChanged(prev, payload) {
+  if (!prev || !Object.prototype.hasOwnProperty.call(payload || {}, 'question')) return prev;
+
+  const nextQuestion = payload.question;
+  return {
+    ...prev,
+    currentQuestion: nextQuestion,
+    currentAttempt: payload?.currentAttempt ?? prev.currentAttempt,
+    questionHidden: payload?.questionHidden ?? payload?.hidden ?? prev.questionHidden,
+    showStats: payload?.showStats ?? payload?.stats ?? prev.showStats,
+    showCorrect: payload?.showCorrect ?? payload?.correct ?? prev.showCorrect,
+    showResponseList: payload?.showResponseList ?? payload?.responseListVisible ?? prev.showResponseList,
+    responseStats: payload?.responseStats ?? null,
+    wordCloudData: payload?.wordCloudData ?? null,
+    histogramData: payload?.histogramData ?? null,
+  };
+}
+
+function applyQuestionChanged(prev, payload) {
+  if (!prev || !Object.prototype.hasOwnProperty.call(payload || {}, 'question')) return prev;
+  return {
+    ...prev,
+    currentQuestion: payload.question,
+    currentAttempt: payload?.currentAttempt ?? null,
+    studentResponse: payload?.studentResponse ?? null,
+    responseStats: payload?.responseStats ?? null,
+    questionHidden: payload?.questionHidden ?? true,
+    showStats: payload?.showStats ?? false,
+    showCorrect: payload?.showCorrect ?? false,
+    showResponseList: payload?.showResponseList ?? true,
+    wordCloudData: payload?.wordCloudData ?? null,
+    histogramData: payload?.histogramData ?? null,
+    questionNumber: payload?.questionNumber ?? prev.questionNumber,
+    questionCount: payload?.questionCount ?? prev.questionCount,
+    pageProgress: payload?.pageProgress ?? prev.pageProgress,
+    questionProgress: payload?.questionProgress ?? prev.questionProgress,
+  };
+}
+
 function applyJoinCodeChanged(prev, payload) {
   if (!prev?.session) return prev;
   return {
@@ -327,10 +366,34 @@ function LiveSessionContent() {
         }
         break;
       case 'session:question-changed':
-      case 'session:visibility-changed':
+        if (Object.prototype.hasOwnProperty.call(data || {}, 'question')) {
+          setLiveData((prev) => applyQuestionChanged(prev, data));
+          scheduleUiSyncMeasurement({
+            emittedAtMs: syncContext?.emittedAtMs,
+            receivedAtMs: syncContext?.receivedAtMs,
+            success: true,
+            transportOverride: syncContext?.transport,
+          });
+        } else {
+          fetchLive(syncContext);
+        }
+        break;
       case 'session:status-changed':
       case 'session:metadata-changed':
         fetchLive(syncContext);
+        break;
+      case 'session:visibility-changed':
+        if (Object.prototype.hasOwnProperty.call(data || {}, 'question')) {
+          setLiveData((prev) => applyVisibilityChanged(prev, data));
+          scheduleUiSyncMeasurement({
+            emittedAtMs: syncContext?.emittedAtMs,
+            receivedAtMs: syncContext?.receivedAtMs,
+            success: true,
+            transportOverride: syncContext?.transport,
+          });
+        } else {
+          fetchLive(syncContext);
+        }
         break;
       case 'session:question-updated':
         setLiveData((prev) => applyCurrentQuestionUpdate(prev, data));
@@ -382,8 +445,22 @@ function LiveSessionContent() {
         queueChatRefresh(data);
         break;
       case 'session:word-cloud-updated':
+        setLiveData((prev) => prev ? { ...prev, wordCloudData: data?.wordCloudData ?? null } : prev);
+        scheduleUiSyncMeasurement({
+          emittedAtMs: syncContext?.emittedAtMs,
+          receivedAtMs: syncContext?.receivedAtMs,
+          success: true,
+          transportOverride: syncContext?.transport,
+        });
+        break;
       case 'session:histogram-updated':
-        fetchLive(syncContext);
+        setLiveData((prev) => prev ? { ...prev, histogramData: data?.histogramData ?? null } : prev);
+        scheduleUiSyncMeasurement({
+          emittedAtMs: syncContext?.emittedAtMs,
+          receivedAtMs: syncContext?.receivedAtMs,
+          success: true,
+          transportOverride: syncContext?.transport,
+        });
         break;
       default:
         break;

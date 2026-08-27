@@ -210,7 +210,8 @@ test('session creation flow lets a professor create a session and open the edito
   await expectNoCriticalAccessibilityViolations(page);
 });
 
-test('live session flow carries multiple student responses through to the professor', async ({ browser, request }) => {
+test('live session flow carries multiple student responses and visibility changes to every live view', async ({ browser, request }) => {
+  test.setTimeout(180_000);
   const { admin, professor, student } = await seedUsers(request);
   const secondStudentUser = buildUser('student-two', 'Student Two');
   const { response: secondStudentResponse, body: secondStudentBody } = await apiJson(
@@ -246,6 +247,8 @@ test('live session flow carries multiple student responses through to the profes
     sessionId: session._id,
     courseId: course._id,
     content: 'What is 2 + 2?',
+    solution: '<p>Four is the correct answer.</p>',
+    solution_plainText: 'Four is the correct answer.',
   });
   await addQuestionToSessionViaApi(request, admin.token, session._id, question._id);
 
@@ -299,6 +302,13 @@ test('live session flow carries multiple student responses through to the profes
   await professorPage.getByLabel(/join period/i).click();
   await expect(professorPage.getByLabel(/join period/i)).not.toBeChecked();
   await expect(studentPage.getByText('What is 2 + 2?')).toBeVisible();
+
+  const presentationPage = await professorContext.newPage();
+  await presentationPage.goto(`/prof/course/${course._id}/session/${session._id}/present`);
+  await expect(presentationPage.getByText('What is 2 + 2?')).toBeVisible();
+  await expect(presentationPage.getByText('Four is the correct answer.')).not.toBeVisible();
+  await expect(studentPage.getByText('Four is the correct answer.')).not.toBeVisible();
+
   await studentPage.getByLabel('Option B').check();
   await studentPage.getByRole('button', { name: /submit response/i }).click();
   await expect(studentPage.getByRole('alert').filter({ hasText: /submitted/i })).toBeVisible();
@@ -339,6 +349,19 @@ test('live session flow carries multiple student responses through to the profes
   await expect(secondStudentPage.getByRole('alert').filter({ hasText: /submitted/i })).toBeVisible();
   await expect(liveStatus).toContainText(/2 students joined\. 2 of 2 students responded\./i);
   await expectNoCriticalAccessibilityViolations(secondStudentPage);
+
+  await professorPage.getByRole('tab', { name: /show page controls/i }).click();
+  await professorPage.getByLabel(/^Show Stats$/i).click();
+  await expect(studentPage.getByRole('status').filter({ hasText: /response statistics are visible/i }).first()).toBeVisible();
+  await expect(secondStudentPage.getByRole('status').filter({ hasText: /response statistics are visible/i }).first()).toBeVisible();
+  await expect(presentationPage.getByText('50%', { exact: true })).toHaveCount(2);
+
+  await professorPage.getByLabel(/^Show Correct$/i).click();
+  await expect(studentPage.getByRole('status').filter({ hasText: /correct answer is visible/i }).first()).toBeVisible();
+  await expect(secondStudentPage.getByRole('status').filter({ hasText: /correct answer is visible/i }).first()).toBeVisible();
+  await expect(studentPage.getByText('Four is the correct answer.')).toBeVisible();
+  await expect(secondStudentPage.getByText('Four is the correct answer.')).toBeVisible();
+  await expect(presentationPage.getByText('Four is the correct answer.')).toBeVisible();
 
   await professorPage.getByRole('button', { name: /^End session$/i }).click();
   const endSessionDialog = professorPage.getByRole('dialog', { name: /^End Session$/i });

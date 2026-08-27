@@ -183,6 +183,27 @@ function replaceCurrentQuestion(prev, question) {
   };
 }
 
+function applyQuestionChanged(prev, payload) {
+  if (!prev || !Object.prototype.hasOwnProperty.call(payload || {}, 'question')) return prev;
+  return {
+    ...prev,
+    session: prev.session
+      ? { ...prev.session, currentQuestion: payload?.questionId ?? prev.session.currentQuestion }
+      : prev.session,
+    currentQuestion: payload.question,
+    currentAttempt: payload?.currentAttempt ?? null,
+    responseStats: payload?.responseStats ?? null,
+    responseCount: payload?.responseCount ?? 0,
+    allResponses: payload?.allResponses ?? [],
+    wordCloudData: payload?.wordCloudData ?? null,
+    histogramData: payload?.histogramData ?? null,
+    questionNumber: payload?.questionNumber ?? prev.questionNumber,
+    questionCount: payload?.questionCount ?? prev.questionCount,
+    pageProgress: payload?.pageProgress ?? prev.pageProgress,
+    questionProgress: payload?.questionProgress ?? prev.questionProgress,
+  };
+}
+
 function applyVisibilityChanged(prev, payload) {
   if (!prev) return prev;
 
@@ -578,6 +599,18 @@ function LiveSessionContent() {
         });
         break;
       case 'session:question-changed':
+        if (Object.prototype.hasOwnProperty.call(data || {}, 'question')) {
+          setLiveData((prev) => applyQuestionChanged(prev, data));
+          scheduleUiSyncMeasurement({
+            emittedAtMs: syncContext?.emittedAtMs,
+            receivedAtMs: syncContext?.receivedAtMs,
+            success: true,
+            transportOverride: syncContext?.transport,
+          });
+        } else {
+          fetchLive(syncContext);
+        }
+        break;
       case 'session:metadata-changed':
         fetchLive(syncContext);
         break;

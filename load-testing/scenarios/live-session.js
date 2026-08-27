@@ -96,6 +96,8 @@ const liveRefreshDuration = new Trend('live_refresh_duration', true);
 const eventSyncDuration = new Trend('event_sync_duration', true);
 const chatRefreshDuration = new Trend('chat_refresh_duration', true);
 const chatEventSyncDuration = new Trend('chat_event_sync_duration', true);
+const professorActionDuration = new Trend('professor_action_duration', true);
+const responseToProfessorDuration = new Trend('response_to_professor_duration', true);
 
 const wsConnections = new Counter('ws_connections');
 const wsErrors = new Counter('ws_errors');
@@ -131,6 +133,8 @@ const thresholds = {
   'ws_connect_success{role:student}': ['rate==1'],
   'ws_connect_success{role:professor}': ['rate==1'],
   professor_action_success: ['rate==1'],
+  professor_action_duration: ['p(95)<3000'],
+  response_to_professor_duration: ['p(95)<3000'],
   session_completion: ['rate==1'],
   'login_duration{role:student}': ['p(95)<3000'],
   'login_duration{role:professor}': ['p(95)<3000'],
@@ -356,12 +360,12 @@ function refreshLiveAfterEvent(token, role, reason, expectation = {}, syncContex
   const baselineMs = emittedAtMs != null && emittedAtMs <= result.completedAtMs
     ? emittedAtMs
     : receivedAtMs;
-  eventSyncDuration.add(Math.max(0, result.completedAtMs - baselineMs), metricTags(role));
+  eventSyncDuration.add(Math.max(0, result.completedAtMs - baselineMs), metricTags(role, { event: reason }));
   eventSyncSuccess.add(ok, metricTags(role));
   return result.ok ? result.data : null;
 }
 
-function syncLiveAfterEvent(currentData, role, updater, expectation = {}, syncContext = null) {
+function syncLiveAfterEvent(currentData, role, updater, expectation = {}, syncContext = null, reason = 'delta') {
   const startedAtMs = Date.now();
   const nextData = updater(currentData);
   const completedAtMs = Date.now();
@@ -371,7 +375,7 @@ function syncLiveAfterEvent(currentData, role, updater, expectation = {}, syncCo
   const baselineMs = emittedAtMs != null && emittedAtMs <= completedAtMs
     ? emittedAtMs
     : receivedAtMs;
-  eventSyncDuration.add(Math.max(0, completedAtMs - baselineMs), metricTags(role));
+  eventSyncDuration.add(Math.max(0, completedAtMs - baselineMs), metricTags(role, { event: reason }));
   eventSyncSuccess.add(ok, metricTags(role));
   return nextData;
 }
@@ -592,6 +596,87 @@ function applyLiveResponseAddedDelta(previousData, eventPayload = {}) {
   };
 }
 
+function applyAttemptChangedDelta(previousData, eventPayload = {}) {
+  if (!previousData) return previousData;
+  const currentQuestionId = String(previousData?.currentQuestion?._id || '');
+  const eventQuestionId = String(eventPayload?.questionId || '');
+  if (currentQuestionId && eventQuestionId && currentQuestionId !== eventQuestionId) return previousData;
+
+  const previousAttemptNumber = previousData?.currentAttempt?.number ?? null;
+  const nextAttemptNumber = eventPayload?.currentAttempt?.number ?? previousAttemptNumber;
+  const resetResponses = !!eventPayload?.resetResponses || nextAttemptNumber !== previousAttemptNumber;
+  return {
+    ...previousData,
+    currentAttempt: eventPayload?.currentAttempt ?? previousData.currentAttempt,
+    showStats: eventPayload?.stats ?? previousData.showStats,
+    showCorrect: eventPayload?.correct ?? previousData.showCorrect,
+    responseStats: resetResponses ? null : previousData.responseStats,
+    studentResponse: resetResponses ? null : previousData.studentResponse,
+    allResponses: resetResponses ? [] : previousData.allResponses,
+    responseCount: resetResponses ? 0 : previousData.responseCount,
+  };
+}
+
+function applyVisibilityChangedDelta(previousData, eventPayload = {}) {
+  if (!previousData || !Object.prototype.hasOwnProperty.call(eventPayload || {}, 'question')) return null;
+  return {
+    ...previousData,
+    currentQuestion: eventPayload.question,
+    currentAttempt: eventPayload?.currentAttempt ?? previousData.currentAttempt,
+    questionHidden: eventPayload?.questionHidden ?? eventPayload?.hidden ?? previousData.questionHidden,
+    showStats: eventPayload?.showStats ?? eventPayload?.stats ?? previousData.showStats,
+    showCorrect: eventPayload?.showCorrect ?? eventPayload?.correct ?? previousData.showCorrect,
+    showResponseList: eventPayload?.showResponseList ?? eventPayload?.responseListVisible ?? previousData.showResponseList,
+    responseStats: eventPayload?.responseStats ?? null,
+    wordCloudData: eventPayload?.wordCloudData ?? null,
+    histogramData: eventPayload?.histogramData ?? null,
+  };
+}
+
+function applyInstructorVisibilityChangedDelta(previousData, eventPayload = {}) {
+  if (!previousData?.currentQuestion) return previousData;
+  return {
+    ...previousData,
+    currentQuestion: {
+      ...previousData.currentQuestion,
+      sessionOptions: {
+        ...(previousData.currentQuestion.sessionOptions || {}),
+        hidden: eventPayload?.hidden ?? previousData.currentQuestion?.sessionOptions?.hidden,
+        stats: eventPayload?.stats ?? previousData.currentQuestion?.sessionOptions?.stats,
+        correct: eventPayload?.correct ?? previousData.currentQuestion?.sessionOptions?.correct,
+        responseListVisible: eventPayload?.responseListVisible
+          ?? previousData.currentQuestion?.sessionOptions?.responseListVisible,
+      },
+    },
+  };
+}
+
+function applyQuestionChangedDelta(previousData, eventPayload = {}) {
+  if (!previousData || !Object.prototype.hasOwnProperty.call(eventPayload || {}, 'question')) return null;
+  return {
+    ...previousData,
+    session: previousData.session
+      ? { ...previousData.session, currentQuestion: eventPayload?.questionId ?? previousData.session.currentQuestion }
+      : previousData.session,
+    currentQuestion: eventPayload.question,
+    currentAttempt: eventPayload?.currentAttempt ?? null,
+    studentResponse: eventPayload?.studentResponse ?? null,
+    responseStats: eventPayload?.responseStats ?? null,
+    responseCount: eventPayload?.responseCount ?? 0,
+    allResponses: eventPayload?.allResponses ?? [],
+    questionHidden: eventPayload?.questionHidden ?? previousData.questionHidden,
+    showStats: eventPayload?.showStats ?? previousData.showStats,
+    showCorrect: eventPayload?.showCorrect ?? previousData.showCorrect,
+    showResponseList: eventPayload?.showResponseList ?? previousData.showResponseList,
+    wordCloudData: eventPayload?.wordCloudData ?? null,
+    histogramData: eventPayload?.histogramData ?? null,
+    questionNumber: eventPayload?.questionNumber ?? previousData.questionNumber,
+    questionCount: eventPayload?.questionCount ?? previousData.questionCount,
+    pageProgress: eventPayload?.pageProgress ?? previousData.pageProgress,
+    questionProgress: eventPayload?.questionProgress ?? previousData.questionProgress,
+  };
+}
+
 function collectChatPostIds(chatData = {}) {
   const ids = new Set();
   (Array.isArray(chatData?.posts) ? chatData.posts : []).forEach((post) => {
@@ -669,12 +754,12 @@ function refreshChatAfterEvent(token, role, reason, expectation = {}, syncContex
   const baselineMs = emittedAtMs != null && emittedAtMs <= result.completedAtMs
     ? emittedAtMs
     : receivedAtMs;
-  chatEventSyncDuration.add(Math.max(0, result.completedAtMs - baselineMs), metricTags(role));
+  chatEventSyncDuration.add(Math.max(0, result.completedAtMs - baselineMs), metricTags(role, { event: reason }));
   chatEventSyncSuccess.add(ok, metricTags(role));
   return result.ok ? result.data : null;
 }
 
-function syncChatAfterEvent(currentData, role, eventPayload, expectation = {}, syncContext = null) {
+function syncChatAfterEvent(currentData, role, eventPayload, expectation = {}, syncContext = null, reason = 'delta') {
   const startedAtMs = Date.now();
   const nextData = applyChatEventData(currentData, eventPayload);
   const completedAtMs = Date.now();
@@ -684,7 +769,7 @@ function syncChatAfterEvent(currentData, role, eventPayload, expectation = {}, s
   const baselineMs = emittedAtMs != null && emittedAtMs <= completedAtMs
     ? emittedAtMs
     : receivedAtMs;
-  chatEventSyncDuration.add(Math.max(0, completedAtMs - baselineMs), metricTags(role));
+  chatEventSyncDuration.add(Math.max(0, completedAtMs - baselineMs), metricTags(role, { event: reason }));
   chatEventSyncSuccess.add(ok, metricTags(role));
   return nextData;
 }
@@ -859,7 +944,9 @@ function submitResponse(token, liveData) {
 }
 
 function professorRequest(method, path, token, payload, tagName, expectedStatuses = [200]) {
+  const startedAtMs = Date.now();
   const res = jsonRequest(method, path, token, payload, tagName);
+  professorActionDuration.add(Date.now() - startedAtMs, { action: tagName });
   const ok = expectedStatuses.includes(res.status);
   professorActionSuccess.add(ok);
   check(res, { [`${tagName} ok`]: () => ok });
@@ -1115,7 +1202,9 @@ export function professorViewerFlow() {
       }
     };
     const applyChatObserver = (eventPayload, reason, expectation = {}, syncContext = null, view = 'live') => {
-      const updated = chatData ? syncChatAfterEvent(chatData, role, eventPayload, expectation, syncContext) : null;
+      const updated = chatData
+        ? syncChatAfterEvent(chatData, role, eventPayload, expectation, syncContext, reason)
+        : null;
       if (updated) {
         chatData = updated;
         return;
@@ -1169,20 +1258,41 @@ export function professorViewerFlow() {
           }
           break;
         case 'session:question-changed':
-          refreshLiveObserver('professor_question_changed', { questionNumber: data.questionNumber }, syncContext);
+          if (Object.prototype.hasOwnProperty.call(data || {}, 'question')) {
+            liveData = syncLiveAfterEvent(
+              liveData,
+              role,
+              (snapshot) => applyQuestionChangedDelta(snapshot, data),
+              { questionNumber: data.questionNumber },
+              syncContext,
+              'question_changed',
+            ) || liveData;
+          } else {
+            refreshLiveObserver('professor_question_changed', { questionNumber: data.questionNumber }, syncContext);
+          }
           break;
         case 'session:visibility-changed':
-          refreshLiveObserver('professor_visibility_changed', {
-            hidden: data.hidden,
-            stats: data.stats,
-            correct: data.correct,
-          }, syncContext);
+          liveData = syncLiveAfterEvent(
+            liveData,
+            role,
+            (snapshot) => applyInstructorVisibilityChangedDelta(snapshot, data),
+            { hidden: data.hidden, stats: data.stats, correct: data.correct },
+            syncContext,
+            'visibility_changed',
+          ) || liveData;
           break;
         case 'session:attempt-changed':
-          refreshLiveObserver('professor_attempt_changed', {
-            attemptNumber: data?.currentAttempt?.number,
-            attemptClosed: data?.currentAttempt?.closed,
-          }, syncContext);
+          liveData = syncLiveAfterEvent(
+            liveData,
+            role,
+            (snapshot) => applyAttemptChangedDelta(snapshot, data),
+            {
+              attemptNumber: data?.currentAttempt?.number,
+              attemptClosed: data?.currentAttempt?.closed,
+            },
+            syncContext,
+            'attempt_changed',
+          ) || liveData;
           break;
         case 'session:word-cloud-updated':
           refreshLiveObserver('professor_word_cloud_updated', { requireWordCloud: true }, syncContext);
@@ -1191,12 +1301,19 @@ export function professorViewerFlow() {
           refreshLiveObserver('professor_histogram_updated', { requireHistogram: true }, syncContext);
           break;
         case 'session:response-added':
+          {
+            const submittedAtMs = parseTimestampMs(data?.responseSubmittedAt);
+            if (submittedAtMs != null && submittedAtMs <= receivedAtMs) {
+              responseToProfessorDuration.add(receivedAtMs - submittedAtMs);
+            }
+          }
           liveData = syncLiveAfterEvent(
             liveData,
             role,
             (snapshot) => applyLiveResponseAddedDelta(snapshot, data),
             {},
             syncContext,
+            'response_added',
           ) || liveData;
           chatEnabled = SESSION_CHAT_ENABLED && Boolean(liveData?.session?.chatEnabled);
           break;
@@ -1363,7 +1480,9 @@ export function studentFlow() {
 
         scheduledAttempts[attemptKey] = true;
         socket.setTimeout(() => {
-          const latest = fetchLive(token, role, 'pre_submit_live').data || snapshot;
+          // Match the browser: submit from the websocket-synchronized snapshot
+          // instead of issuing an extra /live request immediately beforehand.
+          const latest = liveData || snapshot;
           liveData = latest;
           chatEnabled = SESSION_CHAT_ENABLED && Boolean(latest?.session?.chatEnabled);
 
@@ -1473,7 +1592,9 @@ export function studentFlow() {
         }
       };
       const applyChatObserver = (eventPayload, reason, expectation = {}, syncContext = null, view = 'live') => {
-        const updated = chatData ? syncChatAfterEvent(chatData, role, eventPayload, expectation, syncContext) : null;
+        const updated = chatData
+          ? syncChatAfterEvent(chatData, role, eventPayload, expectation, syncContext, reason)
+          : null;
         if (updated) {
           chatData = updated;
           return;
@@ -1536,45 +1657,81 @@ export function studentFlow() {
             break;
 
           case 'session:question-changed':
-            refreshForEvent('question_changed', { questionNumber: data.questionNumber }, syncContext);
+            if (Object.prototype.hasOwnProperty.call(data || {}, 'question')) {
+              liveData = syncLiveAfterEvent(
+                liveData,
+                role,
+                (snapshot) => applyQuestionChangedDelta(snapshot, data),
+                { questionNumber: data.questionNumber },
+                syncContext,
+                'question_changed',
+              ) || liveData;
+              maybeSubmitCurrentAttempt(liveData);
+            } else {
+              refreshForEvent('question_changed', { questionNumber: data.questionNumber }, syncContext);
+            }
             scheduleChatWave(Number(data?.questionNumber || liveData?.questionNumber || 0));
             break;
 
           case 'session:visibility-changed':
-            refreshForEvent('visibility_changed', {
-              hidden: data.hidden,
-              stats: data.stats,
-              correct: data.correct,
-            }, syncContext);
+            if (Object.prototype.hasOwnProperty.call(data || {}, 'question')) {
+              liveData = syncLiveAfterEvent(
+                liveData,
+                role,
+                (snapshot) => applyVisibilityChangedDelta(snapshot, data),
+                {
+                  hidden: data.questionHidden,
+                  stats: data.showStats,
+                  correct: data.showCorrect,
+                },
+                syncContext,
+                'visibility_changed',
+              ) || liveData;
+              maybeSubmitCurrentAttempt(liveData);
+            } else {
+              refreshForEvent('visibility_changed', {
+                hidden: data.hidden,
+                stats: data.stats,
+                correct: data.correct,
+              }, syncContext);
+            }
             break;
 
           case 'session:attempt-changed':
-            refreshForEvent('attempt_changed', {
-              attemptNumber: data?.currentAttempt?.number,
-              attemptClosed: data?.currentAttempt?.closed,
-            }, syncContext);
+            liveData = syncLiveAfterEvent(
+              liveData,
+              role,
+              (snapshot) => applyAttemptChangedDelta(snapshot, data),
+              {
+                attemptNumber: data?.currentAttempt?.number,
+                attemptClosed: data?.currentAttempt?.closed,
+              },
+              syncContext,
+              'attempt_changed',
+            ) || liveData;
+            maybeSubmitCurrentAttempt(liveData);
             break;
 
           case 'session:word-cloud-updated':
-            liveData = refreshLiveAfterEvent(
-              token,
+            liveData = syncLiveAfterEvent(
+              liveData,
               role,
-              'word_cloud_updated',
+              (snapshot) => snapshot ? { ...snapshot, wordCloudData: data?.wordCloudData ?? null } : snapshot,
               { requireWordCloud: true },
               syncContext,
+              'word_cloud_updated',
             ) || liveData;
-            chatEnabled = SESSION_CHAT_ENABLED && Boolean(liveData?.session?.chatEnabled);
             break;
 
           case 'session:histogram-updated':
-            liveData = refreshLiveAfterEvent(
-              token,
+            liveData = syncLiveAfterEvent(
+              liveData,
               role,
-              'histogram_updated',
+              (snapshot) => snapshot ? { ...snapshot, histogramData: data?.histogramData ?? null } : snapshot,
               { requireHistogram: true },
               syncContext,
+              'histogram_updated',
             ) || liveData;
-            chatEnabled = SESSION_CHAT_ENABLED && Boolean(liveData?.session?.chatEnabled);
             break;
 
           case 'session:chat-settings-changed':
@@ -1602,6 +1759,7 @@ export function studentFlow() {
                 (snapshot) => applyLiveResponseAddedDelta(snapshot, data),
                 {},
                 syncContext,
+                'response_added',
               ) || liveData;
               chatEnabled = SESSION_CHAT_ENABLED && Boolean(liveData?.session?.chatEnabled);
               break;

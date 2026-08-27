@@ -101,7 +101,9 @@ the real live-session update path used by the browser:
 3. Students join the running session.
 4. Students open `/ws?token=...`.
 5. On `session:*` deltas, students patch local live state when the payload is
-   sufficient and re-fetch `/sessions/:id/live` only for the remaining cases.
+   sufficient—including question, attempt, visibility, stats, correct-answer,
+   word-cloud, and histogram snapshots—and re-fetch `/sessions/:id/live` only
+   for legacy/fallback payloads.
 6. Students submit responses only when the current attempt is open and visible.
 7. The professor closes responses, shows stats, generates short-answer word
    clouds and numerical histograms, reveals correct answers, and advances to the
@@ -194,6 +196,8 @@ The scenario tracks and thresholds these key signals:
 - `login_duration{role:professor}`
 - `join_duration`
 - `respond_duration`
+- `professor_action_duration`
+- `response_to_professor_duration`
 - `live_refresh_duration{role:student}`
 - `live_refresh_duration{role:professor}`
 - `event_sync_duration{role:student}`
@@ -202,6 +206,15 @@ The scenario tracks and thresholds these key signals:
 - `chat_refresh_duration{role:professor}`
 - `chat_event_sync_duration{role:student}`
 - `chat_event_sync_duration{role:professor}`
+
+`response_to_professor_duration` measures from the response submission
+timestamp embedded in the server event until the professor observer receives
+it. Unlike generic event-sync timing, it includes response persistence and
+aggregate-statistics work performed before the websocket event is emitted.
+
+Live and chat event-duration samples are tagged by event/reason so exported k6
+data can distinguish question changes, visibility changes, attempts, responses,
+and refresh fallbacks.
 
 When `SESSION_CHAT_ENABLED=false`, the chat-specific thresholds are skipped so
 the report focuses on core live-session responsiveness.
@@ -266,6 +279,8 @@ The current acceptance bar is intentionally strict for classroom use:
   `ws_connect_success{role:professor}`,
   `professor_action_success`, `chat_action_success`, and `session_completion`
   must all be `100%`
+- `professor_action_duration` and `response_to_professor_duration` must have
+  `p(95)<3000`
 - `login_duration{role:student}`, `login_duration{role:professor}`,
   `join_duration`, and `respond_duration` must have
   `p(95)<3000`

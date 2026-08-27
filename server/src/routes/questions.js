@@ -614,21 +614,30 @@ function toQuestionPayload(question) {
 
 function stripAnswerRevealFields(questionPayload, { revealCorrectAnswers = false } = {}) {
   if (!questionPayload) return null;
-  if (revealCorrectAnswers) return questionPayload;
-
   const sanitized = { ...questionPayload };
-  if (Array.isArray(sanitized.options)) {
-    sanitized.options = sanitized.options.map((option) => ({
-      ...option,
-      correct: undefined,
-    }));
+  if (!revealCorrectAnswers) {
+    if (Array.isArray(sanitized.options)) {
+      sanitized.options = sanitized.options.map((option) => {
+        const nextOption = { ...option };
+        delete nextOption.correct;
+        return nextOption;
+      });
+    }
+    delete sanitized.correctNumerical;
+    delete sanitized.solution;
+    delete sanitized.solution_plainText;
+    delete sanitized.solutionText;
+    delete sanitized.solutionPlainText;
+    delete sanitized.solutionHtml;
   }
-  delete sanitized.correctNumerical;
-  delete sanitized.solution;
-  delete sanitized.solution_plainText;
-  delete sanitized.solutionText;
-  delete sanitized.solutionPlainText;
-  delete sanitized.solutionHtml;
+
+  if (sanitized.sessionOptions) {
+    sanitized.sessionOptions = { ...sanitized.sessionOptions };
+    delete sanitized.sessionOptions.attemptStats;
+    delete sanitized.sessionOptions.wordCloudData;
+    delete sanitized.sessionOptions.histogramData;
+  }
+  delete sanitized.sessionProperties;
   return sanitized;
 }
 
