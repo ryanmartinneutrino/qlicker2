@@ -1609,6 +1609,8 @@ describe('GET /api/v1/sessions/:id/live', () => {
     expect(hiddenBody.showCorrect).toBe(false);
     expect(hiddenBody.currentQuestion).not.toHaveProperty('solution');
     expect(hiddenBody.currentQuestion).not.toHaveProperty('solution_plainText');
+    expect(hiddenBody.currentQuestion).not.toHaveProperty('sessionProperties');
+    expect(hiddenBody.currentQuestion.sessionOptions).not.toHaveProperty('attemptStats');
 
     await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${session._id}/question-visibility`, {
       token: profToken,
@@ -1625,6 +1627,8 @@ describe('GET /api/v1/sessions/:id/live', () => {
     expect(visibleBody.currentQuestion.options[1].correct).toBe(true);
     expect(visibleBody.currentQuestion.solution).toBe('<p>Addition gives 4.</p>');
     expect(visibleBody.currentQuestion.solution_plainText).toBe('Addition gives 4.');
+    expect(visibleBody.currentQuestion).not.toHaveProperty('sessionProperties');
+    expect(visibleBody.currentQuestion.sessionOptions).not.toHaveProperty('attemptStats');
   });
 
   it('treats legacy numerical type 5 questions as numerical in live stats and histogram generation', async (ctx) => {
@@ -2938,6 +2942,155 @@ describe('Live session websocket delta events', () => {
     );
   });
 
+  it('broadcasts immediate student visibility snapshots without leaking hidden answers or cached responses', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const { prof, profToken, course, student, studentToken } = await setupCourseWithStudent();
+    const sessRes = await createSessionInCourse(profToken, course._id);
+    const session = sessRes.json().session;
+    await createQuestionInSession(profToken, {
+      type: 0,
+      content: '<p>Secure live question</p>',
+      plainText: 'Secure live question',
+      solution: '<p>Private solution</p>',
+      solution_plainText: 'Private solution',
+      sessionId: session._id,
+      courseId: course._id,
+      options: [
+        { content: 'Correct', correct: true },
+        { content: 'Incorrect', correct: false },
+      ],
+    });
+
+    await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/start`, {
+      token: profToken,
+    });
+    await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${session._id}/question-visibility`, {
+      token: profToken,
+      payload: { hidden: false, stats: false, correct: false },
+    });
+    await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/join`, {
+      token: studentToken,
+      payload: {},
+    });
+    await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/respond`, {
+      token: studentToken,
+      payload: { answer: '0' },
+    });
+
+    const wsSendToUsersSpy = vi.spyOn(app, 'wsSendToUsers');
+    const statsRes = await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${session._id}/question-visibility`, {
+      token: profToken,
+      payload: { hidden: false, stats: true, correct: false },
+    });
+    expect(statsRes.statusCode).toBe(200);
+
+    const statsCalls = wsSendToUsersSpy.mock.calls.filter(([, event]) => event === 'session:visibility-changed');
+    const instructorCall = statsCalls.find(([userIds]) => userIds.includes(String(prof._id)));
+    const studentCall = statsCalls.find(([userIds]) => userIds.includes(String(student._id)));
+    expect(instructorCall).toBeDefined();
+    expect(studentCall).toBeDefined();
+    expect(studentCall[2]).toEqual(expect.objectContaining({
+      showStats: true,
+      showCorrect: false,
+      questionHidden: false,
+      responseStats: expect.objectContaining({ type: 'distribution', total: 1 }),
+    }));
+    expect(studentCall[2].question).not.toHaveProperty('solution');
+    expect(studentCall[2].question).not.toHaveProperty('solution_plainText');
+    expect(studentCall[2].question).not.toHaveProperty('sessionProperties');
+    expect(studentCall[2].question.sessionOptions).not.toHaveProperty('attemptStats');
+    expect(studentCall[2].question.options.every((option) => !Object.hasOwn(option, 'correct'))).toBe(true);
+    expect(studentCall[2].responseStats.distribution.every((entry) => !Object.hasOwn(entry, 'correct'))).toBe(true);
+
+    wsSendToUsersSpy.mockClear();
+    const correctRes = await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${session._id}/question-visibility`, {
+      token: profToken,
+      payload: { hidden: false, stats: true, correct: true },
+    });
+    expect(correctRes.statusCode).toBe(200);
+    const correctStudentCall = wsSendToUsersSpy.mock.calls.find(([userIds, event]) => (
+      event === 'session:visibility-changed' && userIds.includes(String(student._id))
+    ));
+    expect(correctStudentCall[2].question.solution).toBe('<p>Private solution</p>');
+    expect(correctStudentCall[2].question.options[0].correct).toBe(true);
+    expect(correctStudentCall[2].responseStats.distribution[0].correct).toBe(true);
+  });
+
+  it('broadcasts role-safe question snapshots when the instructor changes questions', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const { prof, profToken, course, student, studentToken } = await setupCourseWithStudent();
+    const sessRes = await createSessionInCourse(profToken, course._id);
+    const session = sessRes.json().session;
+    await createQuestionInSession(profToken, {
+      type: 0,
+      content: '<p>First live question</p>',
+      plainText: 'First live question',
+      sessionId: session._id,
+      courseId: course._id,
+      options: [
+        { content: 'A', correct: true },
+        { content: 'B', correct: false },
+      ],
+    });
+    const secondQuestion = await createQuestionInSession(profToken, {
+      type: 0,
+      content: '<p>Second live question</p>',
+      plainText: 'Second live question',
+      solution: '<p>Instructor-only solution</p>',
+      solution_plainText: 'Instructor-only solution',
+      sessionId: session._id,
+      courseId: course._id,
+      options: [
+        { content: 'Correct option', correct: true },
+        { content: 'Incorrect option', correct: false },
+      ],
+    });
+
+    await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/start`, {
+      token: profToken,
+    });
+    await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${session._id}/question-visibility`, {
+      token: profToken,
+      payload: { hidden: false, stats: false, correct: false },
+    });
+    await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/join`, {
+      token: studentToken,
+      payload: {},
+    });
+
+    const wsSendToUsersSpy = vi.spyOn(app, 'wsSendToUsers');
+    const changeRes = await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${session._id}/current`, {
+      token: profToken,
+      payload: { questionId: secondQuestion._id },
+    });
+    expect(changeRes.statusCode).toBe(200);
+
+    const questionCalls = wsSendToUsersSpy.mock.calls.filter(([, event]) => event === 'session:question-changed');
+    const instructorCall = questionCalls.find(([userIds]) => userIds.includes(String(prof._id)));
+    const studentCall = questionCalls.find(([userIds]) => userIds.includes(String(student._id)));
+    expect(instructorCall).toBeDefined();
+    expect(studentCall).toBeDefined();
+    expect(instructorCall[2]).toEqual(expect.objectContaining({
+      questionId: secondQuestion._id,
+      responseCount: 0,
+    }));
+    expect(instructorCall[2]).not.toHaveProperty('studentResponse');
+    expect(instructorCall[2].question.solution).toBe('<p>Instructor-only solution</p>');
+    expect(instructorCall[2].question.options[0].correct).toBe(true);
+
+    expect(studentCall[2]).toEqual(expect.objectContaining({
+      questionId: secondQuestion._id,
+      showStats: false,
+      showCorrect: false,
+      studentResponse: null,
+    }));
+    expect(studentCall[2].question).not.toHaveProperty('solution');
+    expect(studentCall[2].question).not.toHaveProperty('solution_plainText');
+    expect(studentCall[2].question).not.toHaveProperty('sessionProperties');
+    expect(studentCall[2].question.sessionOptions).not.toHaveProperty('attemptStats');
+    expect(studentCall[2].question.options.every((option) => !Object.hasOwn(option, 'correct'))).toBe(true);
+  });
+
   it('broadcasts join-code changes without leaking the code to students', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
     const { prof, profToken, course, student } = await setupCourseWithStudent();
@@ -3086,6 +3239,76 @@ describe('Live session websocket delta events', () => {
       ],
     ]));
     expect(responseCalls.some(([userIds]) => userIds.includes(String(spectator._id)))).toBe(false);
+  });
+
+  it('atomically aggregates concurrent live responses and emits progressive instructor counts', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const { prof, profToken, course, studentToken } = await setupCourseWithStudent();
+    const secondStudent = await createTestUser({ email: 'concurrent-live-response@example.com', roles: ['student'] });
+    const secondStudentToken = await getAuthToken(app, secondStudent);
+    await authenticatedRequest(app, 'POST', '/api/v1/courses/enroll', {
+      token: secondStudentToken,
+      payload: { enrollmentCode: course.enrollmentCode },
+    });
+
+    const sessRes = await createSessionInCourse(profToken, course._id);
+    const session = sessRes.json().session;
+    const question = await createQuestionInSession(profToken, {
+      type: 0,
+      content: '<p>Concurrent response question</p>',
+      plainText: 'Concurrent response question',
+      sessionId: session._id,
+      courseId: course._id,
+      options: [
+        { content: 'A', correct: true },
+        { content: 'B', correct: false },
+      ],
+    });
+
+    await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/start`, {
+      token: profToken,
+    });
+    await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${session._id}/question-visibility`, {
+      token: profToken,
+      payload: { hidden: false, stats: true, correct: false },
+    });
+    await Promise.all([studentToken, secondStudentToken].map((token) => authenticatedRequest(
+      app,
+      'POST',
+      `/api/v1/sessions/${session._id}/join`,
+      { token, payload: {} }
+    )));
+    const newAttemptRes = await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/new-attempt`, {
+      token: profToken,
+    });
+    expect(newAttemptRes.statusCode).toBe(200);
+    expect(newAttemptRes.json().attemptNumber).toBe(1);
+
+    const wsSendToUsersSpy = vi.spyOn(app, 'wsSendToUsers');
+    const [firstResponse, secondResponse] = await Promise.all([
+      authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/respond`, {
+        token: studentToken,
+        payload: { answer: '0' },
+      }),
+      authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/respond`, {
+        token: secondStudentToken,
+        payload: { answer: '1' },
+      }),
+    ]);
+    expect(firstResponse.statusCode).toBe(201);
+    expect(secondResponse.statusCode).toBe(201);
+
+    const persistedQuestion = await Question.findById(question._id).lean();
+    const stats = persistedQuestion.sessionOptions.attemptStats.find((entry) => Number(entry.number) === 1);
+    expect(persistedQuestion.sessionProperties.lastAttemptResponseCount).toBe(2);
+    expect(stats.total).toBe(2);
+    expect(stats.distribution.map((entry) => entry.count)).toEqual([1, 1]);
+
+    const instructorCounts = wsSendToUsersSpy.mock.calls
+      .filter(([userIds, event]) => event === 'session:response-added' && userIds.includes(String(prof._id)))
+      .map(([, , payload]) => payload.responseCount)
+      .sort((a, b) => a - b);
+    expect(instructorCounts).toEqual([1, 2]);
   });
 
   it('includes canonical distribution stats in response-added deltas for multiple-select questions', async (ctx) => {
@@ -3280,9 +3503,9 @@ describe('Live session websocket delta events', () => {
     }));
   });
 
-  it('includes complete numerical stats in response-added deltas', async (ctx) => {
+  it('includes complete instructor numerical stats while respecting the student response-list setting', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
-    const { prof, profToken, course, studentToken } = await setupCourseWithStudent();
+    const { prof, profToken, course, student, studentToken } = await setupCourseWithStudent();
     const sessRes = await createSessionInCourse(profToken, course._id);
     const session = sessRes.json().session;
 
@@ -3299,7 +3522,7 @@ describe('Live session websocket delta events', () => {
     });
     await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${session._id}/question-visibility`, {
       token: profToken,
-      payload: { hidden: false, stats: true },
+      payload: { hidden: false, stats: true, responseListVisible: false },
     });
     await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/join`, {
       token: studentToken,
@@ -3335,6 +3558,17 @@ describe('Live session websocket delta events', () => {
       max: 7.5,
     }));
     expect(payload.responseStats.answers[0]).not.toHaveProperty('studentUserId');
+
+    const studentResponseCall = wsSendToUsersSpy.mock.calls.find(([userIds, event]) => (
+      event === 'session:response-added' && userIds.includes(String(student._id))
+    ));
+    expect(studentResponseCall).toBeDefined();
+    expect(studentResponseCall[2].responseStats).toEqual(expect.objectContaining({
+      type: 'numerical',
+      total: 1,
+      answers: [],
+    }));
+    expect(studentResponseCall[2]).not.toHaveProperty('response');
   });
 
   it('tracks live response counts on the session and resets the question attempt counter on new attempts', async (ctx) => {
@@ -4625,6 +4859,7 @@ describe('session chat quick posts', () => {
       isQuickPost: true,
       quickPostQuestionNumber: 2,
     })).toBe(1);
+    await new Promise((resolve) => setTimeout(resolve, 175));
     const quickPostEvents = wsSendToUsersSpy.mock.calls
       .filter(([, event, payload]) => event === 'session:chat-updated' && payload?.changeType === 'quick-post-toggled');
     expect(quickPostEvents.map(([, , payload]) => payload.becameVisible)).toEqual([

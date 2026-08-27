@@ -111,6 +111,7 @@ const SessionPropertiesSchema = new mongoose.Schema(
   {
     lastAttemptNumber: { type: Number, default: 0 },
     lastAttemptResponseCount: { type: Number, default: 0 },
+    lastAttemptAggregateCount: { type: Number, default: 0 },
   },
   { _id: false }
 );

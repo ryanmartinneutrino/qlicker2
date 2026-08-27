@@ -205,4 +205,90 @@ describe('Student LiveSession', () => {
     expect(screen.getByText('Session chat panel')).toBeInTheDocument();
     expect(within(screen.getByRole('tab', { name: 'Chat' })).queryByText('1')).not.toBeInTheDocument();
   });
+
+  it('applies role-safe stats and correct-answer snapshots without refetching live state', async () => {
+    const buildView = () => (
+      <MemoryRouter initialEntries={['/student/course/course-1/live/session-1']}>
+        <Routes>
+          <Route path="/student/course/:courseId/live/:sessionId" element={<LiveSession />} />
+        </Routes>
+      </MemoryRouter>
+    );
+    const { rerender } = render(buildView());
+    expect(await screen.findByText('Live math session')).toBeInTheDocument();
+    expect(apiClient.get).toHaveBeenCalledTimes(1);
+
+    websocketState.lastEvent = {
+      event: 'session:visibility-changed',
+      data: {
+        sessionId: 'session-1',
+        questionId: 'q-1',
+        question: {
+          _id: 'q-1',
+          type: QUESTION_TYPES.MULTI_SELECT,
+          content: '<p>Select all matching options</p>',
+          options: [
+            { content: '<p>First</p>' },
+            { content: '<p>Other</p>' },
+          ],
+          sessionOptions: { hidden: false, stats: true, correct: false },
+        },
+        currentAttempt: { number: 1, closed: false },
+        questionHidden: false,
+        showStats: true,
+        showCorrect: false,
+        showResponseList: true,
+        responseStats: {
+          type: 'distribution',
+          total: 2,
+          distribution: [
+            { index: 0, answer: 'First', count: 2 },
+            { index: 1, answer: 'Other', count: 0 },
+          ],
+        },
+      },
+      receivedAtMs: Date.now(),
+    };
+    rerender(buildView());
+
+    await waitFor(() => expect(screen.getByText('100%')).toBeInTheDocument());
+    expect(apiClient.get).toHaveBeenCalledTimes(1);
+
+    websocketState.lastEvent = {
+      event: 'session:visibility-changed',
+      data: {
+        sessionId: 'session-1',
+        questionId: 'q-1',
+        question: {
+          _id: 'q-1',
+          type: QUESTION_TYPES.MULTI_SELECT,
+          content: '<p>Select all matching options</p>',
+          options: [
+            { content: '<p>First</p>', correct: true },
+            { content: '<p>Other</p>', correct: false },
+          ],
+          solution: '<p>The first option is correct.</p>',
+          sessionOptions: { hidden: false, stats: true, correct: true },
+        },
+        currentAttempt: { number: 1, closed: false },
+        questionHidden: false,
+        showStats: true,
+        showCorrect: true,
+        showResponseList: true,
+        responseStats: {
+          type: 'distribution',
+          total: 2,
+          distribution: [
+            { index: 0, answer: 'First', count: 2, correct: true },
+            { index: 1, answer: 'Other', count: 0, correct: false },
+          ],
+        },
+      },
+      receivedAtMs: Date.now(),
+    };
+    rerender(buildView());
+
+    expect(await screen.findByText('The first option is correct.')).toBeInTheDocument();
+    expect(apiClient.get).toHaveBeenCalledTimes(1);
+  });
 });

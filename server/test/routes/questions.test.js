@@ -1012,12 +1012,17 @@ describe('PATCH /api/v1/questions/:id', () => {
         question: expect.objectContaining({
           content: '<p>Updated current question</p>',
           options: expect.arrayContaining([
-            expect.objectContaining({ answer: 'A', correct: undefined }),
-            expect.objectContaining({ answer: 'B', correct: undefined }),
+            expect.objectContaining({ answer: 'A' }),
+            expect.objectContaining({ answer: 'B' }),
           ]),
         }),
       })
     );
+    const studentEvent = wsSendToUsersSpy.mock.calls.find(([userIds, event]) => (
+      event === 'session:question-updated' && userIds.includes(String(student._id))
+    ));
+    expect(studentEvent[2].question.options.every((option) => !Object.hasOwn(option, 'correct'))).toBe(true);
+    expect(studentEvent[2].question).not.toHaveProperty('sessionProperties');
   });
 });
 

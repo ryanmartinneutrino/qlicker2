@@ -2048,19 +2048,36 @@ function formatInstructorLiveResponseStats(responseStats, studentNameById = {}, 
   return responseStats;
 }
 
-function formatStudentLiveResponseStats(responseStats) {
+function formatStudentLiveResponseStats(responseStats, { showCorrect = false, showResponseList = true } = {}) {
   if (!responseStats) return responseStats;
+
+  if (responseStats.type === 'distribution' && Array.isArray(responseStats.distribution)) {
+    return {
+      ...responseStats,
+      distribution: responseStats.distribution.map((entry) => {
+        const sanitized = {
+          index: entry?.index,
+          answer: entry?.answer,
+          count: Number(entry?.count || 0),
+        };
+        if (showCorrect) sanitized.correct = !!entry?.correct;
+        return sanitized;
+      }),
+    };
+  }
 
   if (responseStats.type === 'shortAnswer' && Array.isArray(responseStats.answers)) {
     const answers = sortResponseEntriesNewestFirst(responseStats.answers);
     return {
       ...responseStats,
-      answers: answers.map((entry) => ({
-        answer: entry.answer,
-        answerWysiwyg: entry.answerWysiwyg,
-        createdAt: entry.createdAt || null,
-        updatedAt: entry.updatedAt || null,
-      })),
+      answers: showResponseList
+        ? answers.map((entry) => ({
+          answer: entry.answer,
+          answerWysiwyg: entry.answerWysiwyg,
+          createdAt: entry.createdAt || null,
+          updatedAt: entry.updatedAt || null,
+        }))
+        : [],
     };
   }
 
@@ -2068,15 +2085,102 @@ function formatStudentLiveResponseStats(responseStats) {
     const answers = sortResponseEntriesNewestFirst(responseStats.answers);
     return {
       ...responseStats,
-      answers: answers.map((entry) => ({
-        answer: entry.answer,
-        createdAt: entry.createdAt || null,
-        updatedAt: entry.updatedAt || null,
-      })),
+      answers: showResponseList
+        ? answers.map((entry) => ({
+          answer: entry.answer,
+          createdAt: entry.createdAt || null,
+          updatedAt: entry.updatedAt || null,
+        }))
+        : [],
     };
   }
 
   return responseStats;
+}
+
+function toPlainObject(value) {
+  if (!value) return null;
+  return typeof value.toObject === 'function' ? value.toObject() : { ...value };
+}
+
+function sanitizeStudentLiveQuestion(question, { showCorrect = false } = {}) {
+  const questionPayload = toPlainObject(question);
+  if (!questionPayload) return null;
+
+  const sanitized = { ...questionPayload };
+  if (!showCorrect) {
+    if (Array.isArray(sanitized.options)) {
+      sanitized.options = sanitized.options.map((option) => {
+        const nextOption = { ...option };
+        delete nextOption.correct;
+        return nextOption;
+      });
+    }
+    delete sanitized.correctNumerical;
+    delete sanitized.solution;
+    delete sanitized.solution_plainText;
+    delete sanitized.solutionPlainText;
+    delete sanitized.solutionText;
+    delete sanitized.solutionHtml;
+  }
+
+  if (sanitized.sessionOptions) {
+    sanitized.sessionOptions = { ...sanitized.sessionOptions };
+    delete sanitized.sessionOptions.attemptStats;
+    delete sanitized.sessionOptions.wordCloudData;
+    delete sanitized.sessionOptions.histogramData;
+  }
+  delete sanitized.sessionProperties;
+  return sanitized;
+}
+
+function sanitizeStudentOwnResponse(response) {
+  if (!response) return null;
+  return {
+    _id: response._id,
+    questionId: response.questionId,
+    attempt: response.attempt,
+    answer: response.answer,
+    answerWysiwyg: response.answerWysiwyg || '',
+    createdAt: response.createdAt || null,
+    updatedAt: response.updatedAt || null,
+    editable: !!response.editable,
+  };
+}
+
+function buildStudentLiveQuestionSnapshot(question, extra = {}) {
+  const questionHidden = !!question?.sessionOptions?.hidden;
+  const collectsResponses = isQuestionResponseCollectionEnabled(question);
+  const showStats = collectsResponses && !!question?.sessionOptions?.stats;
+  const showCorrect = collectsResponses && !!question?.sessionOptions?.correct;
+  const showResponseList = question?.sessionOptions?.responseListVisible !== false;
+  const currentAttempt = collectsResponses ? getCurrentAttempt(question) : null;
+  const cachedStats = currentAttempt
+    ? materializeAttemptStatsEntry(getAttemptStatsEntry(question, currentAttempt.number))
+    : null;
+  const responseStats = showStats
+    ? formatStudentLiveResponseStats(cachedStats, { showCorrect, showResponseList })
+    : null;
+  const wordCloudData = showStats && question?.sessionOptions?.wordCloudData?.visible
+    ? question.sessionOptions.wordCloudData
+    : null;
+  const histogramData = showStats && question?.sessionOptions?.histogramData?.visible
+    ? question.sessionOptions.histogramData
+    : null;
+
+  return {
+    questionId: String(question?._id || ''),
+    question: questionHidden ? null : sanitizeStudentLiveQuestion(question, { showCorrect }),
+    currentAttempt,
+    questionHidden,
+    showStats,
+    showCorrect,
+    showResponseList,
+    responseStats,
+    wordCloudData,
+    histogramData,
+    ...extra,
+  };
 }
 
 function serializeLiveResponseEntry(response, { studentName = null } = {}) {
@@ -2193,25 +2297,29 @@ async function upsertQuestionAttemptStatsEntry(questionId, attemptNumber, entry)
 
 async function appendResponseToQuestionAttemptStats(question, attemptNumber, response) {
   const normalizedAttemptNumber = Number(attemptNumber) || 1;
-  if (!question?._id || !response) return;
+  if (!question?._id || !response) return null;
 
-  const responseCount = await Response.countDocuments({
-    questionId: question._id,
-    attempt: normalizedAttemptNumber,
-  });
   const cachedEntry = getAttemptStatsEntry(question, normalizedAttemptNumber);
-  const expectedPreviousCount = Math.max(0, responseCount - 1);
-
-  if (!isCanonicalAttemptStatsEntry(question, cachedEntry, expectedPreviousCount)) {
-    const responses = responseCount > 0
-      ? await Response.find({
-        questionId: question._id,
-        attempt: normalizedAttemptNumber,
-      }).sort({ updatedAt: -1, createdAt: -1, _id: -1 }).lean()
-      : [];
+  const trackedCount = Number(question?.sessionProperties?.lastAttemptResponseCount || 0);
+  const aggregateCount = Number(question?.sessionProperties?.lastAttemptAggregateCount || 0);
+  if (aggregateCount !== trackedCount || !isCanonicalAttemptStatsEntry(question, cachedEntry, trackedCount)) {
+    const responses = await Response.find({
+      questionId: question._id,
+      attempt: normalizedAttemptNumber,
+    }).sort({ updatedAt: -1, createdAt: -1, _id: -1 }).lean();
     const rebuilt = buildAttemptStatsEntry(question, normalizedAttemptNumber, responses);
     await upsertQuestionAttemptStatsEntry(question._id, normalizedAttemptNumber, rebuilt);
-    return;
+    return Question.findByIdAndUpdate(
+      question._id,
+      {
+        $set: {
+          'sessionProperties.lastAttemptNumber': normalizedAttemptNumber,
+          'sessionProperties.lastAttemptResponseCount': responses.length,
+          'sessionProperties.lastAttemptAggregateCount': responses.length,
+        },
+      },
+      { returnDocument: 'after' }
+    ).lean();
   }
 
   await ensureQuestionAttemptStatsEntry(question, normalizedAttemptNumber);
@@ -2219,18 +2327,22 @@ async function appendResponseToQuestionAttemptStats(question, attemptNumber, res
   const filter = {
     _id: question._id,
     'sessionOptions.attemptStats.number': normalizedAttemptNumber,
+    'sessionProperties.lastAttemptNumber': normalizedAttemptNumber,
   };
   const attemptArrayFilter = [{ 'attempt.number': normalizedAttemptNumber }];
   const type = normalizeQuestionType(question);
+  let update = {
+    $inc: {
+      'sessionOptions.attemptStats.$[attempt].total': 1,
+      'sessionProperties.lastAttemptResponseCount': 1,
+      'sessionProperties.lastAttemptAggregateCount': 1,
+    },
+  };
+  let arrayFilters = attemptArrayFilter;
 
   if ([0, 1, 3].includes(type) && Array.isArray(question.options) && question.options.length > 0) {
     const optionCounts = buildOptionIndexCounts(response.answer, question.options);
-    const update = {
-      $inc: {
-        'sessionOptions.attemptStats.$[attempt].total': 1,
-      },
-    };
-    const arrayFilters = [...attemptArrayFilter];
+    arrayFilters = [...attemptArrayFilter];
     let filterIndex = 0;
 
     optionCounts.forEach((count, index) => {
@@ -2240,38 +2352,23 @@ async function appendResponseToQuestionAttemptStats(question, attemptNumber, res
       filterIndex += 1;
     });
 
-    await Question.updateOne(filter, update, { arrayFilters });
-    return;
-  }
-
-  if (type === 2) {
-    await Question.updateOne(
-      filter,
-      {
-        $inc: {
-          'sessionOptions.attemptStats.$[attempt].total': 1,
-        },
-        $push: {
-          'sessionOptions.attemptStats.$[attempt].answers': {
-            studentUserId: getResponseStudentId(response),
-            answer: response.answer,
-            answerWysiwyg: response.answerWysiwyg || '',
-            createdAt: response.createdAt || null,
-            updatedAt: response.updatedAt || null,
-          },
+  } else if (type === 2) {
+    update = {
+      ...update,
+      $push: {
+        'sessionOptions.attemptStats.$[attempt].answers': {
+          studentUserId: getResponseStudentId(response),
+          answer: response.answer,
+          answerWysiwyg: response.answerWysiwyg || '',
+          createdAt: response.createdAt || null,
+          updatedAt: response.updatedAt || null,
         },
       },
-      { arrayFilters: attemptArrayFilter }
-    );
-    return;
-  }
-
-  if (type === 4) {
+    };
+  } else if (type === 4) {
     const numeric = Number(response.answer);
-    const update = {
-      $inc: {
-        'sessionOptions.attemptStats.$[attempt].total': 1,
-      },
+    update = {
+      ...update,
       $push: {
         'sessionOptions.attemptStats.$[attempt].answers': {
           studentUserId: getResponseStudentId(response),
@@ -2289,20 +2386,35 @@ async function appendResponseToQuestionAttemptStats(question, attemptNumber, res
       update.$min = { 'sessionOptions.attemptStats.$[attempt].min': numeric };
       update.$max = { 'sessionOptions.attemptStats.$[attempt].max': numeric };
     }
-
-    await Question.updateOne(filter, update, { arrayFilters: attemptArrayFilter });
-    return;
   }
 
-  await Question.updateOne(
+  const updatedQuestion = await Question.findOneAndUpdate(
     filter,
+    update,
+    { arrayFilters, returnDocument: 'after' }
+  ).lean();
+  if (updatedQuestion) return updatedQuestion;
+
+  // Legacy questions may not have initialized attempt statistics/tracking.
+  // Repair that uncommon state once; the normal concurrent submission path
+  // above remains a single atomic Question update with no count query.
+  const responses = await Response.find({
+    questionId: question._id,
+    attempt: normalizedAttemptNumber,
+  }).sort({ updatedAt: -1, createdAt: -1, _id: -1 }).lean();
+  const rebuilt = buildAttemptStatsEntry(question, normalizedAttemptNumber, responses);
+  await upsertQuestionAttemptStatsEntry(question._id, normalizedAttemptNumber, rebuilt);
+  return Question.findByIdAndUpdate(
+    question._id,
     {
-      $inc: {
-        'sessionOptions.attemptStats.$[attempt].total': 1,
+      $set: {
+        'sessionProperties.lastAttemptNumber': normalizedAttemptNumber,
+        'sessionProperties.lastAttemptResponseCount': responses.length,
+        'sessionProperties.lastAttemptAggregateCount': responses.length,
       },
     },
-    { arrayFilters: attemptArrayFilter }
-  );
+    { returnDocument: 'after' }
+  ).lean();
 }
 
 async function loadOrderedQuestions(questionIds = []) {
@@ -2454,7 +2566,10 @@ async function incrementQuestionAttemptResponseTracking(questionId, attemptNumbe
       'sessionProperties.lastAttemptNumber': normalizedAttemptNumber,
     },
     {
-      $inc: { 'sessionProperties.lastAttemptResponseCount': 1 },
+      $inc: {
+        'sessionProperties.lastAttemptResponseCount': 1,
+        'sessionProperties.lastAttemptAggregateCount': 1,
+      },
     },
     { returnDocument: 'after' }
   ).lean();
@@ -2474,6 +2589,7 @@ async function incrementQuestionAttemptResponseTracking(questionId, attemptNumbe
       $set: {
         'sessionProperties.lastAttemptNumber': normalizedAttemptNumber,
         'sessionProperties.lastAttemptResponseCount': currentAttemptCount,
+        'sessionProperties.lastAttemptAggregateCount': currentAttemptCount,
       },
     },
     { returnDocument: 'after' }
@@ -2651,13 +2767,18 @@ async function notifyResponseAdded(app, course, session, data, { includeStudents
   const attempt = Number(data?.attempt || response?.attempt || 1);
   const questionType = normalizeQuestionType(question);
   const includesResponseEntry = [2, 4].includes(questionType);
+  const showCorrect = !!question?.sessionOptions?.correct;
+  const showResponseList = question?.sessionOptions?.responseListVisible !== false;
 
   // Instructors always receive response stats so distribution bars update in
   // real-time regardless of whether live stats are shown to students.
   const instructorStats = await buildResponseAddedStatsDelta(question, attempt, data?.responseCount, { force: true });
   // Students only receive stats when the instructor has enabled live stats.
-  const studentStats = includeStudents
+  const rawStudentStats = includeStudents
     ? await buildResponseAddedStatsDelta(question, attempt, data?.responseCount)
+    : null;
+  const studentStats = rawStudentStats
+    ? formatStudentLiveResponseStats(rawStudentStats, { showCorrect, showResponseList })
     : null;
 
   let instructorResponse = null;
@@ -2673,7 +2794,7 @@ async function notifyResponseAdded(app, course, session, data, { includeStudents
     instructorResponse = serializeLiveResponseEntry(response, { studentName });
   }
 
-  const studentResponse = response && includesResponseEntry
+  const studentResponse = response && includesResponseEntry && showResponseList
     ? serializeLiveResponseEntry(response)
     : null;
 
@@ -2684,6 +2805,7 @@ async function notifyResponseAdded(app, course, session, data, { includeStudents
     attempt,
     responseCount: Number(data?.responseCount || 0),
     joinedCount: Number(data?.joinedCount || 0),
+    responseSubmittedAt: response?.submittedAt || response?.createdAt || null,
   };
   sendToInstructors(app, course, 'session:response-added', {
     ...payload,
@@ -2699,23 +2821,142 @@ async function notifyResponseAdded(app, course, session, data, { includeStudents
   }
 }
 
-/** Delta: professor navigated to a different question. */
-function notifyQuestionChanged(app, course, sessionId, data) {
-  if (!sessionId) return;
-  sendToCourseMembers(app, course, 'session:question-changed', {
-    courseId: String(course._id),
-    sessionId: String(sessionId),
+function buildInstructorQuestionSnapshot(question, responses = [], studentNameById = {}, extra = {}) {
+  const currentAttempt = isQuestionResponseCollectionEnabled(question)
+    ? getCurrentAttempt(question)
+    : null;
+  const cachedStats = currentAttempt
+    ? getAttemptStatsEntry(question, currentAttempt.number)
+    : null;
+  const rawResponseStats = cachedStats
+    && isCanonicalAttemptStatsEntry(question, cachedStats, responses.length)
+    ? materializeAttemptStatsEntry(cachedStats)
+    : buildResponseStats(question, responses, currentAttempt?.number || 1);
+  const responseStats = formatInstructorLiveResponseStats(rawResponseStats, studentNameById, true);
+  const questionPayload = toPlainObject(question);
+  if (questionPayload?.sessionOptions) {
+    questionPayload.sessionOptions = { ...questionPayload.sessionOptions };
+    delete questionPayload.sessionOptions.attemptStats;
+    delete questionPayload.sessionOptions.wordCloudData;
+    delete questionPayload.sessionOptions.histogramData;
+  }
+
+  return {
+    questionId: String(question?._id || ''),
+    question: questionPayload,
+    currentAttempt,
+    responseStats,
+    responseCount: responses.length,
+    allResponses: responses.map((response) => serializeLiveResponseEntry(response, {
+      studentName: studentNameById[getResponseStudentId(response)] || null,
+    })),
+    wordCloudData: question?.sessionOptions?.wordCloudData || null,
+    histogramData: question?.sessionOptions?.histogramData || null,
+    ...extra,
+  };
+}
+
+/** Role-safe snapshot: professor navigated to a different question. */
+async function notifyQuestionChanged(app, course, session, question, data) {
+  if (!session?._id || !question?._id) return;
+  const currentAttempt = isQuestionResponseCollectionEnabled(question)
+    ? getCurrentAttempt(question)
+    : null;
+  const [responses, progress] = await Promise.all([
+    currentAttempt
+      ? Response.find({
+        questionId: String(question._id),
+        attempt: currentAttempt.number,
+      }).sort({ updatedAt: -1, createdAt: -1, _id: -1 }).lean()
+      : [],
+    loadSessionProgress(session.questions || [], question._id),
+  ]);
+  const responderIds = [...new Set(responses.map(getResponseStudentId).filter(Boolean))];
+  const responderUsers = responderIds.length > 0
+    ? await User.find({ _id: { $in: responderIds } }).select('_id profile emails email').lean()
+    : [];
+  const studentNameById = Object.fromEntries(
+    responderUsers.map((user) => [String(user._id), formatUserDisplayName(user)])
+  );
+  const { pageProgress, questionProgress } = progress;
+  const progressPayload = {
     ...data,
+    pageProgress,
+    questionProgress,
+  };
+  const basePayload = {
+    courseId: String(course._id),
+    sessionId: String(session._id),
+  };
+
+  sendToInstructors(app, course, 'session:question-changed', {
+    ...basePayload,
+    ...buildInstructorQuestionSnapshot(question, responses, studentNameById, progressPayload),
+  });
+
+  const studentBasePayload = {
+    ...basePayload,
+    ...buildStudentLiveQuestionSnapshot(question, progressPayload),
+  };
+  const responseByStudentId = new Map();
+  responses.forEach((response) => {
+    const studentId = getResponseStudentId(response);
+    if (studentId && !responseByStudentId.has(studentId)) {
+      responseByStudentId.set(studentId, response);
+    }
+  });
+
+  const joinedStudentIds = [...new Set((session.joined || []).map((id) => String(id)).filter(Boolean))];
+  const joinedStudentIdSet = new Set(joinedStudentIds);
+  const studentsWithoutResponse = joinedStudentIds.filter((id) => !responseByStudentId.has(id));
+  sendToUsersById(app, studentsWithoutResponse, 'session:question-changed', {
+    ...studentBasePayload,
+    studentResponse: null,
+  });
+  responseByStudentId.forEach((response, studentId) => {
+    if (!joinedStudentIdSet.has(studentId)) return;
+    sendToUser(app, studentId, 'session:question-changed', {
+      ...studentBasePayload,
+      studentResponse: sanitizeStudentOwnResponse(response),
+    });
   });
 }
 
-/** Delta: question visibility/stats/correct toggled. */
-function notifyVisibilityChanged(app, course, sessionId, data) {
-  if (!sessionId) return;
-  sendToCourseMembers(app, course, 'session:visibility-changed', {
+/** Role-safe delta: question visibility/stats/correct toggled. */
+function notifyVisibilityChanged(app, course, session, question) {
+  if (!session?._id || !question?._id) return;
+  const basePayload = {
     courseId: String(course._id),
-    sessionId: String(sessionId),
-    ...data,
+    sessionId: String(session._id),
+  };
+  const instructorPayload = {
+    ...basePayload,
+    questionId: String(question._id),
+    hidden: !!question?.sessionOptions?.hidden,
+    stats: !!question?.sessionOptions?.stats,
+    correct: !!question?.sessionOptions?.correct,
+    responseListVisible: question?.sessionOptions?.responseListVisible !== false,
+  };
+  sendToInstructors(app, course, 'session:visibility-changed', instructorPayload);
+  sendToJoinedStudents(app, session, 'session:visibility-changed', {
+    ...basePayload,
+    ...buildStudentLiveQuestionSnapshot(question),
+  });
+}
+
+function notifyVisualizationUpdated(app, course, session, question, event, fieldName, value) {
+  if (!session?._id || !question?._id) return;
+  const basePayload = {
+    courseId: String(course._id),
+    sessionId: String(session._id),
+    questionId: String(question._id),
+  };
+  sendToInstructors(app, course, event, { ...basePayload, [fieldName]: value });
+
+  const visibleToStudents = !!question?.sessionOptions?.stats && !!value?.visible;
+  sendToJoinedStudents(app, session, event, {
+    ...basePayload,
+    [fieldName]: visibleToStudents ? value : null,
   });
 }
 
@@ -2867,6 +3108,50 @@ async function notifyChatUpdated(app, course, session, payload = {}) {
       allowRoleBasedExposure: true,
     }),
   });
+}
+
+// Voting on the same post can generate a large burst during a live session. Send
+// the first change immediately, then collapse the rest of that short burst into
+// one trailing update containing the latest persisted post state.
+const chatUpdateBroadcastWindows = new WeakMap();
+
+async function notifyChatUpdatedCoalesced(app, course, session, payload = {}) {
+  if (!session?._id || !payload?.postId || !payload?.changeType) {
+    return notifyChatUpdated(app, course, session, payload);
+  }
+
+  let appWindows = chatUpdateBroadcastWindows.get(app);
+  if (!appWindows) {
+    appWindows = new Map();
+    chatUpdateBroadcastWindows.set(app, appWindows);
+  }
+
+  const key = `${session._id}:${payload.changeType}:${payload.postId}`;
+  const activeWindow = appWindows.get(key);
+  if (activeWindow) {
+    activeWindow.latest = { course, session, payload };
+    return;
+  }
+
+  const window = { latest: null, timer: null };
+  window.timer = setTimeout(async () => {
+    appWindows.delete(key);
+    if (!window.latest) return;
+    try {
+      await notifyChatUpdated(
+        app,
+        window.latest.course,
+        window.latest.session,
+        window.latest.payload
+      );
+    } catch (error) {
+      app.log?.warn?.({ err: error, sessionId: String(session._id) }, 'Failed to broadcast coalesced session chat update');
+    }
+  }, 125);
+  window.timer.unref?.();
+  appWindows.set(key, window);
+
+  return notifyChatUpdated(app, course, session, payload);
 }
 
 async function seedSessionGradesIfNeeded(session, course, { visibleToStudents = null } = {}) {
@@ -3897,7 +4182,8 @@ export default async function sessionRoutes(app) {
       );
 
       const qIndex = (session.questions || []).findIndex((id) => String(id) === String(questionId));
-      notifyQuestionChanged(app, course, updated?._id || request.params.id, {
+      const currentQuestion = await Question.findById(questionId).lean();
+      await notifyQuestionChanged(app, course, updated, currentQuestion, {
         questionId: String(questionId),
         questionIndex: qIndex,
         questionNumber: qIndex >= 0 ? qIndex + 1 : null,
@@ -5283,7 +5569,11 @@ export default async function sessionRoutes(app) {
         } else if (isJoined && !questionHidden) {
           if (showStats) {
             responseStats = formatStudentLiveResponseStats(
-              await getQuestionAttemptStats(currentQuestion, currentAttempt.number)
+              await getQuestionAttemptStats(currentQuestion, currentAttempt.number),
+              {
+                showCorrect,
+                showResponseList: currentQuestion?.sessionOptions?.responseListVisible !== false,
+              }
             );
             studentResponse = await Response.findOne({
               questionId,
@@ -5407,7 +5697,7 @@ export default async function sessionRoutes(app) {
       }
 
       if (isInstrOrAdmin) {
-        if (presentationView && responseStats?.type === 'shortAnswer' && !showResponseList) {
+        if (presentationView && ['shortAnswer', 'numerical'].includes(responseStats?.type) && !showResponseList) {
           result.responseStats = {
             ...responseStats,
             answers: [],
@@ -5452,29 +5742,7 @@ export default async function sessionRoutes(app) {
         // Student view
         if (isJoined && currentQuestion && !questionHidden) {
           // Strip correct answer info unless showCorrect is enabled
-          const studentQ = { ...currentQuestion };
-          if (!showCorrect) {
-            if (studentQ.options) {
-              studentQ.options = studentQ.options.map((opt) => ({
-                ...opt,
-                correct: undefined,
-              }));
-            }
-            delete studentQ.correctNumerical;
-            delete studentQ.solution;
-            delete studentQ.solution_plainText;
-            // Legacy compatibility keys from imported data.
-            delete studentQ.solutionPlainText;
-            delete studentQ.solutionText;
-            delete studentQ.solutionHtml;
-          }
-          // Strip word cloud data and histogram data from student question payload — sent separately.
-          if (studentQ.sessionOptions) {
-            studentQ.sessionOptions = { ...studentQ.sessionOptions };
-            delete studentQ.sessionOptions.wordCloudData;
-            delete studentQ.sessionOptions.histogramData;
-          }
-          result.currentQuestion = studentQ;
+          result.currentQuestion = sanitizeStudentLiveQuestion(currentQuestion, { showCorrect });
 
           // Students/presentation only see word cloud when stats are visible AND cloud is visible
           if (showStats && currentQuestion.sessionOptions?.wordCloudData?.visible) {
@@ -5485,13 +5753,13 @@ export default async function sessionRoutes(app) {
             result.histogramData = currentQuestion.sessionOptions.histogramData;
           }
         }
-        if (responseStats?.type === 'shortAnswer' && !showResponseList) {
+        if (['shortAnswer', 'numerical'].includes(responseStats?.type) && !showResponseList) {
           result.responseStats = {
             ...responseStats,
             answers: [],
           };
         }
-        result.studentResponse = studentResponse;
+        result.studentResponse = sanitizeStudentOwnResponse(studentResponse);
         result.isJoined = isJoined;
         result.showStats = showStats;
         result.showResponseList = showResponseList;
@@ -5704,22 +5972,38 @@ export default async function sessionRoutes(app) {
         createdAt: now,
       });
 
-      await appendResponseToQuestionAttemptStats(question, currentAttempt.number, response);
-
-      const [updatedSession, trackedQuestion] = await Promise.all([
-        incrementSessionResponseTracking(session, questionId),
-        incrementQuestionAttemptResponseTracking(questionId, currentAttempt.number),
-      ]);
+      const trackedQuestion = await appendResponseToQuestionAttemptStats(
+        question,
+        currentAttempt.number,
+        response
+      );
       const responseCount = Number(trackedQuestion?.sessionProperties?.lastAttemptResponseCount || 0);
 
+      // Session response tracking is used as a presence signal by session lists
+      // and review warnings. Only the first response for an attempt needs to
+      // touch the shared Session document; every response is counted atomically
+      // on the Question document above.
+      const storedSessionCount = Number(getSessionQuestionResponseCounts(session)?.[String(questionId)] || 0);
+      if (responseCount === 1 && storedSessionCount === 0) {
+        await Session.updateOne(
+          { _id: session._id },
+          {
+            $set: {
+              hasResponses: true,
+              [`questionResponseCounts.${String(questionId)}`]: 1,
+            },
+          }
+        );
+      }
+
       // Keep the response event minimal; joined students only receive it while live stats are visible.
-      await notifyResponseAdded(app, course, updatedSession || session, {
+      await notifyResponseAdded(app, course, session, {
         questionId: String(questionId),
         question: trackedQuestion || question,
         response: response.toObject ? response.toObject() : { ...response },
         attempt: currentAttempt.number,
         responseCount,
-        joinedCount: (updatedSession?.joined || session.joined || []).length,
+        joinedCount: (session.joined || []).length,
       }, {
         includeStudents: !!question?.sessionOptions?.stats,
       });
@@ -5790,13 +6074,7 @@ export default async function sessionRoutes(app) {
         { returnDocument: 'after' }
       );
 
-      notifyVisibilityChanged(app, course, session._id, {
-        questionId: String(questionId),
-        hidden: updatedQuestion?.sessionOptions?.hidden,
-        stats: updatedQuestion?.sessionOptions?.stats,
-        correct: updatedQuestion?.sessionOptions?.correct,
-        responseListVisible: updatedQuestion?.sessionOptions?.responseListVisible,
-      });
+      notifyVisibilityChanged(app, course, session, updatedQuestion);
 
       return { question: updatedQuestion?.toObject() };
     }
@@ -5872,12 +6150,15 @@ export default async function sessionRoutes(app) {
         ? updatedQuestion.sessionOptions.wordCloudData.toObject()
         : updatedQuestion?.sessionOptions?.wordCloudData;
 
-      sendToCourseMembers(app, course, 'session:word-cloud-updated', {
-        courseId: String(course._id),
-        sessionId: String(session._id),
-        questionId: String(questionId),
-        wordCloudData,
-      });
+      notifyVisualizationUpdated(
+        app,
+        course,
+        session,
+        updatedQuestion,
+        'session:word-cloud-updated',
+        'wordCloudData',
+        wordCloudData
+      );
 
       return { wordCloudData };
     }
@@ -5929,12 +6210,15 @@ export default async function sessionRoutes(app) {
         ? updatedQuestion.sessionOptions.wordCloudData.toObject()
         : updatedQuestion?.sessionOptions?.wordCloudData;
 
-      sendToCourseMembers(app, course, 'session:word-cloud-updated', {
-        courseId: String(course._id),
-        sessionId: String(session._id),
-        questionId: String(questionId),
-        wordCloudData,
-      });
+      notifyVisualizationUpdated(
+        app,
+        course,
+        session,
+        updatedQuestion,
+        'session:word-cloud-updated',
+        'wordCloudData',
+        wordCloudData
+      );
 
       return { wordCloudData };
     }
@@ -6019,12 +6303,15 @@ export default async function sessionRoutes(app) {
         ? updatedQuestion.sessionOptions.histogramData.toObject()
         : updatedQuestion?.sessionOptions?.histogramData;
 
-      sendToCourseMembers(app, course, 'session:histogram-updated', {
-        courseId: String(course._id),
-        sessionId: String(session._id),
-        questionId: String(questionId),
-        histogramData,
-      });
+      notifyVisualizationUpdated(
+        app,
+        course,
+        session,
+        updatedQuestion,
+        'session:histogram-updated',
+        'histogramData',
+        histogramData
+      );
 
       return { histogramData };
     }
@@ -6077,12 +6364,15 @@ export default async function sessionRoutes(app) {
         ? updatedQuestion.sessionOptions.histogramData.toObject()
         : updatedQuestion?.sessionOptions?.histogramData;
 
-      sendToCourseMembers(app, course, 'session:histogram-updated', {
-        courseId: String(course._id),
-        sessionId: String(session._id),
-        questionId: String(questionId),
-        histogramData,
-      });
+      notifyVisualizationUpdated(
+        app,
+        course,
+        session,
+        updatedQuestion,
+        'session:histogram-updated',
+        'histogramData',
+        histogramData
+      );
 
       return { histogramData };
     }
@@ -6154,6 +6444,7 @@ export default async function sessionRoutes(app) {
           ...resetGeneratedVisualizationUpdate,
           'sessionProperties.lastAttemptNumber': newAttemptNumber,
           'sessionProperties.lastAttemptResponseCount': 0,
+          'sessionProperties.lastAttemptAggregateCount': 0,
         } },
         { returnDocument: 'after' }
       );
@@ -6222,6 +6513,7 @@ export default async function sessionRoutes(app) {
               ...resetGeneratedVisualizationUpdate,
               'sessionProperties.lastAttemptNumber': 1,
               'sessionProperties.lastAttemptResponseCount': 0,
+              'sessionProperties.lastAttemptAggregateCount': 0,
             },
           },
           { returnDocument: 'after' }
@@ -6658,7 +6950,7 @@ export default async function sessionRoutes(app) {
         { returnDocument: 'after' }
       ).lean();
 
-      await notifyChatUpdated(app, course, session, {
+      await notifyChatUpdatedCoalesced(app, course, session, {
         changeType: 'quick-post-toggled',
         becameVisible: Number(post.upvoteCount || 0) <= 0 && Number(updated?.upvoteCount || 0) > 0,
         postId: String(post._id),
@@ -6825,7 +7117,7 @@ export default async function sessionRoutes(app) {
         { returnDocument: 'after' }
       ).lean();
 
-      await notifyChatUpdated(app, course, session, {
+      await notifyChatUpdatedCoalesced(app, course, session, {
         changeType: 'post-voted',
         postId: String(post._id),
         post: updated,
