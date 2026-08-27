@@ -2722,6 +2722,131 @@ function CoursesTab() {
   );
 }
 
+function UsageStatisticsTab() {
+  const { t } = useTranslation();
+  const [statistics, setStatistics] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const loadStatistics = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const { data } = await apiClient.get('/users/admin/usage-statistics');
+      setStatistics(data);
+    } catch (err) {
+      setError(err.response?.data?.message || t('admin.usageStatistics.failedLoad'));
+    } finally {
+      setLoading(false);
+    }
+  }, [t]);
+
+  useEffect(() => {
+    loadStatistics();
+  }, [loadStatistics]);
+
+  const loginCards = [
+    { key: 'pastHour', label: t('admin.usageStatistics.pastHour') },
+    { key: 'past24Hours', label: t('admin.usageStatistics.past24Hours') },
+    { key: 'past7Days', label: t('admin.usageStatistics.past7Days') },
+  ];
+
+  if (loading && !statistics) {
+    return (
+      <Box sx={{ py: 5, display: 'flex', justifyContent: 'center' }}>
+        <CircularProgress aria-label={t('admin.usageStatistics.loading')} />
+      </Box>
+    );
+  }
+
+  return (
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2, mb: 2 }}>
+        <Box>
+          <Typography variant="h6">{t('admin.usageStatistics.title')}</Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            {t('admin.usageStatistics.description')}
+          </Typography>
+        </Box>
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={loading ? <CircularProgress size={16} /> : <RestoreIcon />}
+          onClick={loadStatistics}
+          disabled={loading}
+        >
+          {t('admin.usageStatistics.refresh')}
+        </Button>
+      </Box>
+
+      {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
+
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' },
+          gap: 2,
+          mb: 3,
+        }}
+      >
+        {loginCards.map(({ key, label }) => (
+          <Paper key={key} variant="outlined" sx={{ p: 2 }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>
+              {label}
+            </Typography>
+            <Typography variant="h4" component="p" sx={{ fontWeight: 700 }}>
+              {Number(statistics?.loginCounts?.[key] || 0).toLocaleString()}
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              {t('admin.usageStatistics.uniqueUsers')}
+            </Typography>
+          </Paper>
+        ))}
+      </Box>
+
+      <Typography variant="h6" sx={{ mb: 0.5 }}>
+        {t('admin.usageStatistics.topCourses')}
+      </Typography>
+      <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>
+        {t('admin.usageStatistics.topCoursesHelp', {
+          days: statistics?.activeCourseWindowDays || 7,
+        })}
+      </Typography>
+      <TableContainer component={Paper} variant="outlined">
+        <Table size="small" aria-label={t('admin.usageStatistics.topCourses')}>
+          <TableHead>
+            <TableRow>
+              <TableCell>{t('admin.usageStatistics.course')}</TableCell>
+              <TableCell align="right">{t('admin.usageStatistics.activeUsers')}</TableCell>
+              <TableCell align="right">{t('admin.usageStatistics.enrollment')}</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {(statistics?.topCourses || []).length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={3}>{t('admin.usageStatistics.noCourses')}</TableCell>
+              </TableRow>
+            ) : statistics.topCourses.map((course) => (
+              <TableRow key={course._id}>
+                <TableCell>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {buildCourseTitle(course, 'medium')}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    {course.semester}
+                  </Typography>
+                </TableCell>
+                <TableCell align="right">{course.activeUserCount}</TableCell>
+                <TableCell align="right">{course.enrollment}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Box>
+  );
+}
+
 // ── Main Dashboard ──────────────────────────────────────────────────────────
 export default function AdminDashboard() {
   const [tab, setTab] = useState(0);
@@ -2742,20 +2867,22 @@ export default function AdminDashboard() {
           { value: 1, label: t('admin.tabs.backup') },
           { value: 2, label: t('admin.tabs.users') },
           { value: 3, label: t('admin.tabs.courses') },
-          { value: 4, label: t('admin.tabs.storage') },
-          { value: 5, label: t('admin.tabs.sso') },
-          { value: 6, label: t('admin.tabs.video') },
-          { value: 7, label: t('admin.tabs.ai') },
+          { value: 4, label: t('admin.tabs.usageStatistics') },
+          { value: 5, label: t('admin.tabs.storage') },
+          { value: 6, label: t('admin.tabs.sso') },
+          { value: 7, label: t('admin.tabs.video') },
+          { value: 8, label: t('admin.tabs.ai') },
         ]}
       />
       <TabPanel value={tab} index={0}><SettingsTab /></TabPanel>
       <TabPanel value={tab} index={1}><BackupTab /></TabPanel>
       <TabPanel value={tab} index={2}><UsersTab currentUserId={user?._id} /></TabPanel>
       <TabPanel value={tab} index={3}><CoursesTab /></TabPanel>
-      <TabPanel value={tab} index={4}><StorageTab /></TabPanel>
-      <TabPanel value={tab} index={5}><SSOTab /></TabPanel>
-      <TabPanel value={tab} index={6}><VideoTab /></TabPanel>
-      <TabPanel value={tab} index={7}><AiHelperTab /></TabPanel>
+      <TabPanel value={tab} index={4}><UsageStatisticsTab /></TabPanel>
+      <TabPanel value={tab} index={5}><StorageTab /></TabPanel>
+      <TabPanel value={tab} index={6}><SSOTab /></TabPanel>
+      <TabPanel value={tab} index={7}><VideoTab /></TabPanel>
+      <TabPanel value={tab} index={8}><AiHelperTab /></TabPanel>
     </Box>
   );
 }

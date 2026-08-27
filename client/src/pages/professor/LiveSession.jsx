@@ -883,6 +883,22 @@ function LiveSessionContent() {
     );
   }, [doAction, sessionId, t]);
 
+  const handleAdmitStudent = useCallback((studentId) => {
+    doAction(
+      () => apiClient.post(`/sessions/${sessionId}/join/${studentId}`),
+      t('professor.liveSession.studentAdmitted'),
+      {
+        pendingKey: `student:admit:${studentId}`,
+        refresh: false,
+        onSuccess: (response) => {
+          if (response?.data?.joinedStudent) {
+            setLiveData((prev) => applyParticipantJoined(prev, response.data));
+          }
+        },
+      }
+    );
+  }, [doAction, sessionId, t]);
+
   const handleJoinCodeIntervalBlur = useCallback(() => {
     const currentInterval = Number(liveData?.session?.joinCodeInterval || 10);
     const parsed = Number(joinCodeIntervalInput);
@@ -1038,6 +1054,7 @@ function LiveSessionContent() {
   const responseCount = liveData?.responseCount ?? allResponses.length;
   const joinedCount = session?.joinedCount ?? (session?.joined?.length || 0);
   const joinedStudents = Array.isArray(session?.joinedStudents) ? session.joinedStudents : [];
+  const enrolledStudents = Array.isArray(session?.enrolledStudents) ? session.enrolledStudents : [];
   const sortedJoinedStudents = useMemo(() => [...joinedStudents].sort((a, b) => {
     const lastCmp = normalizeValue(a?.lastname).localeCompare(normalizeValue(b?.lastname));
     if (lastCmp !== 0) return lastCmp;
@@ -1045,6 +1062,10 @@ function LiveSessionContent() {
     if (firstCmp !== 0) return firstCmp;
     return normalizeValue(a?.email).localeCompare(normalizeValue(b?.email));
   }), [joinedStudents]);
+  const unjoinedStudents = useMemo(() => {
+    const joinedIds = new Set((session?.joined || []).map((id) => String(id)));
+    return enrolledStudents.filter((student) => !joinedIds.has(String(student?._id || '')));
+  }, [enrolledStudents, session?.joined]);
 
   const questionIds = session?.questions || [];
   const qIdx = session ? questionIds.indexOf(session.currentQuestion) : -1;
@@ -1870,6 +1891,59 @@ function LiveSessionContent() {
             <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>
               {t('professor.liveSession.studentsInSession', { count: joinedCount })}
             </Typography>
+
+            {session.joinCodeEnabled ? (
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  {t('professor.liveSession.waitingToJoin', { count: unjoinedStudents.length })}
+                </Typography>
+                {unjoinedStudents.length === 0 ? (
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                    {t('professor.liveSession.allEnrolledStudentsJoined')}
+                  </Typography>
+                ) : (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    {unjoinedStudents.map((student) => {
+                      const admitPending = pendingActionKey === `student:admit:${student._id}`;
+                      return (
+                        <Paper
+                          key={student._id}
+                          variant="outlined"
+                          sx={{
+                            p: 1.1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 1,
+                            flexWrap: 'wrap',
+                          }}
+                        >
+                          <StudentIdentity
+                            student={student}
+                            avatarSize={34}
+                            nameVariant="body2"
+                            emailVariant="caption"
+                            nameWeight={600}
+                            sx={{ flex: '1 1 220px', minWidth: 0 }}
+                          />
+                          <Button
+                            size="small"
+                            variant="contained"
+                            disabled={!!pendingActionKey}
+                            onClick={() => handleAdmitStudent(student._id)}
+                          >
+                            {admitPending
+                              ? t('professor.liveSession.admittingStudent')
+                              : t('professor.liveSession.admitStudent')}
+                          </Button>
+                        </Paper>
+                      );
+                    })}
+                  </Box>
+                )}
+                <Divider sx={{ mt: 2 }} />
+              </Box>
+            ) : null}
 
             {sortedJoinedStudents.length === 0 ? (
               <Typography variant="body2" sx={{

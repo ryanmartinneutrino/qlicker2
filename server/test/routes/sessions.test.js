@@ -2735,6 +2735,113 @@ describe('POST /api/v1/sessions/:id/join', () => {
     expect(disableRes.json().session.joinCodeActive).toBe(false);
     expect(disableRes.json().session.currentJoinCode).toBe('');
   });
+
+  it('lets an instructor admit an enrolled student while the passcode join period is closed', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const { prof, profToken, course, student, studentToken } = await setupCourseWithStudent();
+    const sessRes = await createSessionInCourse(profToken, course._id);
+    const session = sessRes.json().session;
+
+    await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${session._id}/join-code-settings`, {
+      token: profToken,
+      payload: { joinCodeEnabled: true },
+    });
+    await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/start`, {
+      token: profToken,
+    });
+    const rosterRes = await authenticatedRequest(
+      app,
+      'GET',
+      `/api/v1/sessions/${session._id}/live?includeJoinedStudents=true`,
+      { token: profToken }
+    );
+    expect(rosterRes.statusCode).toBe(200);
+    expect(rosterRes.json().session.enrolledStudents).toEqual([
+      expect.objectContaining({ _id: String(student._id), email: 'student@example.com' }),
+    ]);
+    expect(rosterRes.json().session.joinedStudents).toEqual([]);
+
+    const wsSendToUsersSpy = vi.spyOn(app, 'wsSendToUsers');
+    const wsSendToUserSpy = vi.spyOn(app, 'wsSendToUser');
+    const admitRes = await authenticatedRequest(
+      app,
+      'POST',
+      `/api/v1/sessions/${session._id}/join/${student._id}`,
+      { token: profToken }
+    );
+
+    expect(admitRes.statusCode).toBe(200);
+    expect(admitRes.json()).toMatchObject({
+      success: true,
+      alreadyJoined: false,
+      joinedCount: 1,
+      admittedByInstructor: true,
+      joinedStudent: { _id: String(student._id) },
+    });
+
+    const storedSession = await Session.findById(session._id).lean();
+    expect(storedSession.joined.map(String)).toContain(String(student._id));
+    expect(storedSession.joinRecords).toEqual(expect.arrayContaining([
+      expect.objectContaining({ userId: String(student._id), joinedWithCode: false }),
+    ]));
+    expect(wsSendToUsersSpy).toHaveBeenCalledWith(
+      [String(prof._id)],
+      'session:participant-joined',
+      expect.objectContaining({ joinedCount: 1, admittedByInstructor: true })
+    );
+    expect(wsSendToUserSpy).toHaveBeenCalledWith(
+      String(student._id),
+      'session:participant-admitted',
+      expect.objectContaining({ courseId: course._id, sessionId: session._id })
+    );
+
+    const studentLiveRes = await authenticatedRequest(
+      app,
+      'GET',
+      `/api/v1/sessions/${session._id}/live`,
+      { token: studentToken }
+    );
+    expect(studentLiveRes.statusCode).toBe(200);
+    expect(studentLiveRes.json().isJoined).toBe(true);
+
+    const duplicateRes = await authenticatedRequest(
+      app,
+      'POST',
+      `/api/v1/sessions/${session._id}/join/${student._id}`,
+      { token: profToken }
+    );
+    expect(duplicateRes.statusCode).toBe(200);
+    expect(duplicateRes.json()).toMatchObject({ success: true, alreadyJoined: true });
+    expect((await Session.findById(session._id).lean()).joinRecords).toHaveLength(1);
+  });
+
+  it('rejects instructor admission when passcodes are not required or for unauthorized users', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const { profToken, course, student, studentToken } = await setupCourseWithStudent();
+    const sessRes = await createSessionInCourse(profToken, course._id);
+    const session = sessRes.json().session;
+
+    await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/start`, {
+      token: profToken,
+    });
+
+    const passcodeDisabledRes = await authenticatedRequest(
+      app,
+      'POST',
+      `/api/v1/sessions/${session._id}/join/${student._id}`,
+      { token: profToken }
+    );
+    expect(passcodeDisabledRes.statusCode).toBe(400);
+    expect(passcodeDisabledRes.json().message).toMatch(/passcode is not required/i);
+
+    const unauthorizedRes = await authenticatedRequest(
+      app,
+      'POST',
+      `/api/v1/sessions/${session._id}/join/${student._id}`,
+      { token: studentToken }
+    );
+    expect(unauthorizedRes.statusCode).toBe(403);
+  });
 });
 
 describe('Live session websocket delta events', () => {
