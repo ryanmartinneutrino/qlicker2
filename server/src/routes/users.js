@@ -73,6 +73,16 @@ function sortCoursePayloads(courses = []) {
   });
 }
 
+function buildCourseStatisticsSortKey(course = {}) {
+  return [
+    course.deptCode || '',
+    course.courseNumber || '',
+    course.section || '',
+    course.name || '',
+    course.semester || '',
+  ].join(' ').toLowerCase();
+}
+
 async function loadAdminUserCourses(user = {}) {
   const courseIds = Array.isArray(user?.profile?.courses)
     ? [...new Set(user.profile.courses.map((courseId) => String(courseId)).filter(Boolean))]
@@ -629,6 +639,69 @@ export default async function userRoutes(app) {
           message: 'Failed to generate profile thumbnail',
         });
       }
+    }
+  );
+
+  // GET /admin/usage-statistics - System-wide usage summary for administrators
+  app.get(
+    '/admin/usage-statistics',
+    { preHandler: requireRole(['admin']) },
+    async () => {
+      const now = new Date();
+      const hourAgo = new Date(now.getTime() - (60 * 60 * 1000));
+      const dayAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+      const weekAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
+
+      const [pastHour, past24Hours, past7Days, activeUserIds, courses] = await Promise.all([
+        User.countDocuments({ lastLogin: { $gte: hourAgo } }),
+        User.countDocuments({ lastLogin: { $gte: dayAgo } }),
+        User.countDocuments({ lastLogin: { $gte: weekAgo } }),
+        User.distinct('_id', { lastLogin: { $gte: weekAgo } }),
+        Course.find({})
+          .select('_id name deptCode courseNumber section semester inactive students instructors')
+          .lean(),
+      ]);
+
+      const activeUserIdSet = new Set(activeUserIds.map((userId) => String(userId)));
+      const topCourses = courses
+        .map((course) => {
+          const studentIds = [...new Set((course.students || []).map((userId) => String(userId)))];
+          const memberIds = new Set([
+            ...studentIds,
+            ...(course.instructors || []).map((userId) => String(userId)),
+          ]);
+          const activeUserCount = [...memberIds]
+            .filter((userId) => activeUserIdSet.has(userId))
+            .length;
+          return {
+            _id: String(course._id),
+            name: course.name,
+            deptCode: course.deptCode,
+            courseNumber: course.courseNumber,
+            section: course.section,
+            semester: course.semester,
+            inactive: !!course.inactive,
+            enrollment: studentIds.length,
+            activeUserCount,
+          };
+        })
+        .sort((a, b) => (
+          b.activeUserCount - a.activeUserCount
+          || b.enrollment - a.enrollment
+          || buildCourseStatisticsSortKey(a).localeCompare(buildCourseStatisticsSortKey(b))
+        ))
+        .slice(0, 5);
+
+      return {
+        generatedAt: now,
+        loginCounts: {
+          pastHour,
+          past24Hours,
+          past7Days,
+        },
+        activeCourseWindowDays: 7,
+        topCourses,
+      };
     }
   );
 

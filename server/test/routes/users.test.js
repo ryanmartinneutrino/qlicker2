@@ -583,6 +583,58 @@ describe('Admin user management', () => {
     body.users.forEach((u) => expect(u.services).toBeUndefined());
   });
 
+  it('reports recent unique logins and ranks courses by active enrolled members', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const admin = await createTestUser({ email: 'admin-usage@example.com', roles: ['admin'] });
+    const activeHour = await createTestUser({ email: 'active-hour@example.com', roles: ['student'] });
+    const activeDay = await createTestUser({ email: 'active-day@example.com', roles: ['student'] });
+    const activeWeek = await createTestUser({ email: 'active-week@example.com', roles: ['student'] });
+    const inactive = await createTestUser({ email: 'inactive-usage@example.com', roles: ['student'] });
+    const now = Date.now();
+    await Promise.all([
+      User.findByIdAndUpdate(activeHour._id, { $set: { lastLogin: new Date(now - (30 * 60 * 1000)) } }),
+      User.findByIdAndUpdate(activeDay._id, { $set: { lastLogin: new Date(now - (2 * 60 * 60 * 1000)) } }),
+      User.findByIdAndUpdate(activeWeek._id, { $set: { lastLogin: new Date(now - (2 * 24 * 60 * 60 * 1000)) } }),
+      User.findByIdAndUpdate(inactive._id, { $set: { lastLogin: new Date(now - (8 * 24 * 60 * 60 * 1000)) } }),
+    ]);
+
+    await Course.create([
+      {
+        name: 'Most Active', deptCode: 'STAT', courseNumber: '101', section: '001',
+        owner: String(admin._id), instructors: [String(admin._id)],
+        students: [String(activeHour._id), String(activeDay._id)],
+        enrollmentCode: 'USAGE01', semester: 'Fall 2026',
+      },
+      {
+        name: 'Less Active', deptCode: 'STAT', courseNumber: '102', section: '001',
+        owner: String(admin._id), instructors: [],
+        students: [String(activeWeek._id), String(inactive._id)],
+        enrollmentCode: 'USAGE02', semester: 'Fall 2026',
+      },
+    ]);
+
+    const token = await getAuthToken(app, admin);
+    const res = await authenticatedRequest(app, 'GET', '/api/v1/users/admin/usage-statistics', { token });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().loginCounts).toEqual({
+      pastHour: 1,
+      past24Hours: 2,
+      past7Days: 3,
+    });
+    expect(res.json().activeCourseWindowDays).toBe(7);
+    expect(res.json().topCourses.slice(0, 2)).toEqual([
+      expect.objectContaining({ name: 'Most Active', activeUserCount: 2, enrollment: 2 }),
+      expect.objectContaining({ name: 'Less Active', activeUserCount: 1, enrollment: 2 }),
+    ]);
+
+    const studentToken = await getAuthToken(app, activeHour);
+    const forbiddenRes = await authenticatedRequest(app, 'GET', '/api/v1/users/admin/usage-statistics', {
+      token: studentToken,
+    });
+    expect(forbiddenRes.statusCode).toBe(403);
+  });
+
   it('lists users by most recent last login by default and supports explicit sort fields', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
     const admin = await createTestUser({ email: 'admin-sort@example.com', roles: ['admin'] });

@@ -48,6 +48,7 @@ let settingsState;
 let usersState;
 let userDetailsState;
 let coursesState;
+let usageStatisticsState;
 
 function buildUser(overrides = {}) {
   const user = {
@@ -195,6 +196,17 @@ describe('AdminDashboard', () => {
     usersState = [buildUser()];
     userDetailsState = new Map(usersState.map((user) => [user._id, { ...user }]));
     coursesState = [];
+    usageStatisticsState = {
+      loginCounts: { pastHour: 3, past24Hours: 12, past7Days: 48 },
+      activeCourseWindowDays: 7,
+      topCourses: [
+        {
+          ...buildCourse({ name: 'Active Course' }),
+          enrollment: 36,
+          activeUserCount: 14,
+        },
+      ],
+    };
 
     apiClientMock.get.mockImplementation((url, config = {}) => {
       if (url === '/settings') {
@@ -233,6 +245,10 @@ describe('AdminDashboard', () => {
             total: filteredUsers.length,
           },
         });
+      }
+
+      if (url === '/users/admin/usage-statistics') {
+        return Promise.resolve({ data: usageStatisticsState });
       }
 
       if (url.startsWith('/users/')) {
@@ -370,6 +386,20 @@ describe('AdminDashboard', () => {
     expect(screen.getByLabelText(/Weekly backups to keep/i)).toHaveValue(5);
     expect(screen.getByLabelText(/Monthly backups to keep/i)).toHaveValue(9);
   }, 10_000);
+
+  it('shows login counts and the most active courses in Usage Statistics', async () => {
+    renderDashboard();
+
+    fireEvent.click(await screen.findByRole('tab', { name: /Usage Statistics/i }));
+
+    expect(await screen.findByText('48')).toBeInTheDocument();
+    expect(screen.getByText('12')).toBeInTheDocument();
+    expect(screen.getByText('3')).toBeInTheDocument();
+    const courseRow = screen.getByRole('row', { name: /Active Course/i });
+    expect(within(courseRow).getByText('14')).toBeInTheDocument();
+    expect(within(courseRow).getByText('36')).toBeInTheDocument();
+    expect(apiClientMock.get).toHaveBeenCalledWith('/users/admin/usage-statistics');
+  });
 
   it('requests a manual backup and shows 12-hour backup controls when the app uses 12-hour time', async () => {
     settingsState.timeFormat = '12h';

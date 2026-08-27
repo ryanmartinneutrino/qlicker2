@@ -359,6 +359,9 @@ function LiveSessionContent() {
           transportOverride: syncContext?.transport,
         });
         break;
+      case 'session:participant-admitted':
+        fetchLive(syncContext);
+        break;
       case 'session:chat-settings-changed':
         setLiveData((prev) => prev ? {
           ...prev,

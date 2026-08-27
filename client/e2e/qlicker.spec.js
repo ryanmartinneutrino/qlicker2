@@ -40,6 +40,12 @@ test('login flow redirects an admin user to the admin dashboard', async ({ page,
   await loginViaUi(page, admin.email, admin.password, /\/admin$/);
 
   await expect(page).toHaveURL(/\/admin$/);
+  await page.getByRole('tab', { name: /^Usage Statistics$/i }).click();
+  await expect(page.getByRole('heading', { name: /^Usage Statistics$/i })).toBeVisible();
+  await expect(page.getByText(/^Past hour$/i)).toBeVisible();
+  await expect(page.getByText(/^Past 24 hours$/i)).toBeVisible();
+  await expect(page.getByText(/^Past 7 days$/i)).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Top 5 most active courses/i })).toBeVisible();
   await expectNoCriticalAccessibilityViolations(page);
 });
 
@@ -266,8 +272,18 @@ test('live session flow carries multiple student responses through to the profes
   await loginViaUi(secondStudentPage, secondStudent.email, secondStudent.password, /\/student$/);
   await secondStudentPage.goto(`/student/course/${course._id}`);
   await secondStudentPage.getByRole('button', { name: new RegExp(sessionName, 'i') }).first().click();
-  await secondStudentPage.getByLabel('Join code').fill(joinCode);
-  await secondStudentPage.getByRole('button', { name: /join session/i }).click();
+  await expect(secondStudentPage.getByLabel('Join code')).toBeVisible();
+
+  await professorPage.getByLabel(/join period/i).click();
+  await expect(professorPage.getByLabel(/join period/i)).not.toBeChecked();
+  await professorPage.getByRole('tab', { name: /show students panel/i }).click();
+  const admitButton = professorPage
+    .locator('.MuiPaper-root', { hasText: secondStudent.email })
+    .getByRole('button', { name: /^Admit$/i })
+    .first();
+  await expect(admitButton).toBeVisible();
+  await admitButton.click();
+
   await expect(secondStudentPage.getByText('What is 2 + 2?')).toBeVisible();
   await expect(liveStatus).toContainText(/2 students joined\. 1 of 2 students responded\./i);
 

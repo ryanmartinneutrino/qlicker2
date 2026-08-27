@@ -855,6 +855,20 @@ function formatUserDisplayName(user) {
   return user?.emails?.[0]?.address || user?.email || 'Unknown Student';
 }
 
+function serializeLiveStudent(user, { joinedAt = null } = {}) {
+  const userId = normalizeAnswerValue(user?._id);
+  return {
+    _id: userId,
+    firstname: normalizeAnswerValue(user?.profile?.firstname),
+    lastname: normalizeAnswerValue(user?.profile?.lastname),
+    email: normalizeAnswerValue(user?.emails?.[0]?.address || user?.email),
+    profileImage: normalizeAnswerValue(user?.profile?.profileImage),
+    profileThumbnail: normalizeAnswerValue(user?.profile?.profileThumbnail),
+    displayName: formatUserDisplayName(user),
+    joinedAt,
+  };
+}
+
 function stripHtmlToPlainText(value) {
   const input = normalizeAnswerValue(value);
   if (!input) return '';
@@ -5006,6 +5020,144 @@ export default async function sessionRoutes(app) {
     }
   );
 
+  // POST /sessions/:id/join/:studentId - Instructor admits an enrolled student
+  // at any point while a live session requires a passcode. The student-facing
+  // join period does not restrict instructor admission.
+  app.post(
+    '/sessions/:id/join/:studentId',
+    {
+      preHandler: authenticate,
+      rateLimit: { max: 60, timeWindow: '1 minute' },
+      config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+      schema: {
+        params: {
+          type: 'object',
+          required: ['id', 'studentId'],
+          properties: {
+            id: { type: 'string', minLength: 1 },
+            studentId: { type: 'string', minLength: 1 },
+          },
+          additionalProperties: false,
+        },
+      },
+    },
+    async (request, reply) => {
+      const session = await Session.findById(request.params.id).lean();
+      if (!session) {
+        return reply.code(404).send({ error: 'Not Found', message: 'Session not found' });
+      }
+
+      const course = await Course.findById(session.courseId).lean();
+      if (!course) {
+        return reply.code(404).send({ error: 'Not Found', message: 'Course not found' });
+      }
+      if (!isInstructorOrAdmin(course, request.user)) {
+        return reply.code(403).send({ error: 'Forbidden', message: 'Insufficient permissions' });
+      }
+      if (session.status !== 'running') {
+        return reply.code(400).send({ error: 'Bad Request', message: 'Session is not live' });
+      }
+      if (!session.joinCodeEnabled) {
+        return reply.code(400).send({ error: 'Bad Request', message: 'Passcode is not required for this session' });
+      }
+
+      const studentId = normalizeAnswerValue(request.params.studentId);
+      const enrolledStudentIds = new Set((course.students || []).map((id) => String(id)));
+      if (!enrolledStudentIds.has(studentId)) {
+        return reply.code(400).send({
+          error: 'Bad Request',
+          message: 'Student is not enrolled in this course',
+        });
+      }
+
+      const student = await User.findById(studentId)
+        .select('_id profile emails email')
+        .lean();
+      if (!student) {
+        return reply.code(404).send({ error: 'Not Found', message: 'Student not found' });
+      }
+
+      if ((session.joined || []).some((id) => String(id) === studentId)) {
+        return { success: true, alreadyJoined: true };
+      }
+
+      const now = new Date();
+      const existingRecord = (session.joinRecords || [])
+        .find((record) => String(record?.userId || '') === studentId);
+      const admissionFilter = {
+        _id: request.params.id,
+        status: 'running',
+        joinCodeEnabled: true,
+        joined: { $ne: studentId },
+      };
+      let updatedSession;
+      if (existingRecord) {
+        updatedSession = await Session.findOneAndUpdate(
+          { ...admissionFilter, 'joinRecords.userId': studentId },
+          {
+            $addToSet: { joined: studentId },
+            $set: {
+              'joinRecords.$.joinedAt': now,
+              'joinRecords.$.joinedWithCode': false,
+            },
+          },
+          { returnDocument: 'after' },
+        ).lean();
+      } else {
+        updatedSession = await Session.findOneAndUpdate(
+          admissionFilter,
+          {
+            $addToSet: { joined: studentId },
+            $push: {
+              joinRecords: {
+                userId: studentId,
+                joinedAt: now,
+                joinedWithCode: false,
+              },
+            },
+          },
+          { returnDocument: 'after' },
+        ).lean();
+      }
+
+      if (!updatedSession) {
+        const currentSession = await Session.findById(request.params.id)
+          .select('status joinCodeEnabled joined')
+          .lean();
+        if ((currentSession?.joined || []).some((id) => String(id) === studentId)) {
+          return { success: true, alreadyJoined: true };
+        }
+        return reply.code(400).send({
+          error: 'Bad Request',
+          message: currentSession?.status === 'running'
+            ? 'Passcode is not required for this session'
+            : 'Session is not live',
+        });
+      }
+
+      const joinedStudent = serializeLiveStudent(student, { joinedAt: now });
+      const participantPayload = {
+        joinedCount: Array.isArray(updatedSession?.joined)
+          ? updatedSession.joined.length
+          : ((session.joined || []).length + 1),
+        joinedStudent,
+        admittedByInstructor: true,
+      };
+
+      notifyParticipantJoined(app, course, request.params.id, participantPayload);
+      sendToUser(app, studentId, 'session:participant-admitted', {
+        courseId: String(course._id),
+        sessionId: String(session._id),
+      });
+
+      return {
+        success: true,
+        alreadyJoined: false,
+        ...participantPayload,
+      };
+    }
+  );
+
   // GET /sessions/:id/live - Get live session data
   app.get(
     '/sessions/:id/live',
@@ -5150,14 +5302,17 @@ export default async function sessionRoutes(app) {
       }
 
       let joinedStudents = [];
+      let enrolledStudents = [];
       if (includeJoinedStudents) {
         const joinedIds = [...new Set((session.joined || []).map((id) => String(id)).filter(Boolean))];
-        const joinedUsers = joinedIds.length > 0
-          ? await User.find({ _id: { $in: joinedIds } })
+        const enrolledIds = [...new Set((course.students || []).map((id) => String(id)).filter(Boolean))];
+        const rosterIds = [...new Set([...joinedIds, ...enrolledIds])];
+        const rosterUsers = rosterIds.length > 0
+          ? await User.find({ _id: { $in: rosterIds } })
             .select('_id profile emails email')
             .lean()
           : [];
-        const joinedUserMap = new Map(joinedUsers.map((user) => [String(user._id), user]));
+        const rosterUserMap = new Map(rosterUsers.map((user) => [String(user._id), user]));
 
         const latestJoinByStudentId = new Map();
         (session.joinRecords || []).forEach((record) => {
@@ -5172,17 +5327,10 @@ export default async function sessionRoutes(app) {
         });
 
         joinedStudents = joinedIds.map((studentId) => {
-          const user = joinedUserMap.get(studentId);
-          return {
-            _id: studentId,
-            firstname: normalizeAnswerValue(user?.profile?.firstname),
-            lastname: normalizeAnswerValue(user?.profile?.lastname),
-            email: normalizeAnswerValue(user?.emails?.[0]?.address || user?.email),
-            profileImage: normalizeAnswerValue(user?.profile?.profileImage),
-            profileThumbnail: normalizeAnswerValue(user?.profile?.profileThumbnail),
-            displayName: formatUserDisplayName(user),
+          const user = rosterUserMap.get(studentId);
+          return serializeLiveStudent({ ...user, _id: studentId }, {
             joinedAt: latestJoinByStudentId.get(studentId) || null,
-          };
+          });
         }).sort((a, b) => {
           const lastCmp = a.lastname.localeCompare(b.lastname);
           if (lastCmp !== 0) return lastCmp;
@@ -5190,6 +5338,19 @@ export default async function sessionRoutes(app) {
           if (firstCmp !== 0) return firstCmp;
           return a.email.localeCompare(b.email);
         });
+
+        enrolledStudents = enrolledIds
+          .map((studentId) => serializeLiveStudent({
+            ...rosterUserMap.get(studentId),
+            _id: studentId,
+          }))
+          .sort((a, b) => {
+            const lastCmp = a.lastname.localeCompare(b.lastname);
+            if (lastCmp !== 0) return lastCmp;
+            const firstCmp = a.firstname.localeCompare(b.firstname);
+            if (firstCmp !== 0) return firstCmp;
+            return a.email.localeCompare(b.email);
+          });
       }
 
       const showResponseList = currentQuestion?.sessionOptions?.responseListVisible !== false;
@@ -5258,6 +5419,7 @@ export default async function sessionRoutes(app) {
             result.session.joined = session.joined;
             result.session.joinRecords = session.joinRecords;
             result.session.joinedStudents = joinedStudents;
+            result.session.enrolledStudents = enrolledStudents;
           }
         }
         result.session.joinCodeInterval = session.joinCodeInterval;
