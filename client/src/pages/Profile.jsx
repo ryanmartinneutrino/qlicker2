@@ -101,12 +101,9 @@ function shouldFallbackToServerThumbnailGeneration(error) {
   if (!error) return false;
   const name = String(error.name || '');
   const message = String(error.message || '');
-  return (
-    name === 'SecurityError'
-    || /tainted/i.test(message)
-    || /Failed to (decode|encode|prepare) image/i.test(message)
-    || /Failed to prepare avatar/i.test(message)
-  );
+  return (name === 'SecurityError'
+  || /tainted/i.test(message)
+  || /Failed to (decode|encode|prepare) image/i.test(message) || /Failed to prepare avatar/i.test(message));
 }
 
 function isDataUrl(value = '') {
@@ -238,7 +235,9 @@ function ProfileImageEditorDialog({
     <Dialog open={open} onClose={busy ? undefined : onClose} maxWidth="sm" fullWidth>
       <DialogTitle>{t('profile.adjustPhoto')}</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '12px !important' }}>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" sx={{
+          color: "text.secondary"
+        }}>
           {t('profile.photoCropHelp')}
         </Typography>
         {previewLayout ? (
@@ -739,13 +738,20 @@ export default function Profile() {
   return (
     <Box sx={{ p: 3, maxWidth: 600 }}>
       <Typography variant="h4" gutterBottom>{t('profile.title')}</Typography>
-      <Typography variant="body2" color="text.secondary" gutterBottom>
+      <Typography variant="body2" gutterBottom sx={{
+        color: "text.secondary"
+      }}>
         {emailAddress} {primaryRole ? <>&middot; {primaryRole}</> : null}
       </Typography>
 
       <Paper variant="outlined" sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>{t('profile.photo')}</Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        <Typography
+          variant="body2"
+          sx={{
+            color: "text.secondary",
+            mb: 2
+          }}>
           {t('profile.photoClickHelp')}
         </Typography>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -799,7 +805,12 @@ export default function Profile() {
 
       <Paper variant="outlined" sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>{t('profile.language')}</Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        <Typography
+          variant="body2"
+          sx={{
+            color: "text.secondary",
+            mb: 2
+          }}>
           {t('profile.languageHelp')}
         </Typography>
         <FormControl fullWidth>

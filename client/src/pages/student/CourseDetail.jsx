@@ -589,7 +589,12 @@ export default function StudentCourseDetail() {
         >
           {t('common.searchSessions', { defaultValue: 'Search sessions' })}
         </Button>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+        <Typography
+          variant="body2"
+          sx={{
+            color: "text.secondary",
+            mt: 0.5
+          }}>
           {t('common.paginationSummary', {
             page: safePage,
             pages: totalPages,
@@ -685,7 +690,9 @@ export default function StudentCourseDetail() {
     if (!controlsVisible || totalPages <= 1 || !showFooter) return null;
     return (
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2, flexWrap: 'wrap', gap: 1 }}>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" sx={{
+          color: "text.secondary"
+        }}>
           {t('common.paginationSummary', {
             page: safePage,
             pages: totalPages,
@@ -765,7 +772,9 @@ export default function StudentCourseDetail() {
           <Paper variant="outlined" sx={{ p: 1.25, mb: hasNoLoadedItems ? 0 : 1.5 }}>
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
               <CircularProgress size={16} />
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" sx={{
+                color: "text.secondary"
+              }}>
                 {t('student.course.loadingRemainingSessions', {
                   defaultValue: 'Loading remaining sessions in the background…',
                 })}
@@ -775,10 +784,14 @@ export default function StudentCourseDetail() {
         )}
         {hasNoLoadedItems ? (
           !listStillHydrating ? (
-            <Typography variant="body2" color="text.secondary">{emptyText}</Typography>
+            <Typography variant="body2" sx={{
+              color: "text.secondary"
+            }}>{emptyText}</Typography>
           ) : null
         ) : filteredSessionItems.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             {t('student.course.noSessionsMatchFilters', { defaultValue: 'No sessions match the current filters.' })}
           </Typography>
         ) : (
@@ -876,7 +889,9 @@ export default function StudentCourseDetail() {
             {headerTitle}
           </Typography>
           {headerSection && (
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" sx={{
+              color: "text.secondary"
+            }}>
               {t('student.course.sectionHeader', { section: headerSection })}
             </Typography>
           )}
@@ -1042,7 +1057,9 @@ export default function StudentCourseDetail() {
                 <Paper variant="outlined" sx={{ p: 1.25, mb: hasNoLoadedItems ? 0 : 1.5 }}>
                   <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                     <CircularProgress size={16} />
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" sx={{
+                      color: "text.secondary"
+                    }}>
                       {t('student.course.loadingRemainingSessions', {
                         defaultValue: 'Loading remaining sessions in the background…',
                       })}
@@ -1052,12 +1069,16 @@ export default function StudentCourseDetail() {
               )}
               {hasNoLoadedItems ? (
                 !listStillHydrating ? (
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" sx={{
+                    color: "text.secondary"
+                  }}>
                     {t('student.course.noPracticeSessions', { defaultValue: 'No practice sessions yet.' })}
                   </Typography>
                 ) : null
               ) : filteredPracticeSessions.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" sx={{
+                  color: "text.secondary"
+                }}>
                   {t('student.course.noSessionsMatchFilters', { defaultValue: 'No sessions match the current filters.' })}
                 </Typography>
               ) : (
@@ -1189,7 +1210,12 @@ export default function StudentCourseDetail() {
       <TabPanel value={tab} index={settingsTabIndex}>
         <Typography variant="h6" sx={{ mb: 1.5 }}>{t('student.course.courseSettings')}</Typography>
         <Paper variant="outlined" sx={{ p: 2 }}>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.25 }}>
+          <Typography
+            variant="body2"
+            sx={{
+              color: "text.secondary",
+              mb: 1.25
+            }}>
             {t('student.course.manageEnrollment')}
           </Typography>
           <Button variant="outlined" color="error" onClick={() => setUnenrollOpen(true)}>

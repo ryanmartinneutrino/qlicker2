@@ -23,8 +23,8 @@ import {
 import {
   Add as AddIcon,
   ArchiveOutlined as ArchiveIcon,
-  ChatBubbleOutline as CommentIcon,
-  DeleteOutline as DeleteIcon,
+  ChatBubbleOutlined as CommentIcon,
+  DeleteOutlined as DeleteIcon,
   EditOutlined as EditIcon,
   ExpandLess as ExpandLessIcon,
   ExpandMore as ExpandMoreIcon,
@@ -212,7 +212,9 @@ function CommentItem({
               </Typography>
             )}
             <Stack direction="row" spacing={0.75} sx={{ mt: 0.25, flexWrap: 'wrap' }}>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" sx={{
+                color: "text.secondary"
+              }}>
                 {formatTimestamp(comment.createdAt)}
               </Typography>
               {comment.isOriginalPoster ? <Chip size="small" label={t('courseChat.originalPoster')} variant="outlined" /> : null}
@@ -228,7 +230,9 @@ function CommentItem({
                 onClick={() => onVoteComment(post._id, comment._id, !comment.viewerHasUpvoted)}
               />
             ) : (
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" sx={{
+                color: "text.secondary"
+              }}>
                 {t('courseChat.upvotesCount', { count: comment.upvoteCount || 0 })}
               </Typography>
             )}
@@ -658,7 +662,9 @@ export default function CourseChatPanel({
                 label={t('courseChat.topic')}
                 value={titleDraft}
                 onChange={(event) => setTitleDraft(event.target.value)}
-                inputProps={{ maxLength: 160 }}
+                slotProps={{
+                  htmlInput: { maxLength: 160 }
+                }}
               />
               {availableTags.length > 0 ? (
                 <Autocomplete
@@ -714,9 +720,15 @@ export default function CourseChatPanel({
                   )}
                   <Typography variant="h6" sx={{ mt: 0.75 }}>{post.title}</Typography>
                   <Stack direction="row" spacing={0.75} sx={{ mt: 0.5, flexWrap: 'wrap' }}>
-                    <Typography variant="caption" color="text.secondary">{formatTimestamp(post.createdAt)}</Typography>
-                    <Typography variant="caption" color="text.secondary">{t('courseChat.commentsCount', { count: post.comments.length })}</Typography>
-                    <Typography variant="caption" color="text.secondary">{t('courseChat.upvotesCount', { count: post.upvoteCount || 0 })}</Typography>
+                    <Typography variant="caption" sx={{
+                      color: "text.secondary"
+                    }}>{formatTimestamp(post.createdAt)}</Typography>
+                    <Typography variant="caption" sx={{
+                      color: "text.secondary"
+                    }}>{t('courseChat.commentsCount', { count: post.comments.length })}</Typography>
+                    <Typography variant="caption" sx={{
+                      color: "text.secondary"
+                    }}>{t('courseChat.upvotesCount', { count: post.upvoteCount || 0 })}</Typography>
                     {post.isArchived ? <Chip size="small" variant="outlined" label={t('courseChat.archived')} /> : null}
                   </Stack>
                 </Box>
@@ -775,7 +787,9 @@ export default function CourseChatPanel({
                     label={t('courseChat.topic')}
                     value={editTitleDraft}
                     onChange={(event) => setEditTitleDraft(event.target.value)}
-                    inputProps={{ maxLength: 160 }}
+                    slotProps={{
+                      htmlInput: { maxLength: 160 }
+                    }}
                   />
                   <StudentRichTextEditor
                     value={editBodyDraft}

@@ -92,7 +92,14 @@ export default function StudentRichTextEditor({
         enableVideo={enableVideo}
       />
       {showMathHint && (
-        <Typography id={mathHintId} variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+        <Typography
+          id={mathHintId}
+          variant="caption"
+          sx={{
+            color: "text.secondary",
+            mt: 0.5,
+            display: 'block'
+          }}>
           {t('questions.studentRichText.mathTip')}
         </Typography>
       )}
@@ -145,7 +152,13 @@ export function MathPreview({ html, debounceMs = 140, showLabel = true }) {
       }}
     >
       {showLabel && (
-        <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
+        <Typography
+          variant="caption"
+          sx={{
+            color: "text.secondary",
+            mb: 0.5,
+            display: 'block'
+          }}>
           {t('questions.studentRichText.preview')}
         </Typography>
       )}

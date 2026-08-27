@@ -184,7 +184,13 @@ function BackupTimeField({
           ))}
         </TextField>
       </Box>
-      <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+      <Typography
+        variant="caption"
+        sx={{
+          color: "text.secondary",
+          mt: 0.5,
+          display: 'block'
+        }}>
         {helperText}
       </Typography>
     </Box>
@@ -402,7 +408,9 @@ function renderCourseListItem(course = {}, inactiveLabel = 'Inactive') {
         </Typography>
         {course.inactive ? <Chip size="small" label={inactiveLabel} variant="outlined" /> : null}
       </Box>
-      <Typography variant="caption" color="text.secondary">
+      <Typography variant="caption" sx={{
+        color: "text.secondary"
+      }}>
         {buildCourseOptionLabel(course)}
       </Typography>
     </Paper>
@@ -595,8 +603,10 @@ function SettingsTab() {
         value={settings.tokenExpiryMinutes}
         onChange={(e) => setSettings((s) => ({ ...s, tokenExpiryMinutes: e.target.value }))}
         helperText={t('admin.settings.tokenExpiryHelp')}
-        inputProps={{ min: 5 }}
         fullWidth
+        slotProps={{
+          htmlInput: { min: 5 }
+        }}
       />
       <FormControl fullWidth>
         <InputLabel>{t('admin.settings.locale')}</InputLabel>
@@ -816,7 +826,9 @@ function BackupTab() {
         <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
           {t('admin.backup.storagePathLabel')}
         </Typography>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" sx={{
+          color: "text.secondary"
+        }}>
           {t('admin.backup.storagePathValue', { value: settings.backupManagerHostPath || './backups' })}
         </Typography>
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -872,24 +884,30 @@ function BackupTab() {
           type="number"
           value={settings.backupRetentionDaily}
           onChange={(event) => setSettings((current) => ({ ...current, backupRetentionDaily: event.target.value }))}
-          inputProps={{ min: 0 }}
           fullWidth
+          slotProps={{
+            htmlInput: { min: 0 }
+          }}
         />
         <TextField
           label={t('admin.backup.weeklyRetention')}
           type="number"
           value={settings.backupRetentionWeekly}
           onChange={(event) => setSettings((current) => ({ ...current, backupRetentionWeekly: event.target.value }))}
-          inputProps={{ min: 0 }}
           fullWidth
+          slotProps={{
+            htmlInput: { min: 0 }
+          }}
         />
         <TextField
           label={t('admin.backup.monthlyRetention')}
           type="number"
           value={settings.backupRetentionMonthly}
           onChange={(event) => setSettings((current) => ({ ...current, backupRetentionMonthly: event.target.value }))}
-          inputProps={{ min: 0 }}
           fullWidth
+          slotProps={{
+            htmlInput: { min: 0 }
+          }}
         />
       </Box>
       <Paper variant="outlined" sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -899,12 +917,16 @@ function BackupTab() {
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
           <Chip size="small" label={backupManagerStatusLabel} color={BACKUP_MANAGER_STATUS_COLORS[backupManagerStatus] || 'default'} />
         </Box>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" sx={{
+          color: "text.secondary"
+        }}>
           {settings.backupManagerLastSeenAt
             ? t('admin.backup.managerLastSeen', { value: formatDisplayDateTime(settings.backupManagerLastSeenAt) })
             : t('admin.backup.managerNeverSeen')}
         </Typography>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" sx={{
+          color: "text.secondary"
+        }}>
           {settings.backupManagerMessage || t('admin.backup.managerStatusUnknownHelp')}
         </Typography>
       </Paper>
@@ -916,17 +938,23 @@ function BackupTab() {
           <Chip size="small" label={lastRunStatusLabel} color={BACKUP_STATUS_COLORS[lastRunStatus] || 'default'} />
           {settings.backupLastRunType ? <Chip size="small" label={t(`admin.backup.type.${settings.backupLastRunType}`)} variant="outlined" /> : null}
         </Box>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" sx={{
+          color: "text.secondary"
+        }}>
           {settings.backupLastRunAt
             ? t('admin.backup.lastRunAt', { value: formatDisplayDateTime(settings.backupLastRunAt) })
             : t('admin.backup.noRunsYet')}
         </Typography>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" sx={{
+          color: "text.secondary"
+        }}>
           {settings.backupLastRunFilename
             ? t('admin.backup.lastRunFile', { value: settings.backupLastRunFilename })
             : t('admin.backup.lastRunFileEmpty')}
         </Typography>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" sx={{
+          color: "text.secondary"
+        }}>
           {settings.backupLastRunMessage || t('admin.backup.lastRunMessageEmpty')}
         </Typography>
       </Paper>
@@ -1218,7 +1246,9 @@ function UsersTab({ currentUserId }) {
           {courses.map((course) => renderCourseListItem(course, t('admin.courses.inactive')))}
         </Box>
       ) : (
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" sx={{
+          color: "text.secondary"
+        }}>
           {emptyLabel}
         </Typography>
       )}
@@ -1508,7 +1538,9 @@ function UsersTab({ currentUserId }) {
               style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain' }}
             />
           ) : (
-            <Typography variant="body2" color="text.secondary">{t('admin.users.noProfileImage')}</Typography>
+            <Typography variant="body2" sx={{
+              color: "text.secondary"
+            }}>{t('admin.users.noProfileImage')}</Typography>
           )}
         </DialogContent>
         <DialogActions>
@@ -1525,10 +1557,14 @@ function UsersTab({ currentUserId }) {
             </Box>
           ) : (
             <>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" sx={{
+                color: "text.secondary"
+              }}>
                 {selectedUser?.emails?.[0]?.address}
               </Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" sx={{
+                color: "text.secondary"
+              }}>
                 {t('admin.users.userPropertiesHelp')}
               </Typography>
               <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -1561,7 +1597,9 @@ function UsersTab({ currentUserId }) {
                 )}
                 label={t('admin.users.disableLogin')}
               />
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" sx={{
+                color: "text.secondary"
+              }}>
                 {selectedUser?._id === currentUserId
                   ? t('admin.users.cannotDisableOwnAccount')
                   : t('admin.users.disableLoginHelp')}
@@ -1572,7 +1610,9 @@ function UsersTab({ currentUserId }) {
                 </Typography>
                 {hasActiveSessions ? (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" sx={{
+                      color: "text.secondary"
+                    }}>
                       {t('admin.users.currentSessionsCount', { count: activeSessions.length })}
                     </Typography>
                     {activeSessions.map((session, index) => (
@@ -1580,16 +1620,36 @@ function UsersTab({ currentUserId }) {
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {t('admin.users.sessionNumber', { number: index + 1 })}
                         </Typography>
-                        <Typography variant="caption" display="block" color="text.secondary">
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            display: "block",
+                            color: "text.secondary"
+                          }}>
                           {t('admin.users.sessionLoggedInAt', { value: formatDisplayDateTime(session.createdAt) || t('admin.users.unknownTime') })}
                         </Typography>
-                        <Typography variant="caption" display="block" color="text.secondary">
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            display: "block",
+                            color: "text.secondary"
+                          }}>
                           {t('admin.users.sessionLastSeenAt', { value: formatDisplayDateTime(session.lastUsedAt || session.createdAt) || t('admin.users.unknownTime') })}
                         </Typography>
-                        <Typography variant="caption" display="block" color="text.secondary">
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            display: "block",
+                            color: "text.secondary"
+                          }}>
                           {t('admin.users.sessionExpiresAt', { value: formatDisplayDateTime(session.expiresAt) || t('admin.users.unknownTime') })}
                         </Typography>
-                        <Typography variant="caption" display="block" color="text.secondary">
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            display: "block",
+                            color: "text.secondary"
+                          }}>
                           {t('admin.users.ipAddressValue', { value: session.ipAddress || t('admin.users.ipUnavailable') })}
                         </Typography>
                       </Paper>
@@ -1602,7 +1662,9 @@ function UsersTab({ currentUserId }) {
                         value: selectedUser?.lastLogin ? formatDisplayDateTime(selectedUser.lastLogin) : t('admin.users.never'),
                       })}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" sx={{
+                      color: "text.secondary"
+                    }}>
                       {t('admin.users.ipAddressValue', { value: selectedUser?.lastLoginIp || t('admin.users.ipUnavailable') })}
                     </Typography>
                   </Box>
@@ -1633,7 +1695,9 @@ function UsersTab({ currentUserId }) {
                 label={t('admin.users.canPromote')}
               />
               {selectedUserIsStudentOnly ? (
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" sx={{
+                  color: "text.secondary"
+                }}>
                   {t('admin.users.canPromoteStudentDisabled')}
                 </Typography>
               ) : null}
@@ -1647,7 +1711,9 @@ function UsersTab({ currentUserId }) {
                 )}
                 label={t('admin.users.allowEmailLogin')}
               />
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" sx={{
+                color: "text.secondary"
+              }}>
                 {!ssoEnabled
                   ? t('admin.users.allowEmailLoginDisabledUntilSso')
                   : selectedUserIsAdmin
@@ -1688,7 +1754,9 @@ function UsersTab({ currentUserId }) {
                   }}
                   fullWidth
                 />
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" sx={{
+                  color: "text.secondary"
+                }}>
                   {ssoEnabled && !selectedUserIsAdmin && !userProperties.allowEmailLogin
                     ? t('admin.users.resetPasswordNeedsEmailLogin')
                     : t('admin.users.resetPasswordHelp')}
@@ -1848,8 +1916,10 @@ function StorageTab() {
         value={maxImageWidth}
         onChange={(e) => setMaxImageWidth(e.target.value)}
         helperText={t('admin.storage.maxImageWidthHelp', { size: approxImageSize })}
-        inputProps={{ min: 1 }}
         fullWidth
+        slotProps={{
+          htmlInput: { min: 1 }
+        }}
       />
       <TextField
         label={t('admin.storage.avatarThumbnailSize')}
@@ -1857,8 +1927,10 @@ function StorageTab() {
         value={avatarThumbnailSize}
         onChange={(e) => setAvatarThumbnailSize(e.target.value)}
         helperText={t('admin.storage.avatarThumbnailSizeHelp', { size: approxAvatarSize })}
-        inputProps={{ min: 64 }}
         fullWidth
+        slotProps={{
+          htmlInput: { min: 64 }
+        }}
       />
       <FormControl fullWidth>
         <InputLabel>{t('admin.storage.storageType')}</InputLabel>
@@ -2051,8 +2123,10 @@ function SSOTab() {
         value={settings[field.key]}
         onChange={(event) => setSettings((current) => ({ ...current, [field.key]: event.target.value }))}
         helperText={field.helpKey ? t(field.helpKey) : undefined}
-        inputProps={field.type === 'number' ? { min: -1 } : undefined}
         fullWidth
+        slotProps={{
+          htmlInput: field.type === 'number' ? { min: -1 } : undefined
+        }}
       />
     );
   };
@@ -2197,7 +2271,9 @@ function VideoTab() {
       />
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, minHeight: 0, maxHeight: 440, overflowY: 'auto' }}>
         {items.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             {t('admin.video.noCourses')}
           </Typography>
         ) : (
@@ -2255,7 +2331,9 @@ function VideoTab() {
             placeholder={t('admin.video.jitsiDomainPlaceholder')}
             fullWidth
           />
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             {t('admin.video.enabledCoursesHelp')}
           </Typography>
           <Box
@@ -2270,7 +2348,9 @@ function VideoTab() {
           </Box>
         </>
       ) : (
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" sx={{
+          color: "text.secondary"
+        }}>
           {t('admin.video.jitsiNotEnabled')}
         </Typography>
       )}
@@ -2462,7 +2542,9 @@ function AiHelperTab() {
       />
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, minHeight: 0, maxHeight: 440, overflowY: 'auto' }}>
         {items.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             {t('admin.ai.noCourses')}
           </Typography>
         ) : (
@@ -2501,7 +2583,9 @@ function AiHelperTab() {
     <Box sx={{ maxWidth: 980, display: 'flex', flexDirection: 'column', gap: 2 }}>
       <AutoSaveStatus status={status} errorText={error} />
       <FormControlLabel control={<Checkbox checked={settings.AI_Enabled} onChange={(event) => updateSettings((s) => ({ ...s, AI_Enabled: event.target.checked }), { saveImmediately: true })} />} label={t('admin.ai.enable')} />
-      <Typography variant="body2" color="text.secondary">{t('admin.ai.backendHelp')}</Typography>
+      <Typography variant="body2" sx={{
+        color: "text.secondary"
+      }}>{t('admin.ai.backendHelp')}</Typography>
       <TextField
         type="number"
         size="small"
@@ -2513,9 +2597,11 @@ function AiHelperTab() {
             updateSettings((s) => ({ ...s, AI_RequestTimeoutSeconds: value }));
           }
         }}
-        inputProps={{ min: 10, max: 1800, step: 10 }}
         helperText={t('admin.ai.requestTimeoutHelp')}
         sx={{ maxWidth: 360 }}
+        slotProps={{
+          htmlInput: { min: 10, max: 1800, step: 10 }
+        }}
       />
       <Box sx={{ pointerEvents: settings.AI_Enabled ? 'auto' : 'none', opacity: settings.AI_Enabled ? 1 : 0.55 }}>
         <AiBackendManager
@@ -2526,12 +2612,16 @@ function AiHelperTab() {
           onDefaultChange={(AI_DefaultBackendId, AI_DefaultModelId) => updateSettings((s) => ({ ...s, AI_DefaultBackendId, AI_DefaultModelId }))}
         />
       </Box>
-      <Typography variant="body2" color="text.secondary">{t('admin.ai.courseHelp')}</Typography>
+      <Typography variant="body2" sx={{
+        color: "text.secondary"
+      }}>{t('admin.ai.courseHelp')}</Typography>
       <Box sx={{ display: 'grid', gap: 1.5, gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' } }}>
         {renderCourseColumn(t('admin.ai.enabledCourses'), enabledSearch, setEnabledSearch, visibleEnabledCourses, true)}
         {renderCourseColumn(t('admin.ai.coursesWithoutAi'), disabledSearch, setDisabledSearch, visibleDisabledCourses, false)}
       </Box>
-      {!settings.AI_Enabled ? <Typography variant="body2" color="text.secondary">{t('admin.ai.disabledHelp')}</Typography> : null}
+      {!settings.AI_Enabled ? <Typography variant="body2" sx={{
+        color: "text.secondary"
+      }}>{t('admin.ai.disabledHelp')}</Typography> : null}
     </Box>
   );
 }
@@ -2593,7 +2683,9 @@ function CoursesTab() {
           slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> } }}
           sx={{ minWidth: 280 }}
         />
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" sx={{
+          color: "text.secondary"
+        }}>
           {t('admin.courses.totalCount', { total: matchingCourses.length })}
         </Typography>
       </Box>
@@ -2603,7 +2695,9 @@ function CoursesTab() {
       ) : message ? (
         <Alert severity="error">{message}</Alert>
       ) : visibleCourses.length === 0 ? (
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" sx={{
+          color: "text.secondary"
+        }}>
           {t('admin.courses.noCoursesFound')}
         </Typography>
       ) : (

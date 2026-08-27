@@ -19,6 +19,9 @@ export async function createApp(configOverrides = {}, appOverrides = {}) {
       jwtSecret: 'test-secret',
       jwtRefreshSecret: 'test-refresh-secret',
       rootUrl: process.env.ROOT_URL || 'http://localhost:3000',
+      // Fastify injects requests from loopback. Trust that explicit peer so
+      // forwarded-IP audit behavior is exercised without unsafe hop-count trust.
+      trustProxy: 'loopback',
       ...configOverrides,
     },
   });

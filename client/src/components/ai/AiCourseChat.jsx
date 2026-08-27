@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, CircularProgress, IconButton, List, ListItemButton, ListItemText, Paper, Typography } from '@mui/material';
-import { Add as AddIcon, DeleteOutline as DeleteIcon, ExpandMore as ExpandMoreIcon, Stop as StopIcon } from '@mui/icons-material';
+import { Add as AddIcon, DeleteOutlined as DeleteIcon, ExpandMore as ExpandMoreIcon, Stop as StopIcon } from '@mui/icons-material';
 import { useTranslation } from 'react-i18next';
 import apiClient from '../../api/client';
 import StudentRichTextEditor from '../questions/StudentRichTextEditor';
@@ -49,32 +49,38 @@ function AiMessageArtifacts({ conversationId, artifacts = [] }) {
       setDownloading((current) => ({ ...current, [artifact._id]: false }));
     }
   };
-  return <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 1 }}>
-    {artifacts.map((artifact) => {
-      const url = `/ai/media/${encodeURIComponent(conversationId)}/${encodeURIComponent(artifact._id)}`;
-      const label = artifact.label || artifact.filename || t(
-        artifact.kind === 'image' ? 'ai.chat.generatedImage' : artifact.kind === 'audio' ? 'ai.chat.generatedAudio' : 'ai.chat.generatedFile'
-      );
-      if (unavailable[artifact._id]) {
-        return <Alert key={artifact._id} severity="warning">{t('ai.chat.artifactUnavailable')}</Alert>;
-      }
-      if (artifact.kind === 'image') {
-        return <Box key={artifact._id}>
-          <Box component="img" src={url} alt={label} onError={() => markUnavailable(artifact._id)} sx={{ display: 'block', maxWidth: '100%', maxHeight: 520, borderRadius: 1 }} />
-          {artifact.label ? <Typography variant="caption" color="text.secondary">{artifact.label}</Typography> : null}
-        </Box>;
-      }
-      if (artifact.kind === 'audio') {
-        return <Box key={artifact._id}>
-          {artifact.label ? <Typography variant="body2" sx={{ mb: 0.5 }}>{artifact.label}</Typography> : null}
-          <Box component="audio" controls preload="metadata" src={url} aria-label={label} onError={() => markUnavailable(artifact._id)} sx={{ display: 'block', width: '100%', maxWidth: 520 }} />
-        </Box>;
-      }
-      return <Button key={artifact._id} type="button" onClick={() => downloadArtifact(artifact, url)} disabled={!!downloading[artifact._id]} variant="outlined" size="small" sx={{ alignSelf: 'flex-start' }}>
-        {t('ai.chat.downloadArtifact', { filename: artifact.filename || label })}
-      </Button>;
-    })}
-  </Box>;
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 1 }}>
+      {artifacts.map((artifact) => {
+        const url = `/ai/media/${encodeURIComponent(conversationId)}/${encodeURIComponent(artifact._id)}`;
+        const label = artifact.label || artifact.filename || t(
+          artifact.kind === 'image' ? 'ai.chat.generatedImage' : artifact.kind === 'audio' ? 'ai.chat.generatedAudio' : 'ai.chat.generatedFile'
+        );
+        if (unavailable[artifact._id]) {
+          return <Alert key={artifact._id} severity="warning">{t('ai.chat.artifactUnavailable')}</Alert>;
+        }
+        if (artifact.kind === 'image') {
+          return (
+            <Box key={artifact._id}>
+              <Box component="img" src={url} alt={label} onError={() => markUnavailable(artifact._id)} sx={{ display: 'block', maxWidth: '100%', maxHeight: 520, borderRadius: 1 }} />
+              {artifact.label ? <Typography variant="caption" sx={{
+                color: "text.secondary"
+              }}>{artifact.label}</Typography> : null}
+            </Box>
+          );
+        }
+        if (artifact.kind === 'audio') {
+          return <Box key={artifact._id}>
+            {artifact.label ? <Typography variant="body2" sx={{ mb: 0.5 }}>{artifact.label}</Typography> : null}
+            <Box component="audio" controls preload="metadata" src={url} aria-label={label} onError={() => markUnavailable(artifact._id)} sx={{ display: 'block', width: '100%', maxWidth: 520 }} />
+          </Box>;
+        }
+        return <Button key={artifact._id} type="button" onClick={() => downloadArtifact(artifact, url)} disabled={!!downloading[artifact._id]} variant="outlined" size="small" sx={{ alignSelf: 'flex-start' }}>
+          {t('ai.chat.downloadArtifact', { filename: artifact.filename || label })}
+        </Button>;
+      })}
+    </Box>
+  );
 }
 
 export default function AiCourseChat({ courseId, audience = 'instructor' }) {
@@ -236,54 +242,67 @@ export default function AiCourseChat({ courseId, audience = 'instructor' }) {
       : savedMessages;
   }, [pendingMessage, selected]);
 
-  return <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '250px minmax(0, 1fr)' }, gap: 1.5 }}>
-    <Paper variant="outlined" sx={{ p: 1 }}>
-      <Button fullWidth startIcon={<AddIcon />} variant="outlined" onClick={createConversation} disabled={isThinking}>{t('ai.chat.newConversation')}</Button>
-      {loading ? <Box sx={{ p: 2, textAlign: 'center' }}><CircularProgress size={22} /></Box> : <List dense>
-        {conversations.length ? conversations.map((conversation) => <ListItemButton key={conversation._id} selected={selected?._id === conversation._id} onClick={() => loadConversation(conversation._id, { clearPendingError: !!conversation.pendingError && !conversation.pending })} disabled={isThinking}>
-          <ListItemText primary={conversation.title || t('ai.chat.newConversation')} secondary={formatMessageTime(conversation.updatedAt)} />
-          <IconButton size="small" aria-label={t('ai.chat.deleteConversation')} disabled={isThinking} onClick={(event) => { event.stopPropagation(); deleteConversation(conversation._id); }}><DeleteIcon fontSize="small" /></IconButton>
-        </ListItemButton>) : <Typography variant="body2" color="text.secondary" sx={{ p: 1 }}>{t('ai.chat.noConversations')}</Typography>}
-      </List>}
-    </Paper>
-    <Paper variant="outlined" sx={{ p: 1.5, display: 'flex', flexDirection: 'column', minHeight: 520 }}>
-      {error ? <Alert severity="error" sx={{ mb: 1 }} onClose={() => setError('')}>{error}</Alert> : null}
-      {selected?.pendingError ? <Alert severity="warning" sx={{ mb: 1 }} onClose={() => loadConversation(selected._id, { silent: true, clearPendingError: true })}>{selected.pendingError}</Alert> : null}
-      <Box sx={{ mb: 1.5 }}><AiModelSelect courseId={courseId} value={selectedModel} onChange={setSelectedModel} disabled={isThinking} audience={audience} task="chat" /></Box>
-      <Box sx={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 1.25, mb: 1.5 }} aria-live="polite">
-        {!selected && !pendingMessage ? <Typography color="text.secondary">{t('ai.chat.selectConversation')}</Typography> : messages.length === 0 && !pendingMessage ? <Alert severity="info" sx={{ alignSelf: 'stretch' }}>{t(audience === 'student' ? 'ai.chat.studentNewConversationGuidance' : 'ai.chat.newConversationGuidance')}</Alert> : messages.map((message) => {
-          const isErrorMessage = message.role === 'assistant' && (
-            message.isError || String(message.content || '').startsWith('AI backend ran into an error:')
-          );
-          const errorDetail = String(message.content || '').replace(/^AI backend ran into an error:\s*/, '');
-          return <Paper key={message._id} variant="outlined" role={isErrorMessage ? 'alert' : undefined} sx={{ p: 1.25, alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%', bgcolor: isErrorMessage ? 'warning.light' : message.role === 'user' ? 'action.hover' : 'background.paper', borderColor: isErrorMessage ? 'warning.main' : undefined, color: isErrorMessage ? 'warning.contrastText' : undefined }}>
-          <Typography variant="caption" color={isErrorMessage ? 'inherit' : 'text.secondary'} sx={isErrorMessage ? { fontWeight: 700 } : undefined}>{isErrorMessage ? t('ai.chat.errorLabel') : message.role === 'user' ? t('ai.chat.you') : t('ai.chat.assistant')}</Typography>
-          {message.role === 'assistant' && message.thinking ? <Accordion disableGutters elevation={0} sx={{ mt: 0.75, mb: 0.75, bgcolor: 'action.hover', '&::before': { display: 'none' } }}>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />} aria-label={t('ai.chat.thoughtProcess')} sx={{ minHeight: 38, '& .MuiAccordionSummary-content': { my: 0.5 } }}>
-              <Typography variant="body2" color="text.secondary">{t('ai.chat.thoughtProcess')}</Typography>
-            </AccordionSummary>
-            <AccordionDetails sx={{ pt: 0, maxHeight: 280, overflowY: 'auto' }}><AiMarkdownContent content={message.thinking} /></AccordionDetails>
-          </Accordion> : null}
-          {message.role === 'assistant'
-            ? <AiMarkdownContent content={isErrorMessage ? t('ai.chat.backendError', { detail: errorDetail }) : message.content} />
-            : <Typography sx={{ whiteSpace: 'pre-wrap' }}>{message.content}</Typography>}
-          {message.role === 'assistant' ? <AiMessageArtifacts conversationId={selected?._id} artifacts={message.artifacts} /> : null}
-        </Paper>;
-        })}
-        {isThinking ? <Paper variant="outlined" role="status" sx={{ p: 1.25, alignSelf: 'flex-start', maxWidth: '90%' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, animation: 'ai-thinking-pulse 1.4s ease-in-out infinite', '@keyframes ai-thinking-pulse': { '0%, 100%': { opacity: 0.55 }, '50%': { opacity: 1 } } }}>
-            <CircularProgress size={18} aria-label={t('ai.chat.thinking')} />
-            <Typography>{t('ai.chat.thinking')}</Typography>
-          </Box>
-          {selected?.pendingThinking ? <Box sx={{ mt: 1, pl: 3.25, maxHeight: 280, overflowY: 'auto' }}><AiMarkdownContent content={selected.pendingThinking} /></Box> : null}
-        </Paper> : null}
-      </Box>
-      <StudentRichTextEditor value={draft.html} onChange={(value) => setDraft(normalizeDraft(value))} onKeyDown={handleDraftKeyDown} placeholder={t('ai.chat.messagePlaceholder')} disabled={isThinking} ariaLabel={t('ai.chat.messagePlaceholder')} minHeight={110} />
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
-        <Button variant="contained" color={isThinking ? 'error' : 'primary'} startIcon={isThinking ? <StopIcon /> : undefined} disabled={isThinking ? (!selected?.pending || stopping) : (!draft.plainText.trim() || !selectedModel)} onClick={isThinking ? stop : send}>
-          {isThinking ? t('ai.chat.stop') : t('ai.chat.send')}
-        </Button>
-      </Box>
-    </Paper>
-  </Box>;
+  return (
+    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '250px minmax(0, 1fr)' }, gap: 1.5 }}>
+      <Paper variant="outlined" sx={{ p: 1 }}>
+        <Button fullWidth startIcon={<AddIcon />} variant="outlined" onClick={createConversation} disabled={isThinking}>{t('ai.chat.newConversation')}</Button>
+        {loading ? <Box sx={{ p: 2, textAlign: 'center' }}><CircularProgress size={22} /></Box> : <List dense>
+          {conversations.length ? conversations.map((conversation) => <ListItemButton key={conversation._id} selected={selected?._id === conversation._id} onClick={() => loadConversation(conversation._id, { clearPendingError: !!conversation.pendingError && !conversation.pending })} disabled={isThinking}>
+            <ListItemText primary={conversation.title || t('ai.chat.newConversation')} secondary={formatMessageTime(conversation.updatedAt)} />
+            <IconButton size="small" aria-label={t('ai.chat.deleteConversation')} disabled={isThinking} onClick={(event) => { event.stopPropagation(); deleteConversation(conversation._id); }}><DeleteIcon fontSize="small" /></IconButton>
+          </ListItemButton>) : <Typography
+            variant="body2"
+            sx={{
+              color: "text.secondary",
+              p: 1
+            }}>{t('ai.chat.noConversations')}</Typography>}
+        </List>}
+      </Paper>
+      <Paper variant="outlined" sx={{ p: 1.5, display: 'flex', flexDirection: 'column', minHeight: 520 }}>
+        {error ? <Alert severity="error" sx={{ mb: 1 }} onClose={() => setError('')}>{error}</Alert> : null}
+        {selected?.pendingError ? <Alert severity="warning" sx={{ mb: 1 }} onClose={() => loadConversation(selected._id, { silent: true, clearPendingError: true })}>{selected.pendingError}</Alert> : null}
+        <Box sx={{ mb: 1.5 }}><AiModelSelect courseId={courseId} value={selectedModel} onChange={setSelectedModel} disabled={isThinking} audience={audience} task="chat" /></Box>
+        <Box sx={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 1.25, mb: 1.5 }} aria-live="polite">
+          {!selected && !pendingMessage ? <Typography sx={{
+            color: "text.secondary"
+          }}>{t('ai.chat.selectConversation')}</Typography> : messages.length === 0 && !pendingMessage ? <Alert severity="info" sx={{ alignSelf: 'stretch' }}>{t(audience === 'student' ? 'ai.chat.studentNewConversationGuidance' : 'ai.chat.newConversationGuidance')}</Alert> : messages.map((message) => {
+            const isErrorMessage = message.role === 'assistant' && (
+              message.isError || String(message.content || '').startsWith('AI backend ran into an error:')
+            );
+            const errorDetail = String(message.content || '').replace(/^AI backend ran into an error:\s*/, '');
+            return (
+              <Paper key={message._id} variant="outlined" role={isErrorMessage ? 'alert' : undefined} sx={{ p: 1.25, alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%', bgcolor: isErrorMessage ? 'warning.light' : message.role === 'user' ? 'action.hover' : 'background.paper', borderColor: isErrorMessage ? 'warning.main' : undefined, color: isErrorMessage ? 'warning.contrastText' : undefined }}>
+              <Typography variant="caption" color={isErrorMessage ? 'inherit' : 'text.secondary'} sx={isErrorMessage ? { fontWeight: 700 } : undefined}>{isErrorMessage ? t('ai.chat.errorLabel') : message.role === 'user' ? t('ai.chat.you') : t('ai.chat.assistant')}</Typography>
+              {message.role === 'assistant' && message.thinking ? <Accordion disableGutters elevation={0} sx={{ mt: 0.75, mb: 0.75, bgcolor: 'action.hover', '&::before': { display: 'none' } }}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />} aria-label={t('ai.chat.thoughtProcess')} sx={{ minHeight: 38, '& .MuiAccordionSummary-content': { my: 0.5 } }}>
+                  <Typography variant="body2" sx={{
+                    color: "text.secondary"
+                  }}>{t('ai.chat.thoughtProcess')}</Typography>
+                </AccordionSummary>
+                <AccordionDetails sx={{ pt: 0, maxHeight: 280, overflowY: 'auto' }}><AiMarkdownContent content={message.thinking} /></AccordionDetails>
+              </Accordion> : null}
+              {message.role === 'assistant'
+                ? <AiMarkdownContent content={isErrorMessage ? t('ai.chat.backendError', { detail: errorDetail }) : message.content} />
+                : <Typography sx={{ whiteSpace: 'pre-wrap' }}>{message.content}</Typography>}
+              {message.role === 'assistant' ? <AiMessageArtifacts conversationId={selected?._id} artifacts={message.artifacts} /> : null}
+            </Paper>
+            );
+          })}
+          {isThinking ? <Paper variant="outlined" role="status" sx={{ p: 1.25, alignSelf: 'flex-start', maxWidth: '90%' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, animation: 'ai-thinking-pulse 1.4s ease-in-out infinite', '@keyframes ai-thinking-pulse': { '0%, 100%': { opacity: 0.55 }, '50%': { opacity: 1 } } }}>
+              <CircularProgress size={18} aria-label={t('ai.chat.thinking')} />
+              <Typography>{t('ai.chat.thinking')}</Typography>
+            </Box>
+            {selected?.pendingThinking ? <Box sx={{ mt: 1, pl: 3.25, maxHeight: 280, overflowY: 'auto' }}><AiMarkdownContent content={selected.pendingThinking} /></Box> : null}
+          </Paper> : null}
+        </Box>
+        <StudentRichTextEditor value={draft.html} onChange={(value) => setDraft(normalizeDraft(value))} onKeyDown={handleDraftKeyDown} placeholder={t('ai.chat.messagePlaceholder')} disabled={isThinking} ariaLabel={t('ai.chat.messagePlaceholder')} minHeight={110} />
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+          <Button variant="contained" color={isThinking ? 'error' : 'primary'} startIcon={isThinking ? <StopIcon /> : undefined} disabled={isThinking ? (!selected?.pending || stopping) : (!draft.plainText.trim() || !selectedModel)} onClick={isThinking ? stop : send}>
+            {isThinking ? t('ai.chat.stop') : t('ai.chat.send')}
+          </Button>
+        </Box>
+      </Paper>
+    </Box>
+  );
 }

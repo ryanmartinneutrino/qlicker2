@@ -502,7 +502,9 @@ function MarkQuestionDetailPanel({
           />
           {showFeedbackEditor ? (
             <Box>
-              <Typography variant="caption" color="text.secondary">{t('grades.coursePanel.feedback')}</Typography>
+              <Typography variant="caption" sx={{
+                color: "text.secondary"
+              }}>{t('grades.coursePanel.feedback')}</Typography>
               <StudentRichTextEditor
                 value={feedbackHtml}
                 onChange={({ html }) => onFeedbackChange?.(html)}
@@ -631,7 +633,9 @@ function GradeDetailDialog({
               emailVariant="body2"
               nameWeight={700}
             />
-            <Typography variant="body2" color="text.secondary">{sessionName || workingGrade.name}</Typography>
+            <Typography variant="body2" sx={{
+              color: "text.secondary"
+            }}>{sessionName || workingGrade.name}</Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
             {workingGrade.needsGrading && <Chip size="small" color="error" label={t('grades.coursePanel.needsGrading')} />}
@@ -2030,7 +2034,9 @@ export default function CourseGradesPanel({
             sx={{ mb: 1 }}
           />
           {filteredSessionSelectionOptions.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" sx={{
+              color: "text.secondary"
+            }}>
               {t('grades.coursePanel.noSessionsMatch')}
             </Typography>
           ) : (
@@ -2045,10 +2051,12 @@ export default function CourseGradesPanel({
                     <Checkbox
                       size="small"
                       checked={checked}
-                      inputProps={{
-                        'aria-label': t('grades.coursePanel.toggleSessionSelection', {
-                          session: sessionName,
-                        }),
+                      slotProps={{
+                        input: {
+                          'aria-label': t('grades.coursePanel.toggleSessionSelection', {
+                            session: sessionName,
+                          }),
+                        }
                       }}
                     />
                     <ListItemText
@@ -2357,7 +2365,9 @@ export default function CourseGradesPanel({
             {t('grades.coursePanel.autoRecalcNote')}
           </Typography>
           {conflictsDialog.conflicts.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">{t('grades.coursePanel.noConflicts')}</Typography>
+            <Typography variant="body2" sx={{
+              color: "text.secondary"
+            }}>{t('grades.coursePanel.noConflicts')}</Typography>
           ) : (
             <TableContainer component={Paper} variant="outlined">
               <Table size="small">

@@ -38,10 +38,19 @@ export default function ResetPassword() {
   };
 
   return (
-    <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh" bgcolor="background.default">
+    <Box
+      sx={{
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        minHeight: "100vh",
+        bgcolor: "background.default"
+      }}>
       <Card sx={{ maxWidth: 450, width: '100%', mx: 2 }}>
         <CardContent>
-          <Typography variant="h4" textAlign="center" color="primary" gutterBottom>
+          <Typography variant="h4" color="primary" gutterBottom sx={{
+            textAlign: "center"
+          }}>
             {t('resetPassword.title')}
           </Typography>
           {msg && <Alert severity={msg.severity} sx={{ mb: 2 }}>{msg.text}</Alert>}

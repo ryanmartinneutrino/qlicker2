@@ -81,7 +81,13 @@ export default function WordCloudPanel({
               />
             )}
             {!isVisible && (
-              <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 1 }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "text.secondary",
+                  textAlign: 'center',
+                  py: 1
+                }}>
                 {t('wordCloud.hidden')}
               </Typography>
             )}

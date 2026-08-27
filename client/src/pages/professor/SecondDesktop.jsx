@@ -177,7 +177,12 @@ function NumericalStats({ stats }) {
   const { t } = useTranslation();
   if (!stats) {
     return (
-      <Typography variant="body1" color="text.secondary" sx={{ textAlign: 'center' }}>
+      <Typography
+        variant="body1"
+        sx={{
+          color: "text.secondary",
+          textAlign: 'center'
+        }}>
         {t('professor.secondDesktop.noResponsesYet')}
       </Typography>
     );
@@ -194,7 +199,9 @@ function NumericalStats({ stats }) {
     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, justifyContent: 'center' }}>
       {entries.map((e) => (
         <Paper key={e.label} variant="outlined" sx={{ p: 2, minWidth: 110, textAlign: 'center' }}>
-          <Typography variant="body2" color="text.secondary">{e.label}</Typography>
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>{e.label}</Typography>
           <Typography variant="h5" sx={{ fontWeight: 700 }}>{e.value}</Typography>
         </Paper>
       ))}
@@ -208,7 +215,12 @@ function ShortAnswerList({ responses }) {
   const sortedResponses = sortResponsesNewestFirst(responses);
   if (!sortedResponses.length) {
     return (
-      <Typography variant="body1" color="text.secondary" sx={{ textAlign: 'center' }}>
+      <Typography
+        variant="body1"
+        sx={{
+          color: "text.secondary",
+          textAlign: 'center'
+        }}>
         {t('professor.secondDesktop.noResponsesYet')}
       </Typography>
     );
@@ -217,7 +229,13 @@ function ShortAnswerList({ responses }) {
     <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
       {sortedResponses.map((r, i) => (
         <Paper key={i} variant="outlined" sx={{ p: 1.5, mb: 0.75 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+          <Typography
+            variant="caption"
+            sx={{
+              color: "text.secondary",
+              display: 'block',
+              mb: 0.5
+            }}>
             {t('common.unknown')}
           </Typography>
           {r.answerWysiwyg ? (
@@ -624,7 +642,9 @@ export default function PresentationWindow() {
         </Typography>
       ) : null}
       {showSessionName ? (
-        <Typography variant={compact ? 'body2' : 'h6'} color="text.secondary">
+        <Typography variant={compact ? 'body2' : 'h6'} sx={{
+          color: "text.secondary"
+        }}>
           {session?.name || t('professor.secondDesktop.presentation')}
         </Typography>
       ) : null}
@@ -940,7 +960,9 @@ export default function PresentationWindow() {
       {/* Numerical placeholder */}
       {qType === QUESTION_TYPES.NUMERICAL && (
         <Paper variant="outlined" sx={{ p: 3, mb: 3, textAlign: 'center' }}>
-          <Typography variant="h6" color="text.secondary">
+          <Typography variant="h6" sx={{
+            color: "text.secondary"
+          }}>
             {t('professor.secondDesktop.numericalQuestion')}
           </Typography>
           {showCorrect && currentQ.correctNumerical != null && (
@@ -948,7 +970,9 @@ export default function PresentationWindow() {
               <Typography variant="body1">
                 {t('professor.secondDesktop.correct', { value: currentQ.correctNumerical })}
               </Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" sx={{
+                color: "text.secondary"
+              }}>
                 {t('professor.secondDesktop.tolerance', { value: currentQ.toleranceNumerical ?? 0 })}
               </Typography>
             </Box>
@@ -985,7 +1009,12 @@ export default function PresentationWindow() {
           ) : allResponses.length > 0 ? (
             <ShortAnswerList responses={allResponses} />
           ) : (
-            <Typography variant="body1" color="text.secondary" sx={{ textAlign: 'center' }}>
+            <Typography
+              variant="body1"
+              sx={{
+                color: "text.secondary",
+                textAlign: 'center'
+              }}>
               {t('professor.secondDesktop.noResponsesYet')}
             </Typography>
           )}

@@ -558,7 +558,11 @@ function DistributionBars({
 }) {
   const { t } = useTranslation();
   if (!data || !data.length) {
-    return <Typography variant="body2" color="text.secondary">{t('professor.sessionReview.noResponsesYet')}</Typography>;
+    return (
+      <Typography variant="body2" sx={{
+        color: "text.secondary"
+      }}>{t('professor.sessionReview.noResponsesYet')}</Typography>
+    );
   }
   const total = Number(responseCount) > 0
     ? Number(responseCount)
@@ -1275,7 +1279,13 @@ export default function SessionReview() {
           </Typography>
         ) : null}
         {courseSection ? (
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+          <Typography
+            variant="caption"
+            sx={{
+              color: "text.secondary",
+              display: 'block',
+              mb: 0.5
+            }}>
             {t('professor.course.sectionHeader', { section: courseSection })}
           </Typography>
         ) : null}
@@ -1283,7 +1293,12 @@ export default function SessionReview() {
           {session?.name || t('professor.sessionReview.sessionReview')}
         </Typography>
         {session?.description && (
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+          <Typography
+            variant="body2"
+            sx={{
+              color: "text.secondary",
+              mt: 0.5
+            }}>
             {session.description}
           </Typography>
         )}
@@ -1297,11 +1312,15 @@ export default function SessionReview() {
         }}
       >
         <Paper variant="outlined" sx={{ p: 1.5, minWidth: 110, textAlign: 'center' }}>
-          <Typography variant="caption" color="text.secondary">{t('professor.sessionReview.questions')}</Typography>
+          <Typography variant="caption" sx={{
+            color: "text.secondary"
+          }}>{t('professor.sessionReview.questions')}</Typography>
           <Typography variant="h6" sx={{ fontWeight: 700 }}>{totalQuestions}</Typography>
         </Paper>
         <Paper variant="outlined" sx={{ p: 1.5, minWidth: 110, textAlign: 'center' }}>
-          <Typography variant="caption" color="text.secondary">{t('professor.sessionReview.joinedSession')}</Typography>
+          <Typography variant="caption" sx={{
+            color: "text.secondary"
+          }}>{t('professor.sessionReview.joinedSession')}</Typography>
           <Typography variant="h6" sx={{ fontWeight: 700 }}>{t('professor.sessionReview.joinedCount', { joined: joinedStudents, total: totalStudents })}</Typography>
         </Paper>
 
@@ -1507,10 +1526,14 @@ export default function SessionReview() {
                   {/* Numerical correct answer */}
                   {qT === QUESTION_TYPES.NUMERICAL && q.correctNumerical != null && (
                     <Box sx={{ mb: 1 }}>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body2" sx={{
+                        color: "text.secondary"
+                      }}>
                         {t('professor.sessionReview.correct', { value: q.correctNumerical })}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body2" sx={{
+                        color: "text.secondary"
+                      }}>
                         {t('professor.sessionReview.tolerance', { value: q.toleranceNumerical ?? 0 })}
                       </Typography>
                     </Box>
@@ -1539,7 +1562,13 @@ export default function SessionReview() {
                           <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
                             {row.saResponses.map((r, idx) => (
                               <Paper key={idx} variant="outlined" sx={{ p: 1, mb: 0.5 }}>
-                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    color: "text.secondary",
+                                    display: 'block',
+                                    mb: 0.5
+                                  }}>
                                   {normalizeAnswerValue(r.studentName) || t('professor.sessionReview.unknownStudent')}
                                 </Typography>
                                 {r.answerWysiwyg ? (
@@ -1580,7 +1609,13 @@ export default function SessionReview() {
                           <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
                             {row.nuResponses.map((r, idx) => (
                               <Paper key={idx} variant="outlined" sx={{ p: 1, mb: 0.5 }}>
-                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    color: "text.secondary",
+                                    display: 'block',
+                                    mb: 0.5
+                                  }}>
                                   {normalizeAnswerValue(r.studentName) || t('professor.sessionReview.unknownStudent')}
                                 </Typography>
                                 <Typography variant="body2">
@@ -1790,8 +1825,7 @@ export default function SessionReview() {
                   const cat = idx >= 0 ? groupCategories[idx] : null;
                   setSelectedGroupIdx(cat && cat.groups && cat.groups.length > 0 ? 0 : -1);
                 }}
-                SelectProps={{ native: true }}
-                InputLabelProps={{ shrink: true }}
+                slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
                 sx={{ minWidth: 180 }}
               >
                 <option value="">{t('professor.sessionReview.allStudentsFilter')}</option>
@@ -1806,8 +1840,7 @@ export default function SessionReview() {
                   label={t('professor.sessionReview.selectGroupFilter')}
                   value={selectedGroupIdx >= 0 ? String(selectedGroupIdx) : ''}
                   onChange={(e) => setSelectedGroupIdx(Number(e.target.value))}
-                  SelectProps={{ native: true }}
-                  InputLabelProps={{ shrink: true }}
+                  slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
                   sx={{ minWidth: 180 }}
                 >
                   {(selectedGroupCat.groups || []).map((g, idx) => (

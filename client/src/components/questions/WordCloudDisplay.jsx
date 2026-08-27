@@ -84,7 +84,13 @@ export default function WordCloudDisplay({ wordFrequencies = [], width = 600, he
 
   if (entries.length === 0) {
     return (
-      <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
+      <Typography
+        variant="body2"
+        sx={{
+          color: "text.secondary",
+          textAlign: 'center',
+          py: 2
+        }}>
         {t('wordCloud.noData')}
       </Typography>
     );
@@ -102,7 +108,9 @@ export default function WordCloudDisplay({ wordFrequencies = [], width = 600, he
       aria-label={t('wordCloud.ariaLabel')}
     >
       {!layoutReady ? (
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" sx={{
+          color: "text.secondary"
+        }}>
           {t('common.loading')}
         </Typography>
       ) : (

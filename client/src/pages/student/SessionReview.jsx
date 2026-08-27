@@ -433,14 +433,13 @@ function ReviewQuestionCard({
                 {showResponseMark && (
                   <Typography
                     variant="caption"
-                    color="primary.main"
                     sx={{
+                      color: "primary.main",
                       gridColumn: shouldLetter ? '3 / 4' : '2 / 3',
                       mt: -0.25,
                       mb: 0.2,
-                      fontWeight: 600,
-                    }}
-                  >
+                      fontWeight: 600
+                    }}>
                     {t('student.sessionReview.yourSelection')}
                   </Typography>
                 )}
@@ -453,7 +452,14 @@ function ReviewQuestionCard({
       {solutionVisible
         && [QUESTION_TYPES.MULTIPLE_CHOICE, QUESTION_TYPES.TRUE_FALSE, QUESTION_TYPES.MULTI_SELECT].includes(normalizedType)
         && !hasWrittenSolution && (
-        <Typography variant="caption" color="text.secondary" sx={{ pl: 2, mt: 0.5, display: 'block' }}>
+        <Typography
+          variant="caption"
+          sx={{
+            color: "text.secondary",
+            pl: 2,
+            mt: 0.5,
+            display: 'block'
+          }}>
           {hasMarkedCorrectOption
             ? t('student.sessionReview.correctHighlighted')
             : t('student.sessionReview.noSolutionOrCorrect')}
@@ -463,10 +469,14 @@ function ReviewQuestionCard({
       {/* Numerical correct answer */}
       {normalizedType === QUESTION_TYPES.NUMERICAL && solutionVisible && (
         <Box sx={{ pl: 2, mt: 1 }}>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             {t('student.sessionReview.correct', { value: question.correctNumerical ?? '—' })}
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             {t('student.sessionReview.tolerance', { value: question.toleranceNumerical ?? 0 })}
           </Typography>
         </Box>
@@ -489,7 +499,13 @@ function ReviewQuestionCard({
       {/* Solution text (when visible) */}
       {solutionVisible && hasWrittenSolution && (
         <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+          <Typography
+            variant="caption"
+            sx={{
+              color: "text.secondary",
+              display: 'block',
+              mb: 0.5
+            }}>
             {t('common.solution')}
           </Typography>
           <RichHtml value={writtenSolutionHtml} fallback={writtenSolutionPlain} sx={richContentSx} />
@@ -499,14 +515,26 @@ function ReviewQuestionCard({
       {solutionVisible
         && !hasWrittenSolution
         && ![QUESTION_TYPES.MULTIPLE_CHOICE, QUESTION_TYPES.TRUE_FALSE, QUESTION_TYPES.MULTI_SELECT].includes(normalizedType) && (
-        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+        <Typography
+          variant="caption"
+          sx={{
+            color: "text.secondary",
+            mt: 1,
+            display: 'block'
+          }}>
           {t('student.sessionReview.noSolution')}
         </Typography>
       )}
 
       {mark?.feedback && (
         <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+          <Typography
+            variant="caption"
+            sx={{
+              color: "text.secondary",
+              display: 'block',
+              mb: 0.5
+            }}>
             {t('student.sessionReview.instructorFeedback')}
           </Typography>
           <RichHtml value={mark.feedback} sx={richContentSx} />
@@ -749,7 +777,12 @@ export default function SessionReview() {
           {session?.name || t('student.sessionReview.sessionReviewFallback')}
         </Typography>
         {session?.description && (
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+          <Typography
+            variant="body2"
+            sx={{
+              color: "text.secondary",
+              mt: 0.5
+            }}>
             {session.description}
           </Typography>
         )}
@@ -783,7 +816,12 @@ export default function SessionReview() {
 
       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
         <Paper variant="outlined" sx={{ px: 1.5, py: 1 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+          <Typography
+            variant="caption"
+            sx={{
+              color: "text.secondary",
+              display: 'block'
+            }}>
             {t('student.sessionReview.sessionGrade')}
           </Typography>
           <Typography variant="body2" sx={{ fontWeight: 700 }}>
@@ -793,7 +831,12 @@ export default function SessionReview() {
           </Typography>
         </Paper>
         <Paper variant="outlined" sx={{ px: 1.5, py: 1 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+          <Typography
+            variant="caption"
+            sx={{
+              color: "text.secondary",
+              display: 'block'
+            }}>
             {t('student.sessionReview.participation')}
           </Typography>
           <Typography variant="body2" sx={{ fontWeight: 700 }}>
@@ -899,7 +942,12 @@ export default function SessionReview() {
                       {isResponseVisible ? t('student.sessionReview.hideMyResponse') : t('student.sessionReview.showMyResponse')}
                     </Button>
                     {!hasResponses && (
-                      <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: "text.secondary",
+                          ml: 1
+                        }}>
                         {t('student.sessionReview.noResponse')}
                       </Typography>
                     )}
@@ -912,7 +960,9 @@ export default function SessionReview() {
                         >
                           ← {t('student.sessionReview.prevAttempt')}
                         </Button>
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2" sx={{
+                          color: "text.secondary"
+                        }}>
                           {t('student.sessionReview.attemptProgress', { current: currentResponse.attempt, total: responses.length })}
                         </Typography>
                         <Button
@@ -925,13 +975,26 @@ export default function SessionReview() {
                       </Box>
                     )}
                     {isResponseVisible && currentResponse && currentIsOptionType && (
-                      <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block', ml: 0.5 }}>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: "text.secondary",
+                          mt: 1,
+                          display: 'block',
+                          ml: 0.5
+                        }}>
                         {t('student.sessionReview.selectedOptionsNote')}
                       </Typography>
                     )}
                     {isResponseVisible && currentResponse && !currentIsOptionType && (
                       <Paper variant="outlined" sx={{ p: 2, mt: 1 }}>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "text.secondary",
+                            display: 'block',
+                            mb: 0.5
+                          }}>
                           {t('student.sessionReview.yourAnswer')}
                         </Typography>
                         {currentQType === QUESTION_TYPES.SHORT_ANSWER ? (
@@ -988,7 +1051,12 @@ export default function SessionReview() {
                         {isResponseVisible ? t('student.sessionReview.hideMyResponse') : t('student.sessionReview.showMyResponse')}
                       </Button>
                       {!hasResponses && (
-                        <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "text.secondary",
+                            ml: 1
+                          }}>
                           {t('student.sessionReview.noResponse')}
                         </Typography>
                       )}
@@ -1001,7 +1069,9 @@ export default function SessionReview() {
                           >
                             ← {t('student.sessionReview.prevAttempt')}
                           </Button>
-                          <Typography variant="body2" color="text.secondary">
+                          <Typography variant="body2" sx={{
+                            color: "text.secondary"
+                          }}>
                             {t('student.sessionReview.attemptProgress', { current: currentResponse.attempt, total: responses.length })}
                           </Typography>
                           <Button
@@ -1014,13 +1084,26 @@ export default function SessionReview() {
                         </Box>
                       )}
                       {isResponseVisible && currentResponse && isOptionType && (
-                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block', ml: 0.5 }}>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: "text.secondary",
+                            mt: 1,
+                            display: 'block',
+                            ml: 0.5
+                          }}>
                           {t('student.sessionReview.selectedOptionsNote')}
                         </Typography>
                       )}
                       {isResponseVisible && currentResponse && !isOptionType && (
                         <Paper variant="outlined" sx={{ p: 2, mt: 1 }}>
-                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: "text.secondary",
+                              display: 'block',
+                              mb: 0.5
+                            }}>
                             {t('student.sessionReview.yourAnswer')}
                           </Typography>
                           {qType === QUESTION_TYPES.SHORT_ANSWER ? (

@@ -220,7 +220,12 @@ export default function ManageNotificationsDialog({
                     <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                       {editingNotification ? t('notifications.manage.editHeading') : t('notifications.manage.createHeading')}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: "text.secondary",
+                        mt: 0.5
+                      }}>
                       {t('notifications.manage.formHelp')}
                     </Typography>
                   </Box>
@@ -290,7 +295,9 @@ export default function ManageNotificationsDialog({
                     )}
                     label={t('notifications.persistUntilDismissed')}
                   />
-                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                  <Stack direction="row" spacing={1} useFlexGap sx={{
+                    flexWrap: "wrap"
+                  }}>
                     <Button type="submit" variant="contained" disabled={saving}>
                       {editingNotification ? t('notifications.manage.saveChanges') : t('notifications.manage.postNotification')}
                     </Button>
@@ -310,7 +317,12 @@ export default function ManageNotificationsDialog({
                   <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                     {t('notifications.manage.existingHeading')}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: "text.secondary",
+                      mt: 0.5
+                    }}>
                     {t('notifications.manage.listHelp')}
                   </Typography>
                 </Box>

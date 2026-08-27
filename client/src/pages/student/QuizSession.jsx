@@ -845,7 +845,12 @@ export default function QuizSession() {
                   </Button>
                 )}
                 {!locked && (
-                  <Typography variant="caption" color="text.secondary" sx={{ alignSelf: 'center' }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: "text.secondary",
+                      alignSelf: 'center'
+                    }}>
                     {t('student.quiz.solutionAfterSubmit')}
                   </Typography>
                 )}
@@ -868,7 +873,9 @@ export default function QuizSession() {
                   {t('student.quiz.correctAnswer', { value: question.correctNumerical })}
                 </Typography>
                 {question.toleranceNumerical != null && (
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" sx={{
+                    color: "text.secondary"
+                  }}>
                     {t('student.quiz.tolerance', { value: question.toleranceNumerical })}
                   </Typography>
                 )}
@@ -903,7 +910,13 @@ export default function QuizSession() {
               : t('student.quiz.submitQuiz')}
         </Button>
       ) : (
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center' }}>
+        <Typography
+          variant="caption"
+          sx={{
+            color: "text.secondary",
+            display: 'block',
+            textAlign: 'center'
+          }}>
           {t('student.quiz.answerAllToSubmit')}
         </Typography>
       )}

@@ -116,7 +116,9 @@ function buildGroupMemberships(course, studentId) {
 function StatRow({ label, value }) {
   return (
     <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
-      <Typography variant="body2" color="text.secondary">{label}</Typography>
+      <Typography variant="body2" sx={{
+        color: "text.secondary"
+      }}>{label}</Typography>
       <Typography variant="body2" sx={{ fontWeight: 600, textAlign: 'right' }}>{value}</Typography>
     </Box>
   );
@@ -213,7 +215,9 @@ export default function StudentInfoModal({
             </Avatar>
             <Box>
               <Typography variant="h6">{displayName}</Typography>
-              <Typography variant="body2" color="text.secondary">{email}</Typography>
+              <Typography variant="body2" sx={{
+                color: "text.secondary"
+              }}>{email}</Typography>
             </Box>
           </Box>
 
@@ -251,7 +255,12 @@ export default function StudentInfoModal({
               />
             </Stack>
           ) : (
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "text.secondary",
+                mb: 2
+              }}>
               {t('groups.noStatsAvailable')}
             </Typography>
           )}
@@ -278,7 +287,12 @@ export default function StudentInfoModal({
               ))}
             </List>
           ) : (
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "text.secondary",
+                mb: 2
+              }}>
               {t('groups.noGroupMembership')}
             </Typography>
           )}

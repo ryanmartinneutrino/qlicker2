@@ -202,11 +202,13 @@ export default function AiGradingModal({
                     size="small"
                     checked={selected.includes(id)}
                     disabled={!enabled}
-                    inputProps={{ 'aria-label': t('grades.aiGrading.includeQuestion', { question: index + 1 }) }}
                     onClick={(event) => event.stopPropagation()}
                     onChange={(event) => {
                       event.stopPropagation();
                       toggleQuestion(id);
+                    }}
+                    slotProps={{
+                      input: { 'aria-label': t('grades.aiGrading.includeQuestion', { question: index + 1 }) }
                     }}
                   />
                   <ListItemText
@@ -234,7 +236,9 @@ export default function AiGradingModal({
             />
           ) : (
             <Box sx={{ display: 'flex', alignItems: 'center', minHeight: 180 }}>
-              <Typography color="text.secondary">
+              <Typography sx={{
+                color: "text.secondary"
+              }}>
                 {t('grades.aiGrading.selectQuestionGuidance')}
               </Typography>
             </Box>

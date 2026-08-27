@@ -792,7 +792,7 @@ export default async function aiRoutes(app) {
     if (!['grading', 'feedback', 'summary'].includes(kind) || !String(name || '').trim() || !String(content || '').trim()) return reply.code(400).send({ error: 'Bad Request', message: 'Instruction type, name, and content are required' });
     if (String(name).trim().length > 200 || String(content).trim().length > MAX_AI_INSTRUCTION_CHARS) return reply.code(400).send({ error: 'Bad Request', message: `Instruction names cannot exceed 200 characters and content cannot exceed ${MAX_AI_INSTRUCTION_CHARS.toLocaleString()} characters` });
     const filter = _id && !['no-feedback', 'basic-summary'].includes(_id) ? { _id, courseId: course._id } : { courseId: course._id, kind, name: String(name).trim() };
-    const instruction = await AiGradingInstruction.findOneAndUpdate(filter, { $set: { courseId: course._id, kind, name: String(name).trim(), content: String(content).trim() } }, { upsert: true, new: true, runValidators: true });
+    const instruction = await AiGradingInstruction.findOneAndUpdate(filter, { $set: { courseId: course._id, kind, name: String(name).trim(), content: String(content).trim() } }, { upsert: true, returnDocument: 'after', runValidators: true });
     return { instruction };
   });
 
@@ -849,7 +849,7 @@ export default async function aiRoutes(app) {
     const rubric = await AiSessionRubric.findOneAndUpdate(
       { courseId: course._id, sessionId: request.params.sessionId },
       { $set: { questionIds, instructions } },
-      { upsert: true, new: true, runValidators: true }
+      { upsert: true, returnDocument: 'after', runValidators: true }
     ).lean();
     return { rubric };
   });
@@ -889,7 +889,7 @@ export default async function aiRoutes(app) {
     await AiSessionRubric.findOneAndUpdate(
       { courseId: course._id, sessionId: request.params.sessionId },
       { $set: { questionIds: normalizedQuestionIds, instructions: normalizedInstructions } },
-      { upsert: true, new: true, runValidators: true }
+      { upsert: true, returnDocument: 'after', runValidators: true }
     );
     const previousJob = await AiGradingJob.findOne({ courseId: course._id, sessionId: request.params.sessionId, active: true }).sort({ createdAt: -1 }).lean();
     await recoverStaleAiGradingJob(previousJob);
@@ -975,7 +975,7 @@ export default async function aiRoutes(app) {
           summary: '',
           error: '',
         } },
-        { upsert: true, new: true }
+        { upsert: true, returnDocument: 'after' }
       );
     } catch (error) {
       if (error?.code === 11000) return reply.code(409).send({ error: 'Conflict', message: 'An AI response summary is already in progress for this question' });

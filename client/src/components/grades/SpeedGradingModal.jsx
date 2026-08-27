@@ -261,12 +261,14 @@ export default memo(function SpeedGradingModal({
       fullWidth
       fullScreen={isMobile}
       aria-labelledby="speed-grading-title"
-      PaperProps={{
-        sx: {
-          width: isMobile ? '100%' : desktopWidth,
-          maxWidth: isMobile ? '100%' : desktopWidth,
-          minWidth: isMobile ? '100%' : 420,
-        },
+      slotProps={{
+        paper: {
+          sx: {
+            width: isMobile ? '100%' : desktopWidth,
+            maxWidth: isMobile ? '100%' : desktopWidth,
+            minWidth: isMobile ? '100%' : 420,
+          },
+        }
       }}
     >
       <DialogTitle id="speed-grading-title" sx={{ pb: 1 }}>
@@ -276,7 +278,9 @@ export default memo(function SpeedGradingModal({
               ? t('grades.questionPanel.speedGrading.studentLabel', { name: currentRow.displayName })
               : t('grades.questionPanel.speedGrading.title')}
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             {t('grades.questionPanel.speedGrading.position', {
               current: currentIndex + 1,
               total: rows.length,
@@ -331,9 +335,13 @@ export default memo(function SpeedGradingModal({
                 setPoints(nextValue);
               }}
               sx={{ width: 120 }}
-              inputProps={{ min: 0, 'aria-label': t('common.points') }}
+              slotProps={{
+                htmlInput: { min: 0, 'aria-label': t('common.points') }
+              }}
             />
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" sx={{
+              color: "text.secondary"
+            }}>
               {outOfDisplay}
             </Typography>
           </Box>

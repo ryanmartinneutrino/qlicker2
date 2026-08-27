@@ -208,6 +208,7 @@ function QuestionCopyDialog({
               setTargetSessionId('');
             }}
             getOptionLabel={(option) => buildCourseSelectionLabel(option)}
+            getOptionKey={(option) => String(option?._id || buildCourseSelectionLabel(option))}
             renderInput={(params) => (
               <TextField
                 {...params}
@@ -221,6 +222,7 @@ function QuestionCopyDialog({
             loading={loadingSessions}
             onChange={(_event, nextValue) => setTargetSessionId(nextValue?._id || '')}
             getOptionLabel={(option) => option?.name || ''}
+            getOptionKey={(option) => String(option?._id || option?.name || '')}
             renderInput={(params) => (
               <TextField
                 {...params}
@@ -326,7 +328,9 @@ function ImportQuestionsDialog({
           ) : (
             <>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" sx={{
+                  color: "text.secondary"
+                }}>
                   {t('questionLibrary.import.previewCount', {
                     count: previewQuestions.length,
                     defaultValue: `${previewQuestions.length} questions ready to import`,
@@ -1032,7 +1036,9 @@ function QuestionLibraryPanel({
               <Typography variant="h6">
                 {t('questionLibrary.title', { defaultValue: 'Question Library' })}
               </Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" sx={{
+                color: "text.secondary"
+              }}>
                 {isStudentLibrary
                   ? t('questionLibrary.studentSubtitle', {
                     defaultValue: 'Browse course questions, copy them into your library, and create your own private practice questions.',
@@ -1042,7 +1048,9 @@ function QuestionLibraryPanel({
                   })}
               </Typography>
             </Box>
-            <Stack direction="row" spacing={1} flexWrap="wrap">
+            <Stack direction="row" spacing={1} sx={{
+              flexWrap: "wrap"
+            }}>
               {!isStudentLibrary && !selectionAction?.hideImport ? (
                 <Button variant="outlined" startIcon={<UploadIcon />} onClick={() => setImportDialogOpen(true)}>
                   {t('questionLibrary.import.action', { defaultValue: 'Import JSON' })}
@@ -1077,6 +1085,7 @@ function QuestionLibraryPanel({
                   ]);
                 }}
                 getOptionLabel={(option) => buildCourseSelectionLabel(option)}
+                getOptionKey={(option) => String(option?._id || buildCourseSelectionLabel(option))}
                 renderInput={(params) => (
                   <TextField
                     {...params}
@@ -1193,7 +1202,9 @@ function QuestionLibraryPanel({
                 indeterminate={somePageSelected}
                 onChange={(event) => toggleCurrentPageSelection(event.target.checked)}
               />
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" sx={{
+                color: "text.secondary"
+              }}>
                 {t('questionLibrary.selection.pageSummary', {
                   count: total,
                   defaultValue: `${total} matching questions`,
@@ -1203,7 +1214,9 @@ function QuestionLibraryPanel({
                 {t('questionLibrary.bulk.selectAllFiltered', { defaultValue: 'Select all filtered' })}
               </Button>
             </Box>
-            <Stack direction="row" spacing={1} flexWrap="wrap">
+            <Stack direction="row" spacing={1} sx={{
+              flexWrap: "wrap"
+            }}>
               {!isStudentLibrary && !directSelectionMode ? (
                 <Button
                   size="small"
@@ -1302,204 +1315,210 @@ function QuestionLibraryPanel({
                 const canDeleteQuestion = canDeleteLibraryQuestion(question, { isStudentLibrary, currentUserId });
 
                 return (
-                    <Card key={questionId} variant="outlined">
-                      <CardContent sx={{ display: 'flex', gap: 1.25, alignItems: 'flex-start' }}>
-                        <Checkbox checked={checked} onChange={() => toggleQuestionSelection(questionId)} />
-                        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap', alignItems: 'flex-start', mb: 1 }}>
-                          <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+                  <Card key={questionId} variant="outlined">
+                    <CardContent sx={{ display: 'flex', gap: 1.25, alignItems: 'flex-start' }}>
+                      <Checkbox checked={checked} onChange={() => toggleQuestionSelection(questionId)} />
+                      <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap', alignItems: 'flex-start', mb: 1 }}>
+                        <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+                          <Chip
+                            size="small"
+                            color={TYPE_COLORS[normalizedType] || 'default'}
+                            label={getQuestionTypeLabel(t, normalizedType, { defaultValue: String(normalizedType) })}
+                          />
+                          <Chip
+                            size="small"
+                            variant={question.approved ? 'filled' : 'outlined'}
+                            color={question.approved ? 'success' : 'warning'}
+                            label={question.approved
+                              ? t('questionLibrary.status.approved', { defaultValue: 'Approved' })
+                              : t('questionLibrary.status.unapproved', { defaultValue: 'Unapproved' })}
+                          />
+                          {(question.linkedSessions || []).map((session) => (
+                            <Chip
+                              key={`${questionId}-${session._id}`}
+                              size="small"
+                              variant="outlined"
+                              label={session.name || t('grades.coursePanel.untitledSession', { defaultValue: 'Untitled session' })}
+                            />
+                          ))}
+                          {!isStudentLibrary && question.hasResponses ? (
                             <Chip
                               size="small"
-                              color={TYPE_COLORS[normalizedType] || 'default'}
-                              label={getQuestionTypeLabel(t, normalizedType, { defaultValue: String(normalizedType) })}
+                              color="error"
+                              variant="outlined"
+                              label={t('questionLibrary.status.hasResponses', { defaultValue: 'Has responses' })}
                             />
+                          ) : null}
+                          {!isStudentLibrary && Number(question.responseCount || 0) > 0 ? (
                             <Chip
                               size="small"
-                              variant={question.approved ? 'filled' : 'outlined'}
-                              color={question.approved ? 'success' : 'warning'}
-                              label={question.approved
-                                ? t('questionLibrary.status.approved', { defaultValue: 'Approved' })
-                                : t('questionLibrary.status.unapproved', { defaultValue: 'Unapproved' })}
+                              variant="outlined"
+                              label={t('questionLibrary.status.responseCount', {
+                                count: Number(question.responseCount || 0),
+                                defaultValue: Number(question.responseCount || 0) === 1
+                                  ? '1 response'
+                                  : `${Number(question.responseCount || 0)} responses`,
+                              })}
                             />
-                            {(question.linkedSessions || []).map((session) => (
-                              <Chip
-                                key={`${questionId}-${session._id}`}
-                                size="small"
-                                variant="outlined"
-                                label={session.name || t('grades.coursePanel.untitledSession', { defaultValue: 'Untitled session' })}
-                              />
-                            ))}
-                            {!isStudentLibrary && question.hasResponses ? (
-                              <Chip
-                                size="small"
-                                color="error"
-                                variant="outlined"
-                                label={t('questionLibrary.status.hasResponses', { defaultValue: 'Has responses' })}
-                              />
-                            ) : null}
-                            {!isStudentLibrary && Number(question.responseCount || 0) > 0 ? (
-                              <Chip
-                                size="small"
-                                variant="outlined"
-                                label={t('questionLibrary.status.responseCount', {
-                                  count: Number(question.responseCount || 0),
-                                  defaultValue: Number(question.responseCount || 0) === 1
-                                    ? '1 response'
-                                    : `${Number(question.responseCount || 0)} responses`,
-                                })}
-                              />
-                            ) : null}
-                            {(question.tags || []).filter((tag) => (
-                              String(tag?.label || tag?.value || '').trim().toLowerCase() !== 'qlicker'
-                            )).map((tag, tagIndex) => (
-                              <Chip
-                                key={`${questionId}-tag-${tagIndex}`}
-                                size="small"
-                                variant="outlined"
-                                label={tag.label || tag.value}
-                              />
-                            ))}
-                          </Box>
-                          <Stack direction="row" spacing={0.25}>
-                            {!isStudentLibrary && !question.approved ? (
-                              <Tooltip title={t('questionLibrary.actions.approve', { defaultValue: 'Approve question' })}>
-                                <span>
-                                  <IconButton size="small" aria-label={t('common.approve')} disabled={saving} onClick={() => handleApproveQuestion(questionId)}>
-                                    <ApproveIcon fontSize="small" />
-                                  </IconButton>
-                                </span>
-                              </Tooltip>
-                            ) : null}
-                            {!isStudentLibrary && !!question.studentCreated && !question.public ? (
-                              <Tooltip title={t('questionLibrary.actions.makePublic', { defaultValue: 'Make question public to the course' })}>
-                                <span>
-                                  <IconButton size="small" aria-label={t('common.makePublic')} disabled={saving} onClick={() => handleMakeQuestionPublic(questionId)}>
-                                    <PublicIcon fontSize="small" />
-                                  </IconButton>
-                                </span>
-                              </Tooltip>
-                            ) : null}
-                            {!directSelectionMode && studentCanCopyQuestion ? (
-                              <Tooltip
-                                title={isStudentLibrary
-                                  ? t('questionLibrary.bulk.copyToPracticeSession', { defaultValue: 'Copy to practice session' })
-                                  : t('common.copy', { defaultValue: 'Copy' })}
-                              >
-                                <span>
-                                  <IconButton
-                                    size="small"
-                                    disabled={saving}
-                                    aria-label={isStudentLibrary
-                                      ? t('questionLibrary.bulk.copyToPracticeSession', { defaultValue: 'Copy to practice session' })
-                                      : t('common.copy', { defaultValue: 'Copy' })}
-                                    onClick={() => handleCopyQuestionSingle(questionId)}
-                                  >
-                                    <CopyIcon fontSize="small" />
-                                  </IconButton>
-                                </span>
-                              </Tooltip>
-                            ) : null}
-                            {(!isStudentLibrary || studentCanManage) ? (
-                              <Tooltip title={editing ? t('professor.sessionEditor.closeEditor') : t('common.edit')}>
-                                <span>
-                                  <IconButton
-                                    size="small"
-                                    disabled={saving}
-                                    aria-label={editing ? t('professor.sessionEditor.closeEditor') : t('common.edit')}
-                                    onClick={() => {
-                                      if (editing) {
-                                        requestInlineEditorClose();
-                                        return;
-                                      }
-                                      openEditEditor(question);
-                                    }}
-                                  >
-                                    {editing ? <CloseIcon fontSize="small" /> : <EditIcon fontSize="small" />}
-                                  </IconButton>
-                                </span>
-                              </Tooltip>
-                            ) : null}
-                            <Tooltip title={t('common.delete')}>
+                          ) : null}
+                          {(question.tags || []).filter((tag) => (
+                            String(tag?.label || tag?.value || '').trim().toLowerCase() !== 'qlicker'
+                          )).map((tag, tagIndex) => (
+                            <Chip
+                              key={`${questionId}-tag-${tagIndex}`}
+                              size="small"
+                              variant="outlined"
+                              label={tag.label || tag.value}
+                            />
+                          ))}
+                        </Box>
+                        <Stack direction="row" spacing={0.25}>
+                          {!isStudentLibrary && !question.approved ? (
+                            <Tooltip title={t('questionLibrary.actions.approve', { defaultValue: 'Approve question' })}>
                               <span>
-                                <IconButton
-                                  size="small"
-                                  color="error"
-                                  aria-label={t('common.delete')}
-                                  disabled={saving || !canDeleteQuestion}
-                                  onClick={() => handleDeleteQuestions([questionId])}
-                                >
-                                  <DeleteIcon fontSize="small" />
+                                <IconButton size="small" aria-label={t('common.approve')} disabled={saving} onClick={() => handleApproveQuestion(questionId)}>
+                                  <ApproveIcon fontSize="small" />
                                 </IconButton>
                               </span>
                             </Tooltip>
-                          </Stack>
-                        </Box>
-
-                        {editing ? (
-                          <QuestionEditor
-                            ref={inlineQuestionEditorRef}
-                            open
-                            inline
-                            initial={question}
-                            initialBaseline={editingQuestionBaseline}
-                            tagSuggestions={tagOptions}
-                            showVisibilityControls={!isStudentLibrary}
-                            allowCustomTags={false}
-                            showCourseTagSettingsHint={!isStudentLibrary}
-                            onAutoSave={handleEditorSave}
-                            onClose={closeInlineEditor}
-                            disableTypeSelection={disableTypeSelection}
-                            disableOptionCountChanges={disableOptionCountChanges}
-                            typeSelectionLockReason={t('questionLibrary.editLocks.type', {
-                              defaultValue: 'Question type is locked because responses already exist.',
-                            })}
-                            optionCountLockReason={t('questionLibrary.editLocks.options', {
-                              defaultValue: 'Option count is locked because responses already exist.',
-                            })}
-                          />
-                        ) : (
-                          <Box
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => toggleExpanded(questionId)}
-                            onKeyDown={(event) => {
-                              if (event.key === 'Enter' || event.key === ' ') {
-                                event.preventDefault();
-                                toggleExpanded(questionId);
-                              }
-                            }}
-                            sx={{
-                              cursor: 'pointer',
-                              borderRadius: 1,
-                              p: 0.5,
-                              '&:hover': { backgroundColor: 'action.hover' },
-                            }}
-                          >
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-                              {t('questionLibrary.previewHint', {
-                                number: (page - 1) * limit + index + 1,
-                                defaultValue: `Question ${(page - 1) * limit + index + 1}`,
-                              })}
-                            </Typography>
-                            <Box sx={{ position: 'relative', maxHeight: expanded ? 'none' : 220, overflow: 'hidden' }}>
-                              <QuestionDisplay question={question} />
-                              {!expanded ? (
-                                <Box
-                                  sx={{
-                                    position: 'absolute',
-                                    left: 0,
-                                    right: 0,
-                                    bottom: 0,
-                                    height: 44,
-                                    background: (theme) => `linear-gradient(to bottom, rgba(255,255,255,0), ${theme.palette.background.paper})`,
+                          ) : null}
+                          {!isStudentLibrary && !!question.studentCreated && !question.public ? (
+                            <Tooltip title={t('questionLibrary.actions.makePublic', { defaultValue: 'Make question public to the course' })}>
+                              <span>
+                                <IconButton size="small" aria-label={t('common.makePublic')} disabled={saving} onClick={() => handleMakeQuestionPublic(questionId)}>
+                                  <PublicIcon fontSize="small" />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                          ) : null}
+                          {!directSelectionMode && studentCanCopyQuestion ? (
+                            <Tooltip
+                              title={isStudentLibrary
+                                ? t('questionLibrary.bulk.copyToPracticeSession', { defaultValue: 'Copy to practice session' })
+                                : t('common.copy', { defaultValue: 'Copy' })}
+                            >
+                              <span>
+                                <IconButton
+                                  size="small"
+                                  disabled={saving}
+                                  aria-label={isStudentLibrary
+                                    ? t('questionLibrary.bulk.copyToPracticeSession', { defaultValue: 'Copy to practice session' })
+                                    : t('common.copy', { defaultValue: 'Copy' })}
+                                  onClick={() => handleCopyQuestionSingle(questionId)}
+                                >
+                                  <CopyIcon fontSize="small" />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                          ) : null}
+                          {(!isStudentLibrary || studentCanManage) ? (
+                            <Tooltip title={editing ? t('professor.sessionEditor.closeEditor') : t('common.edit')}>
+                              <span>
+                                <IconButton
+                                  size="small"
+                                  disabled={saving}
+                                  aria-label={editing ? t('professor.sessionEditor.closeEditor') : t('common.edit')}
+                                  onClick={() => {
+                                    if (editing) {
+                                      requestInlineEditorClose();
+                                      return;
+                                    }
+                                    openEditEditor(question);
                                   }}
-                                />
-                              ) : null}
-                            </Box>
-                          </Box>
-                        )}
+                                >
+                                  {editing ? <CloseIcon fontSize="small" /> : <EditIcon fontSize="small" />}
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                          ) : null}
+                          <Tooltip title={t('common.delete')}>
+                            <span>
+                              <IconButton
+                                size="small"
+                                color="error"
+                                aria-label={t('common.delete')}
+                                disabled={saving || !canDeleteQuestion}
+                                onClick={() => handleDeleteQuestions([questionId])}
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                        </Stack>
                       </Box>
-                    </CardContent>
+
+                      {editing ? (
+                        <QuestionEditor
+                          ref={inlineQuestionEditorRef}
+                          open
+                          inline
+                          initial={question}
+                          initialBaseline={editingQuestionBaseline}
+                          tagSuggestions={tagOptions}
+                          showVisibilityControls={!isStudentLibrary}
+                          allowCustomTags={false}
+                          showCourseTagSettingsHint={!isStudentLibrary}
+                          onAutoSave={handleEditorSave}
+                          onClose={closeInlineEditor}
+                          disableTypeSelection={disableTypeSelection}
+                          disableOptionCountChanges={disableOptionCountChanges}
+                          typeSelectionLockReason={t('questionLibrary.editLocks.type', {
+                            defaultValue: 'Question type is locked because responses already exist.',
+                          })}
+                          optionCountLockReason={t('questionLibrary.editLocks.options', {
+                            defaultValue: 'Option count is locked because responses already exist.',
+                          })}
+                        />
+                      ) : (
+                        <Box
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => toggleExpanded(questionId)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              toggleExpanded(questionId);
+                            }
+                          }}
+                          sx={{
+                            cursor: 'pointer',
+                            borderRadius: 1,
+                            p: 0.5,
+                            '&:hover': { backgroundColor: 'action.hover' },
+                          }}
+                        >
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: "text.secondary",
+                              display: 'block',
+                              mb: 0.5
+                            }}>
+                            {t('questionLibrary.previewHint', {
+                              number: (page - 1) * limit + index + 1,
+                              defaultValue: `Question ${(page - 1) * limit + index + 1}`,
+                            })}
+                          </Typography>
+                          <Box sx={{ position: 'relative', maxHeight: expanded ? 'none' : 220, overflow: 'hidden' }}>
+                            <QuestionDisplay question={question} />
+                            {!expanded ? (
+                              <Box
+                                sx={{
+                                  position: 'absolute',
+                                  left: 0,
+                                  right: 0,
+                                  bottom: 0,
+                                  height: 44,
+                                  background: (theme) => `linear-gradient(to bottom, rgba(255,255,255,0), ${theme.palette.background.paper})`,
+                                }}
+                              />
+                            ) : null}
+                          </Box>
+                        </Box>
+                      )}
+                    </Box>
+                  </CardContent>
                   </Card>
                 );
               })}
@@ -1507,15 +1526,19 @@ function QuestionLibraryPanel({
           )}
 
           {showInlineRandomSelectionControls ? (
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{
+              alignItems: { xs: 'stretch', sm: 'center' }
+            }}>
               <TextField
                 size="small"
                 type="number"
                 label={t('questionLibrary.bulk.randomCount', { defaultValue: 'Random count' })}
                 value={randomSelectionCount}
-                inputProps={{ min: 1 }}
                 onChange={(event) => setRandomSelectionCount(Math.max(1, Number(event.target.value) || 1))}
                 sx={{ width: { xs: '100%', sm: 150 } }}
+                slotProps={{
+                  htmlInput: { min: 1 }
+                }}
               />
               <Button variant="outlined" onClick={selectRandomFilteredQuestions} disabled={saving}>
                 {t('questionLibrary.bulk.selectRandomFiltered', {
@@ -1527,7 +1550,9 @@ function QuestionLibraryPanel({
           ) : null}
 
           <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" sx={{
+              color: "text.secondary"
+            }}>
               {t('questionLibrary.pagination.summary', {
                 page,
                 pages: Math.max(Math.ceil(total / limit), 1),
@@ -1578,7 +1603,12 @@ function QuestionLibraryPanel({
         sessions={studentPracticeSessions}
         selectedIds={selectedPracticeSessionIds}
         headerContent={(
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.25 }}>
+          <Typography
+            variant="body2"
+            sx={{
+              color: "text.secondary",
+              mb: 1.25
+            }}>
             {studentPracticeSessions.length > 0
               ? t('questionLibrary.bulk.practiceSessionHelp', {
                 defaultValue: 'Choose one of your practice sessions to receive the selected questions.',
@@ -1606,7 +1636,9 @@ function QuestionLibraryPanel({
         </DialogTitle>
         <DialogContent dividers>
           <Stack spacing={1.5}>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" sx={{
+              color: "text.secondary"
+            }}>
               {t('questionLibrary.bulk.visibilityHelp', {
                 defaultValue: 'Choose who can find the selected questions outside normal session review.',
               })}

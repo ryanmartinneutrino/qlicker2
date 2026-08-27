@@ -105,7 +105,9 @@ export default function SessionSelectorDialog({
           sx={{ mb: 1 }}
         />
         {filteredSessions.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             {t('grades.coursePanel.noSessionsMatch', { defaultValue: 'No sessions match the current filter.' })}
           </Typography>
         ) : (
@@ -119,11 +121,13 @@ export default function SessionSelectorDialog({
                   <Checkbox
                     size="small"
                     checked={checked}
-                    inputProps={{
-                      'aria-label': t('grades.coursePanel.toggleSessionSelection', {
-                        session: sessionName,
-                        defaultValue: `Toggle selection for ${sessionName}`,
-                      }),
+                    slotProps={{
+                      input: {
+                        'aria-label': t('grades.coursePanel.toggleSessionSelection', {
+                          session: sessionName,
+                          defaultValue: `Toggle selection for ${sessionName}`,
+                        }),
+                      }
                     }}
                   />
                   <ListItemText

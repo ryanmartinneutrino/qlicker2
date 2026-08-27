@@ -6,6 +6,7 @@ import {
   addInstructorToCourseViaApi,
   addQuestionToSessionViaApi,
   apiJson,
+  buildUser,
   clearCachedAuthState,
   createCourseViaApi,
   createQuestionViaApi,
@@ -49,12 +50,19 @@ test('backup settings flow lets an admin save scheduled backup preferences', asy
   await page.getByRole('tab', { name: /^Backup$/i }).click();
 
   const backupEnabledCheckbox = page.getByRole('checkbox', { name: /enable scheduled backups/i });
+  const backupHour = page.getByRole('combobox', { name: /^Hour$/i });
+  const backupMinute = page.getByRole('combobox', { name: /^Minute$/i });
   await expect(backupEnabledCheckbox).toBeVisible();
-  await expect(page.getByLabel(/backup time \(local\)/i)).toBeVisible();
+  await expect(page.getByText(/backup time \(local\)/i)).toBeVisible();
+  await expect(backupHour).toBeVisible();
+  await expect(backupMinute).toBeVisible();
   await expect(page.getByText(/no backup runs recorded yet\./i)).toBeVisible();
 
   await backupEnabledCheckbox.check();
-  await page.getByLabel(/backup time \(local\)/i).fill('03:45');
+  await backupHour.click();
+  await page.getByRole('option', { name: '03', exact: true }).click();
+  await backupMinute.click();
+  await page.getByRole('option', { name: '45', exact: true }).click();
   await page.getByLabel(/daily backups to keep/i).fill('5');
   await page.getByLabel(/weekly backups to keep/i).fill('2');
   await page.getByLabel(/monthly backups to keep/i).fill('8');
@@ -80,7 +88,8 @@ test('backup settings flow lets an admin save scheduled backup preferences', asy
   await page.reload();
   await page.getByRole('tab', { name: /^Backup$/i }).click();
   await expect(backupEnabledCheckbox).toBeChecked();
-  await expect(page.getByLabel(/backup time \(local\)/i)).toHaveValue('03:45');
+  await expect(backupHour).toContainText('03');
+  await expect(backupMinute).toContainText('45');
   await expect(page.getByLabel(/daily backups to keep/i)).toHaveValue('5');
   await expect(page.getByLabel(/weekly backups to keep/i)).toHaveValue('2');
   await expect(page.getByLabel(/monthly backups to keep/i)).toHaveValue('8');
@@ -183,11 +192,25 @@ test('session creation flow lets a professor create a session and open the edito
   await expectNoCriticalAccessibilityViolations(page);
 });
 
-test('live session flow lets a student join with a passcode and submit a response', async ({ browser, request }) => {
+test('live session flow carries multiple student responses through to the professor', async ({ browser, request }) => {
   const { admin, professor, student } = await seedUsers(request);
+  const secondStudentUser = buildUser('student-two', 'Student Two');
+  const { response: secondStudentResponse, body: secondStudentBody } = await apiJson(
+    request,
+    'POST',
+    '/auth/register',
+    { payload: secondStudentUser },
+  );
+  expect(secondStudentResponse.status(), JSON.stringify(secondStudentBody)).toBe(201);
+  const secondStudent = {
+    ...secondStudentUser,
+    token: secondStudentBody.token,
+    user: secondStudentBody.user,
+  };
   const course = await createCourseViaApi(request, admin.token);
   await addInstructorToCourseViaApi(request, admin.token, course._id, professor.user._id);
   await enrollStudentViaApi(request, student.token, course.enrollmentCode);
+  await enrollStudentViaApi(request, secondStudent.token, course.enrollmentCode);
 
   const sessionName = `Live ${Date.now()}`;
   const session = await createSessionViaApi(request, admin.token, course._id, { name: sessionName });
@@ -207,6 +230,10 @@ test('live session flow lets a student join with a passcode and submit a respons
   await expect(professorPage).toHaveURL(new RegExp(`/prof/course/${course._id}/session/${session._id}/live$`));
 
   await professorPage.getByLabel(/require passcode/i).click();
+  const joinCodeRefresh = professorPage.getByLabel(/refresh \(sec\)/i);
+  await joinCodeRefresh.fill('120');
+  await joinCodeRefresh.blur();
+  await expect(joinCodeRefresh).toHaveValue('120');
   await professorPage.getByLabel(/join period/i).click();
   await professorPage.getByLabel(/visible/i).click();
 
@@ -221,7 +248,7 @@ test('live session flow lets a student join with a passcode and submit a respons
   await loginViaUi(studentPage, student.email, student.password, /\/student$/);
   await studentPage.goto(`/student/course/${course._id}`);
   await expect(studentPage).toHaveURL(new RegExp(`/student/course/${course._id}$`));
-  await studentPage.getByText(sessionName).click();
+  await studentPage.getByRole('button', { name: new RegExp(sessionName, 'i') }).first().click();
   await expect(studentPage).toHaveURL(new RegExp(`/student/course/${course._id}/session/${session._id}/live$`));
 
   await studentPage.getByLabel('Join code').fill(joinCode);
@@ -230,10 +257,36 @@ test('live session flow lets a student join with a passcode and submit a respons
   await studentPage.getByLabel('Option B').check();
   await studentPage.getByRole('button', { name: /submit response/i }).click();
   await expect(studentPage.getByRole('alert').filter({ hasText: /submitted/i })).toBeVisible();
+  const liveStatus = professorPage.getByRole('status');
+  await expect(liveStatus).toContainText(/1 students joined\. 1 of 1 students responded\./i);
   await expectNoCriticalAccessibilityViolations(studentPage);
+
+  const secondStudentContext = await browser.newContext();
+  const secondStudentPage = await secondStudentContext.newPage();
+  await loginViaUi(secondStudentPage, secondStudent.email, secondStudent.password, /\/student$/);
+  await secondStudentPage.goto(`/student/course/${course._id}`);
+  await secondStudentPage.getByRole('button', { name: new RegExp(sessionName, 'i') }).first().click();
+  await secondStudentPage.getByLabel('Join code').fill(joinCode);
+  await secondStudentPage.getByRole('button', { name: /join session/i }).click();
+  await expect(secondStudentPage.getByText('What is 2 + 2?')).toBeVisible();
+  await expect(liveStatus).toContainText(/2 students joined\. 1 of 2 students responded\./i);
+
+  await secondStudentPage.getByLabel('Option A').check();
+  await secondStudentPage.getByRole('button', { name: /submit response/i }).click();
+  await expect(secondStudentPage.getByRole('alert').filter({ hasText: /submitted/i })).toBeVisible();
+  await expect(liveStatus).toContainText(/2 students joined\. 2 of 2 students responded\./i);
+  await expectNoCriticalAccessibilityViolations(secondStudentPage);
+
+  await professorPage.getByRole('button', { name: /^End session$/i }).click();
+  const endSessionDialog = professorPage.getByRole('dialog', { name: /^End Session$/i });
+  await endSessionDialog.getByRole('button', { name: /^End Session$/i }).click();
+  await expect(professorPage).toHaveURL(new RegExp(`/prof/course/${course._id}$`));
+  await expect(studentPage.getByText(/session has ended/i)).toBeVisible();
+  await expect(secondStudentPage.getByText(/session has ended/i)).toBeVisible();
 
   await closeContextSafely(professorContext);
   await closeContextSafely(studentContext);
+  await closeContextSafely(secondStudentContext);
 });
 
 test('quiz and grading flows cover student submission and instructor grade recalculation', async ({ browser, request }) => {
@@ -268,7 +321,7 @@ test('quiz and grading flows cover student submission and instructor grade recal
   await studentPage.goto(`/student/course/${course._id}`);
   await expect(studentPage).toHaveURL(new RegExp(`/student/course/${course._id}$`));
   await studentPage.getByRole('tab', { name: /^Quizzes/i }).click();
-  await expect(studentPage.getByText(quizSession.name)).toBeVisible();
+  await expect(studentPage.getByRole('button', { name: new RegExp(quizSession.name, 'i') }).first()).toBeVisible();
   await expectNoCriticalAccessibilityViolations(studentPage);
 
   const saveResponse = await apiJson(request, 'PATCH', `/sessions/${quizSession._id}/quiz-response`, {
@@ -297,7 +350,7 @@ test('quiz and grading flows cover student submission and instructor grade recal
   await professorPage.getByRole('tab', { name: /^Quizzes/i }).click();
   await professorPage.getByText(quizSession.name).click();
   await expect(professorPage).toHaveURL(new RegExp(`/prof/course/${course._id}/session/${quizSession._id}/review`));
-  await professorPage.getByRole('tab', { name: /^Students$/i }).click();
+  await professorPage.getByRole('tab', { name: /^Response Data$/i }).click();
   await expect(professorPage.getByText(student.email)).toBeVisible();
   await expectNoCriticalAccessibilityViolations(professorPage);
 

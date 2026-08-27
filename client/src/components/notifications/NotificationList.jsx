@@ -51,7 +51,9 @@ export default function NotificationList({
 
   if (!notifications.length) {
     return (
-      <Typography variant="body2" color="text.secondary">
+      <Typography variant="body2" sx={{
+        color: "text.secondary"
+      }}>
         {emptyText}
       </Typography>
     );
@@ -73,7 +75,14 @@ export default function NotificationList({
                   <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                     {notification.title}
                   </Typography>
-                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mt: 0.75 }}>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    useFlexGap
+                    sx={{
+                      flexWrap: "wrap",
+                      mt: 0.75
+                    }}>
                     <Chip size="small" label={sourceLabel} variant="outlined" />
                     <Chip size="small" label={audienceLabel} variant="outlined" />
                     <Chip
@@ -114,7 +123,9 @@ export default function NotificationList({
                 {notification.message}
               </Typography>
               {mode === 'manage' ? (
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" sx={{
+                  color: "text.secondary"
+                }}>
                   {notification.persistUntilDismissed
                     ? t('notifications.expiresIgnoredValue', { value: expiresAt || t('notifications.unknownTime') })
                     : t('notifications.expiresAtValue', { value: expiresAt || t('notifications.unknownTime') })}

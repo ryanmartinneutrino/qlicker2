@@ -599,7 +599,9 @@ export default function RichTextEditor({
                   }}
                   sx={{ width: 120 }}
                   disabled={disabled}
-                  InputProps={{ startAdornment: <FontSizeIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} /> }}
+                  slotProps={{
+                    input: { startAdornment: <FontSizeIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} /> }
+                  }}
                 >
                   {FONT_SIZE_OPTIONS.map((option) => (
                     <MenuItem key={option || 'default'} value={option}>
@@ -653,7 +655,9 @@ export default function RichTextEditor({
             </Typography>
           ) : <Box />}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.35 }}>
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" sx={{
+              color: "text.secondary"
+            }}>
               {toolbarExpanded ? t('questions.richText.hideToolbar') : t('questions.richText.showToolbar')}
             </Typography>
             <Tooltip title={toolbarExpanded ? t('questions.richText.hideToolbar') : t('questions.richText.showToolbar')}>
@@ -677,10 +681,14 @@ export default function RichTextEditor({
         {uploading ? (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <CircularProgress size={14} />
-            <Typography variant="caption" color="text.secondary">{t('questions.richText.uploadingImage')}</Typography>
+            <Typography variant="caption" sx={{
+              color: "text.secondary"
+            }}>{t('questions.richText.uploadingImage')}</Typography>
           </Box>
         ) : showTip ? (
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="caption" sx={{
+            color: "text.secondary"
+          }}>
             {t('questions.richText.editorTip')}
           </Typography>
         ) : null}
