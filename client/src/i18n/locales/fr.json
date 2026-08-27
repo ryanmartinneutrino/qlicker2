@@ -73,6 +73,7 @@
   "sessionChat": {
     "failedToLoad": "Échec du chargement du chat de la séance.",
     "failedToSend": "Échec de l'envoi du message.",
+    "failedToEdit": "Échec de la modification du message.",
     "failedToVote": "Échec de la mise à jour du vote.",
     "failedToDismiss": "Échec du rejet du message.",
     "failedToDelete": "Échec de la suppression du message.",
@@ -87,8 +88,8 @@
     "quickPostLabel": "Je n'ai pas compris la question {{questionNumber}}",
     "quickPostChip": "Message rapide",
     "quickPostPrompt": "Besoin de plus d'explications ?",
-    "quickPostHelper": "Choisissez une question précédente pour ajouter votre vote à une demande commune d'explication.",
-    "quickPostQuestionLabel": "Question précédente",
+    "quickPostHelper": "Choisissez la question actuelle ou une question précédente pour ajouter votre vote à une demande commune d'explication.",
+    "quickPostQuestionLabel": "Question actuelle ou précédente",
     "requestQuickPost": "Demander des explications",
     "undoQuickPost": "Annuler la demande",
     "newPost": "Nouveau message",
@@ -96,6 +97,7 @@
     "hideComposer": "Masquer l'éditeur",
     "postPlaceholder": "Partagez une rétroaction ou posez une question…",
     "postEditorAria": "Éditeur de message du chat",
+    "editPostEditorAria": "Modifier le message du chat de séance",
     "post": "Publier",
     "sending": "Envoi…",
     "comments": "Commentaires",
@@ -127,6 +129,7 @@
     "titleWithUnseen_other": "Chat du cours ({{count}} nouveaux)",
     "failedToLoad": "Échec du chargement du chat du cours.",
     "failedToSend": "Échec de la publication du message.",
+    "failedToEdit": "Échec de la modification du message.",
     "failedToVote": "Échec de la mise à jour du vote.",
     "failedToDelete": "Échec de la suppression de l'élément.",
     "failedToComment": "Échec de l'ajout du commentaire.",
@@ -151,6 +154,8 @@
     "showArchived": "Afficher les messages archivés",
     "postPlaceholder": "Lancer une nouvelle discussion…",
     "postEditorLabel": "Éditeur de message du chat du cours",
+    "editPost": "Modifier le message",
+    "editPostEditorLabel": "Modifier le message du chat du cours",
     "publishPost": "Publier le message",
     "commentPlaceholder": "Écrire un commentaire…",
     "commentEditorLabel": "Éditeur de commentaire du chat du cours",
@@ -568,7 +573,9 @@
       "allowCourseBackend": "Allow instructor-configured backend",
       "disabledHelp": "Enable AI helper above before configuring a backend or permitting courses.",
       "failedSave": "Failed to save AI settings.",
-      "backendHelp": "Add one or more AI backends, discover their Ollama models, then select the default model used by courses unless an instructor chooses another available model."
+      "backendHelp": "Add one or more AI backends, discover their Ollama models, then select the default model used by courses unless an instructor chooses another available model.",
+      "requestTimeout": "Délai d’attente des requêtes IA (secondes)",
+      "requestTimeoutHelp": "Durée maximale de chaque requête au service d’IA. Plage autorisée : 10–1800 secondes."
     }
   },
   "professor": {
@@ -617,6 +624,15 @@
       "settings": "Paramètres du cours",
       "aiModel": "Modèle d’IA",
       "aiDefaultModel": "Modèle par défaut",
+      "instructorAiChatMaxToolRounds": "Nombre maximal d’étapes internes du clavardage IA enseignant",
+      "instructorAiChatMaxToolRoundsHelp": "Définit le nombre d’étapes d’outils que l’assistant peut effectuer en arrière-plan pour une demande. Une valeur plus élevée permet un travail plus complexe, mais peut prendre plus de temps.",
+      "enableStudentAiChat": "Activer le clavardage IA pour les étudiants",
+      "enableStudentAiChatHelp": "Permettre aux étudiants d’utiliser un assistant IA pour pratiquer la matière du cours",
+      "studentAiChatGuidance": "Consignes du clavardage IA pour les étudiants",
+      "studentAiDefaultModel": "Modèle par défaut du clavardage IA étudiant",
+      "studentAiChatMaxToolRounds": "Nombre maximal d’étapes internes du clavardage IA étudiant",
+      "studentAiChatMaxToolRoundsHelp": "Limite le nombre d’étapes d’outils que l’assistant étudiant peut effectuer en arrière-plan pour une demande.",
+      "studentAiModelUnavailable": "Rendez au moins un modèle approuvé accessible aux étudiants avant de choisir un modèle par défaut.",
       "groups": "Groupes",
       "addStudent": "Ajouter un étudiant",
       "addInstructor": "Ajouter un enseignant",
@@ -653,7 +669,7 @@
       "allowStudentQuestionsHelp": "Lorsque cette option est activée, les étudiants peuvent ouvrir la bibliothèque de questions du cours, créer des séances de pratique et copier des questions de pratique. Ils peuvent quand même réviser les séances terminées même si cette option est désactivée.",
       "topics": "Sujets du cours",
       "topicsPlaceholder": "Ajouter un sujet du cours",
-      "topicsHelp": "Les étudiants ne peuvent utiliser que ces sujets du cours sur leurs propres questions.",
+      "topicsHelp": "Créez des étiquettes basées sur les sujets du cours et utilisez-les pour étiqueter les séances et les questions, organiser le matériel et aider les étudiants à rechercher des questions d’entraînement.",
       "quizTimeFormat": "Format d'heure des questionnaires",
       "quizTimeFormatInherit": "Utiliser le format administrateur ({{defaultFormat}})",
       "quizTimeFormatOptions": {
@@ -774,6 +790,7 @@
       "aiChatHelp": "Discutez avec l’assistant IA.",
       "courseActiveHelp": "Lorsque le cours est actif, les étudiants peuvent y accéder.",
       "aiRequiresAdminAuthorization": "Autorisation administrateur requise",
+      "aiHelperHelp": "Activez un assistant IA pour aider à la notation, générer des questions et gérer les séances et les étudiants.",
       "enrollmentCodeHelp": "C’est le code dont les étudiants ont besoin pour s’inscrire au cours."
     },
     "sessionEditor": {
@@ -966,6 +983,7 @@
       "prev": "Préc.",
       "settings": "Paramètres",
       "backToCourse": "Retour au cours",
+      "editSession": "Modifier la séance",
       "failedLoadLiveSession": "Échec du chargement de la session en direct",
       "actionFailed": "Échec de l'action",
       "failedEndSession": "Échec de la fin de la session",
@@ -1033,6 +1051,7 @@
       "joinedCount": "{{joined}}/{{total}}",
       "backToCourse": "Retour au cours",
       "editSession": "Modifier la séance",
+      "joinLiveSession": "Rejoindre la séance en direct",
       "sessionReviewTabs": "Onglets de révision de la séance",
       "studentResults": "Résultats des étudiants",
       "sessionStudentList": "Liste des étudiants de la séance",
@@ -1074,7 +1093,12 @@
       "summaryInstructions": "Summary instructions",
       "basicSummaryHelp": "Basic summary identifies up to five response themes and example quotations.",
       "aiSummaryInProgress": "Préparation des réponses : {{completed}} sur {{total}}",
-      "aiSummaryGenerating": "Génération du résumé par l’IA…"
+      "aiSummaryGenerating": "Génération du résumé par l’IA…",
+      "haltAiResponseSummary": "Arrêter le résumé",
+      "haltingAiResponseSummary": "Arrêt en cours…",
+      "aiSummaryHalted": "Résumé IA arrêté. Vous pouvez le générer de nouveau.",
+      "aiSummaryFailed": "Échec du résumé IA. {{error}}",
+      "aiSummaryHaltFailed": "Impossible d’arrêter le résumé IA."
     },
     "secondDesktop": {
       "joinCode": "Code d'inscription",
@@ -2429,6 +2453,7 @@
       "apiToken": "API token (optional)",
       "discoveryFailed": "Could not find models on this backend.",
       "modelsHelp": "Only checked models are available for course AI use.",
+      "displayName": "Nom affiché du modèle",
       "availableToStudents": "Disponible pour les étudiants",
       "showAvailableModels": "Afficher les modèles disponibles",
       "makeDefault": "Make default"
@@ -2441,17 +2466,26 @@
       "title": "AI Chat",
       "newConversation": "New conversation",
       "newConversationGuidance": "Posez des questions sur les étudiants de ce cours, les notes et les résultats, ou créez des questions à utiliser dans vos séances.",
+      "studentNewConversationGuidance": "Posez des questions sur ce cours ou son contenu. Je peux expliquer des notions, travailler des exemples et vous aider à étudier.",
       "noConversations": "No conversations yet.",
       "send": "Send",
       "stop": "Arrêter",
       "thinking": "Réflexion en cours…",
+      "thoughtProcess": "Réflexion de l’IA",
       "messagePlaceholder": "Ask the AI helper…",
       "deleteConversation": "Delete conversation",
       "selectConversation": "Select or start a conversation.",
-      "assistant": "AI assistant",
+      "assistant": "Assistant IA",
+      "errorLabel": "Erreur de l’IA",
+      "backendError": "Le service d’IA a rencontré une erreur : {{detail}}",
       "you": "You",
       "failedLoad": "Could not load AI conversations.",
-      "failedSend": "Could not send the message."
+      "failedSend": "Could not send the message.",
+      "generatedImage": "Image générée",
+      "generatedAudio": "Audio généré",
+      "generatedFile": "Fichier généré",
+      "downloadArtifact": "Télécharger {{filename}}",
+      "artifactUnavailable": "Cet artefact a expiré ou n’est plus disponible. Demandez à l’IA de le générer à nouveau."
     }
   }
 }

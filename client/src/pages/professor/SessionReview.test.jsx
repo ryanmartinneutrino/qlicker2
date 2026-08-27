@@ -8,6 +8,7 @@ import i18n from '../../i18n';
 vi.mock('../../api/client', () => ({
   default: {
     get: vi.fn(),
+    post: vi.fn(),
     patch: vi.fn(),
   },
 }));
@@ -17,6 +18,7 @@ function renderSessionReview() {
     <MemoryRouter initialEntries={['/prof/course/course-1/session/session-1/review']}>
       <Routes>
         <Route path="/prof/course/:courseId/session/:sessionId/review" element={<SessionReview />} />
+        <Route path="/prof/course/:courseId/session/:sessionId/live" element={<div>Live session destination</div>} />
       </Routes>
     </MemoryRouter>
   );
@@ -166,6 +168,23 @@ describe('SessionReview', () => {
 
       throw new Error(`Unexpected GET ${url}`);
     });
+  });
+
+  it('offers a direct return to a running interactive session', async () => {
+    const defaultGet = apiClient.get.getMockImplementation();
+    apiClient.get.mockImplementation(async (url) => {
+      if (url === '/sessions/session-1/results') {
+        return { data: buildResultsPayload({ status: 'running', quiz: false, practiceQuiz: false }) };
+      }
+      return defaultGet(url);
+    });
+
+    renderSessionReview();
+
+    const joinButton = await screen.findByRole('button', { name: 'Join live session' });
+    expect(screen.getByRole('button', { name: 'Edit session' })).toBeInTheDocument();
+    fireEvent.click(joinButton);
+    expect(await screen.findByText('Live session destination')).toBeInTheDocument();
   });
 
   it('shows the consolidated response data table, sorts rows, and exports the visible CSV', async () => {
@@ -396,5 +415,45 @@ describe('SessionReview', () => {
       expect(apiClient.patch).toHaveBeenCalledWith('/sessions/session-1/reviewable', { reviewable: true });
       expect(toggle).toBeChecked();
     });
+  });
+
+  it('shows a halt control while an AI response summary is running', async () => {
+    const defaultGet = apiClient.get.getMockImplementation();
+    const runningSummary = {
+      _id: 'summary-1',
+      status: 'running',
+      phase: 'generating',
+      completed: 2,
+      total: 2,
+    };
+    apiClient.get.mockImplementation(async (url) => {
+      if (url === '/sessions/session-1/results') {
+        const payload = buildResultsPayload();
+        payload.questions[0] = {
+          ...payload.questions[0],
+          type: 2,
+          content: '<p>Explain recursion</p>',
+          plainText: 'Explain recursion',
+          options: [],
+        };
+        return { data: payload };
+      }
+      if (url.endsWith('/ai-summaries')) return { data: { summaries: [{ ...runningSummary, questionId: 'q-1' }] } };
+      return defaultGet(url);
+    });
+    apiClient.post.mockResolvedValueOnce({
+      data: { summary: { ...runningSummary, status: 'halted', phase: 'halted' } },
+    });
+
+    renderSessionReview();
+
+    const haltButtons = await screen.findAllByRole('button', { name: 'Halt summary' });
+    fireEvent.click(haltButtons[0]);
+
+    await waitFor(() => {
+      expect(apiClient.post).toHaveBeenCalledWith('/ai/courses/course-1/sessions/session-1/questions/q-1/ai-summary/halt');
+    });
+    expect((await screen.findAllByText('AI summary halted. You can generate it again.')).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: 'Generate AI Response summary' }).length).toBeGreaterThan(0);
   });
 });

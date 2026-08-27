@@ -73,6 +73,7 @@
   "sessionChat": {
     "failedToLoad": "Couldn't load th' voyage parley, arr.",
     "failedToSend": "Couldn't send th' yarn, arr.",
+    "failedToEdit": "Couldn't revise th' yarn, arr.",
     "failedToVote": "Couldn't amend th' vote, arr.",
     "failedToDismiss": "Couldn't wave off th' yarn, arr.",
     "failedToDelete": "Couldn't sink th' yarn, arr.",
@@ -87,8 +88,8 @@
     "quickPostLabel": "I didn't savvy riddle {{questionNumber}}",
     "quickPostChip": "Quick yarn",
     "quickPostPrompt": "Need more explainin'?",
-    "quickPostHelper": "Pick an earlier riddle to add yer vote to a shared request fer clarification.",
-    "quickPostQuestionLabel": "Earlier riddle",
+    "quickPostHelper": "Pick the current or an earlier riddle to add yer vote to a shared request fer clarification.",
+    "quickPostQuestionLabel": "Current or earlier riddle",
     "requestQuickPost": "Ask fer Clarity",
     "undoQuickPost": "Take back request",
     "newPost": "New yarn",
@@ -96,6 +97,7 @@
     "hideComposer": "Stow composer",
     "postPlaceholder": "Share holler or ask a riddle, matey…",
     "postEditorAria": "Voyage parley yarn editor",
+    "editPostEditorAria": "Revise voyage parley yarn",
     "post": "Yarn",
     "sending": "Sendin'…",
     "comments": "Remarks",
@@ -127,6 +129,7 @@
     "titleWithUnseen_other": "Ship Parley ({{count}} new)",
     "failedToLoad": "Couldn't load th' ship parley, arr.",
     "failedToSend": "Couldn't proclaim th' yarn, arr.",
+    "failedToEdit": "Couldn't revise th' yarn, arr.",
     "failedToVote": "Couldn't amend th' vote, arr.",
     "failedToDelete": "Couldn't sink th' item, arr.",
     "failedToComment": "Couldn't add th' remark, arr.",
@@ -151,6 +154,8 @@
     "showArchived": "Reveal buried yarns",
     "postPlaceholder": "Start a new parley…",
     "postEditorLabel": "Ship parley yarn editor",
+    "editPost": "Revise yarn",
+    "editPostEditorLabel": "Revise ship parley yarn",
     "publishPost": "Proclaim yarn",
     "commentPlaceholder": "Write a remark…",
     "commentEditorLabel": "Ship parley remark editor",
@@ -568,7 +573,9 @@
       "allowCourseBackend": "Allow instructor-configured backend",
       "disabledHelp": "Enable AI helper above before configuring a backend or permitting courses.",
       "failedSave": "Failed to save AI settings.",
-      "backendHelp": "Add one or more AI backends, discover their Ollama models, then select the default model used by courses unless an instructor chooses another available model."
+      "backendHelp": "Add one or more AI backends, discover their Ollama models, then select the default model used by courses unless an instructor chooses another available model.",
+      "requestTimeout": "AI request timeout (seconds)",
+      "requestTimeoutHelp": "Longest wait fer each AI backend request. Allowed range: 10–1800 seconds."
     }
   },
   "professor": {
@@ -617,6 +624,15 @@
       "settings": "Ship Settings",
       "aiModel": "AI Model",
       "aiDefaultModel": "Default model",
+      "instructorAiChatMaxToolRounds": "Most hidden turns fer the professor AI chat",
+      "instructorAiChatMaxToolRoundsHelp": "Sets how many tool steps the assistant may take below decks fer one request. More turns allow trickier work, but may take longer.",
+      "enableStudentAiChat": "Let the crew use AI chat",
+      "enableStudentAiChatHelp": "Let students use an AI matey to practice course material",
+      "studentAiChatGuidance": "Orders fer the student AI chat",
+      "studentAiDefaultModel": "Default model fer student AI chat",
+      "studentAiChatMaxToolRounds": "Most hidden turns fer the student AI chat",
+      "studentAiChatMaxToolRoundsHelp": "Limits how many tool steps the student assistant may take below decks fer one request.",
+      "studentAiModelUnavailable": "Make at least one approved model available to students afore choosing a default.",
       "groups": "Watches",
       "addStudent": "Add Crew member",
       "addInstructor": "Add Officer",
@@ -653,7 +669,7 @@
       "allowStudentQuestionsHelp": "When hoisted, crew can open th' ship riddle chest, chart drill voyages, an' copy drill riddles. They can still recap finished voyages even when this be off.",
       "topics": "Ship topics",
       "topicsPlaceholder": "Add a ship topic",
-      "topicsHelp": "Crew can only use these ship topics on their own riddles.",
+      "topicsHelp": "Make tags from the course topics and use 'em on sessions and questions, keepin' materials shipshape and helpin' students find practice riddles.",
       "quizTimeFormat": "Reckoning time format",
       "quizTimeFormatInherit": "Use admin default ({{defaultFormat}})",
       "quizTimeFormatOptions": {
@@ -774,6 +790,7 @@
       "aiChatHelp": "Chat with th’ AI matey.",
       "courseActiveHelp": "When th’ course be active, crew can access it.",
       "aiRequiresAdminAuthorization": "Needs the admiral’s authorization",
+      "aiHelperHelp": "Enable an AI matey to help grade, make questions, and manage sessions and students.",
       "enrollmentCodeHelp": "This be the code crew need to enroll in the course."
     },
     "sessionEditor": {
@@ -966,6 +983,7 @@
       "prev": "Aft",
       "settings": "Rigging",
       "backToCourse": "Aft to ship",
+      "editSession": "Edit voyage",
       "failedLoadLiveSession": "Couldn't load underway voyage, arr.",
       "actionFailed": "Deed capsized",
       "failedEndSession": "Couldn't end voyage, arr.",
@@ -1033,6 +1051,7 @@
       "joinedCount": "{{joined}}/{{total}}",
       "backToCourse": "Aft to ship",
       "editSession": "Edit voyage",
+      "joinLiveSession": "Board underway voyage",
       "sessionReviewTabs": "Voyage recap tabs",
       "studentResults": "Crew member results",
       "sessionStudentList": "Voyage crew member list",
@@ -1074,7 +1093,12 @@
       "summaryInstructions": "Summary instructions",
       "basicSummaryHelp": "Basic summary identifies up to five response themes and example quotations.",
       "aiSummaryInProgress": "Readyin' answers: {{completed}} o' {{total}}",
-      "aiSummaryGenerating": "AI be writin' the summary…"
+      "aiSummaryGenerating": "AI be writin' the summary…",
+      "haltAiResponseSummary": "Heave to on summary",
+      "haltingAiResponseSummary": "Heavin' to…",
+      "aiSummaryHalted": "AI summary be halted. Ye can make it anew.",
+      "aiSummaryFailed": "AI summary sank. {{error}}",
+      "aiSummaryHaltFailed": "Could not halt the AI summary."
     },
     "secondDesktop": {
       "joinCode": "Board Code",
@@ -2444,6 +2468,7 @@
       "apiToken": "API token (optional)",
       "discoveryFailed": "Could not find models on this backend.",
       "modelsHelp": "Only checked models are available for course AI use.",
+      "displayName": "Model name fer display",
       "availableToStudents": "Available to students",
       "showAvailableModels": "Show available models",
       "makeDefault": "Make default"
@@ -2456,17 +2481,26 @@
       "title": "AI Chat",
       "newConversation": "New conversation",
       "newConversationGuidance": "Ask about students aboard this course, their marks and performance, or craft questions for yer sessions.",
+      "studentNewConversationGuidance": "Ask about this course or its lessons. I can explain ideas, work through examples, and help ye study.",
       "noConversations": "No conversations yet.",
       "send": "Send",
       "stop": "Belay",
       "thinking": "Thinkin’…",
+      "thoughtProcess": "AI thinkin’",
       "messagePlaceholder": "Ask the AI helper…",
       "deleteConversation": "Delete conversation",
       "selectConversation": "Select or start a conversation.",
-      "assistant": "AI assistant",
+      "assistant": "AI matey",
+      "errorLabel": "AI mishap",
+      "backendError": "Th’ AI backend ran into rough seas: {{detail}}",
       "you": "You",
       "failedLoad": "Could not load AI conversations.",
-      "failedSend": "Could not send the message."
+      "failedSend": "Could not send the message.",
+      "generatedImage": "Generated image",
+      "generatedAudio": "Generated audio",
+      "generatedFile": "Generated file",
+      "downloadArtifact": "Download {{filename}}",
+      "artifactUnavailable": "This artifact be expired or lost to the depths. Ask the AI to make it anew."
     }
   }
 }

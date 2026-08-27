@@ -122,6 +122,13 @@ describe('GET /api/v1/courses', () => {
     const profToken = await getAuthToken(app, prof);
     const createRes = await createCourseAsProf(profToken);
     const course = createRes.json().course;
+    await Course.findByIdAndUpdate(course._id, {
+      $set: {
+        aiApiUrl: 'http://private-ai.internal',
+        aiBackends: [{ id: 'private', url: 'http://private-ai.internal', apiToken: 'secret' }],
+        aiStudentChatGuidance: 'private guidance',
+      },
+    });
 
     const student = await createTestUser({ email: 'student@example.com', roles: ['student'] });
     const studentToken = await getAuthToken(app, student);
@@ -137,6 +144,9 @@ describe('GET /api/v1/courses', () => {
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.courses.length).toBe(1);
+    expect(body.courses[0].aiApiUrl).toBeUndefined();
+    expect(body.courses[0].aiBackends).toBeUndefined();
+    expect(body.courses[0].aiStudentChatGuidance).toBeUndefined();
   });
 
   it('professor can fetch student-view courses separately from instructor courses', async (ctx) => {

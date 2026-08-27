@@ -73,6 +73,7 @@
   "sessionChat": {
     "failedToLoad": "Не удалось загрузить чат сессии.",
     "failedToSend": "Не удалось отправить сообщение.",
+    "failedToEdit": "Не удалось изменить сообщение.",
     "failedToVote": "Не удалось обновить голос.",
     "failedToDismiss": "Не удалось скрыть сообщение.",
     "failedToDelete": "Не удалось удалить сообщение.",
@@ -87,8 +88,8 @@
     "quickPostLabel": "Я не понял(а) вопрос {{questionNumber}}",
     "quickPostChip": "Быстрое сообщение",
     "quickPostPrompt": "Нужно дополнительное объяснение?",
-    "quickPostHelper": "Выберите более ранний вопрос, чтобы добавить свой голос к общему запросу на разъяснение.",
-    "quickPostQuestionLabel": "Более ранний вопрос",
+    "quickPostHelper": "Выберите текущий или более ранний вопрос, чтобы добавить свой голос к общему запросу на разъяснение.",
+    "quickPostQuestionLabel": "Текущий или более ранний вопрос",
     "requestQuickPost": "Запросить объяснение",
     "undoQuickPost": "Отменить запрос",
     "newPost": "Новое сообщение",
@@ -96,6 +97,7 @@
     "hideComposer": "Скрыть редактор",
     "postPlaceholder": "Поделитесь отзывом или задайте вопрос…",
     "postEditorAria": "Редактор сообщения чата сессии",
+    "editPostEditorAria": "Изменить сообщение чата сессии",
     "post": "Отправить",
     "sending": "Отправка…",
     "comments": "Комментарии",
@@ -127,6 +129,7 @@
     "titleWithUnseen_other": "Чат курса ({{count}} новых)",
     "failedToLoad": "Не удалось загрузить чат курса.",
     "failedToSend": "Не удалось опубликовать сообщение.",
+    "failedToEdit": "Не удалось изменить сообщение.",
     "failedToVote": "Не удалось обновить голос.",
     "failedToDelete": "Не удалось удалить запись.",
     "failedToComment": "Не удалось добавить комментарий.",
@@ -151,6 +154,8 @@
     "showArchived": "Показать архивные сообщения",
     "postPlaceholder": "Начните новое обсуждение…",
     "postEditorLabel": "Редактор сообщения чата курса",
+    "editPost": "Изменить сообщение",
+    "editPostEditorLabel": "Изменить сообщение чата курса",
     "publishPost": "Опубликовать сообщение",
     "commentPlaceholder": "Напишите комментарий…",
     "commentEditorLabel": "Редактор комментария чата курса",
@@ -568,7 +573,9 @@
       "allowCourseBackend": "Allow instructor-configured backend",
       "disabledHelp": "Enable AI helper above before configuring a backend or permitting courses.",
       "failedSave": "Failed to save AI settings.",
-      "backendHelp": "Add one or more AI backends, discover their Ollama models, then select the default model used by courses unless an instructor chooses another available model."
+      "backendHelp": "Add one or more AI backends, discover their Ollama models, then select the default model used by courses unless an instructor chooses another available model.",
+      "requestTimeout": "Тайм-аут запроса ИИ (секунды)",
+      "requestTimeoutHelp": "Максимальная длительность каждого запроса к серверу ИИ. Допустимый диапазон: 10–1800 секунд."
     }
   },
   "professor": {
@@ -617,6 +624,15 @@
       "settings": "Настройки курса",
       "aiModel": "Модель ИИ",
       "aiDefaultModel": "Модель по умолчанию",
+      "instructorAiChatMaxToolRounds": "Максимум внутренних шагов для ИИ-чата преподавателя",
+      "instructorAiChatMaxToolRoundsHelp": "Задаёт количество фоновых шагов с инструментами для одного запроса. Более высокие значения позволяют выполнять более сложные задачи, но могут увеличить время обработки.",
+      "enableStudentAiChat": "Включить ИИ-чат для студентов",
+      "enableStudentAiChatHelp": "Разрешить студентам использовать ИИ-помощника для практики по материалам курса",
+      "studentAiChatGuidance": "Инструкции для студенческого ИИ-чата",
+      "studentAiDefaultModel": "Модель по умолчанию для студенческого ИИ-чата",
+      "studentAiChatMaxToolRounds": "Максимум внутренних шагов для студенческого ИИ-чата",
+      "studentAiChatMaxToolRoundsHelp": "Ограничивает количество фоновых шагов с инструментами, которые студенческий ассистент может выполнить для одного запроса.",
+      "studentAiModelUnavailable": "Сделайте хотя бы одну одобренную модель доступной студентам, прежде чем выбирать модель по умолчанию.",
       "groups": "Группы",
       "addStudent": "Добавить студента",
       "addInstructor": "Добавить преподавателя",
@@ -653,7 +669,7 @@
       "allowStudentQuestionsHelp": "Если включено, студенты могут открывать библиотеку вопросов курса, создавать тренировочные сессии и копировать тренировочные вопросы. Они всё равно могут просматривать завершённые сессии, даже если это отключено.",
       "topics": "Темы курса",
       "topicsPlaceholder": "Добавить тему курса",
-      "topicsHelp": "Студенты могут использовать эти темы курса только для собственных вопросов.",
+      "topicsHelp": "Создавайте теги на основе тем курса и назначайте их занятиям и вопросам, чтобы упорядочить материалы и помочь студентам легко находить тренировочные вопросы.",
       "quizTimeFormat": "Формат времени теста",
       "quizTimeFormatInherit": "Использовать значение администратора по умолчанию ({{defaultFormat}})",
       "quizTimeFormatOptions": {
@@ -774,6 +790,7 @@
       "aiChatHelp": "Общайтесь с ИИ-помощником.",
       "courseActiveHelp": "Когда курс активен, студенты могут получить к нему доступ.",
       "aiRequiresAdminAuthorization": "Требуется авторизация администратора",
+      "aiHelperHelp": "Включите ИИ-помощника для оценивания, создания вопросов и управления занятиями и студентами.",
       "enrollmentCodeHelp": "Это код, необходимый студентам для записи на курс."
     },
     "sessionEditor": {
@@ -966,6 +983,7 @@
       "prev": "Назад",
       "settings": "Настройки",
       "backToCourse": "Назад к курсу",
+      "editSession": "Изменить сессию",
       "failedLoadLiveSession": "Не удалось загрузить активную сессию",
       "actionFailed": "Действие не выполнено",
       "failedEndSession": "Не удалось завершить сессию",
@@ -1033,6 +1051,7 @@
       "joinedCount": "{{joined}}/{{total}}",
       "backToCourse": "Назад к курсу",
       "editSession": "Изменить сессию",
+      "joinLiveSession": "Присоединиться к активной сессии",
       "sessionReviewTabs": "Вкладки обзора сессии",
       "studentResults": "Результаты студентов",
       "sessionStudentList": "Список студентов сессии",
@@ -1074,7 +1093,12 @@
       "summaryInstructions": "Summary instructions",
       "basicSummaryHelp": "Basic summary identifies up to five response themes and example quotations.",
       "aiSummaryInProgress": "Подготовка ответов: {{completed}} из {{total}}",
-      "aiSummaryGenerating": "Создание сводки ИИ…"
+      "aiSummaryGenerating": "Создание сводки ИИ…",
+      "haltAiResponseSummary": "Остановить сводку",
+      "haltingAiResponseSummary": "Остановка…",
+      "aiSummaryHalted": "Сводка ИИ остановлена. Её можно создать снова.",
+      "aiSummaryFailed": "Не удалось создать сводку ИИ. {{error}}",
+      "aiSummaryHaltFailed": "Не удалось остановить сводку ИИ."
     },
     "secondDesktop": {
       "joinCode": "Код присоединения",
@@ -2478,6 +2502,7 @@
       "apiToken": "API token (optional)",
       "discoveryFailed": "Could not find models on this backend.",
       "modelsHelp": "Only checked models are available for course AI use.",
+      "displayName": "Отображаемое имя модели",
       "availableToStudents": "Доступна студентам",
       "showAvailableModels": "Показать доступные модели",
       "makeDefault": "Make default"
@@ -2490,17 +2515,26 @@
       "title": "AI Chat",
       "newConversation": "New conversation",
       "newConversationGuidance": "Спрашивайте о студентах курса, оценках и успеваемости или создавайте вопросы для занятий.",
+      "studentNewConversationGuidance": "Задавайте вопросы об этом курсе или его материалах. Я могу объяснять понятия, разбирать примеры и помогать в учёбе.",
       "noConversations": "No conversations yet.",
       "send": "Send",
       "stop": "Остановить",
       "thinking": "ИИ думает…",
+      "thoughtProcess": "Размышления ИИ",
       "messagePlaceholder": "Ask the AI helper…",
       "deleteConversation": "Delete conversation",
       "selectConversation": "Select or start a conversation.",
-      "assistant": "AI assistant",
+      "assistant": "ИИ-помощник",
+      "errorLabel": "Ошибка ИИ",
+      "backendError": "На стороне ИИ произошла ошибка: {{detail}}",
       "you": "You",
       "failedLoad": "Could not load AI conversations.",
-      "failedSend": "Could not send the message."
+      "failedSend": "Could not send the message.",
+      "generatedImage": "Созданное изображение",
+      "generatedAudio": "Созданная аудиозапись",
+      "generatedFile": "Созданный файл",
+      "downloadArtifact": "Скачать {{filename}}",
+      "artifactUnavailable": "Срок хранения этого материала истёк или он больше недоступен. Попросите ИИ создать его снова."
     }
   }
 }

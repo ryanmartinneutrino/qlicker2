@@ -98,6 +98,51 @@ describe('CourseChatPanel', () => {
     });
   });
 
+  it('lets an author edit their own post', async () => {
+    apiClient.get.mockResolvedValue({
+      data: {
+        canPost: true,
+        canVote: true,
+        canDeleteOwnPost: true,
+        canDeleteAnyPost: false,
+        canDeleteOwnComment: true,
+        canDeleteAnyComment: false,
+        canArchive: false,
+        canUnarchive: false,
+        canViewNames: false,
+        availableTags: [],
+        posts: [{
+          _id: 'post-own',
+          title: 'Original topic',
+          body: 'Original body',
+          bodyWysiwyg: '<p>Original body</p>',
+          createdAt: '2026-04-10T10:00:00.000Z',
+          upvoteCount: 0,
+          isOwnPost: true,
+          isArchived: false,
+          authorRole: 'student',
+          comments: [],
+        }],
+      },
+    });
+
+    render(<CourseChatPanel courseId="course-1" enabled role="student" refreshToken={0} />);
+
+    expect(await screen.findByText('Original topic')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Edit post'));
+    fireEvent.change(screen.getByLabelText('Post topic'), { target: { value: 'Revised topic' } });
+    fireEvent.change(screen.getByLabelText('Edit course chat post'), { target: { value: '<p>Revised body</p>' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(apiClient.patch).toHaveBeenCalledWith('/courses/course-1/chat/posts/post-own', {
+        title: 'Revised topic',
+        body: 'Revised body',
+        bodyWysiwyg: '<p>Revised body</p>',
+      });
+    });
+  });
+
   it('keeps the professor composer hidden by default and hides course tags when none exist', async () => {
     apiClient.get.mockResolvedValueOnce({
       data: {

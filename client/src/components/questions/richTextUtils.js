@@ -188,6 +188,14 @@ function normalizeLatexForKatex(latex) {
     .replace(/\\end\{align\*?\}/g, '\\end{aligned}');
 }
 
+// Older Qlicker content used literal parenthesis delimiters ("( x^2 (") for
+// inline TeX. Normalize that legacy notation before KaTeX sees the content.
+function convertLegacyParenthesisMath(value) {
+  return String(value || '').replace(/(^|[\s>])\(\s*([^\n<][\s\S]*?)\s*\((?=[\s<.,;:!?)]|$)/g, (match, prefix, latex) => (
+    `${prefix}\\(${latex.trim()}\\)`
+  ));
+}
+
 function convertLegacyMathScriptTags(html) {
   if (!html || typeof document === 'undefined') return html;
   const { root, toHtml } = createInertContainer(html);
@@ -264,6 +272,42 @@ function normalizeBlockMathMarkupSafely(container) {
   });
 }
 
+function isEscapedDelimiter(value, index) {
+  let backslashes = 0;
+  for (let cursor = index - 1; cursor >= 0 && value[cursor] === '\\'; cursor -= 1) backslashes += 1;
+  return backslashes % 2 === 1;
+}
+
+function dollarMathRanges(value) {
+  const text = String(value || '');
+  const ranges = [];
+  let cursor = 0;
+  while (cursor < text.length) {
+    if (text[cursor] !== '$' || isEscapedDelimiter(text, cursor)) {
+      cursor += 1;
+      continue;
+    }
+    const delimiterLength = text[cursor + 1] === '$' ? 2 : 1;
+    let closing = cursor + delimiterLength;
+    while (closing < text.length) {
+      const matches = delimiterLength === 2
+        ? text.startsWith('$$', closing)
+        : text[closing] === '$' && text[closing - 1] !== '$' && text[closing + 1] !== '$';
+      const looksLikeAnotherPrice = delimiterLength === 1 && /\d/.test(text[closing + 1] || '');
+      if (matches && !isEscapedDelimiter(text, closing) && !looksLikeAnotherPrice) break;
+      closing += 1;
+    }
+    if (closing >= text.length) {
+      cursor += delimiterLength;
+      continue;
+    }
+    const end = closing + delimiterLength;
+    ranges.push([cursor, end]);
+    cursor = end;
+  }
+  return ranges;
+}
+
 function maskCurrencyTokens(container) {
   if (!container || typeof document === 'undefined') return () => {};
   const replacements = [];
@@ -274,7 +318,9 @@ function maskCurrencyTokens(container) {
   while (node) {
     const originalText = node.nodeValue || '';
     if (originalText.includes('$')) {
-      node.nodeValue = originalText.replace(CURRENCY_PATTERN, (match) => {
+      const mathRanges = dollarMathRanges(originalText);
+      node.nodeValue = originalText.replace(CURRENCY_PATTERN, (match, offset) => {
+        if (mathRanges.some(([start, end]) => offset >= start && offset < end)) return match;
         const token = `__QL_CUR_${replacements.length}__`;
         replacements.push({ token, value: match });
         return token;
@@ -303,6 +349,7 @@ export function prepareRichTextInput(value, fallback = '', options = {}) {
   if (!source) return '';
 
   let normalized = stripTransientBlobUrls(source);
+  normalized = convertLegacyParenthesisMath(normalized);
   normalized = convertLegacyMathScriptTags(normalized);
   normalized = convertStoredMathNodesToDelimiters(normalized);
 

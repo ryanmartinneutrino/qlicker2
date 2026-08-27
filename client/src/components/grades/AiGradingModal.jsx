@@ -184,7 +184,7 @@ export default function AiGradingModal({
       <DialogTitle>{t('grades.aiGrading.title')}</DialogTitle>
       <DialogContent dividers>
         {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
-        <Box sx={{ mb: 2 }}><AiModelSelect courseId={courseId} value={selectedModel} onChange={setSelectedModel} disabled={starting} /></Box>
+        <Box sx={{ mb: 2 }}><AiModelSelect courseId={courseId} value={selectedModel} onChange={setSelectedModel} disabled={starting} task="grading" /></Box>
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '180px 1fr' }, gap: 2 }}>
           <List dense aria-label={t('grades.aiGrading.questionSelection')} sx={{ borderRight: { sm: 1 }, borderColor: 'divider', maxHeight: 440, overflowY: 'auto' }}>
             {questions.map((question, index) => {

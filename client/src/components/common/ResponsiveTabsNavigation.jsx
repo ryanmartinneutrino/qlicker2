@@ -1,4 +1,4 @@
-import { MenuItem, Tab, Tabs, TextField, Tooltip } from '@mui/material';
+import { Box, MenuItem, Tab, Tabs, TextField, Tooltip } from '@mui/material';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTranslation } from 'react-i18next';
 
@@ -10,6 +10,7 @@ export default function ResponsiveTabsNavigation({
   dropdownLabel = '',
   tabsProps = {},
   dropdownSx = {},
+  compactAdornment = null,
 }) {
   const { t } = useTranslation();
   const compact = useMediaQuery('(max-width:799px)');
@@ -21,13 +22,14 @@ export default function ResponsiveTabsNavigation({
 
   if (compact) {
     return (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ...dropdownSx }}>
       <TextField
         select
         size="small"
         label={dropdownLabel || t('common.view')}
         value={String(value)}
         onChange={(event) => onChange(valueMap.get(event.target.value))}
-        sx={{ minWidth: 220, maxWidth: 420, ...dropdownSx }}
+        sx={{ minWidth: 0, flexGrow: 1, maxWidth: 420 }}
       >
         {normalizedTabs.map((tab) => (
           <MenuItem key={String(tab.value)} value={String(tab.value)} disabled={tab.disabled}>
@@ -35,6 +37,8 @@ export default function ResponsiveTabsNavigation({
           </MenuItem>
         ))}
       </TextField>
+      {compactAdornment}
+      </Box>
     );
   }
 

@@ -19,6 +19,7 @@ import {
   Add as AddIcon,
   ChatBubbleOutline as CommentIcon,
   DeleteOutline as DeleteIcon,
+  EditOutlined as EditIcon,
   ExpandLess as ExpandLessIcon,
   ExpandMore as ExpandMoreIcon,
   Remove as RemoveIcon,
@@ -27,6 +28,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import apiClient from '../../api/client';
 import StudentRichTextEditor, { MathPreview } from '../questions/StudentRichTextEditor';
+import AiMarkdownContent from '../ai/AiMarkdownContent';
 import {
   extractPlainTextFromHtml,
   prepareRichTextInput,
@@ -171,7 +173,7 @@ function applyChatEventData(previousData, eventPayload) {
   const currentQuestionNumber = nextData?.currentQuestionNumber ?? null;
   nextData.posts = sortChatPosts(posts);
   nextData.quickPostOptions = sortQuickPostOptions(quickPostOptions).filter((option) => (
-    currentQuestionNumber === null || Number(option?.questionNumber || 0) < Number(currentQuestionNumber)
+    currentQuestionNumber === null || Number(option?.questionNumber || 0) <= Number(currentQuestionNumber)
   ));
   nextData.quickPosts = buildQuickPostsFromOptions(nextData.quickPostOptions);
 
@@ -215,6 +217,8 @@ function RichContent({ html, fallback }) {
   }, [prepared]);
 
   if (!prepared) return null;
+  // Session chat also receives LLM-authored Markdown, not only editor HTML.
+  if (!/<\/?[a-z][\s\S]*>/i.test(html || '') && fallback) return <AiMarkdownContent content={fallback} />;
 
   return (
     <Box
@@ -346,6 +350,9 @@ export default function SessionChatPanel({
   const [composerOpen, setComposerOpen] = useState(role === 'professor');
   const [draftHtml, setDraftHtml] = useState('');
   const [submittingPost, setSubmittingPost] = useState(false);
+  const [editingPostId, setEditingPostId] = useState('');
+  const [editBodyDraft, setEditBodyDraft] = useState('');
+  const [savingPostId, setSavingPostId] = useState('');
   const [expandedPosts, setExpandedPosts] = useState({});
   const [commentDrafts, setCommentDrafts] = useState({});
   const [pendingCommentId, setPendingCommentId] = useState('');
@@ -446,6 +453,7 @@ export default function SessionChatPanel({
   const canDismiss = !!chatData?.canDismiss && role === 'professor';
   const canComment = !!chatData?.canComment && view === 'live';
   const canViewNames = !!chatData?.canViewNames;
+  const canEditOwnPost = !!(chatData?.canEditOwnPost ?? chatData?.canDeleteOwnPost) && view === 'live';
   const canDeleteOwnPost = !!chatData?.canDeleteOwnPost && view === 'live';
   const canDeleteAnyPost = role === 'professor' && view !== 'presentation';
   const canDeleteOwnComment = !!chatData?.canDeleteOwnComment && view === 'live';
@@ -519,6 +527,37 @@ export default function SessionChatPanel({
       setSubmittingQuickPost(false);
     }
   }, [fetchChat, sessionId, shouldRefetchAfterStudentMutation, submittingQuickPost, t]);
+
+  const beginEditingPost = useCallback((post) => {
+    setEditingPostId(post._id);
+    setEditBodyDraft(prepareRichTextInput(post.bodyWysiwyg, post.body));
+  }, []);
+
+  const cancelEditingPost = useCallback(() => {
+    setEditingPostId('');
+    setEditBodyDraft('');
+  }, []);
+
+  const handleEditPost = useCallback(async (postId) => {
+    const editHasContent = normalizeDraftPlainText(editBodyDraft).length > 0 || editBodyDraft.trim().length > 0;
+    if (!resolvedRichTextChatEnabled || !editHasContent || savingPostId) return;
+    setSavingPostId(postId);
+    try {
+      await apiClient.patch(`/sessions/${sessionId}/chat/posts/${postId}`, {
+        body: normalizeDraftPlainText(editBodyDraft),
+        bodyWysiwyg: editBodyDraft,
+      });
+      cancelEditingPost();
+      setError(null);
+      if (shouldRefetchAfterStudentMutation) {
+        await fetchChat();
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || t('sessionChat.failedToEdit'));
+    } finally {
+      setSavingPostId('');
+    }
+  }, [cancelEditingPost, editBodyDraft, fetchChat, resolvedRichTextChatEnabled, savingPostId, sessionId, shouldRefetchAfterStudentMutation, t]);
 
   const handleVote = useCallback(async (postId, upvoted) => {
     try {
@@ -726,6 +765,7 @@ export default function SessionChatPanel({
         <Stack spacing={1.5}>
           {chatData.posts.map((post) => {
             const expanded = !!expandedPosts[post._id];
+            const isEditing = editingPostId === post._id;
             const authorLabel = getAuthorLabel({
               authorName: post.authorName,
               authorRole: post.authorRole,
@@ -759,7 +799,30 @@ export default function SessionChatPanel({
                   </Typography>
                 </Box>
 
-                <RichContent html={post.bodyWysiwyg} fallback={post.body} />
+                {isEditing ? (
+                  <Stack spacing={1}>
+                    <StudentRichTextEditor
+                      value={editBodyDraft}
+                      onChange={({ html }) => setEditBodyDraft(html)}
+                      placeholder={t('sessionChat.postPlaceholder')}
+                      ariaLabel={t('sessionChat.editPostEditorAria')}
+                      showMathHint
+                    />
+                    <MathPreview html={editBodyDraft} showLabel={false} />
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, flexWrap: 'wrap' }}>
+                      <Button onClick={cancelEditingPost}>{t('common.cancel')}</Button>
+                      <Button
+                        variant="contained"
+                        onClick={() => handleEditPost(post._id)}
+                        disabled={(!normalizeDraftPlainText(editBodyDraft) && !editBodyDraft.trim()) || savingPostId === post._id}
+                      >
+                        {t('common.save')}
+                      </Button>
+                    </Box>
+                  </Stack>
+                ) : (
+                  <RichContent html={post.bodyWysiwyg} fallback={post.body} />
+                )}
 
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, alignItems: 'center', flexWrap: 'wrap', mt: 1.25 }}>
                   <Chip
@@ -786,6 +849,16 @@ export default function SessionChatPanel({
                         startIcon={<CommentIcon />}
                       >
                         {t('sessionChat.comments')}
+                      </Button>
+                    ) : null}
+                    {canEditOwnPost && post.isOwnPost && !post.isQuickPost && !post.dismissed ? (
+                      <Button
+                        size="small"
+                        color="inherit"
+                        onClick={() => beginEditingPost(post)}
+                        startIcon={<EditIcon />}
+                      >
+                        {t('common.edit')}
                       </Button>
                     ) : null}
                     {(canDeleteAnyPost || (canDeleteOwnPost && post.isOwnPost && !post.isQuickPost)) ? (

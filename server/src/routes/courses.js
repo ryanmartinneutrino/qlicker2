@@ -248,7 +248,26 @@ export default async function courseRoutes(app) {
         }
       }
 
-      const projection = { students: 0, groupCategories: 0, aiApiToken: 0, 'aiBackends.apiToken': 0 };
+      // Course cards do not use backend/model configuration. Keeping it out of
+      // every list response reduces payload size and prevents students from
+      // learning internal AI service details.
+      const projection = {
+        students: 0,
+        groupCategories: 0,
+        aiApiToken: 0,
+        aiApiUrl: 0,
+        aiBackends: 0,
+        aiDefaultBackendId: 0,
+        aiDefaultModelId: 0,
+        aiSelectedBackendId: 0,
+        aiSelectedModelId: 0,
+        aiModelPolicies: 0,
+        aiInstructorChatMaxToolRounds: 0,
+        aiStudentChatGuidance: 0,
+        aiStudentDefaultBackendId: 0,
+        aiStudentDefaultModelId: 0,
+        aiStudentChatMaxToolRounds: 0,
+      };
 
       const [courses, total] = await Promise.all([
         Course.find(filter, projection)
@@ -342,6 +361,18 @@ export default async function courseRoutes(app) {
       // Students only see course info, not other students' details
       if (!isAdmin && !isInstructor) {
         delete obj.students;
+        delete obj.aiApiUrl;
+        delete obj.aiBackends;
+        delete obj.aiDefaultBackendId;
+        delete obj.aiDefaultModelId;
+        delete obj.aiSelectedBackendId;
+        delete obj.aiSelectedModelId;
+        delete obj.aiModelPolicies;
+        delete obj.aiInstructorChatMaxToolRounds;
+        delete obj.aiStudentChatGuidance;
+        delete obj.aiStudentDefaultBackendId;
+        delete obj.aiStudentDefaultModelId;
+        delete obj.aiStudentChatMaxToolRounds;
         // For students: provide limited video-relevant group data
         if (obj.groupCategories) {
           obj.groupCategories = obj.groupCategories.map((cat) => ({

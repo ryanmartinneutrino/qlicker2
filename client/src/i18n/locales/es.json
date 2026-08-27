@@ -73,6 +73,7 @@
   "sessionChat": {
     "failedToLoad": "No se pudo cargar el chat de la sesión.",
     "failedToSend": "No se pudo enviar la publicación.",
+    "failedToEdit": "No se pudo editar la publicación.",
     "failedToVote": "No se pudo actualizar el voto.",
     "failedToDismiss": "No se pudo descartar la publicación.",
     "failedToDelete": "No se pudo eliminar la publicación.",
@@ -87,8 +88,8 @@
     "quickPostLabel": "No entendí la pregunta {{questionNumber}}",
     "quickPostChip": "Publicación rápida",
     "quickPostPrompt": "¿Necesita más explicación?",
-    "quickPostHelper": "Elija una pregunta anterior para sumar su voto a una solicitud compartida de aclaración.",
-    "quickPostQuestionLabel": "Pregunta anterior",
+    "quickPostHelper": "Elija la pregunta actual o una anterior para sumar su voto a una solicitud compartida de aclaración.",
+    "quickPostQuestionLabel": "Pregunta actual o anterior",
     "requestQuickPost": "Solicitar explicación",
     "undoQuickPost": "Deshacer solicitud",
     "newPost": "Nueva publicación",
@@ -96,6 +97,7 @@
     "hideComposer": "Ocultar editor",
     "postPlaceholder": "Comparta comentarios o haga una pregunta…",
     "postEditorAria": "Editor de publicaciones del chat de la sesión",
+    "editPostEditorAria": "Editar publicación del chat de la sesión",
     "post": "Publicar",
     "sending": "Enviando…",
     "comments": "Comentarios",
@@ -127,6 +129,7 @@
     "titleWithUnseen_other": "Chat del curso ({{count}} nuevos)",
     "failedToLoad": "No se pudo cargar el chat del curso.",
     "failedToSend": "No se pudo publicar la publicación.",
+    "failedToEdit": "No se pudo editar la publicación.",
     "failedToVote": "No se pudo actualizar el voto.",
     "failedToDelete": "No se pudo eliminar el elemento.",
     "failedToComment": "No se pudo agregar el comentario.",
@@ -151,6 +154,8 @@
     "showArchived": "Mostrar publicaciones archivadas",
     "postPlaceholder": "Iniciar una nueva discusión…",
     "postEditorLabel": "Editor de publicaciones del chat del curso",
+    "editPost": "Editar publicación",
+    "editPostEditorLabel": "Editar publicación del chat del curso",
     "publishPost": "Publicar",
     "commentPlaceholder": "Escriba un comentario…",
     "commentEditorLabel": "Editor de comentarios del chat del curso",
@@ -568,7 +573,9 @@
       "allowCourseBackend": "Allow instructor-configured backend",
       "disabledHelp": "Enable AI helper above before configuring a backend or permitting courses.",
       "failedSave": "Failed to save AI settings.",
-      "backendHelp": "Add one or more AI backends, discover their Ollama models, then select the default model used by courses unless an instructor chooses another available model."
+      "backendHelp": "Add one or more AI backends, discover their Ollama models, then select the default model used by courses unless an instructor chooses another available model.",
+      "requestTimeout": "Tiempo límite de solicitud de IA (segundos)",
+      "requestTimeoutHelp": "Tiempo máximo para cada solicitud al backend de IA. Intervalo permitido: 10–1800 segundos."
     }
   },
   "professor": {
@@ -617,6 +624,15 @@
       "settings": "Configuración del curso",
       "aiModel": "Modelo de IA",
       "aiDefaultModel": "Modelo predeterminado",
+      "instructorAiChatMaxToolRounds": "Máximo de turnos internos del chat de IA del profesor",
+      "instructorAiChatMaxToolRoundsHelp": "Define cuántos pasos de herramientas puede realizar el asistente en segundo plano para una solicitud. Los valores más altos permiten tareas más complejas, pero pueden tardar más.",
+      "enableStudentAiChat": "Activar el chat de IA para estudiantes",
+      "enableStudentAiChatHelp": "Permitir que los estudiantes usen un asistente de IA para practicar el material del curso",
+      "studentAiChatGuidance": "Instrucciones del chat de IA para estudiantes",
+      "studentAiDefaultModel": "Modelo predeterminado del chat de IA para estudiantes",
+      "studentAiChatMaxToolRounds": "Máximo de turnos internos del chat de IA para estudiantes",
+      "studentAiChatMaxToolRoundsHelp": "Limita cuántos pasos de herramientas puede realizar en segundo plano el asistente para estudiantes por solicitud.",
+      "studentAiModelUnavailable": "Habilite al menos un modelo aprobado para estudiantes antes de seleccionar uno predeterminado.",
       "groups": "Grupos",
       "addStudent": "Agregar estudiante",
       "addInstructor": "Agregar instructor",
@@ -653,7 +669,7 @@
       "allowStudentQuestionsHelp": "Cuando está habilitado, los estudiantes pueden abrir la biblioteca de preguntas del curso, crear sesiones de práctica y copiar preguntas de práctica. Aun así pueden revisar las sesiones finalizadas cuando esto está desactivado.",
       "topics": "Temas del curso",
       "topicsPlaceholder": "Agregar un tema del curso",
-      "topicsHelp": "Los estudiantes solo pueden usar estos temas del curso en sus propias preguntas.",
+      "topicsHelp": "Cree etiquetas basadas en los temas del curso y úselas para etiquetar sesiones y preguntas, organizar los materiales y facilitar que los estudiantes busquen preguntas de práctica.",
       "quizTimeFormat": "Formato de hora del cuestionario",
       "quizTimeFormatInherit": "Usar el predeterminado del administrador ({{defaultFormat}})",
       "quizTimeFormatOptions": {
@@ -774,6 +790,7 @@
       "aiChatHelp": "Chatea con el asistente de IA.",
       "courseActiveHelp": "Cuando el curso está activo, los estudiantes pueden acceder a él.",
       "aiRequiresAdminAuthorization": "Requiere autorización de administración",
+      "aiHelperHelp": "Active un asistente de IA para ayudar con la calificación, generar preguntas y administrar sesiones y estudiantes.",
       "enrollmentCodeHelp": "Este es el código que los estudiantes necesitan para inscribirse en el curso."
     },
     "sessionEditor": {
@@ -966,6 +983,7 @@
       "prev": "Ant.",
       "settings": "Configuración",
       "backToCourse": "Volver al curso",
+      "editSession": "Editar sesión",
       "failedLoadLiveSession": "No se pudo cargar la sesión en vivo",
       "actionFailed": "La acción falló",
       "failedEndSession": "No se pudo finalizar la sesión",
@@ -1033,6 +1051,7 @@
       "joinedCount": "{{joined}}/{{total}}",
       "backToCourse": "Volver al curso",
       "editSession": "Editar sesión",
+      "joinLiveSession": "Unirse a la sesión en vivo",
       "sessionReviewTabs": "Pestañas de revisión de la sesión",
       "studentResults": "Resultados de los estudiantes",
       "sessionStudentList": "Lista de estudiantes de la sesión",
@@ -1074,7 +1093,12 @@
       "summaryInstructions": "Summary instructions",
       "basicSummaryHelp": "Basic summary identifies up to five response themes and example quotations.",
       "aiSummaryInProgress": "Preparando respuestas: {{completed}} de {{total}}",
-      "aiSummaryGenerating": "Generando resumen con IA…"
+      "aiSummaryGenerating": "Generando resumen con IA…",
+      "haltAiResponseSummary": "Detener resumen",
+      "haltingAiResponseSummary": "Deteniendo…",
+      "aiSummaryHalted": "Resumen de IA detenido. Puede generarlo de nuevo.",
+      "aiSummaryFailed": "Error al generar el resumen de IA. {{error}}",
+      "aiSummaryHaltFailed": "No se pudo detener el resumen de IA."
     },
     "secondDesktop": {
       "joinCode": "Código de acceso",
@@ -2469,6 +2493,7 @@
       "apiToken": "API token (optional)",
       "discoveryFailed": "Could not find models on this backend.",
       "modelsHelp": "Only checked models are available for course AI use.",
+      "displayName": "Nombre visible del modelo",
       "availableToStudents": "Disponible para estudiantes",
       "showAvailableModels": "Mostrar modelos disponibles",
       "makeDefault": "Make default"
@@ -2481,17 +2506,26 @@
       "title": "AI Chat",
       "newConversation": "New conversation",
       "newConversationGuidance": "Pregunte sobre los estudiantes de este curso, las calificaciones y el rendimiento, o cree preguntas para usar en sus sesiones.",
+      "studentNewConversationGuidance": "Pregunta sobre este curso o su contenido. Puedo ayudarte a explicar conceptos, resolver ejemplos y apoyar tu estudio.",
       "noConversations": "No conversations yet.",
       "send": "Send",
       "stop": "Detener",
       "thinking": "Pensando…",
+      "thoughtProcess": "Razonamiento de la IA",
       "messagePlaceholder": "Ask the AI helper…",
       "deleteConversation": "Delete conversation",
       "selectConversation": "Select or start a conversation.",
-      "assistant": "AI assistant",
+      "assistant": "Asistente de IA",
+      "errorLabel": "Error de IA",
+      "backendError": "El backend de IA encontró un error: {{detail}}",
       "you": "You",
       "failedLoad": "Could not load AI conversations.",
-      "failedSend": "Could not send the message."
+      "failedSend": "Could not send the message.",
+      "generatedImage": "Imagen generada",
+      "generatedAudio": "Audio generado",
+      "generatedFile": "Archivo generado",
+      "downloadArtifact": "Descargar {{filename}}",
+      "artifactUnavailable": "Este artefacto ha caducado o ya no está disponible. Pide a la IA que lo genere de nuevo."
     }
   }
 }

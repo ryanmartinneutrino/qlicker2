@@ -20,6 +20,7 @@ export default function LiveSessionPanelNavigation({
   ariaLabel,
   dropdownLabel,
   disablePaper = false,
+  compactAdornment = null,
   sx = {},
 }) {
   const navigation = (
@@ -30,6 +31,7 @@ export default function LiveSessionPanelNavigation({
       ariaLabel={ariaLabel}
       dropdownLabel={dropdownLabel}
       dropdownSx={{ width: '100%', minWidth: 0, maxWidth: 'none' }}
+      compactAdornment={compactAdornment}
       tabsProps={{
         variant: 'fullWidth',
         sx: LIVE_SESSION_TABS_SX,

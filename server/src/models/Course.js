@@ -5,6 +5,7 @@ const AiModelSchema = new mongoose.Schema(
   {
     id: { type: String, required: true },
     name: { type: String, required: true },
+    displayName: { type: String, default: '', maxlength: 200 },
     available: { type: Boolean, default: true },
   },
   { _id: false }
@@ -26,6 +27,7 @@ const AiModelPolicySchema = new mongoose.Schema(
   {
     backendId: { type: String, required: true },
     modelId: { type: String, required: true },
+    displayName: { type: String, default: '', maxlength: 200 },
     studentAvailable: { type: Boolean, default: false },
   },
   { _id: false }
@@ -112,6 +114,12 @@ const CourseSchema = new mongoose.Schema(
     aiDefaultBackendId: { type: String, default: '' },
     aiDefaultModelId: { type: String, default: '' },
     aiModelPolicies: { type: [AiModelPolicySchema], default: [] },
+    aiInstructorChatMaxToolRounds: { type: Number, default: 20, min: 1, max: 50 },
+    aiStudentChatEnabled: { type: Boolean, default: false },
+    aiStudentChatGuidance: { type: String, default: '' },
+    aiStudentDefaultBackendId: { type: String, default: '' },
+    aiStudentDefaultModelId: { type: String, default: '' },
+    aiStudentChatMaxToolRounds: { type: Number, default: 5, min: 1, max: 50 },
   },
   {
     collection: 'courses',

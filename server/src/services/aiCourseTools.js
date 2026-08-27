@@ -4,7 +4,13 @@ import Question from '../models/Question.js';
 import Response from '../models/Response.js';
 import Session from '../models/Session.js';
 import User from '../models/User.js';
-import { getQuestionPoints } from './grading.js';
+import {
+  isCourseMember,
+  resolveCourseAiAudience,
+  studentReviewableSessionQuery,
+  studentVisibleGradeQuery,
+} from '../utils/courseAccess.js';
+import { buildQuestionWithNormalizedOptions, getQuestionPoints } from './grading.js';
 
 const MAX_RESPONSE_PAGE_SIZE = 100;
 const MAX_RESPONSE_CONTENT_CHARS = 30_000;
@@ -12,6 +18,8 @@ const MAX_GRADE_CELLS = 500;
 const DEFAULT_PAGE_SIZE = 50;
 const MAX_COURSE_GRADE_SESSION_COLUMNS = 25;
 const DEFAULT_COURSE_GRADE_SESSION_LIMIT = 10;
+const DEFAULT_STUDENT_SESSION_LIMIT = 25;
+const MAX_STUDENT_SESSION_LIMIT = 50;
 
 function formatStudent(student) {
   const firstname = String(student?.profile?.firstname || '').trim();
@@ -28,9 +36,34 @@ function sessionSortTime(session) {
   return new Date(session?.date || session?.quizStart || session?.createdAt || 0).getTime();
 }
 
+function escapeRegex(value) {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 async function requireCourseSession(courseId, sessionId) {
   const session = await Session.findOne({ _id: String(sessionId), courseId: String(courseId) }).lean();
   if (!session || session.studentCreated) throw new Error('Session not found in this course');
+  return session;
+}
+
+async function requireEnrolledStudent(courseId, userId) {
+  const normalizedUserId = String(userId || '');
+  if (!normalizedUserId) throw new Error('Student identity is required');
+  const course = await Course.findById(courseId).select('students instructors inactive').lean();
+  const user = { userId: normalizedUserId, roles: ['student'] };
+  if (!course || !isCourseMember(course, user) || resolveCourseAiAudience(course, user) !== 'student') {
+    throw new Error('Student is not enrolled in this course');
+  }
+}
+
+async function requireStudentReviewableSession(courseId, sessionId, userId) {
+  await requireEnrolledStudent(courseId, userId);
+  const session = await Session.findOne({
+    _id: String(sessionId),
+    courseId: String(courseId),
+    ...studentReviewableSessionQuery({ includeStudentCreated: false }),
+  }).lean();
+  if (!session) throw new Error('Reviewable session not found');
   return session;
 }
 
@@ -56,8 +89,20 @@ function serializeQuestion(question, index) {
   };
 }
 
-function responseTimestamp(response) {
-  return new Date(response?.updatedAt || response?.submittedAt || response?.createdAt || 0).getTime();
+function serializeStudentReviewQuestion(question, index) {
+  const normalizedQuestion = buildQuestionWithNormalizedOptions(question);
+  const solutionHtml = String(normalizedQuestion.solution || '');
+  const solutionText = String(normalizedQuestion.solution_plainText || '').trim()
+    || solutionHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  return {
+    ...serializeQuestion(normalizedQuestion, index),
+    content: normalizedQuestion.content || '',
+    correct_numerical: normalizedQuestion.correctNumerical ?? null,
+    tolerance_numerical: normalizedQuestion.toleranceNumerical ?? null,
+    solution: solutionText,
+    solution_html: solutionHtml,
+    points: getQuestionPoints(normalizedQuestion),
+  };
 }
 
 function serializeAnswer(answer) {
@@ -91,23 +136,57 @@ function compareStudentRows(left, right, sortBy, order) {
   return left.student.name.localeCompare(right.student.name) * (sortBy === 'name' ? direction : 1);
 }
 
-export async function listCourseStudents(courseId) {
+export async function listCourseStudents(courseId, { offset = 0, limit = DEFAULT_PAGE_SIZE } = {}) {
   const course = await Course.findById(courseId).select('students').lean();
   if (!course) throw new Error('Course not found');
-  const students = (course.students || []).length > 0
-    ? await User.find({ _id: { $in: course.students } }).select('_id profile emails email').lean()
-    : [];
+  const studentIds = (course.students || []).map(String);
+  const pageOffset = clampPageValue(offset, 0, Number.MAX_SAFE_INTEGER);
+  const pageSize = clampPageValue(limit, DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE) || DEFAULT_PAGE_SIZE;
+  const query = { _id: { $in: studentIds } };
+  const [total, students] = studentIds.length > 0
+    ? await Promise.all([
+      User.countDocuments(query),
+      User.find(query)
+        .select('_id profile emails email')
+        .sort({ 'profile.firstname': 1, 'profile.lastname': 1, _id: 1 })
+        .skip(pageOffset)
+        .limit(pageSize)
+        .lean(),
+    ])
+    : [0, []];
   return {
+    student_count: total,
+    offset: pageOffset,
+    returned_count: students.length,
+    next_offset: pageOffset + students.length < total ? pageOffset + students.length : null,
     students: students.map(formatStudent).sort((a, b) => a.name.localeCompare(b.name)),
   };
 }
 
-export async function listCourseSessions(courseId) {
-  const sessions = await Session.find({ courseId: String(courseId), studentCreated: { $ne: true } })
-    .select('_id name description status date quiz quizStart quizEnd practiceQuiz reviewable createdAt questions')
-    .lean();
+export async function listCourseSessions(courseId, { query = '', offset = 0, limit = DEFAULT_PAGE_SIZE } = {}) {
+  const filter = { courseId: String(courseId), studentCreated: { $ne: true } };
+  const search = String(query || '').trim();
+  if (search) {
+    const pattern = { $regex: escapeRegex(search), $options: 'i' };
+    filter.$or = [{ name: pattern }, { description: pattern }];
+  }
+  const pageOffset = clampPageValue(offset, 0, Number.MAX_SAFE_INTEGER);
+  const pageSize = clampPageValue(limit, DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE) || DEFAULT_PAGE_SIZE;
+  const [total, sessions] = await Promise.all([
+    Session.countDocuments(filter),
+    Session.find(filter)
+      .select('_id name description status date quiz quizStart quizEnd practiceQuiz reviewable createdAt questions')
+      .sort({ date: -1, quizStart: -1, createdAt: -1 })
+      .skip(pageOffset)
+      .limit(pageSize)
+      .lean(),
+  ]);
   return {
-    sessions: sessions.sort((a, b) => sessionSortTime(b) - sessionSortTime(a)).map((session) => ({
+    session_count: total,
+    offset: pageOffset,
+    returned_count: sessions.length,
+    next_offset: pageOffset + sessions.length < total ? pageOffset + sessions.length : null,
+    sessions: sessions.map((session) => ({
       session_id: String(session._id),
       name: session.name || '',
       description: session.description || '',
@@ -118,6 +197,92 @@ export async function listCourseSessions(courseId) {
       reviewable: !!session.reviewable,
       question_count: Array.isArray(session.questions) ? session.questions.length : 0,
     })),
+  };
+}
+
+export async function listStudentReviewableSessions(
+  courseId,
+  userId,
+  { offset = 0, limit = DEFAULT_STUDENT_SESSION_LIMIT } = {}
+) {
+  await requireEnrolledStudent(courseId, userId);
+  const query = {
+    courseId: String(courseId),
+    ...studentReviewableSessionQuery({ includeStudentCreated: false }),
+  };
+  const pageOffset = clampPageValue(offset, 0, Number.MAX_SAFE_INTEGER);
+  const pageSize = clampPageValue(limit, DEFAULT_STUDENT_SESSION_LIMIT, MAX_STUDENT_SESSION_LIMIT)
+    || DEFAULT_STUDENT_SESSION_LIMIT;
+  const [total, sessions] = await Promise.all([
+    Session.countDocuments(query),
+    Session.find(query)
+      .select('_id name description status date quiz quizStart quizEnd practiceQuiz reviewable createdAt questions')
+      .sort({ date: -1, quizStart: -1, createdAt: -1 })
+      .skip(pageOffset)
+      .limit(pageSize)
+      .lean(),
+  ]);
+  return {
+    session_count: total,
+    offset: pageOffset,
+    returned_count: sessions.length,
+    next_offset: pageOffset + sessions.length < total ? pageOffset + sessions.length : null,
+    sessions: sessions.map((session) => ({
+      session_id: String(session._id),
+      name: session.name || '',
+      description: session.description || '',
+      date: session.date || session.quizStart || session.createdAt || null,
+      quiz: !!session.quiz,
+      practice_quiz: !!session.practiceQuiz,
+      question_count: Array.isArray(session.questions) ? session.questions.length : 0,
+    })),
+  };
+}
+
+export async function getStudentReviewableSessionQuestions(courseId, sessionId, userId) {
+  const session = await requireStudentReviewableSession(courseId, sessionId, userId);
+  const questions = await loadOrderedQuestions(session);
+  return {
+    session: { session_id: String(session._id), name: session.name || '' },
+    questions: questions.map(serializeStudentReviewQuestion),
+  };
+}
+
+export async function getStudentReviewableSessionGrade(courseId, sessionId, userId) {
+  const session = await requireStudentReviewableSession(courseId, sessionId, userId);
+  const questions = await loadOrderedQuestions(session);
+  const grade = await Grade.findOne(
+    studentVisibleGradeQuery(courseId, session._id, { userId })
+  ).select('userId sessionId value participation points outOf joined needsGrading marks').lean();
+  if (!grade) {
+    return {
+      session: { session_id: String(session._id), name: session.name || '' },
+      grade: null,
+    };
+  }
+  const marksByQuestionId = new Map((grade.marks || []).map((mark) => [String(mark.questionId), mark]));
+  return {
+    session: { session_id: String(session._id), name: session.name || '' },
+    grade: {
+      percentage: Number(grade.value || 0),
+      participation: Number(grade.participation || 0),
+      points: Number(grade.points || 0),
+      out_of: Number(grade.outOf || 0),
+      joined: !!grade.joined,
+      needs_grading: !!grade.needsGrading,
+      marks: questions.map((question, index) => {
+        const mark = marksByQuestionId.get(String(question._id));
+        return {
+          question_id: String(question._id),
+          number: index + 1,
+          points: mark ? Number(mark.points || 0) : null,
+          out_of: mark ? Number(mark.outOf ?? getQuestionPoints(question)) : getQuestionPoints(question),
+          needs_grading: !!mark?.needsGrading,
+          feedback: mark?.feedback || '',
+          feedback_updated_at: mark?.feedbackUpdatedAt || null,
+        };
+      }),
+    },
   };
 }
 
@@ -136,21 +301,28 @@ export async function getQuestionResponses(courseId, sessionId, questionId, { of
   const question = orderedQuestions.find((entry) => String(entry._id) === String(questionId));
   if (!question) throw new Error('Question not found in this session');
 
-  const allResponses = await Response.find({ questionId: String(question._id) }).lean();
-  const highestAttempt = allResponses.reduce((highest, response) => Math.max(highest, Number(response.attempt) || 0), 0);
-  const finalAttemptResponses = allResponses.filter((response) => Number(response.attempt) === highestAttempt);
-  const latestByStudent = new Map();
-  finalAttemptResponses.forEach((response) => {
-    const studentId = String(response.studentUserId || '');
-    if (!studentId || responseTimestamp(response) < responseTimestamp(latestByStudent.get(studentId))) return;
-    latestByStudent.set(studentId, response);
-  });
-
-  const responses = [...latestByStudent.values()]
-    .sort((a, b) => responseTimestamp(b) - responseTimestamp(a));
   const pageOffset = clampPageValue(offset, 0, Number.MAX_SAFE_INTEGER);
   const pageSize = clampPageValue(limit, DEFAULT_PAGE_SIZE, MAX_RESPONSE_PAGE_SIZE) || DEFAULT_PAGE_SIZE;
-  const displayedResponses = responses.slice(pageOffset, pageOffset + pageSize);
+  const highestAttemptResponse = await Response.findOne({ questionId: String(question._id) })
+    .sort({ attempt: -1 })
+    .select('attempt')
+    .lean();
+  const highestAttempt = Number(highestAttemptResponse?.attempt) || 0;
+  const [responsePage = { metadata: [], responses: [] }] = highestAttempt > 0
+    ? await Response.aggregate([
+      { $match: { questionId: String(question._id), attempt: highestAttempt } },
+      { $sort: { studentUserId: 1, updatedAt: -1, submittedAt: -1, createdAt: -1 } },
+      { $group: { _id: '$studentUserId', response: { $first: '$$ROOT' } } },
+      { $replaceRoot: { newRoot: '$response' } },
+      { $sort: { updatedAt: -1, submittedAt: -1, createdAt: -1 } },
+      { $facet: {
+        metadata: [{ $count: 'total' }],
+        responses: [{ $skip: pageOffset }, { $limit: pageSize }],
+      } },
+    ])
+    : [{ metadata: [], responses: [] }];
+  const responseCount = Number(responsePage.metadata?.[0]?.total || 0);
+  const displayedResponses = responsePage.responses || [];
   const users = displayedResponses.length > 0
     ? await User.find({ _id: { $in: displayedResponses.map((response) => response.studentUserId) } }).select('_id profile emails email').lean()
     : [];
@@ -190,10 +362,10 @@ export async function getQuestionResponses(courseId, sessionId, questionId, { of
     session: { session_id: String(session._id), name: session.name || '' },
     question: serializeQuestion(question, orderedQuestions.indexOf(question)),
     attempt: highestAttempt || null,
-    response_count: responses.length,
+    response_count: responseCount,
     offset: pageOffset,
     returned_count: boundedResponses.length,
-    next_offset: pageOffset + boundedResponses.length < responses.length ? pageOffset + boundedResponses.length : null,
+    next_offset: pageOffset + boundedResponses.length < responseCount ? pageOffset + boundedResponses.length : null,
     content_truncated: contentTruncated,
     responses: boundedResponses,
   };
@@ -286,29 +458,24 @@ export async function getCourseGradeTable(
 
   const studentIds = (course.students || []).map(String);
   const sessionIds = sessions.map((session) => String(session._id));
-  const [students, grades] = await Promise.all([
-    studentIds.length > 0
-      ? User.find({ _id: { $in: studentIds } }).select('_id profile emails email').lean()
-      : Promise.resolve([]),
-    sessionIds.length > 0
-      ? Grade.find({ courseId: String(courseId), sessionId: { $in: sessionIds } })
-        .select('userId sessionId value participation points outOf joined submittedQuiz needsGrading')
-        .lean()
-      : Promise.resolve([]),
-  ]);
-
-  const gradeByStudentAndSession = new Map(
-    grades.map((grade) => [`${String(grade.userId)}::${String(grade.sessionId)}`, grade])
-  );
+  const students = studentIds.length > 0
+    ? await User.find({ _id: { $in: studentIds } }).select('_id profile emails email').lean()
+    : [];
+  const participationByStudent = new Map();
+  if (sortBy === 'average_participation' && sessionIds.length > 0) {
+    const participationRows = await Grade.aggregate([
+      { $match: { courseId: String(courseId), sessionId: { $in: sessionIds }, userId: { $in: studentIds } } },
+      { $group: { _id: '$userId', participationTotal: { $sum: { $ifNull: ['$participation', 0] } } } },
+    ]);
+    participationRows.forEach((row) => participationByStudent.set(String(row._id), Number(row.participationTotal || 0)));
+  }
   const allRows = students.map((student) => {
     const serializedStudent = formatStudent(student);
-    const participationTotal = sessions.reduce((total, session) => {
-      const grade = gradeByStudentAndSession.get(`${serializedStudent.student_id}::${String(session._id)}`);
-      return total + Number(grade?.participation || 0);
-    }, 0);
     return {
       student: serializedStudent,
-      average_participation: sessions.length > 0 ? participationTotal / sessions.length : 0,
+      average_participation: sessions.length > 0
+        ? Number(participationByStudent.get(serializedStudent.student_id) || 0) / sessions.length
+        : 0,
     };
   }).sort((left, right) => {
     const direction = order === 'desc' ? -1 : 1;
@@ -333,6 +500,30 @@ export async function getCourseGradeTable(
     Math.min(requestedStudentLimit, Math.floor(MAX_GRADE_CELLS / Math.max(selectedSessions.length, 1)))
   );
   const selectedRows = allRows.slice(boundedStudentOffset, boundedStudentOffset + studentPageSize);
+  const selectedStudentIds = selectedRows.map((row) => row.student.student_id);
+  if (sortBy !== 'average_participation' && selectedStudentIds.length > 0 && sessionIds.length > 0) {
+    const selectedParticipation = await Grade.aggregate([
+      { $match: { courseId: String(courseId), sessionId: { $in: sessionIds }, userId: { $in: selectedStudentIds } } },
+      { $group: { _id: '$userId', participationTotal: { $sum: { $ifNull: ['$participation', 0] } } } },
+    ]);
+    const selectedParticipationByStudent = new Map(
+      selectedParticipation.map((row) => [String(row._id), Number(row.participationTotal || 0)])
+    );
+    selectedRows.forEach((row) => {
+      row.average_participation = Number(selectedParticipationByStudent.get(row.student.student_id) || 0) / sessions.length;
+    });
+  }
+  const selectedSessionIds = selectedSessions.map((session) => String(session._id));
+  const grades = selectedStudentIds.length > 0 && selectedSessionIds.length > 0
+    ? await Grade.find({
+      courseId: String(courseId),
+      userId: { $in: selectedStudentIds },
+      sessionId: { $in: selectedSessionIds },
+    }).select('userId sessionId value participation points outOf joined needsGrading').lean()
+    : [];
+  const gradeByStudentAndSession = new Map(
+    grades.map((grade) => [`${String(grade.userId)}::${String(grade.sessionId)}`, grade])
+  );
 
   return {
     course: { course_id: String(course._id), name: course.name || '' },

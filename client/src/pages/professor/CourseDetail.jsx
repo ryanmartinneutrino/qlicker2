@@ -19,7 +19,7 @@ import {
 import { useTheme } from '@mui/material/styles';
 import apiClient, { getUsableAccessToken } from '../../api/client';
 import { closeWebSocketQuietly } from '../../utils/liveSocket';
-import { getAvailableAiModels, hasIncompleteAiBackend } from '../../utils/aiBackends';
+import { getAiModelDisplayName, getAvailableAiModels, hasIncompleteAiBackend } from '../../utils/aiBackends';
 import { isCurrentUserCourseInstructorOrAdmin } from '../../utils/courseAccess';
 import { buildCourseSelectionLabel, buildCourseTitle, sortCoursesByRecent } from '../../utils/courseTitle';
 import {
@@ -93,9 +93,22 @@ function getSessionSortTime(session) {
 
 function getApprovedCourseAiModels(config) {
   if (!config) return [];
-  const approved = new Set((config.modelPolicies || []).map((entry) => `${entry.backendId}::${entry.modelId}`));
+  const approved = new Map((config.modelPolicies || []).map((entry) => [`${entry.backendId}::${entry.modelId}`, entry]));
   return getAvailableAiModels([...(config.adminBackends || []), ...(config.courseBackends || [])])
-    .filter(({ backend, model }) => approved.has(`${backend.id}::${model.id}`));
+    .filter(({ backend, model }) => approved.has(`${backend.id}::${model.id}`))
+    .map(({ backend, model }) => ({
+      backend,
+      model,
+      displayName: getAiModelDisplayName(backend, model, approved.get(`${backend.id}::${model.id}`)?.displayName),
+    }));
+}
+
+function getStudentCourseAiModels(config) {
+  const studentAvailable = new Set((config?.modelPolicies || [])
+    .filter((entry) => entry.studentAvailable)
+    .map((entry) => `${entry.backendId}::${entry.modelId}`));
+  return getApprovedCourseAiModels(config)
+    .filter(({ backend, model }) => studentAvailable.has(`${backend.id}::${model.id}`));
 }
 
 function sortSessions(items) {
@@ -1188,7 +1201,37 @@ export default function CourseDetail() {
   };
 
   const handleAiModelPoliciesChange = (modelPolicies) => {
-    handleAiConfigChange({ modelPolicies }, { modelPolicies });
+    const nextConfig = { ...aiConfig, modelPolicies };
+    const studentModels = getStudentCourseAiModels(nextConfig);
+    const selectedStudentModelAvailable = studentModels.some(({ backend, model }) => (
+      backend.id === aiConfig.studentDefaultBackendId && model.id === aiConfig.studentDefaultModelId
+    ));
+    const fallbackStudentModel = selectedStudentModelAvailable ? null : studentModels[0];
+    const updates = {
+      modelPolicies,
+      ...(!selectedStudentModelAvailable ? {
+        studentDefaultBackendId: fallbackStudentModel?.backend.id || '',
+        studentDefaultModelId: fallbackStudentModel?.model.id || '',
+      } : {}),
+    };
+    handleAiConfigChange(updates, updates);
+  };
+
+  const handleStudentAiChatEnabledChange = (event) => {
+    const enabled = event.target.checked;
+    const studentModels = getStudentCourseAiModels(aiConfig);
+    const selectedModel = studentModels.find(({ backend, model }) => (
+      backend.id === aiConfig.studentDefaultBackendId && model.id === aiConfig.studentDefaultModelId
+    )) || studentModels[0];
+    const updates = {
+      studentChatEnabled: enabled,
+      ...(enabled ? { studentChatGuidance: aiConfig.studentChatGuidance || '' } : {}),
+      ...(enabled && selectedModel ? {
+        studentDefaultBackendId: selectedModel.backend.id,
+        studentDefaultModelId: selectedModel.model.id,
+      } : {}),
+    };
+    handleAiConfigChange(updates, updates, { saveImmediately: true });
   };
 
   useEffect(() => () => {
@@ -2082,8 +2125,66 @@ export default function CourseDetail() {
                 const [defaultBackendId, defaultModelId] = event.target.value.split('::');
                 handleAiCourseDefaultChange(defaultBackendId, defaultModelId);
               }} fullWidth>
-                {getApprovedCourseAiModels(aiConfig).map(({ backend, model }) => <MenuItem key={`${backend.id}-${model.id}`} value={`${backend.id}::${model.id}`}>{`${backend.name || backend.url} — ${model.name}`}</MenuItem>)}
+                {getApprovedCourseAiModels(aiConfig).map(({ backend, model, displayName }) => <MenuItem key={`${backend.id}-${model.id}`} value={`${backend.id}::${model.id}`}>{displayName}</MenuItem>)}
               </TextField>
+              <TextField
+                type="number"
+                label={t('professor.course.instructorAiChatMaxToolRounds')}
+                value={aiConfig.instructorChatMaxToolRounds ?? 20}
+                onChange={(event) => {
+                  const value = Number(event.target.value);
+                  if (Number.isInteger(value) && value >= 1 && value <= 50) handleAiConfigChange({ instructorChatMaxToolRounds: value });
+                }}
+                helperText={t('professor.course.instructorAiChatMaxToolRoundsHelp')}
+                inputProps={{ min: 1, max: 50, step: 1 }}
+                fullWidth
+              />
+              <FormControlLabel
+                control={<Switch checked={!!aiConfig.studentChatEnabled} onChange={handleStudentAiChatEnabledChange} />}
+                label={(
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                    <Typography>{t('professor.course.enableStudentAiChat')}</Typography>
+                    <Tooltip title={t('professor.course.enableStudentAiChatHelp')} arrow>
+                      <InfoOutlinedIcon fontSize="small" color="action" />
+                    </Tooltip>
+                  </Box>
+                )}
+              />
+              {aiConfig.studentChatEnabled ? <>
+                <TextField
+                  multiline
+                  minRows={6}
+                  label={t('professor.course.studentAiChatGuidance')}
+                  value={aiConfig.studentChatGuidance || ''}
+                  onChange={(event) => handleAiConfigChange({ studentChatGuidance: event.target.value })}
+                  fullWidth
+                />
+                <TextField
+                  select
+                  label={t('professor.course.studentAiDefaultModel')}
+                  value={aiConfig.studentDefaultBackendId && aiConfig.studentDefaultModelId ? `${aiConfig.studentDefaultBackendId}::${aiConfig.studentDefaultModelId}` : ''}
+                  onChange={(event) => {
+                    const [studentDefaultBackendId, studentDefaultModelId] = event.target.value.split('::');
+                    handleAiConfigChange({ studentDefaultBackendId, studentDefaultModelId });
+                  }}
+                  helperText={getStudentCourseAiModels(aiConfig).length ? undefined : t('professor.course.studentAiModelUnavailable')}
+                  fullWidth
+                >
+                  {getStudentCourseAiModels(aiConfig).map(({ backend, model, displayName }) => <MenuItem key={`${backend.id}-${model.id}`} value={`${backend.id}::${model.id}`}>{displayName}</MenuItem>)}
+                </TextField>
+                <TextField
+                  type="number"
+                  label={t('professor.course.studentAiChatMaxToolRounds')}
+                  value={aiConfig.studentChatMaxToolRounds ?? 5}
+                  onChange={(event) => {
+                    const value = Number(event.target.value);
+                    if (Number.isInteger(value) && value >= 1 && value <= 50) handleAiConfigChange({ studentChatMaxToolRounds: value });
+                  }}
+                  helperText={t('professor.course.studentAiChatMaxToolRoundsHelp')}
+                  inputProps={{ min: 1, max: 50, step: 1 }}
+                  fullWidth
+                />
+              </> : null}
               {aiCoursePolicy.allowCourseBackend ? <>
                 <Typography variant="body2" color="text.secondary">{t('professor.course.aiBackendHelp')}</Typography>
                 <AiBackendManager
@@ -2112,6 +2213,32 @@ export default function CourseDetail() {
                 <Alert severity="info">{t('professor.course.aiAdminBackendOnly')}</Alert>
               </>}
             </>}
+            <Divider />
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Typography variant="subtitle2">{t('professor.course.copyRubrics')}</Typography>
+              <Typography variant="body2" color="text.secondary">{t('professor.course.copyRubricsHelp')}</Typography>
+              <TextField select size="small" label={t('professor.course.copyRubricsSource')} value={rubricSourceCourseId} onChange={(event) => setRubricSourceCourseId(event.target.value)}>
+                {rubricSourceCourses.map((sourceCourse) => (
+                  <MenuItem key={sourceCourse._id} value={sourceCourse._id}>{buildCourseTitle(sourceCourse)}</MenuItem>
+                ))}
+              </TextField>
+              <Box>
+                <Button variant="outlined" onClick={handleCopyRubrics} disabled={!rubricSourceCourseId || copyingRubrics}>
+                  {copyingRubrics ? t('common.saving') : t('professor.course.copyRubrics')}
+                </Button>
+                <Button variant="outlined" sx={{ ml: 1 }} onClick={openRubricManager}>{t('professor.course.manageRubrics')}</Button>
+              </Box>
+              <Dialog open={rubricManagerOpen} onClose={() => setRubricManagerOpen(false)} fullWidth maxWidth="sm">
+                <DialogTitle>{t('professor.course.manageRubrics')}</DialogTitle>
+                <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                  <TextField select label={t('professor.course.rubricType')} value={rubricKind} onChange={(event) => { setRubricKind(event.target.value); setActiveRubricId(''); setRubricDraft({ name: '', content: '' }); }}><MenuItem value="grading">{t('grades.aiGrading.gradingInstructions')}</MenuItem><MenuItem value="feedback">{t('grades.aiGrading.feedbackToStudentInstructions')}</MenuItem><MenuItem value="summary">{t('professor.course.summaryInstructions')}</MenuItem></TextField>
+                  <Autocomplete options={courseRubrics.filter((entry) => entry.kind === rubricKind)} value={courseRubrics.find((entry) => entry._id === activeRubricId) || null} getOptionLabel={(entry) => entry.name} onChange={(_, entry) => { setActiveRubricId(entry?._id || ''); setRubricDraft(entry ? { name: entry.name, content: entry.content } : { name: '', content: '' }); }} renderInput={(params) => <TextField {...params} label={t('professor.course.selectRubric')} />} />
+                  <TextField label={t('common.name')} value={rubricDraft.name} onChange={(event) => setRubricDraft((current) => ({ ...current, name: event.target.value }))} />
+                  <TextField multiline minRows={5} label={t('professor.course.rubricInstructions')} value={rubricDraft.content} onChange={(event) => setRubricDraft((current) => ({ ...current, content: event.target.value }))} />
+                </DialogContent>
+                <DialogActions><Button color="error" onClick={deleteCourseRubric} disabled={!activeRubricId}>{t('common.delete')}</Button><Button onClick={() => setRubricManagerOpen(false)}>{t('common.close')}</Button><Button variant="contained" onClick={saveCourseRubric} disabled={!rubricDraft.name.trim() || !rubricDraft.content.trim()}>{t('common.save')}</Button></DialogActions>
+              </Dialog>
+            </Box>
           </Box>
         </TabPanel>
       )}
@@ -2152,37 +2279,39 @@ export default function CourseDetail() {
               </Box>
             )}
           />
-          <FormControlLabel
-            control={aiAvailable ? <Switch checked={!!course.aiEnabled} onChange={handleAiEnabledChange} /> : <Tooltip title={t('professor.course.aiRequiresAdminAuthorization')} arrow><span><Switch checked={!!course.aiEnabled} onChange={handleAiEnabledChange} disabled /></span></Tooltip>}
-            label={t('professor.course.enableAiHelper')}
+          <Autocomplete
+            multiple
+            freeSolo
+            options={editFields.tags}
+            value={editFields.tags}
+            onChange={(_event, nextValue) => {
+              const normalizedTags = [...new Set(
+                (nextValue || [])
+                  .map((tag) => String(tag?.label || tag?.value || tag || '').trim())
+                  .filter(Boolean)
+              )];
+              setEditFields((current) => ({ ...current, tags: normalizedTags }));
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label={t('professor.course.topics')}
+                placeholder={t('professor.course.topicsPlaceholder')}
+                helperText={t('professor.course.topicsHelp')}
+              />
+            )}
           />
-          {aiAvailable && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <Typography variant="subtitle2">{t('professor.course.copyRubrics')}</Typography>
-              <Typography variant="body2" color="text.secondary">{t('professor.course.copyRubricsHelp')}</Typography>
-              <TextField select size="small" label={t('professor.course.copyRubricsSource')} value={rubricSourceCourseId} onChange={(event) => setRubricSourceCourseId(event.target.value)}>
-                {rubricSourceCourses.map((sourceCourse) => (
-                  <MenuItem key={sourceCourse._id} value={sourceCourse._id}>{buildCourseTitle(sourceCourse)}</MenuItem>
-                ))}
-              </TextField>
-              <Box>
-                <Button variant="outlined" onClick={handleCopyRubrics} disabled={!rubricSourceCourseId || copyingRubrics}>
-                  {copyingRubrics ? t('common.saving') : t('professor.course.copyRubrics')}
-                </Button>
-                <Button variant="outlined" sx={{ ml: 1 }} onClick={openRubricManager}>{t('professor.course.manageRubrics')}</Button>
+          <FormControlLabel
+            control={<Switch checked={!!course.aiEnabled} onChange={handleAiEnabledChange} disabled={!aiAvailable} />}
+            label={(
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                <Typography>{t('professor.course.enableAiHelper')}</Typography>
+                <Tooltip title={aiAvailable ? t('professor.course.aiHelperHelp') : t('professor.course.aiRequiresAdminAuthorization')} arrow>
+                  <InfoOutlinedIcon fontSize="small" color="action" />
+                </Tooltip>
               </Box>
-              <Dialog open={rubricManagerOpen} onClose={() => setRubricManagerOpen(false)} fullWidth maxWidth="sm">
-                <DialogTitle>{t('professor.course.manageRubrics')}</DialogTitle>
-                <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                  <TextField select label={t('professor.course.rubricType')} value={rubricKind} onChange={(event) => { setRubricKind(event.target.value); setActiveRubricId(''); setRubricDraft({ name: '', content: '' }); }}><MenuItem value="grading">{t('grades.aiGrading.gradingInstructions')}</MenuItem><MenuItem value="feedback">{t('grades.aiGrading.feedbackToStudentInstructions')}</MenuItem><MenuItem value="summary">{t('professor.course.summaryInstructions')}</MenuItem></TextField>
-                  <Autocomplete options={courseRubrics.filter((entry) => entry.kind === rubricKind)} value={courseRubrics.find((entry) => entry._id === activeRubricId) || null} getOptionLabel={(entry) => entry.name} onChange={(_, entry) => { setActiveRubricId(entry?._id || ''); setRubricDraft(entry ? { name: entry.name, content: entry.content } : { name: '', content: '' }); }} renderInput={(params) => <TextField {...params} label={t('professor.course.selectRubric')} />} />
-                  <TextField label={t('common.name')} value={rubricDraft.name} onChange={(event) => setRubricDraft((current) => ({ ...current, name: event.target.value }))} />
-                  <TextField multiline minRows={5} label={t('professor.course.rubricInstructions')} value={rubricDraft.content} onChange={(event) => setRubricDraft((current) => ({ ...current, content: event.target.value }))} />
-                </DialogContent>
-                <DialogActions><Button color="error" onClick={deleteCourseRubric} disabled={!activeRubricId}>{t('common.delete')}</Button><Button onClick={() => setRubricManagerOpen(false)}>{t('common.close')}</Button><Button variant="contained" onClick={saveCourseRubric} disabled={!rubricDraft.name.trim() || !rubricDraft.content.trim()}>{t('common.save')}</Button></DialogActions>
-              </Dialog>
-            </Box>
-          )}
+            )}
+          />
           {!ssoEnabled ? (
             <FormControlLabel
               control={(
@@ -2298,30 +2427,6 @@ export default function CourseDetail() {
               sx={{ flex: 1 }}
             />
           </Box>
-          <Autocomplete
-            multiple
-            freeSolo
-            options={editFields.tags}
-            value={editFields.tags}
-            onChange={(_event, nextValue) => {
-              const normalizedTags = [...new Set(
-                (nextValue || [])
-                  .map((tag) => String(tag?.label || tag?.value || tag || '').trim())
-                  .filter(Boolean)
-              )];
-              setEditFields((current) => ({ ...current, tags: normalizedTags }));
-            }}
-            renderInput={(params) => (
-                <TextField
-                  {...params}
-                label={t('professor.course.topics', { defaultValue: 'Course topics' })}
-                placeholder={t('professor.course.topicsPlaceholder', { defaultValue: 'Add a course topic' })}
-                helperText={t('professor.course.topicsHelp', {
-                  defaultValue: 'Students can only use these course topics on their own questions.',
-                })}
-              />
-            )}
-          />
           <Divider sx={{ my: 1 }} />
           <Button variant="outlined" color="error" startIcon={<DeleteIcon />} onClick={() => setDeleteOpen(true)}>
             {t('professor.course.deleteCourse')}

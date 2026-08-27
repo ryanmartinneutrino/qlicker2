@@ -36,6 +36,11 @@ function parseNonNegativeIntEnv(value, fallback) {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
+function parseCsvEnv(value, fallback = []) {
+  if (typeof value !== 'string') return fallback;
+  return value.split(',').map((entry) => entry.trim().toLowerCase()).filter(Boolean);
+}
+
 // Controls Fastify's proxy trust. Accepts `true`/`false`, a hop count (e.g. `1`
 // for a single reverse proxy such as nginx), or a comma-separated IP/subnet
 // allowlist. Defaults to trusting one hop, which is correct for the standard
@@ -110,4 +115,25 @@ export default {
   trustProxy: parseTrustProxyEnv(process.env.TRUST_PROXY, 1),
   disableRateLimits: parseBooleanEnv(process.env.DISABLE_RATE_LIMITS)
     || parseBooleanEnv(process.env.RATE_LIMIT_DISABLED),
+  // AI backends are administrator-configured integrations. Permit private
+  // network endpoints by default so installations can use an arbitrary
+  // on-premise/provider endpoint; metadata and otherwise prohibited ranges
+  // remain blocked in services/ai.js. Set this to false to require the
+  // explicit hostname allowlist below.
+  aiBackendAllowPrivateHosts: parseOptionalBooleanEnv(process.env.AI_BACKEND_ALLOW_PRIVATE_HOSTS, true),
+  // Provider calls can include several tool definitions and large course
+  // contexts. Keep this above slower backends' own generation timeout while
+  // still guaranteeing that abandoned requests eventually terminate.
+  aiBackendRequestTimeoutMs: Math.max(1_000, parseNonNegativeIntEnv(process.env.AI_BACKEND_REQUEST_TIMEOUT_MS, 300_000)),
+  // Used only when AI_BACKEND_ALLOW_PRIVATE_HOSTS=false.
+  aiBackendAllowedPrivateHosts: parseCsvEnv(
+    process.env.AI_BACKEND_ALLOWED_PRIVATE_HOSTS,
+    nodeEnv === 'production' ? [] : [
+      'localhost',
+      '127.0.0.1',
+      '::1',
+      'host.docker.internal',
+      ...(nodeEnv === 'test' ? ['ollama.test'] : []),
+    ]
+  ),
 };

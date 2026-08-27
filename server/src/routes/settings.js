@@ -41,7 +41,7 @@ const ALLOWED_SETTINGS_FIELDS = new Set([
   'backupRetentionMonthly',
   'Jitsi_Enabled', 'Jitsi_Domain', 'Jitsi_EtherpadDomain', 'Jitsi_EnabledCourses',
   'AI_Enabled', 'AI_ApiUrl', 'AI_ApiToken', 'AI_EnabledCourses', 'AI_AllowCourseBackendCourses',
-  'AI_Backends', 'AI_DefaultBackendId', 'AI_DefaultModelId',
+  'AI_Backends', 'AI_DefaultBackendId', 'AI_DefaultModelId', 'AI_RequestTimeoutSeconds',
   'locale', 'dateFormat', 'timeFormat',
   'maxImageSize', 'maxImageWidth', 'avatarThumbnailSize',
 ]);
@@ -168,6 +168,7 @@ const updateSettingsSchema = {
       AI_Backends: { type: 'array' },
       AI_DefaultBackendId: { type: 'string' },
       AI_DefaultModelId: { type: 'string' },
+      AI_RequestTimeoutSeconds: { type: 'number', minimum: 10, maximum: 1800 },
       locale: { type: 'string' },
       dateFormat: { type: 'string' },
       timeFormat: { type: 'string', enum: ['24h', '12h'] },

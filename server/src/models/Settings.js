@@ -12,6 +12,7 @@ const AiModelSchema = new mongoose.Schema(
   {
     id: { type: String, required: true },
     name: { type: String, required: true },
+    displayName: { type: String, default: '', maxlength: 200 },
     available: { type: Boolean, default: true },
   },
   { _id: false }
@@ -161,6 +162,7 @@ const SettingsSchema = new mongoose.Schema(
     AI_Backends: { type: [AiBackendSchema], default: [] },
     AI_DefaultBackendId: { type: String, default: '' },
     AI_DefaultModelId: { type: String, default: '' },
+    AI_RequestTimeoutSeconds: { type: Number, default: 300, min: 10, max: 1800 },
 
     // i18n / locale settings
     locale: { type: String, default: 'en' },

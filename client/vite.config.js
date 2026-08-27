@@ -101,6 +101,7 @@ export default defineConfig(({ mode }) => {
       proxy: {
         '/api': apiTarget,
         '/uploads': apiTarget,
+        '/ai/media': apiTarget,
         '/ws': {
           target: wsTarget,
           ws: true,

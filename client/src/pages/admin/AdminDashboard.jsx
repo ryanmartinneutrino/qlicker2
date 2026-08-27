@@ -2284,6 +2284,7 @@ function AiHelperTab() {
   const [settings, setSettings] = useState({
     AI_Enabled: false, AI_ApiUrl: '', AI_ApiToken: '', AI_ApiTokenSet: false,
     AI_EnabledCourses: [], AI_AllowCourseBackendCourses: [], AI_Backends: [], AI_DefaultBackendId: '', AI_DefaultModelId: '',
+    AI_RequestTimeoutSeconds: 300,
   });
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -2366,6 +2367,7 @@ function AiHelperTab() {
         AI_Backends: data.AI_Backends || [],
         AI_DefaultBackendId: data.AI_DefaultBackendId || '',
         AI_DefaultModelId: data.AI_DefaultModelId || '',
+        AI_RequestTimeoutSeconds: Number(data.AI_RequestTimeoutSeconds) || 300,
       }));
       setCourses(coursesRes);
     }).catch((err) => {
@@ -2500,6 +2502,21 @@ function AiHelperTab() {
       <AutoSaveStatus status={status} errorText={error} />
       <FormControlLabel control={<Checkbox checked={settings.AI_Enabled} onChange={(event) => updateSettings((s) => ({ ...s, AI_Enabled: event.target.checked }), { saveImmediately: true })} />} label={t('admin.ai.enable')} />
       <Typography variant="body2" color="text.secondary">{t('admin.ai.backendHelp')}</Typography>
+      <TextField
+        type="number"
+        size="small"
+        label={t('admin.ai.requestTimeout')}
+        value={settings.AI_RequestTimeoutSeconds}
+        onChange={(event) => {
+          const value = Number(event.target.value);
+          if (Number.isFinite(value) && value >= 10 && value <= 1800) {
+            updateSettings((s) => ({ ...s, AI_RequestTimeoutSeconds: value }));
+          }
+        }}
+        inputProps={{ min: 10, max: 1800, step: 10 }}
+        helperText={t('admin.ai.requestTimeoutHelp')}
+        sx={{ maxWidth: 360 }}
+      />
       <Box sx={{ pointerEvents: settings.AI_Enabled ? 'auto' : 'none', opacity: settings.AI_Enabled ? 1 : 0.55 }}>
         <AiBackendManager
           backends={settings.AI_Backends}

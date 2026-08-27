@@ -7,15 +7,23 @@ import Post from '../models/Post.js';
 import Question from '../models/Question.js';
 import Response from '../models/Response.js';
 import User from '../models/User.js';
-import { isCourseInstructorOrAdmin as isInstructorOrAdmin, isCourseMember } from '../utils/courseAccess.js';
+import {
+  getStudentSessionReviewRestriction,
+  isCourseInstructorOrAdmin as isInstructorOrAdmin,
+  isCourseMember,
+  isStudentOwnedSession,
+  studentVisibleGradeQuery,
+} from '../utils/courseAccess.js';
 import { copySessionToCourse } from '../services/sessionCopy.js';
 import { copyQuestionToSession } from '../services/questionCopy.js';
 import {
   getNormalizedTagValue,
+  mergeNormalizedTags,
   normalizeTags,
   sanitizeExportedQuestion,
   sanitizeImportedQuestion,
 } from '../services/questionImportExport.js';
+import { inheritSessionTagsForQuestions } from '../services/sessionQuestionTags.js';
 import {
   ensureSessionMsScoringMethod,
   isQuestionResponseCollectionEnabled,
@@ -25,6 +33,7 @@ import {
   isQuestionAutoGradeable,
   normalizeQuestionType,
   recalculateSessionGrades,
+  sanitizeStudentVisibleGrade,
   summarizeGradeFeedback,
   setSessionGradesVisibility,
 } from '../services/grading.js';
@@ -574,11 +583,6 @@ function isQuizLikeSession(session) {
   return !!(session?.quiz || session?.practiceQuiz);
 }
 
-function isStudentOwnedSession(session, user) {
-  if (!session || !user) return false;
-  return !!session.studentCreated && String(session.creator || '') === String(user.userId || '');
-}
-
 async function getNonAutoGradeableQuestions(session) {
   const questionIds = Array.isArray(session?.questions) ? session.questions : [];
   if (questionIds.length === 0) return [];
@@ -940,11 +944,12 @@ async function loadSessionChatQuestionMetadata(session) {
 
   orderedQuestions.forEach((question, index) => {
     const questionId = normalizeAnswerValue(question?._id);
+    const responseCollectionEnabled = isQuestionResponseCollectionEnabled(question);
     if (currentQuestionId && questionId === currentQuestionId) {
-      currentQuestionNumber = questionsBeforeCurrentPage + 1;
+      currentQuestionNumber = questionsBeforeCurrentPage + (responseCollectionEnabled ? 1 : 0);
     }
 
-    if (!isQuestionResponseCollectionEnabled(question)) return;
+    if (!responseCollectionEnabled) return;
 
     const questionNumber = responseQuestionEntries.length + 1;
     responseQuestionEntries.push({
@@ -1185,7 +1190,7 @@ function isQuickPostOptionVisible(post, { includeDismissed = false, currentQuest
   if (!includeDismissed && post?.dismissedAt) return false;
   const questionNumber = Number(post?.quickPostQuestionNumber) || 0;
   if (questionNumber <= 0) return false;
-  return currentQuestionNumber === null || questionNumber < currentQuestionNumber;
+  return currentQuestionNumber === null || questionNumber <= currentQuestionNumber;
 }
 
 function compareChatPosts(a, b) {
@@ -1403,7 +1408,7 @@ async function loadSessionChatPayload({ session, course, request }) {
       viewerHasUpvoted: post.viewerHasUpvoted,
     }))
     .filter((post) => Number(post.questionNumber) > 0 && (
-      currentQuestionNumber === null || post.questionNumber < currentQuestionNumber
+      currentQuestionNumber === null || post.questionNumber <= currentQuestionNumber
     ))
     .sort((a, b) => b.questionNumber - a.questionNumber);
   const quickPostOptions = posts
@@ -1424,6 +1429,7 @@ async function loadSessionChatPayload({ session, course, request }) {
     canPost: flags.canWrite,
     canComment: flags.canWrite,
     canVote: flags.canWrite && !flags.isInstructorView,
+    canEditOwnPost: flags.canWrite && isRichTextChatEnabled(session),
     canDeleteOwnPost: flags.canWrite,
     canDeleteOwnComment: flags.canWrite,
     canDeleteAnyComment: flags.canModerate,
@@ -1594,6 +1600,47 @@ function sanitizeQuizQuestionForStudent(question, { revealAnswers = false } = {}
   }
 
   return sanitized;
+}
+
+function sanitizeStudentReviewSession(session) {
+  return {
+    _id: session._id,
+    name: session.name || '',
+    description: session.description || '',
+    quiz: !!session.quiz,
+    practiceQuiz: !!session.practiceQuiz,
+    studentCreated: !!session.studentCreated,
+  };
+}
+
+function sanitizeStudentReviewQuestion(question) {
+  const normalized = normalizeQuestionForReview(question);
+  return {
+    _id: normalized._id,
+    type: normalized.type,
+    content: normalized.content || '',
+    plainText: normalized.plainText || '',
+    options: (normalized.options || []).map((option) => ({
+      answer: option.answer || '',
+      content: option.content || '',
+      plainText: option.plainText || '',
+      correct: !!option.correct,
+    })),
+    correctNumerical: normalized.correctNumerical ?? null,
+    toleranceNumerical: normalized.toleranceNumerical ?? null,
+    solution: normalized.solution || '',
+    solution_plainText: normalized.solution_plainText || '',
+    sessionOptions: { points: Number(normalized.sessionOptions?.points || 0) },
+  };
+}
+
+function sanitizeStudentReviewResponse(response) {
+  return {
+    questionId: response.questionId,
+    attempt: response.attempt,
+    answer: response.answer,
+    answerWysiwyg: response.answerWysiwyg || '',
+  };
 }
 
 function buildOptionIndexCounts(answer, options = []) {
@@ -2468,6 +2515,9 @@ function buildSessionForUser(session, user, { instructorView = false } = {}) {
     delete normalized.currentJoinCode;
   }
   delete normalized.questionResponseCounts;
+  // AI logs are stored separately and are always instructor-only. Remove any
+  // legacy field defensively so old database documents cannot leak it.
+  delete normalized.aiGradingLog;
 
   return normalized;
 }
@@ -3520,6 +3570,10 @@ export default async function sessionRoutes(app) {
         { returnDocument: 'after' }
       );
 
+      if (updates.tags !== undefined) {
+        await inheritSessionTagsForQuestions(updated.toObject());
+      }
+
       let grading = null;
       const makingReviewable = updates.reviewable === true && !session.reviewable;
       const removingReviewable = updates.reviewable === false && session.reviewable;
@@ -4173,15 +4227,16 @@ export default async function sessionRoutes(app) {
       const session = await Session.create(importedSessionPayload);
       const importTags = normalizeTags(request.body.importTags || []);
 
-      const importedQuestionPayloads = importedQuestions.map((question) => (
-        sanitizeImportedQuestion(question, {
+      const importedQuestionPayloads = importedQuestions.map((question) => {
+        const payload = sanitizeImportedQuestion(question, {
           courseId: String(course._id),
           sessionId: String(session._id),
           userId: request.user.userId,
           includeSessionOptions: true,
           importTags,
-        })
-      ));
+        });
+        return { ...payload, tags: mergeNormalizedTags(payload.tags, session.tags) };
+      });
       const createdQuestions = importedQuestionPayloads.length > 0
         ? await Question.insertMany(importedQuestionPayloads)
         : [];
@@ -4238,14 +4293,14 @@ export default async function sessionRoutes(app) {
       // Students can only review if the session is reviewable and done
       const isInstrOrAdmin = isInstructorOrAdmin(course, request.user);
       if (!isInstrOrAdmin) {
-        const ownsStudentSession = isStudentOwnedSession(normalizedSession, request.user);
-        if (!ownsStudentSession && normalizedSession.studentCreated) {
+        const restriction = getStudentSessionReviewRestriction(normalizedSession, request.user);
+        if (restriction === 'unavailable') {
           return reply.code(403).send({ error: 'Forbidden', message: 'Session is not available' });
         }
-        if (!normalizedSession.reviewable && !ownsStudentSession) {
+        if (restriction === 'not-reviewable') {
           return reply.code(403).send({ error: 'Forbidden', message: 'Session is not reviewable' });
         }
-        if (normalizedSession.status !== 'done' && !ownsStudentSession) {
+        if (restriction === 'not-finished') {
           return reply.code(403).send({ error: 'Forbidden', message: 'Session is not yet finished' });
         }
       }
@@ -4262,7 +4317,7 @@ export default async function sessionRoutes(app) {
       const orderedQuestions = questionIds
         .map((id) => questionMap[String(id)])
         .filter(Boolean);
-      const normalizedQuestions = orderedQuestions.map((question) => normalizeQuestionForReview(question));
+      const normalizedQuestions = orderedQuestions.map(sanitizeStudentReviewQuestion);
 
       // Fetch this student's responses for these questions
       const responses = await Response.find({
@@ -4278,26 +4333,24 @@ export default async function sessionRoutes(app) {
         if (!responsesByQuestion[questionId]) {
           responsesByQuestion[questionId] = [];
         }
-        responsesByQuestion[questionId].push(r);
+        responsesByQuestion[questionId].push(sanitizeStudentReviewResponse(r));
       }
 
       let feedbackSummary = getDefaultFeedbackSummary();
+      let studentGrade = null;
       if (!isInstrOrAdmin) {
-        const grades = await Grade.find({
-          sessionId: String(normalizedSession._id),
-          courseId: String(course._id),
-          userId: request.user.userId,
-          visibleToStudents: true,
-        })
-          .select('feedbackSeenAt marks.questionId marks.feedback marks.feedbackUpdatedAt')
-          .lean();
-        feedbackSummary = summarizeFeedbackFromGrades(grades);
+        const grade = await Grade.findOne(
+          studentVisibleGradeQuery(course._id, normalizedSession._id, request.user)
+        ).select('value participation points outOf needsGrading feedbackSeenAt marks').lean();
+        feedbackSummary = summarizeFeedbackFromGrades(grade ? [grade] : []);
+        studentGrade = sanitizeStudentVisibleGrade(grade);
       }
 
       return {
-        session: normalizedSession,
+        session: sanitizeStudentReviewSession(normalizedSession),
         questions: normalizedQuestions,
         responses: responsesByQuestion,
+        grade: studentGrade,
         feedback: feedbackSummary,
       };
     }
@@ -4330,30 +4383,26 @@ export default async function sessionRoutes(app) {
         return reply.code(403).send({ error: 'Forbidden', message: 'Only students can dismiss feedback notifications' });
       }
 
-      if (!normalizedSession.reviewable && !isStudentOwnedSession(normalizedSession, request.user)) {
+      const restriction = getStudentSessionReviewRestriction(normalizedSession, request.user);
+      if (restriction === 'unavailable') {
+        return reply.code(403).send({ error: 'Forbidden', message: 'Session is not available' });
+      }
+      if (restriction === 'not-reviewable') {
         return reply.code(403).send({ error: 'Forbidden', message: 'Session is not reviewable' });
       }
-      if (normalizedSession.status !== 'done' && !isStudentOwnedSession(normalizedSession, request.user)) {
+      if (restriction === 'not-finished') {
         return reply.code(403).send({ error: 'Forbidden', message: 'Session is not yet finished' });
       }
 
       const seenAt = new Date();
       const updateResult = await Grade.updateMany(
-        {
-          sessionId: String(normalizedSession._id),
-          courseId: String(course._id),
-          userId: request.user.userId,
-          visibleToStudents: true,
-        },
+        studentVisibleGradeQuery(course._id, normalizedSession._id, request.user),
         { $set: { feedbackSeenAt: seenAt } }
       );
 
-      const grades = await Grade.find({
-        sessionId: String(normalizedSession._id),
-        courseId: String(course._id),
-        userId: request.user.userId,
-        visibleToStudents: true,
-      })
+      const grades = await Grade.find(
+        studentVisibleGradeQuery(course._id, normalizedSession._id, request.user)
+      )
         .select('feedbackSeenAt marks.questionId marks.feedback marks.feedbackUpdatedAt')
         .lean();
       const feedbackSummary = summarizeFeedbackFromGrades(grades);
@@ -6409,8 +6458,8 @@ export default async function sessionRoutes(app) {
       if (!Number.isInteger(questionNumber) || questionNumber <= 0) {
         return reply.code(400).send({ error: 'Bad Request', message: 'Invalid quick-post question number' });
       }
-      if (currentQuestionNumber != null && questionNumber >= currentQuestionNumber) {
-        return reply.code(400).send({ error: 'Bad Request', message: 'Quick posts are only available for earlier questions' });
+      if (currentQuestionNumber != null && questionNumber > currentQuestionNumber) {
+        return reply.code(400).send({ error: 'Bad Request', message: 'Quick posts are only available for the current or earlier questions' });
       }
 
       await ensureSessionQuickPosts(session, questionMetadata);
@@ -6449,6 +6498,7 @@ export default async function sessionRoutes(app) {
 
       await notifyChatUpdated(app, course, session, {
         changeType: 'quick-post-toggled',
+        becameVisible: Number(post.upvoteCount || 0) <= 0 && Number(updated?.upvoteCount || 0) > 0,
         postId: String(post._id),
         post: updated,
         currentQuestionNumber,
@@ -6460,6 +6510,81 @@ export default async function sessionRoutes(app) {
         viewerHasUpvoted: !hasUpvoted,
         upvoteCount: Number(updated?.upvoteCount || 0),
       };
+    }
+  );
+
+  app.patch(
+    '/sessions/:id/chat/posts/:postId',
+    {
+      preHandler: authenticate,
+      rateLimit: { max: 40, timeWindow: '1 minute' },
+      config: { rateLimit: { max: 40, timeWindow: '1 minute' } },
+      schema: {
+        body: {
+          type: 'object',
+          properties: {
+            body: { type: 'string' },
+            bodyWysiwyg: { type: 'string' },
+          },
+          additionalProperties: false,
+        },
+      },
+    },
+    async (request, reply) => {
+      const { session, course } = await loadSessionChatContext(request.params.id);
+      if (!session) {
+        return reply.code(404).send({ error: 'Not Found', message: 'Session not found' });
+      }
+      if (!course) {
+        return reply.code(404).send({ error: 'Not Found', message: 'Course not found' });
+      }
+      if (!isCourseMember(course, request.user)) {
+        return reply.code(403).send({ error: 'Forbidden', message: 'Not a member of this course' });
+      }
+
+      const viewMode = getChatViewMode(request, isInstructorOrAdmin(course, request.user));
+      const flags = getChatPermissionFlags({ session, course, request, viewMode });
+      if (!flags.canWrite || !session.chatEnabled || !isRichTextChatEnabled(session)) {
+        return reply.code(403).send({ error: 'Forbidden', message: 'Post editing is not available' });
+      }
+
+      const post = await Post.findOne({
+        _id: request.params.postId,
+        scopeType: 'session',
+        sessionId: String(session._id),
+      }).lean();
+      if (!post) {
+        return reply.code(404).send({ error: 'Not Found', message: 'Post not found' });
+      }
+      if (String(post.authorId || '') !== String(request.user.userId || '')) {
+        return reply.code(403).send({ error: 'Forbidden', message: 'You can only edit your own posts' });
+      }
+      if (post.isQuickPost) {
+        return reply.code(403).send({ error: 'Forbidden', message: 'Quick posts cannot be edited' });
+      }
+      if (post.dismissedAt) {
+        return reply.code(403).send({ error: 'Forbidden', message: 'Dismissed posts cannot be edited' });
+      }
+
+      const bodyWysiwyg = normalizeAnswerValue(request.body?.bodyWysiwyg);
+      const body = normalizeAnswerValue(request.body?.body || stripHtmlToPlainText(bodyWysiwyg));
+      if (!body && !bodyWysiwyg) {
+        return reply.code(400).send({ error: 'Bad Request', message: 'Post content is required' });
+      }
+
+      const updated = await Post.findByIdAndUpdate(
+        post._id,
+        { $set: { body, bodyWysiwyg, updatedAt: new Date() } },
+        { returnDocument: 'after' }
+      ).lean();
+
+      await notifyChatUpdated(app, course, session, {
+        changeType: 'post-edited',
+        postId: String(post._id),
+        post: updated,
+      });
+
+      return { success: true, postId: String(post._id) };
     }
   );
 
@@ -6515,7 +6640,7 @@ export default async function sessionRoutes(app) {
 
       const questionMetadata = await loadSessionChatQuestionMetadata(session);
       const currentQuestionNumber = questionMetadata.currentQuestionNumber;
-      if (post.isQuickPost && currentQuestionNumber != null && Number(post.quickPostQuestionNumber) >= currentQuestionNumber) {
+      if (post.isQuickPost && currentQuestionNumber != null && Number(post.quickPostQuestionNumber) > currentQuestionNumber) {
         return reply.code(400).send({ error: 'Bad Request', message: 'This quick post is not available yet' });
       }
 

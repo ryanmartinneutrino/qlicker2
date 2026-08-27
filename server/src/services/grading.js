@@ -267,7 +267,7 @@ function formatUserDisplayName(user) {
   return user?.emails?.[0]?.address || user?.email || 'Unknown Student';
 }
 
-function buildQuestionWithNormalizedOptions(question) {
+export function buildQuestionWithNormalizedOptions(question) {
   if (!question) return null;
   const normalized = { ...question };
   const options = Array.isArray(question.options) ? question.options.map((option) => ({ ...option })) : [];
@@ -716,6 +716,25 @@ export async function normalizeGradesManualGradingState(grades = []) {
     recomputeGradeAggregates(nextGrade);
     return nextGrade;
   });
+}
+
+export function sanitizeStudentVisibleGrade(grade) {
+  if (!grade) return null;
+  return {
+    value: toFiniteNumber(grade.value, 0),
+    participation: toFiniteNumber(grade.participation, 0),
+    points: toFiniteNumber(grade.points, 0),
+    outOf: toFiniteNumber(grade.outOf, 0),
+    needsGrading: !!grade.needsGrading,
+    marks: (grade.marks || []).map((mark) => ({
+      questionId: mark.questionId,
+      points: toFiniteNumber(mark.points, 0),
+      outOf: toFiniteNumber(mark.outOf, 0),
+      needsGrading: !!mark.needsGrading,
+      feedback: mark.feedback || '',
+      feedbackUpdatedAt: mark.feedbackUpdatedAt || null,
+    })),
+  };
 }
 
 function shouldExcludeQuestionForLowResponses({ question, joinedCount, questionResponseCount }) {

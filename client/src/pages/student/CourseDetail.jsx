@@ -30,6 +30,7 @@ import ResponsiveTabsNavigation from '../../components/common/ResponsiveTabsNavi
 import { useTranslation } from 'react-i18next';
 import CourseGradesPanel from '../../components/grades/CourseGradesPanel';
 import VideoChatPanel from '../../components/video/VideoChatPanel';
+import AiCourseChat from '../../components/ai/AiCourseChat';
 import { getCourseChatEventUnseenDelta } from '../../utils/courseChat';
 import { isRequestCanceled } from '../../utils/requestCancellation';
 export { getStudentSessionAction, sortStudentSessions as sortSessions };
@@ -37,7 +38,7 @@ export { getStudentSessionAction, sortStudentSessions as sortSessions };
 const QuestionLibraryPanel = lazy(() => import('../../components/questions/QuestionLibraryPanel'));
 const CourseChatPanel = lazy(() => import('../../components/course/CourseChatPanel'));
 
-const MAX_STUDENT_TAB_INDEX = 7;
+const MAX_STUDENT_TAB_INDEX = 8;
 
 function parseCourseTab(value) {
   const parsed = Number.parseInt(value, 10);
@@ -133,6 +134,7 @@ export default function StudentCourseDetail() {
   const [chatRefreshToken, setChatRefreshToken] = useState(0);
   const [chatEvent, setChatEvent] = useState(null);
   const [chatUnseenCount, setChatUnseenCount] = useState(0);
+  const [studentAiChatAvailable, setStudentAiChatAvailable] = useState(false);
   const sessionFetchVersionRef = useRef(0);
   const sessionsFullyLoadedRef = useRef(false);
   const sessionsRef = useRef([]);
@@ -153,6 +155,7 @@ export default function StudentCourseDetail() {
   const questionLibraryTabIndex = studentPracticeEnabled ? nextTabIndex++ : -1;
   const gradesTabIndex = nextTabIndex++;
   const chatTabIndex = courseChatEnabled ? nextTabIndex++ : -1;
+  const aiChatTabIndex = studentAiChatAvailable ? nextTabIndex++ : -1;
   const videoTabIndex = courseHasVideo ? nextTabIndex++ : -1;
   const settingsTabIndex = nextTabIndex++;
 
@@ -169,8 +172,20 @@ export default function StudentCourseDetail() {
   const fetchCourse = useCallback(async () => {
     try {
       const { data } = await apiClient.get(`/courses/${id}`);
-      setCourse(data.course || data);
+      const nextCourse = data.course || data;
+      let nextStudentAiChatAvailable = false;
+      if (nextCourse.aiEnabled && nextCourse.aiStudentChatEnabled) {
+        try {
+          const aiResponse = await apiClient.get(`/ai/student/courses/${id}/config`);
+          nextStudentAiChatAvailable = !!aiResponse.data?.enabled;
+        } catch {
+          nextStudentAiChatAvailable = false;
+        }
+      }
+      setStudentAiChatAvailable(nextStudentAiChatAvailable);
+      setCourse(nextCourse);
     } catch {
+      setStudentAiChatAvailable(false);
       setMsg({ severity: 'error', text: t('student.course.failedLoadCourse') });
     } finally {
       setLoading(false);
@@ -937,12 +952,26 @@ export default function StudentCourseDetail() {
                 : t('courseChat.title'),
             },
           }] : []),
+          ...(studentAiChatAvailable ? [{ value: aiChatTabIndex, label: t('ai.chat.title') }] : []),
           ...(courseHasVideo ? [{ value: videoTabIndex, label: t('student.course.video') }] : []),
           { value: settingsTabIndex, label: t('student.course.settings') },
         ]}
         tabsProps={{
           variant: 'scrollable',
+          scrollButtons: 'auto',
           allowScrollButtonsMobile: true,
+          sx: {
+            '& .MuiTabs-flexContainer': { flexWrap: 'wrap' },
+            '& .MuiTabs-indicator': { display: 'none' },
+            '& .MuiTab-root': {
+              alignSelf: 'stretch',
+              borderBottom: 2,
+              borderColor: 'transparent',
+            },
+            '& .MuiTab-root.Mui-selected': {
+              borderColor: 'primary.main',
+            },
+          },
         }}
       />
 
@@ -1136,6 +1165,12 @@ export default function StudentCourseDetail() {
               chatEvent={chatEvent}
             />
           </Suspense>
+        </TabPanel>
+      )}
+
+      {studentAiChatAvailable && (
+        <TabPanel value={tab} index={aiChatTabIndex}>
+          <AiCourseChat courseId={id} audience="student" />
         </TabPanel>
       )}
 

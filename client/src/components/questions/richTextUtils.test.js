@@ -131,6 +131,30 @@ describe('richTextUtils KaTeX rendering', () => {
     expect(container.querySelector('.katex')).not.toBeNull();
   });
 
+  it('does not mistake decimal-leading inline math for currency', () => {
+    const prepared = prepareRichTextInput(
+      '<p>A spring with $k = 200 \\text{ N/m}$ is compressed by $0.1 \\text{ m}$.</p>'
+    );
+    const container = document.createElement('div');
+    container.innerHTML = prepared;
+    renderKatexInElement(container);
+
+    expect(container.querySelectorAll('.katex')).toHaveLength(2);
+    expect(container.textContent).toContain('0.1');
+    expect(container.textContent).not.toContain('$0.1');
+  });
+
+  it('continues to protect unpaired currency amounts from math rendering', () => {
+    const prepared = prepareRichTextInput('<p>The first book costs $5 and the second costs $10.</p>');
+    const container = document.createElement('div');
+    container.innerHTML = prepared;
+    renderKatexInElement(container);
+
+    expect(container.querySelector('.katex')).toBeNull();
+    expect(container.textContent).toContain('$5');
+    expect(container.textContent).toContain('$10');
+  });
+
   it('converts stored math nodes to delimiters and renders', () => {
     const html = '<p>Answer: <span data-type="inline-math" data-latex="x^2"></span></p>';
     const prepared = prepareRichTextInput(html);

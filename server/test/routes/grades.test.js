@@ -1427,7 +1427,8 @@ describe('Grading routes', () => {
     expect(sessionGradesReviewable.statusCode).toBe(200);
     expect(sessionGradesReviewable.json().instructorView).toBe(false);
     expect(sessionGradesReviewable.json().grades).toHaveLength(1);
-    expect(sessionGradesReviewable.json().grades[0].userId).toBe(students[0]._id);
+    expect(sessionGradesReviewable.json().grades[0].userId).toBeUndefined();
+    expect(sessionGradesReviewable.json().grades[0].marks[0].responseId).toBeUndefined();
 
     const sessionGradesNotReviewable = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${hiddenGradesSession._id}/grades`, {
       token: studentAToken,

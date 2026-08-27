@@ -73,6 +73,7 @@
   "sessionChat": {
     "failedToLoad": "Sitzungschat konnte nicht geladen werden.",
     "failedToSend": "Beitrag konnte nicht gesendet werden.",
+    "failedToEdit": "Beitrag konnte nicht bearbeitet werden.",
     "failedToVote": "Abstimmung konnte nicht aktualisiert werden.",
     "failedToDismiss": "Beitrag konnte nicht verworfen werden.",
     "failedToDelete": "Beitrag konnte nicht gelöscht werden.",
@@ -87,8 +88,8 @@
     "quickPostLabel": "Ich habe Frage {{questionNumber}} nicht verstanden",
     "quickPostChip": "Schnellbeitrag",
     "quickPostPrompt": "Benötigen Sie weitere Erklärungen?",
-    "quickPostHelper": "Wählen Sie eine frühere Frage aus, um Ihre Stimme zu einer gemeinsamen Bitte um Erklärung hinzuzufügen.",
-    "quickPostQuestionLabel": "Frühere Frage",
+    "quickPostHelper": "Wählen Sie die aktuelle oder eine frühere Frage aus, um Ihre Stimme zu einer gemeinsamen Bitte um Erklärung hinzuzufügen.",
+    "quickPostQuestionLabel": "Aktuelle oder frühere Frage",
     "requestQuickPost": "Erklärung anfordern",
     "undoQuickPost": "Anfrage rückgängig machen",
     "newPost": "Neuer Beitrag",
@@ -96,6 +97,7 @@
     "hideComposer": "Editor ausblenden",
     "postPlaceholder": "Feedback teilen oder eine Frage stellen…",
     "postEditorAria": "Editor für Sitzungschat-Beiträge",
+    "editPostEditorAria": "Sitzungschat-Beitrag bearbeiten",
     "post": "Veröffentlichen",
     "sending": "Wird gesendet…",
     "comments": "Kommentare",
@@ -127,6 +129,7 @@
     "titleWithUnseen_other": "Kurschat ({{count}} neu)",
     "failedToLoad": "Kurschat konnte nicht geladen werden.",
     "failedToSend": "Beitrag konnte nicht veröffentlicht werden.",
+    "failedToEdit": "Beitrag konnte nicht bearbeitet werden.",
     "failedToVote": "Abstimmung konnte nicht aktualisiert werden.",
     "failedToDelete": "Eintrag konnte nicht gelöscht werden.",
     "failedToComment": "Kommentar konnte nicht hinzugefügt werden.",
@@ -151,6 +154,8 @@
     "showArchived": "Archivierte Beiträge anzeigen",
     "postPlaceholder": "Neue Diskussion starten…",
     "postEditorLabel": "Editor für Kurschat-Beiträge",
+    "editPost": "Beitrag bearbeiten",
+    "editPostEditorLabel": "Kurschat-Beitrag bearbeiten",
     "publishPost": "Beitrag veröffentlichen",
     "commentPlaceholder": "Kommentar schreiben…",
     "commentEditorLabel": "Editor für Kurschat-Kommentare",
@@ -568,7 +573,9 @@
       "allowCourseBackend": "Allow instructor-configured backend",
       "disabledHelp": "Enable AI helper above before configuring a backend or permitting courses.",
       "failedSave": "Failed to save AI settings.",
-      "backendHelp": "Add one or more AI backends, discover their Ollama models, then select the default model used by courses unless an instructor chooses another available model."
+      "backendHelp": "Add one or more AI backends, discover their Ollama models, then select the default model used by courses unless an instructor chooses another available model.",
+      "requestTimeout": "Zeitlimit für KI-Anfragen (Sekunden)",
+      "requestTimeoutHelp": "Maximale Dauer jeder Anfrage an das KI-Backend. Zulässiger Bereich: 10–1800 Sekunden."
     }
   },
   "professor": {
@@ -617,6 +624,15 @@
       "settings": "Kurseinstellungen",
       "aiModel": "KI-Modell",
       "aiDefaultModel": "Standardmodell",
+      "instructorAiChatMaxToolRounds": "Maximale interne Schritte für den KI-Chat der Lehrkraft",
+      "instructorAiChatMaxToolRoundsHelp": "Legt fest, wie viele Werkzeugschritte der Assistent im Hintergrund für eine Anfrage ausführen darf. Höhere Werte ermöglichen komplexere Aufgaben, können aber länger dauern.",
+      "enableStudentAiChat": "KI-Chat für Studierende aktivieren",
+      "enableStudentAiChatHelp": "Studierenden einen KI-Assistenten zum Üben von Kursinhalten bereitstellen",
+      "studentAiChatGuidance": "Anweisungen für den KI-Chat der Studierenden",
+      "studentAiDefaultModel": "Standardmodell für den KI-Chat der Studierenden",
+      "studentAiChatMaxToolRounds": "Maximale interne Schritte für den KI-Chat der Studierenden",
+      "studentAiChatMaxToolRoundsHelp": "Begrenzt die Anzahl der Werkzeugschritte, die der Studierenden-Assistent im Hintergrund für eine Anfrage ausführen darf.",
+      "studentAiModelUnavailable": "Geben Sie mindestens ein genehmigtes Modell für Studierende frei, bevor Sie ein Standardmodell auswählen.",
       "groups": "Gruppen",
       "addStudent": "Studierende hinzufügen",
       "addInstructor": "Dozenten hinzufügen",
@@ -653,7 +669,7 @@
       "allowStudentQuestionsHelp": "Wenn aktiviert, können Studierende die Kurs-Fragenbibliothek öffnen, Übungssitzungen erstellen und Übungsfragen kopieren. Sie können abgeschlossene Sitzungen auch dann überprüfen, wenn diese Option deaktiviert ist.",
       "topics": "Kursthemen",
       "topicsPlaceholder": "Kursthema hinzufügen",
-      "topicsHelp": "Studierende können diese Kursthemen nur für ihre eigenen Fragen verwenden.",
+      "topicsHelp": "Erstellen Sie Tags auf Grundlage der Kursthemen und verwenden Sie diese für Sitzungen und Fragen, um Materialien zu organisieren und Studierenden die Suche nach Übungsfragen zu erleichtern.",
       "quizTimeFormat": "Quiz-Zeitformat",
       "quizTimeFormatInherit": "Standard des Administrators verwenden ({{defaultFormat}})",
       "quizTimeFormatOptions": {
@@ -774,6 +790,7 @@
       "aiChatHelp": "Chatten Sie mit dem KI-Assistenten.",
       "courseActiveHelp": "Wenn der Kurs aktiv ist, können Studierende darauf zugreifen.",
       "aiRequiresAdminAuthorization": "Erfordert eine Administratorfreigabe",
+      "aiHelperHelp": "Aktivieren Sie einen KI-Assistenten, der beim Bewerten, Erstellen von Fragen und Verwalten von Sitzungen und Studierenden hilft.",
       "enrollmentCodeHelp": "Dies ist der Code, den Studierende benötigen, um sich für den Kurs anzumelden."
     },
     "sessionEditor": {
@@ -966,6 +983,7 @@
       "prev": "Zurück",
       "settings": "Einstellungen",
       "backToCourse": "Zurück zum Kurs",
+      "editSession": "Sitzung bearbeiten",
       "failedLoadLiveSession": "Live-Sitzung konnte nicht geladen werden",
       "actionFailed": "Aktion fehlgeschlagen",
       "failedEndSession": "Sitzung konnte nicht beendet werden",
@@ -1033,6 +1051,7 @@
       "joinedCount": "{{joined}}/{{total}}",
       "backToCourse": "Zurück zum Kurs",
       "editSession": "Sitzung bearbeiten",
+      "joinLiveSession": "Live-Sitzung beitreten",
       "sessionReviewTabs": "Sitzungsüberprüfungs-Tabs",
       "studentResults": "Studierenden-Ergebnisse",
       "sessionStudentList": "Sitzungs-Studierendenliste",
@@ -1074,7 +1093,12 @@
       "summaryInstructions": "Summary instructions",
       "basicSummaryHelp": "Basic summary identifies up to five response themes and example quotations.",
       "aiSummaryInProgress": "Antworten werden vorbereitet: {{completed}} von {{total}}",
-      "aiSummaryGenerating": "KI-Zusammenfassung wird erstellt…"
+      "aiSummaryGenerating": "KI-Zusammenfassung wird erstellt…",
+      "haltAiResponseSummary": "Zusammenfassung anhalten",
+      "haltingAiResponseSummary": "Wird angehalten…",
+      "aiSummaryHalted": "KI-Zusammenfassung angehalten. Sie können sie erneut erstellen.",
+      "aiSummaryFailed": "KI-Zusammenfassung fehlgeschlagen. {{error}}",
+      "aiSummaryHaltFailed": "Die KI-Zusammenfassung konnte nicht angehalten werden."
     },
     "secondDesktop": {
       "joinCode": "Beitrittscode",
@@ -2498,6 +2522,7 @@
       "apiToken": "API token (optional)",
       "discoveryFailed": "Could not find models on this backend.",
       "modelsHelp": "Only checked models are available for course AI use.",
+      "displayName": "Anzeigename des Modells",
       "availableToStudents": "Für Studierende verfügbar",
       "showAvailableModels": "Verfügbare Modelle anzeigen",
       "makeDefault": "Make default"
@@ -2510,17 +2535,26 @@
       "title": "AI Chat",
       "newConversation": "New conversation",
       "newConversationGuidance": "Fragen Sie nach Studierenden, Noten und Leistungen in diesem Kurs oder erstellen Sie Fragen für Ihre Sitzungen.",
+      "studentNewConversationGuidance": "Stelle Fragen zu diesem Kurs oder seinen Inhalten. Ich kann Konzepte erklären, Beispiele durcharbeiten und dich beim Lernen unterstützen.",
       "noConversations": "No conversations yet.",
       "send": "Send",
       "stop": "Stopp",
       "thinking": "Denkt nach…",
+      "thoughtProcess": "Denkprozess der KI",
       "messagePlaceholder": "Ask the AI helper…",
       "deleteConversation": "Delete conversation",
       "selectConversation": "Select or start a conversation.",
-      "assistant": "AI assistant",
+      "assistant": "KI-Assistent",
+      "errorLabel": "KI-Fehler",
+      "backendError": "Beim KI-Backend ist ein Fehler aufgetreten: {{detail}}",
       "you": "You",
       "failedLoad": "Could not load AI conversations.",
-      "failedSend": "Could not send the message."
+      "failedSend": "Could not send the message.",
+      "generatedImage": "Erzeugtes Bild",
+      "generatedAudio": "Erzeugte Audiodatei",
+      "generatedFile": "Erzeugte Datei",
+      "downloadArtifact": "{{filename}} herunterladen",
+      "artifactUnavailable": "Dieses Artefakt ist abgelaufen oder nicht mehr verfügbar. Bitten Sie die KI, es erneut zu erstellen."
     }
   }
 }
