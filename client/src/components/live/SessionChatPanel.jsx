@@ -17,8 +17,8 @@ import {
 } from '@mui/material';
 import {
   Add as AddIcon,
-  ChatBubbleOutline as CommentIcon,
-  DeleteOutline as DeleteIcon,
+  ChatBubbleOutlined as CommentIcon,
+  DeleteOutlined as DeleteIcon,
   EditOutlined as EditIcon,
   ExpandLess as ExpandLessIcon,
   ExpandMore as ExpandMoreIcon,
@@ -277,7 +277,9 @@ function CommentThread({
                   })}
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant="caption" sx={{
+                    color: "text.secondary"
+                  }}>
                     {formatTimestamp(comment.createdAt)}
                   </Typography>
                   {(canDeleteAnyComment || (canDeleteOwnComment && comment.isOwnComment)) ? (
@@ -669,7 +671,12 @@ export default function SessionChatPanel({
           <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
             {t('sessionChat.quickPostPrompt')}
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          <Typography
+            variant="body2"
+            sx={{
+              color: "text.secondary",
+              mb: 1
+            }}>
             {t('sessionChat.quickPostHelper')}
           </Typography>
           <Box
@@ -794,7 +801,9 @@ export default function SessionChatPanel({
                       <Chip size="small" variant="outlined" label={t('sessionChat.quickPostChip')} />
                     ) : null}
                   </Box>
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant="caption" sx={{
+                    color: "text.secondary"
+                  }}>
                     {formatTimestamp(post.createdAt)}
                   </Typography>
                 </Box>
@@ -906,7 +915,9 @@ export default function SessionChatPanel({
         </Stack>
       ) : (
         <Paper variant="outlined" sx={{ p: 2 }}>
-          <Typography color="text.secondary">
+          <Typography sx={{
+            color: "text.secondary"
+          }}>
             {t('sessionChat.noPosts')}
           </Typography>
         </Paper>
@@ -915,7 +926,9 @@ export default function SessionChatPanel({
       {view === 'review' && chatData?.posts?.length > 0 ? (
         <>
           <Divider />
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="caption" sx={{
+            color: "text.secondary"
+          }}>
             {t('sessionChat.reviewNote')}
           </Typography>
         </>

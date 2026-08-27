@@ -362,9 +362,9 @@ export default function PracticeSessionEditor() {
               options={normalizeTagValues(course?.tags || [])}
               value={sessionTags}
               onChange={(_event, nextValue) => setSessionTags(normalizeTagValues(nextValue))}
-              renderTags={(value, getTagProps) => value.map((tag, index) => (
+              renderValue={(value, getItemProps) => value.map((tag, index) => (
                 <Chip
-                  {...getTagProps({ index })}
+                  {...getItemProps({ index })}
                   key={tag}
                   size="small"
                   label={tag}
@@ -433,11 +433,15 @@ export default function PracticeSessionEditor() {
       <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
         <Stack spacing={1.5}>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="subtitle2" color="text.secondary">
+            <Typography variant="subtitle2" sx={{
+              color: "text.secondary"
+            }}>
               {t('student.course.practiceSessionQuestions', { defaultValue: 'Questions in this practice session' })}
             </Typography>
             {selectedQuestionIds.length > 0 ? (
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" sx={{
+                color: "text.secondary"
+              }}>
                 {t('student.course.selectedPracticeQuestions', {
                   count: selectedQuestionIds.length,
                   defaultValue: selectedQuestionIds.length === 1 ? '1 question selected' : `${selectedQuestionIds.length} questions selected`,
@@ -656,9 +660,11 @@ export default function PracticeSessionEditor() {
               type="number"
               label={t('questionLibrary.bulk.randomCount', { defaultValue: 'Random count' })}
               value={randomAddCount}
-              inputProps={{ min: 1 }}
               onChange={(event) => setRandomAddCount(Math.max(1, Number(event.target.value) || 1))}
               sx={{ width: { xs: '100%', sm: 140 } }}
+              slotProps={{
+                htmlInput: { min: 1 }
+              }}
             />
             <Button
               variant="outlined"

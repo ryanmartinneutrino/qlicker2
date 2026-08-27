@@ -123,10 +123,11 @@ export default function DateTimePreferenceField({
           onChange={(event) => commitChange({ date: event.target.value })}
           disabled={disabled}
           label={t('common.date')}
-          InputLabelProps={{ shrink: true }}
           sx={{ flex: fullWidth ? 1 : '0 1 210px', minWidth: 180 }}
-          inputProps={minDate ? { min: minDate } : undefined}
-        />
+          slotProps={{
+            htmlInput: minDate ? { min: minDate } : undefined,
+            inputLabel: { shrink: true }
+          }} />
         {use24Hour ? (
           <TextField
             size={size}
@@ -191,7 +192,13 @@ export default function DateTimePreferenceField({
         </TextField>
       </Box>
       {helperText ? (
-        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+        <Typography
+          variant="caption"
+          sx={{
+            color: "text.secondary",
+            mt: 0.5,
+            display: 'block'
+          }}>
           {helperText}
         </Typography>
       ) : null}

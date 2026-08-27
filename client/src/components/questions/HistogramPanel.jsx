@@ -137,7 +137,13 @@ export default function HistogramPanel({
               <HistogramBars data={displayData} height={height} />
             )}
             {!isVisible && (
-              <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 1 }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "text.secondary",
+                  textAlign: 'center',
+                  py: 1
+                }}>
                 {t('histogram.hidden')}
               </Typography>
             )}
@@ -173,7 +179,9 @@ export default function HistogramPanel({
                   value={customMin}
                   onChange={handleRangeFieldChange(setCustomMin)}
                   sx={{ width: 100 }}
-                  inputProps={{ 'aria-label': t('histogram.min') }}
+                  slotProps={{
+                    htmlInput: { 'aria-label': t('histogram.min') }
+                  }}
                 />
                 <TextField
                   size="small"
@@ -182,7 +190,9 @@ export default function HistogramPanel({
                   value={customMax}
                   onChange={handleRangeFieldChange(setCustomMax)}
                   sx={{ width: 100 }}
-                  inputProps={{ 'aria-label': t('histogram.max') }}
+                  slotProps={{
+                    htmlInput: { 'aria-label': t('histogram.max') }
+                  }}
                 />
                 <TextField
                   size="small"
@@ -191,7 +201,9 @@ export default function HistogramPanel({
                   value={customBins}
                   onChange={handleRangeFieldChange(setCustomBins)}
                   sx={{ width: 80 }}
-                  inputProps={{ min: 1, 'aria-label': t('histogram.bins') }}
+                  slotProps={{
+                    htmlInput: { min: 1, 'aria-label': t('histogram.bins') }
+                  }}
                 />
                 {rangeChanged && (
                   <Button

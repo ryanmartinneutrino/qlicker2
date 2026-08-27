@@ -328,14 +328,24 @@ function ShortAnswerList({ responses, showStudentNames = false }) {
   const { t } = useTranslation();
   const sortedResponses = sortResponsesNewestFirst(responses);
   if (!sortedResponses.length) {
-    return <Typography variant="body2" color="text.secondary">{t('professor.liveSession.noResponsesYet')}</Typography>;
+    return (
+      <Typography variant="body2" sx={{
+        color: "text.secondary"
+      }}>{t('professor.liveSession.noResponsesYet')}</Typography>
+    );
   }
   return (
     <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
       {sortedResponses.map((r, i) => (
         <Paper key={i} variant="outlined" sx={{ p: 1, mb: 0.5 }}>
           {showStudentNames && (
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+            <Typography
+              variant="caption"
+              sx={{
+                color: "text.secondary",
+                display: 'block',
+                mb: 0.5
+              }}>
               {r.studentName || t('common.unknown')}
             </Typography>
           )}
@@ -354,7 +364,11 @@ function ShortAnswerList({ responses, showStudentNames = false }) {
 function NumericalStats({ stats }) {
   const { t } = useTranslation();
   if (!stats) {
-    return <Typography variant="body2" color="text.secondary">{t('professor.liveSession.noResponsesYet')}</Typography>;
+    return (
+      <Typography variant="body2" sx={{
+        color: "text.secondary"
+      }}>{t('professor.liveSession.noResponsesYet')}</Typography>
+    );
   }
 
   const entries = [
@@ -369,7 +383,9 @@ function NumericalStats({ stats }) {
     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
       {entries.map((e) => (
         <Paper key={e.label} variant="outlined" sx={{ p: 1.5, minWidth: 90, textAlign: 'center' }}>
-          <Typography variant="caption" color="text.secondary">{e.label}</Typography>
+          <Typography variant="caption" sx={{
+            color: "text.secondary"
+          }}>{e.label}</Typography>
           <Typography variant="h6" sx={{ fontWeight: 700 }}>{e.value}</Typography>
         </Paper>
       ))}
@@ -1201,7 +1217,13 @@ function LiveSessionContent() {
               </Typography>
             ) : null}
             {!isMobile && courseSection ? (
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+              <Typography
+                variant="caption"
+                sx={{
+                  color: "text.secondary",
+                  display: 'block',
+                  mb: 0.5
+                }}>
                 {t('professor.course.sectionHeader', { section: courseSection })}
               </Typography>
             ) : null}
@@ -1372,7 +1394,7 @@ function LiveSessionContent() {
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') e.currentTarget.blur();
                     }}
-                    inputProps={{ min: 5, max: 120 }}
+                    slotProps={{ htmlInput: { min: 5, max: 120 } }}
                     disabled={globalActionLoading || joinCodeIntervalBusy}
                     sx={{ width: { xs: '100%', sm: 150 }, maxWidth: 200 }}
                   />
@@ -1697,11 +1719,15 @@ function LiveSessionContent() {
                   {/* Correct answer for numerical */}
                   {qType === QUESTION_TYPES.NUMERICAL && currentQ.correctNumerical != null && (
                     <Paper variant="outlined" sx={{ p: 1.5, mt: 1 }}>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body2" sx={{
+                        color: "text.secondary"
+                      }}>
                         {t('professor.liveSession.correct', { value: currentQ.correctNumerical })}
                       </Typography>
                       {currentQ.toleranceNumerical != null && (
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2" sx={{
+                          color: "text.secondary"
+                        }}>
                           {t('professor.liveSession.tolerance', { value: currentQ.toleranceNumerical })}
                         </Typography>
                       )}
@@ -1721,7 +1747,9 @@ function LiveSessionContent() {
                   )}
                 </>
               ) : (
-                <Typography variant="body1" color="text.secondary">
+                <Typography variant="body1" sx={{
+                  color: "text.secondary"
+                }}>
                   {t('professor.liveSession.noQuestionSelected')}
                 </Typography>
               )}
@@ -1739,11 +1767,15 @@ function LiveSessionContent() {
                 </Typography>
 
                 {!currentQ ? (
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" sx={{
+                    color: "text.secondary"
+                  }}>
                     {t('professor.liveSession.selectQuestionToViewResponses')}
                   </Typography>
                 ) : responseStats?.type === 'distribution' ? (
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" sx={{
+                    color: "text.secondary"
+                  }}>
                     {t('professor.liveSession.statsInline')}
                   </Typography>
                 ) : responseStats?.type === 'shortAnswer' ? (
@@ -1792,7 +1824,9 @@ function LiveSessionContent() {
                     showStudentNames
                   />
                 ) : (
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" sx={{
+                    color: "text.secondary"
+                  }}>
                     {t('professor.liveSession.noResponsesYet')}
                   </Typography>
                 )}
@@ -1838,7 +1872,9 @@ function LiveSessionContent() {
             </Typography>
 
             {sortedJoinedStudents.length === 0 ? (
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" sx={{
+                color: "text.secondary"
+              }}>
                 {t('professor.liveSession.noStudentsJoined')}
               </Typography>
             ) : (
@@ -1864,7 +1900,9 @@ function LiveSessionContent() {
                       nameWeight={600}
                       sx={{ flex: '1 1 220px', minWidth: 0 }}
                     />
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" sx={{
+                      color: "text.secondary"
+                    }}>
                       {formatJoinedTimestamp(student.joinedAt, t('professor.liveSession.joinTimeUnavailable'))}
                     </Typography>
                   </Paper>

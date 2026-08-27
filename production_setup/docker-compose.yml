@@ -102,6 +102,9 @@ services:
       - ENABLE_API_DOCS=${ENABLE_API_DOCS:-false}
       - MAIL_URL=${MAIL_URL:-}
       - NODE_ENV=production
+      # The API is internal-only; trust forwarding metadata only from private
+      # Docker-network peers (nginx/client), never from an arbitrary public peer.
+      - TRUST_PROXY=${TRUST_PROXY:-loopback,linklocal,uniquelocal}
       - APP_VERSION=${APP_VERSION:-v2.0.0.b4}
       - DISABLE_RATE_LIMITS=${DISABLE_RATE_LIMITS:-false}
       - AI_BACKEND_ALLOW_PRIVATE_HOSTS=${AI_BACKEND_ALLOW_PRIVATE_HOSTS:-true}

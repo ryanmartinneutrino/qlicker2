@@ -21,7 +21,11 @@ export default function RequireRole({
 
   if (!hasRole && !(allowAdmin && hasAdmin)) {
     return (
-      <Box p={4} textAlign="center">
+      <Box
+        sx={{
+          p: 4,
+          textAlign: "center"
+        }}>
         <Typography variant="h5" color="error">{t('accessDenied.title')}</Typography>
         <Typography>{t('accessDenied.message')}</Typography>
       </Box>

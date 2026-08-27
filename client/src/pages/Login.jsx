@@ -129,7 +129,9 @@ export default function Login() {
         onChange={(e) => setEmail(e.target.value)}
         required
         margin="normal"
-        inputProps={{ inputMode: 'email', autoCapitalize: 'none', autoCorrect: 'off', spellCheck: 'false' }}
+        slotProps={{
+          htmlInput: { inputMode: 'email', autoCapitalize: 'none', autoCorrect: 'off', spellCheck: 'false' }
+        }}
       />
       <TextField
         fullWidth
@@ -163,7 +165,13 @@ export default function Login() {
 
   if (authLoading || publicSettingsLoading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          minHeight: "100vh"
+        }}>
         <CircularProgress />
       </Box>
     );
@@ -171,7 +179,14 @@ export default function Login() {
 
   if (publicSettingsError) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh" bgcolor="background.default">
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          minHeight: "100vh",
+          bgcolor: "background.default"
+        }}>
         <Card sx={{ maxWidth: 450, width: '100%', mx: 2 }}>
           <CardContent>
             <Box
@@ -202,7 +217,14 @@ export default function Login() {
   }
 
   return (
-    <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh" bgcolor="background.default">
+    <Box
+      sx={{
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        minHeight: "100vh",
+        bgcolor: "background.default"
+      }}>
       <Card sx={{ maxWidth: 450, width: '100%', mx: 2 }}>
         <CardContent>
           <Box
@@ -235,7 +257,11 @@ export default function Login() {
                 {t('auth.loginThrough', { institution: ssoInstitutionName || t('auth.ssoDefault') })}
               </Button>
               {!showEmailLogin ? (
-                <Box textAlign="center" sx={{ mt: 1.5 }}>
+                <Box
+                  sx={{
+                    textAlign: "center",
+                    mt: 1.5
+                  }}>
                   <Button
                     size="small"
                     variant="text"
@@ -316,7 +342,9 @@ export default function Login() {
                         onChange={(e) => setEmail(e.target.value)}
                         required
                         margin="normal"
-                        inputProps={{ inputMode: 'email', autoCapitalize: 'none', autoCorrect: 'off', spellCheck: 'false' }}
+                        slotProps={{
+                          htmlInput: { inputMode: 'email', autoCapitalize: 'none', autoCorrect: 'off', spellCheck: 'false' }
+                        }}
                       />
                       <TextField
                         fullWidth
@@ -362,7 +390,9 @@ export default function Login() {
             value={forgotEmail}
             onChange={(e) => setForgotEmail(e.target.value)}
             margin="normal"
-            inputProps={{ inputMode: 'email', autoCapitalize: 'none', autoCorrect: 'off', spellCheck: 'false' }}
+            slotProps={{
+              htmlInput: { inputMode: 'email', autoCapitalize: 'none', autoCorrect: 'off', spellCheck: 'false' }
+            }}
           />
           {forgotMsg && <Alert severity={forgotMsg.severity} sx={{ mt: 1 }}>{forgotMsg.text}</Alert>}
         </DialogContent>

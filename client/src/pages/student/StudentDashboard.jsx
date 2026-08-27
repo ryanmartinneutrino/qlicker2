@@ -284,14 +284,21 @@ export default function StudentDashboard() {
                       <Chip label={t('common.ta')} size="small" color="info" />
                     )}
                   </Box>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" sx={{
+                    color: "text.secondary"
+                  }}>
                     {course.semester}
                   </Typography>
                   <Typography variant="body2" sx={{ mt: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
                     {buildCourseTitle(course, 'medium')}
                   </Typography>
                   {course.section && (
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: "text.secondary",
+                        mt: 0.5
+                      }}>
                       {t('student.dashboard.section', { section: course.section })}
                     </Typography>
                   )}
@@ -354,8 +361,15 @@ export default function StudentDashboard() {
       ) : !hasAnyCourses ? (
         <Box sx={{ textAlign: 'center', py: 8 }}>
           <SchoolIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
-          <Typography variant="h6" color="text.secondary">{t('student.dashboard.noCoursesYet')}</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          <Typography variant="h6" sx={{
+            color: "text.secondary"
+          }}>{t('student.dashboard.noCoursesYet')}</Typography>
+          <Typography
+            variant="body2"
+            sx={{
+              color: "text.secondary",
+              mb: 2
+            }}>
             {t('student.dashboard.enrollMessage')}
           </Typography>
           <Button variant="outlined" startIcon={<AddIcon />} onClick={() => setEnrollOpen(true)}>
@@ -387,7 +401,12 @@ export default function StudentDashboard() {
           }}
         >
           <DialogContent sx={{ pt: '8px !important' }}>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "text.secondary",
+                mb: 2
+              }}>
               {t('student.dashboard.enrollmentCodeMessage')}
             </Typography>
             <TextField

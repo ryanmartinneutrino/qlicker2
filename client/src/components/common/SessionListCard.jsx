@@ -27,7 +27,9 @@ export default function SessionListCard({
         ) : null}
         {subtitle ? (
           typeof subtitle === 'string' ? (
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" sx={{
+              color: "text.secondary"
+            }}>
               {subtitle}
             </Typography>
           ) : subtitle

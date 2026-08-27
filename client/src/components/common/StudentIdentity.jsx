@@ -114,7 +114,13 @@ export default function StudentIdentity({
             {displayName}
           </Typography>
           {showEmail && email ? (
-            <Typography variant={emailVariant} color="text.secondary" sx={{ display: 'block' }} noWrap>
+            <Typography
+              variant={emailVariant}
+              noWrap
+              sx={{
+                color: "text.secondary",
+                display: 'block'
+              }}>
               {email}
             </Typography>
           ) : null}
@@ -123,11 +129,13 @@ export default function StudentIdentity({
 
       <Dialog open={!!imageViewUrl} onClose={() => setImageViewUrl(null)} maxWidth="sm" fullWidth>
         <DialogContent sx={{ textAlign: 'center', p: 2 }}>
-          <img
-            src={imageViewUrl || ''}
-            alt={displayName}
-            style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain' }}
-          />
+          {imageViewUrl ? (
+            <img
+              src={imageViewUrl}
+              alt={displayName}
+              style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain' }}
+            />
+          ) : null}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setImageViewUrl(null)}>{t('common.close')}</Button>

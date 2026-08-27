@@ -635,7 +635,12 @@ function LiveSessionContent() {
               <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
                 {t('student.liveSession.joinSession')}
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "text.secondary",
+                mb: 3
+              }}>
               {t('student.liveSession.enterPasscode')}
             </Typography>
 
@@ -650,23 +655,25 @@ function LiveSessionContent() {
                 setJoinCode(val);
               }}
               placeholder="000000"
-              inputProps={{
-                inputMode: 'numeric',
-                pattern: '[0-9]*',
-                maxLength: 6,
-                'aria-label': t('student.liveSession.joinCodeAriaLabel'),
-                style: {
-                  textAlign: 'center',
-                  fontSize: '2rem',
-                  fontWeight: 700,
-                  letterSpacing: '0.35em',
-                },
-              }}
               fullWidth
               autoFocus
               sx={{ mb: 3 }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && joinCode.length === 6) handleJoinWithCode();
+              }}
+              slotProps={{
+                htmlInput: {
+                  inputMode: 'numeric',
+                  pattern: '[0-9]*',
+                  maxLength: 6,
+                  'aria-label': t('student.liveSession.joinCodeAriaLabel'),
+                  style: {
+                    textAlign: 'center',
+                    fontSize: '2rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.35em',
+                  },
+                }
               }}
             />
 
@@ -682,8 +689,8 @@ function LiveSessionContent() {
               {joining ? <CircularProgress size={24} color="inherit" /> : t('student.liveSession.joinSessionAction')}
             </Button>
           </Paper>
-        </Box>
-      );
+          </Box>
+        );
     }
 
     // joinCodeEnabled but not active — wait for instructor to activate
@@ -699,7 +706,12 @@ function LiveSessionContent() {
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
             {session.name || t('student.liveSession.liveSessionFallback')}
           </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ mt: 2 }}>
+          <Typography
+            variant="body1"
+            sx={{
+              color: "text.secondary",
+              mt: 2
+            }}>
             {t('student.liveSession.waitingForPasscode')}
           </Typography>
         </Paper>
@@ -722,7 +734,9 @@ function LiveSessionContent() {
         ) : (
           <>
             <CircularProgress sx={{ mb: 2 }} aria-label={t('student.liveSession.joiningSession')} />
-            <Typography variant="body1" color="text.secondary">
+            <Typography variant="body1" sx={{
+              color: "text.secondary"
+            }}>
               {t('student.liveSession.joiningSessionEllipsis')}
             </Typography>
           </>
@@ -773,7 +787,9 @@ function LiveSessionContent() {
               />
             </Box>
 
-            <Typography variant="body1" color="text.secondary">
+            <Typography variant="body1" sx={{
+              color: "text.secondary"
+            }}>
               {t('student.liveSession.waitingForQuestion')}
             </Typography>
           </Paper>
@@ -815,7 +831,9 @@ function LiveSessionContent() {
             <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
               {session.name || t('student.liveSession.liveSessionFallback')}
             </Typography>
-            <Typography variant="body1" color="text.secondary">
+            <Typography variant="body1" sx={{
+              color: "text.secondary"
+            }}>
               {t('student.liveSession.waitingForQuestion')}
             </Typography>
           </Paper>
@@ -1180,7 +1198,6 @@ function LiveSessionContent() {
               type="number"
               fullWidth
               disabled={isLocked}
-              inputProps={{ 'aria-label': t('student.liveSession.numericalResponseAriaLabel') }}
               helperText={currentQ.toleranceNumerical != null
                 ? t('student.liveSession.toleranceHelper', {
                   value: formatToleranceValue(
@@ -1189,6 +1206,9 @@ function LiveSessionContent() {
                   ),
                 })
                 : undefined}
+              slotProps={{
+                htmlInput: { 'aria-label': t('student.liveSession.numericalResponseAriaLabel') }
+              }}
             />
           </Box>
         )}
@@ -1256,7 +1276,9 @@ function LiveSessionContent() {
               { label: t('professor.secondDesktop.median'), value: responseStats.median != null ? Number(responseStats.median).toFixed(2) : '—' },
             ].map((e) => (
               <Paper key={e.label} variant="outlined" sx={{ p: 1.5, minWidth: 80, textAlign: 'center' }}>
-                <Typography variant="caption" color="text.secondary">{e.label}</Typography>
+                <Typography variant="caption" sx={{
+                  color: "text.secondary"
+                }}>{e.label}</Typography>
                 <Typography variant="h6" sx={{ fontWeight: 700 }}>{e.value}</Typography>
               </Paper>
             ))}
@@ -1265,7 +1287,13 @@ function LiveSessionContent() {
             <Box sx={{ maxHeight: 300, overflow: 'auto', mt: 1.5 }}>
               {responseStats.answers.map((r, i) => (
                 <Paper key={i} variant="outlined" sx={{ p: 1, mb: 0.5 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: "text.secondary",
+                      display: 'block',
+                      mb: 0.5
+                    }}>
                     {t('common.unknown')}
                   </Typography>
                   <Typography variant="body2">{r.answer ?? t('common.noAnswer')}</Typography>
@@ -1286,7 +1314,13 @@ function LiveSessionContent() {
             <Box sx={{ maxHeight: 300, overflow: 'auto' }}>
               {sortedShortAnswerResponses.map((r, i) => (
                 <Paper key={i} variant="outlined" sx={{ p: 1, mb: 0.5 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: "text.secondary",
+                      display: 'block',
+                      mb: 0.5
+                    }}>
                     {t('common.unknown')}
                   </Typography>
                   {r.answerWysiwyg ? (
@@ -1306,11 +1340,15 @@ function LiveSessionContent() {
       {/* ============================================================ */}
       {showCorrect && qType === QUESTION_TYPES.NUMERICAL && currentQ.correctNumerical != null && (
         <Paper variant="outlined" sx={{ p: 2, mb: 2, borderColor: 'success.main' }}>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             {t('student.quiz.correctAnswer', { value: currentQ.correctNumerical })}
           </Typography>
           {currentQ.toleranceNumerical != null && (
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" sx={{
+              color: "text.secondary"
+            }}>
               {t('student.liveSession.tolerance', { value: currentQ.toleranceNumerical })}
             </Typography>
           )}

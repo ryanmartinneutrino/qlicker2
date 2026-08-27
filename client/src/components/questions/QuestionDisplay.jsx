@@ -170,10 +170,14 @@ function QuestionDisplay({ question, allowVideoEmbeds = true }) {
 
       {normalizedType === QUESTION_TYPES.NUMERICAL && (
         <Box sx={{ pl: 2 }}>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             {t('questions.display.correct', { value: question.correctNumerical ?? '—' })}
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             {t('questions.display.tolerance', { value: question.toleranceNumerical ?? 0 })}
           </Typography>
         </Box>
@@ -181,7 +185,13 @@ function QuestionDisplay({ question, allowVideoEmbeds = true }) {
 
       {!isSlide && (question.solution || question.solution_plainText) && (
         <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+          <Typography
+            variant="caption"
+            sx={{
+              color: "text.secondary",
+              display: 'block',
+              mb: 0.5
+            }}>
             {t('common.solution')}
           </Typography>
           <RichHtml

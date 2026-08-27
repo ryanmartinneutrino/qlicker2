@@ -396,10 +396,11 @@ export default function GroupManagementPanel({ courseId, students = [] }) {
               setSelectedGroupIdx(cat && cat.groups && cat.groups.length > 0 ? 0 : -1);
               setRenamingGroup(false);
             }}
-            SelectProps={{ native: true }}
-            InputLabelProps={{ shrink: true }}
             sx={{ mb: 1 }}
-          >
+            slotProps={{
+              select: { native: true },
+              inputLabel: { shrink: true }
+            }}>
             <option value="" disabled>{t('groups.chooseCategory')}</option>
             {categories.map((cat, idx) => (
               <option key={cat.categoryNumber} value={String(idx)}>
@@ -417,10 +418,11 @@ export default function GroupManagementPanel({ courseId, students = [] }) {
             label={t('groups.selectGroup')}
             value={selectedGroupIdx >= 0 ? String(selectedGroupIdx) : ''}
             onChange={(e) => { setSelectedGroupIdx(Number(e.target.value)); setRenamingGroup(false); }}
-            SelectProps={{ native: true }}
-            InputLabelProps={{ shrink: true }}
             sx={{ mb: 1 }}
-          >
+            slotProps={{
+              select: { native: true },
+              inputLabel: { shrink: true }
+            }}>
             {(selectedCat.groups || []).map((g, idx) => (
               <option key={idx} value={String(idx)}>
                 {g.name} ({(g.members || []).length} {t('groups.membersLabel')})
@@ -490,7 +492,9 @@ export default function GroupManagementPanel({ courseId, students = [] }) {
               </Box>
             )}
 
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" sx={{
+              color: "text.secondary"
+            }}>
               {t('groups.memberCount', { count: studentsInSelectedGroup.length })}
               {studentsInSelectedGroup.length > 0 ? ` — ${t('groups.clickToRemove')}` : ''}
             </Typography>
@@ -506,7 +510,9 @@ export default function GroupManagementPanel({ courseId, students = [] }) {
             </List>
           </>
         ) : (
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             {selectedCat ? t('groups.selectGroupPrompt') : t('groups.selectCategoryPrompt')}
           </Typography>
         )}
@@ -536,7 +542,13 @@ export default function GroupManagementPanel({ courseId, students = [] }) {
           sx={{ mb: 1 }}
         />
 
-        <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
+        <Typography
+          variant="caption"
+          sx={{
+            color: "text.secondary",
+            mb: 0.5,
+            display: 'block'
+          }}>
           {studentListLabel} ({studentsToShow.length})
           {addStudentOnClick && studentsToShow.length > 0 ? ` — ${t('groups.clickToAdd')}` : ''}
         </Typography>
@@ -581,8 +593,10 @@ export default function GroupManagementPanel({ courseId, students = [] }) {
               type="number"
               value={newCatGroupCount}
               onChange={(e) => setNewCatGroupCount(Math.max(1, Number(e.target.value) || 1))}
-              inputProps={{ min: 1 }}
               fullWidth
+              slotProps={{
+                htmlInput: { min: 1 }
+              }}
             />
           </DialogContent>
           <DialogActions>
@@ -633,7 +647,9 @@ export default function GroupManagementPanel({ courseId, students = [] }) {
                 })}
                 {uploadResult.notFound?.length > 0 && (
                   <Box sx={{ mt: 1 }}>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" sx={{
+                      color: "text.secondary"
+                    }}>
                       {t('groups.emailsNotFound')}: {uploadResult.notFound.join(', ')}
                     </Typography>
                   </Box>

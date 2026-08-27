@@ -229,7 +229,12 @@ export default function VideoChatPanel({ courseId, course, isInstructor, isStude
               </List>
             </>
           ) : (
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "text.secondary",
+                mt: 1
+              }}>
               {t('video.createGroupsFirst')}
             </Typography>
           )}
@@ -258,7 +263,9 @@ export default function VideoChatPanel({ courseId, course, isInstructor, isStude
             </Tooltip>
           </Box>
         ) : categoriesWithChat.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             {t('video.noVideoChatsEnabled')}
           </Typography>
         ) : null}

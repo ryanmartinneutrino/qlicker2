@@ -271,11 +271,18 @@ export default function ProfDashboard() {
       ) : filtered.length === 0 ? (
         <Box sx={{ textAlign: 'center', py: 8 }}>
           <SchoolIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
-          <Typography variant="h6" color="text.secondary">
+          <Typography variant="h6" sx={{
+            color: "text.secondary"
+          }}>
             {search ? t('professor.dashboard.noCoursesMatch') : t('professor.dashboard.noCoursesYet')}
           </Typography>
           {!search && (
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "text.secondary",
+                mb: 2
+              }}>
               {t('professor.dashboard.createFirstCourse')}
             </Typography>
           )}
@@ -301,14 +308,21 @@ export default function ProfDashboard() {
                     <Typography variant="h6" sx={{ fontWeight: 700 }} noWrap>
                       {buildCourseTitle(course, 'short')}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" sx={{
+                      color: "text.secondary"
+                    }}>
                       {course.semester}
                     </Typography>
                     <Typography variant="body2" sx={{ mt: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
                       {buildCourseTitle(course, 'medium')}
                     </Typography>
                     {course.section && (
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: "text.secondary",
+                          mt: 0.5
+                        }}>
                         {t('professor.dashboard.section', { section: course.section })}
                       </Typography>
                     )}
@@ -330,7 +344,9 @@ export default function ProfDashboard() {
                     </Box>
                     {course.enrollmentCode && (
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 1 }}>
-                        <Typography variant="caption" color="text.secondary">{t('professor.dashboard.code')}</Typography>
+                        <Typography variant="caption" sx={{
+                          color: "text.secondary"
+                        }}>{t('professor.dashboard.code')}</Typography>
                         <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 600 }}>
                           {course.enrollmentCode}
                         </Typography>
@@ -420,7 +436,12 @@ export default function ProfDashboard() {
           }}
         >
           <DialogContent sx={{ pt: '8px !important' }}>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "text.secondary",
+                mb: 2
+              }}>
               {t('student.dashboard.enrollmentCodeMessage')}
             </Typography>
             <TextField

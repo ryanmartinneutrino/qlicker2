@@ -1549,7 +1549,12 @@ export default function CourseDetail() {
             >
               {t('common.searchSessions', { defaultValue: 'Search sessions' })}
             </Button>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "text.secondary",
+                mt: 0.5
+              }}>
               {t('common.paginationSummary', {
                 page: safePage,
                 pages: totalPages,
@@ -1651,7 +1656,9 @@ export default function CourseDetail() {
           <Paper variant="outlined" sx={{ p: 1.25, mb: hasNoLoadedItems ? 0 : 1.5 }}>
             <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
               <CircularProgress size={16} />
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" sx={{
+                color: "text.secondary"
+              }}>
                 {t('professor.course.loadingRemainingSessions', {
                   defaultValue: 'Loading remaining sessions in the background…',
                 })}
@@ -1662,10 +1669,14 @@ export default function CourseDetail() {
 
         {hasNoLoadedItems ? (
           !listStillHydrating ? (
-            <Typography variant="body2" color="text.secondary">{emptyText}</Typography>
+            <Typography variant="body2" sx={{
+              color: "text.secondary"
+            }}>{emptyText}</Typography>
           ) : null
         ) : filteredSessionItems.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             {t('professor.course.noSessionsMatchFilters', { defaultValue: 'No sessions match the current filters.' })}
           </Typography>
         ) : (
@@ -1809,7 +1820,9 @@ export default function CourseDetail() {
         )}
         {controlsVisible && totalPages > 1 && (pageItems.length > 0 || listStillHydrating) && (
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2, flexWrap: 'wrap', gap: 1 }}>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" sx={{
+              color: "text.secondary"
+            }}>
               {t('common.paginationSummary', {
                 page: safePage,
                 pages: totalPages,
@@ -1847,7 +1860,9 @@ export default function CourseDetail() {
             {headerTitle}
           </Typography>
           {headerSection && (
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" sx={{
+              color: "text.secondary"
+            }}>
              {t('professor.course.sectionHeader', { section: headerSection })}
             </Typography>
           )}
@@ -1962,7 +1977,9 @@ export default function CourseDetail() {
       <TabPanel value={tab} index={3}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, gap: 1, flexWrap: 'wrap' }}>
           <Typography variant="h6">{t('professor.course.students')}</Typography>
-          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+          <Stack direction="row" spacing={1} useFlexGap sx={{
+            flexWrap: "wrap"
+          }}>
             <Tooltip title={t('notifications.manage.tooltip')}>
               <Button variant="outlined" startIcon={<NotificationsIcon />} onClick={() => setManageNotificationsOpen(true)}>
                 {t('notifications.manage.button')}
@@ -1982,9 +1999,13 @@ export default function CourseDetail() {
           sx={{ mb: 2, maxWidth: 420 }}
         />
         {students.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">{t('professor.course.noStudents')}</Typography>
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>{t('professor.course.noStudents')}</Typography>
         ) : filteredStudents.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">{t('groups.noStudentsMatch')}</Typography>
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>{t('groups.noStudentsMatch')}</Typography>
         ) : (
           <Paper variant="outlined">
             <List disablePadding>
@@ -2006,7 +2027,9 @@ export default function CourseDetail() {
       <TabPanel value={tab} index={4}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, gap: 1, flexWrap: 'wrap' }}>
           <Typography variant="h6">{t('professor.course.instructors')}</Typography>
-          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+          <Stack direction="row" spacing={1} useFlexGap sx={{
+            flexWrap: "wrap"
+          }}>
             <Tooltip title={t('notifications.manage.tooltip')}>
               <Button variant="outlined" startIcon={<NotificationsIcon />} onClick={() => setManageNotificationsOpen(true)}>
                 {t('notifications.manage.button')}
@@ -2018,7 +2041,9 @@ export default function CourseDetail() {
           </Stack>
         </Box>
         {instructors.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">{t('professor.course.noInstructors')}</Typography>
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>{t('professor.course.noInstructors')}</Typography>
         ) : (
           <Paper variant="outlined">
             <List disablePadding>
@@ -2050,7 +2075,13 @@ export default function CourseDetail() {
                         <>
                           {`${inst.profile?.firstname || ''} ${inst.profile?.lastname || ''}`.trim() || 'Unknown'}
                           {(inst.profile?.roles || []).includes('student') && (
-                            <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 0.5 }}>
+                            <Typography
+                              component="span"
+                              variant="body2"
+                              sx={{
+                                color: "text.secondary",
+                                ml: 0.5
+                              }}>
                               ({t('common.ta')})
                             </Typography>
                           )}
@@ -2136,7 +2167,7 @@ export default function CourseDetail() {
                   if (Number.isInteger(value) && value >= 1 && value <= 50) handleAiConfigChange({ instructorChatMaxToolRounds: value });
                 }}
                 helperText={t('professor.course.instructorAiChatMaxToolRoundsHelp')}
-                inputProps={{ min: 1, max: 50, step: 1 }}
+                slotProps={{ htmlInput: { min: 1, max: 50, step: 1 } }}
                 fullWidth
               />
               <FormControlLabel
@@ -2181,12 +2212,14 @@ export default function CourseDetail() {
                     if (Number.isInteger(value) && value >= 1 && value <= 50) handleAiConfigChange({ studentChatMaxToolRounds: value });
                   }}
                   helperText={t('professor.course.studentAiChatMaxToolRoundsHelp')}
-                  inputProps={{ min: 1, max: 50, step: 1 }}
+                  slotProps={{ htmlInput: { min: 1, max: 50, step: 1 } }}
                   fullWidth
                 />
               </> : null}
               {aiCoursePolicy.allowCourseBackend ? <>
-                <Typography variant="body2" color="text.secondary">{t('professor.course.aiBackendHelp')}</Typography>
+                <Typography variant="body2" sx={{
+                  color: "text.secondary"
+                }}>{t('professor.course.aiBackendHelp')}</Typography>
                 <AiBackendManager
                   backends={aiConfig.courseBackends}
                   courseId={id}
@@ -2216,7 +2249,9 @@ export default function CourseDetail() {
             <Divider />
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               <Typography variant="subtitle2">{t('professor.course.copyRubrics')}</Typography>
-              <Typography variant="body2" color="text.secondary">{t('professor.course.copyRubricsHelp')}</Typography>
+              <Typography variant="body2" sx={{
+                color: "text.secondary"
+              }}>{t('professor.course.copyRubricsHelp')}</Typography>
               <TextField select size="small" label={t('professor.course.copyRubricsSource')} value={rubricSourceCourseId} onChange={(event) => setRubricSourceCourseId(event.target.value)}>
                 {rubricSourceCourses.map((sourceCourse) => (
                   <MenuItem key={sourceCourse._id} value={sourceCourse._id}>{buildCourseTitle(sourceCourse)}</MenuItem>
@@ -2672,10 +2707,14 @@ export default function CourseDetail() {
       <Dialog open={!!copySessionTarget} onClose={() => setCopySessionTarget(null)} maxWidth="xs" fullWidth>
         <DialogTitle>{t('professor.course.copySessionToCourse')}</DialogTitle>
         <DialogContent sx={{ pt: '8px !important', display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             {copySessionTarget ? t('professor.course.copySessionConfirm', { name: copySessionTarget.name }) : ''}
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             {t('professor.course.copySessionPointsHelp')}
           </Typography>
           <Autocomplete

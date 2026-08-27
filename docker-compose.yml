@@ -36,6 +36,8 @@ services:
       - ROOT_URL=${ROOT_URL:-http://localhost:3000}
       - MAIL_URL=${MAIL_URL:-}
       - NODE_ENV=${NODE_ENV:-production}
+      # The development stack proxies API traffic over Docker's private bridge.
+      - TRUST_PROXY=${TRUST_PROXY:-loopback,linklocal,uniquelocal}
       - APP_VERSION=${APP_VERSION:-v2.0.0.b4}
       - DISABLE_RATE_LIMITS=${DISABLE_RATE_LIMITS:-false}
       - AI_BACKEND_ALLOW_PRIVATE_HOSTS=${AI_BACKEND_ALLOW_PRIVATE_HOSTS:-true}

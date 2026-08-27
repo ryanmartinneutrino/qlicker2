@@ -43,7 +43,12 @@ function ManualScreenshot({ screenshot, figureId }) {
         <Typography id={`${figureId}-title`} component="figcaption" variant="subtitle2" sx={{ mt: 1.5, fontWeight: 700 }}>
           {screenshot.title}
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+        <Typography
+          variant="body2"
+          sx={{
+            color: "text.secondary",
+            mt: 0.5
+          }}>
           {screenshot.description}
         </Typography>
       </Box>
@@ -77,11 +82,22 @@ function ManualScreenshot({ screenshot, figureId }) {
             bgcolor: 'action.hover',
           }}
         >
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{
+              alignItems: "center",
+              minWidth: 0
+            }}>
             <Chip label={screenshot.windowBadge} size="small" color="primary" variant="outlined" />
             <Typography variant="subtitle2" sx={{ fontWeight: 700 }} noWrap>{screenshot.windowTitle}</Typography>
           </Stack>
-          <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'right' }}>{screenshot.windowNote}</Typography>
+          <Typography
+            variant="caption"
+            sx={{
+              color: "text.secondary",
+              textAlign: 'right'
+            }}>{screenshot.windowNote}</Typography>
         </Box>
 
         <Box sx={{ p: { xs: 1.5, md: 2 }, display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: '200px minmax(0, 1fr)' } }}>
@@ -109,14 +125,18 @@ function ManualScreenshot({ screenshot, figureId }) {
 
           <Stack spacing={1.5}>
             {!!tabs.length && (
-              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              <Stack direction="row" spacing={1} useFlexGap sx={{
+                flexWrap: "wrap"
+              }}>
                 {tabs.map((tab) => (
                   <Chip key={tab} label={tab} color="primary" variant="outlined" size="small" />
                 ))}
               </Stack>
             )}
             {!!chips.length && (
-              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              <Stack direction="row" spacing={1} useFlexGap sx={{
+                flexWrap: "wrap"
+              }}>
                 {chips.map((chip) => (
                   <Chip key={chip} label={chip} size="small" variant="outlined" />
                 ))}
@@ -128,10 +148,14 @@ function ManualScreenshot({ screenshot, figureId }) {
                   <Stack spacing={1}>
                     <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{card.title}</Typography>
                     {Array.isArray(card.lines) && card.lines.map((line) => (
-                      <Typography key={line} variant="body2" color="text.secondary">{line}</Typography>
+                      <Typography key={line} variant="body2" sx={{
+                        color: "text.secondary"
+                      }}>{line}</Typography>
                     ))}
                     {Array.isArray(card.metrics) && (
-                      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                      <Stack direction="row" spacing={1} useFlexGap sx={{
+                        flexWrap: "wrap"
+                      }}>
                         {card.metrics.map((metric) => (
                           <Chip key={metric} label={metric} size="small" color="secondary" variant="outlined" />
                         ))}
@@ -147,7 +171,12 @@ function ManualScreenshot({ screenshot, figureId }) {
       <Typography id={`${figureId}-title`} component="figcaption" variant="subtitle2" sx={{ mt: 1.5, fontWeight: 700 }}>
         {screenshot.title}
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+      <Typography
+        variant="body2"
+        sx={{
+          color: "text.secondary",
+          mt: 0.5
+        }}>
         {screenshot.description}
       </Typography>
     </Box>
@@ -225,7 +254,12 @@ function Section({ section, index, sectionId, t }) {
             {index + 1}. {section.title}
           </Typography>
           {section.subtitle ? (
-            <Typography variant="body1" color="text.secondary" sx={{ mt: 0.75 }}>
+            <Typography
+              variant="body1"
+              sx={{
+                color: "text.secondary",
+                mt: 0.75
+              }}>
               {section.subtitle}
             </Typography>
           ) : null}
@@ -261,7 +295,9 @@ function ManualNavigation({ dashboardPath, t }) {
       <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
         {t('manuals.shared.navigationTitle')}
       </Typography>
-      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+      <Stack direction="row" spacing={1} useFlexGap sx={{
+        flexWrap: "wrap"
+      }}>
         <Button component={RouterLink} to={dashboardPath} variant="contained">
           {t('manuals.shared.backToDashboard')}
         </Button>
@@ -269,7 +305,12 @@ function ManualNavigation({ dashboardPath, t }) {
           {t('manuals.shared.openProfile')}
         </Button>
       </Stack>
-      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+      <Typography
+        variant="body2"
+        sx={{
+          color: "text.secondary",
+          mt: 1
+        }}>
         {t('manuals.shared.navigationHint')}
       </Typography>
     </Box>
@@ -300,7 +341,12 @@ function ManualSidebar({
             <Typography variant="h6" sx={{ mt: 1.5, fontWeight: 700 }}>
               {t('manuals.shared.navigationTitle')}
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "text.secondary",
+                mt: 0.75
+              }}>
               {manual.summary}
             </Typography>
           </Box>
@@ -314,7 +360,9 @@ function ManualSidebar({
         </Typography>
         <Box component="ol" sx={{ m: 0, pl: 3, display: 'grid', gap: 1 }}>
           {(Array.isArray(manual.quickStart) ? manual.quickStart : []).map((step) => (
-            <Typography component="li" key={step} variant="body2" color="text.secondary">
+            <Typography component="li" key={step} variant="body2" sx={{
+              color: "text.secondary"
+            }}>
               {step}
             </Typography>
           ))}
@@ -401,7 +449,9 @@ export default function UserManual() {
             <Alert severity="warning">{t('manuals.shared.accessDenied', { manual: t(`manuals.shared.roles.${manualRole}`) })}</Alert>
             <ManualNavigation dashboardPath={dashboardPath} t={t} />
             {!!availableRoles.length && (
-              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              <Stack direction="row" spacing={1} useFlexGap sx={{
+                flexWrap: "wrap"
+              }}>
                 {availableRoles.map((role) => (
                   <Button key={role} component={RouterLink} to={getManualPath(role)} variant="outlined">
                     {t(`manuals.shared.openManualForRole`, { role: t(`manuals.shared.roles.${role}`) })}
@@ -447,10 +497,18 @@ export default function UserManual() {
         <Stack spacing={2.5}>
           <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 } }}>
             <Stack spacing={2.5}>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'flex-start', sm: 'center' }} justifyContent="space-between">
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={2}
+                sx={{
+                  alignItems: { xs: 'flex-start', sm: 'center' },
+                  justifyContent: "space-between"
+                }}>
                 <Box sx={{ minWidth: 0 }}>
                   <Typography variant="h4" component="h1" gutterBottom>{manual.title}</Typography>
-                  <Typography variant="body1" color="text.secondary">
+                  <Typography variant="body1" sx={{
+                    color: "text.secondary"
+                  }}>
                     {manual.intro}
                   </Typography>
                 </Box>
@@ -461,7 +519,9 @@ export default function UserManual() {
 
               <Divider />
 
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" sx={{
+                color: "text.secondary"
+              }}>
                 {t('manuals.shared.navigationHint')}
               </Typography>
             </Stack>

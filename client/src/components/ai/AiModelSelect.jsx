@@ -52,11 +52,14 @@ export default function AiModelSelect({ courseId, value, onChange, disabled = fa
   }, [audience, courseId, persistenceKey, t]);
 
   if (error) return <Alert severity="error">{error}</Alert>;
+  const selectedValue = models.some(
+    (model) => aiModelValue(model.backendId, model.modelId) === value
+  ) ? value : '';
   return <TextField
     select
     size="small"
     label={t('ai.models.modelForTask')}
-    value={value || ''}
+    value={selectedValue}
     onChange={(event) => {
       if (persistenceKey) localStorage.setItem(persistenceKey, event.target.value);
       onChange(event.target.value);

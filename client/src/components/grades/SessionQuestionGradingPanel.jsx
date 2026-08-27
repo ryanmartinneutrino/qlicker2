@@ -486,8 +486,10 @@ const GradingTableRow = memo(function GradingTableRow({
           size="small"
           checked={selected}
           onChange={(event) => onToggleSelected(row.studentId, event.target.checked)}
-          inputProps={{
-            'aria-label': t('grades.questionPanel.selectStudent', { name: row.displayName }),
+          slotProps={{
+            input: {
+              'aria-label': t('grades.questionPanel.selectStudent', { name: row.displayName }),
+            }
           }}
         />
       </TableCell>
@@ -516,7 +518,9 @@ const GradingTableRow = memo(function GradingTableRow({
           </Avatar>
           <Box sx={{ minWidth: 0 }}>
             <Typography variant="body2" noWrap>{row.displayName}</Typography>
-            <Typography variant="caption" color="text.secondary" noWrap>{row.email || '—'}</Typography>
+            <Typography variant="caption" noWrap sx={{
+              color: "text.secondary"
+            }}>{row.email || '—'}</Typography>
           </Box>
         </Box>
       </TableCell>
@@ -529,7 +533,9 @@ const GradingTableRow = memo(function GradingTableRow({
           )}
         </Box>
         {row.latestResponse?.attempt ? (
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="caption" sx={{
+            color: "text.secondary"
+          }}>
             {t('grades.questionPanel.attemptNumber', { number: row.latestResponse.attempt })}
           </Typography>
         ) : null}
@@ -546,9 +552,13 @@ const GradingTableRow = memo(function GradingTableRow({
             }}
             onBlur={() => syncDraftToParent(pointsValue, feedbackValueRef.current)}
             sx={{ width: 82 }}
-            inputProps={{ min: 0 }}
+            slotProps={{
+              htmlInput: { min: 0 }
+            }}
           />
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="caption" sx={{
+            color: "text.secondary"
+          }}>
             {t('grades.questionPanel.outOf', { value: formatPercent(row.mark?.outOf || 0) })}
           </Typography>
         </Box>
@@ -1548,16 +1558,15 @@ export default function SessionQuestionGradingPanel({
     >
       <Typography
         variant="caption"
-        color="text.secondary"
         sx={{
+          color: "text.secondary",
           position: 'absolute',
           top: -10,
           left: 8,
           px: 0.5,
           bgcolor: 'background.paper',
-          fontWeight: 700,
-        }}
-      >
+          fontWeight: 700
+        }}>
         {t('grades.questionPanel.questionNavigator')}
       </Typography>
       <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
@@ -1635,8 +1644,10 @@ export default function SessionQuestionGradingPanel({
             value={questionPointsDraft}
             onChange={(event) => setQuestionPointsDraft(event.target.value)}
             sx={{ width: 160 }}
-            inputProps={{ min: 0, step: 'any' }}
             disabled={gradingLocked}
+            slotProps={{
+              htmlInput: { min: 0, step: 'any' }
+            }}
           />
           <Button
             size="small"
@@ -1646,7 +1657,9 @@ export default function SessionQuestionGradingPanel({
           >
             {questionPointsSaving ? t('common.saving') : t('grades.questionPanel.updateQuestionPoints')}
           </Button>
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="caption" sx={{
+            color: "text.secondary"
+          }}>
             {t('grades.questionPanel.updateQuestionPointsHelp')}
           </Typography>
         </Box>
@@ -1810,10 +1823,22 @@ export default function SessionQuestionGradingPanel({
         />
       </Box>
 
-      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.25 }}>
+      <Typography
+        variant="caption"
+        sx={{
+          color: "text.secondary",
+          display: 'block',
+          mb: 1.25
+        }}>
         {displayedStudentHint}
       </Typography>
-      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.25 }}>
+      <Typography
+        variant="caption"
+        sx={{
+          color: "text.secondary",
+          display: 'block',
+          mb: 1.25
+        }}>
         {t('grades.questionPanel.feedbackMathTip')}
       </Typography>
 
@@ -1856,8 +1881,10 @@ export default function SessionQuestionGradingPanel({
                   indeterminate={someFilteredSelected}
                   disabled={filteredStudentIds.length === 0}
                   onChange={(event) => handleToggleSelectAllFiltered(event.target.checked)}
-                  inputProps={{
-                    'aria-label': t('grades.questionPanel.selectAllFiltered', { count: filteredStudentIds.length }),
+                  slotProps={{
+                    input: {
+                      'aria-label': t('grades.questionPanel.selectAllFiltered', { count: filteredStudentIds.length }),
+                    }
                   }}
                 />
               </TableCell>
@@ -1928,7 +1955,9 @@ export default function SessionQuestionGradingPanel({
             {sortedRows.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6}>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" sx={{
+                    color: "text.secondary"
+                  }}>
                     {t('grades.questionPanel.noStudentsMatch')}
                   </Typography>
                 </TableCell>
@@ -1966,7 +1995,12 @@ export default function SessionQuestionGradingPanel({
               next: formatPercent(parsedQuestionPointsDraft),
             })}
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1.25 }}>
+          <Typography
+            variant="body2"
+            sx={{
+              color: "text.secondary",
+              mt: 1.25
+            }}>
             {t('grades.questionPanel.confirmQuestionPointsHelp')}
           </Typography>
         </DialogContent>
@@ -2005,10 +2039,14 @@ export default function SessionQuestionGradingPanel({
           {aiGradingJob?.status === 'failed' ? <Alert severity="warning" sx={{ mb: 2 }}>{t('grades.aiGrading.failedReportNotice')}{aiGradingJob?.error ? ` ${t('grades.aiGrading.failedReportError', { error: aiGradingJob.error })}` : ''}</Alert> : aiGradingJob?.status === 'halted' ? <Alert severity="info" sx={{ mb: 2 }}>{aiGradingJob?.report?.summary || t('grades.aiGrading.halted')}</Alert> : <Typography sx={{ mb: 2 }}>{aiGradingJob?.report?.summary || t('grades.aiGrading.completed')}</Typography>}
           {(aiGradingJob?.report?.summaries || []).map((summary) => <Typography key={summary.question} variant="body2" sx={{ mb: 0.5 }}>{t('grades.aiGrading.reportSummary', { question: summary.question, graded: summary.graded, zeroed: summary.zeroed })}</Typography>)}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}><Typography variant="subtitle2">{t('grades.aiGrading.log')}</Typography><Button size="small" color="error" onClick={async () => { await apiClient.delete(`/ai/courses/${courseId}/sessions/${sessionId}/ai-grading-log`); setAiGradingJob((current) => current ? { ...current, sessionLog: { runs: [] } } : current); }}>{t('grades.aiGrading.clearLog')}</Button></Box>
-          {aiGradingLogRuns.map((run, runIndex) => <Box key={run.jobId || runIndex} sx={{ mb: 2 }}><Typography variant="caption" color="text.secondary">{t('grades.aiGrading.logRunAt', { timestamp: run.startedAt ? new Date(run.startedAt).toLocaleString() : '' })}</Typography>{(run.entries || []).map((entry, index) => <Paper key={index} variant="outlined" sx={{ p: 1, mb: 1 }}>{entry.question || entry.student ? <Typography variant="subtitle2">{[entry.question, entry.student].filter(Boolean).join(' · ')}</Typography> : null}{entry.status !== 'skipped' && entry.points !== undefined ? <Typography variant="body2">{t('grades.aiGrading.assignedGrade', { points: entry.points, outOf: entry.outOf })}</Typography> : null}{entry.note ? <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mt: 0.5 }}>{entry.note}</Typography> : null}{entry.justification ? <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mt: 0.5 }}><strong>{t('grades.aiGrading.justification')}:</strong> {entry.justification}</Typography> : null}{entry.feedback ? <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mt: 0.5 }}>{entry.feedback}</Typography> : null}</Paper>)}</Box>)}
+          {aiGradingLogRuns.map((run, runIndex) => <Box key={run.jobId || runIndex} sx={{ mb: 2 }}><Typography variant="caption" sx={{
+            color: "text.secondary"
+          }}>{t('grades.aiGrading.logRunAt', { timestamp: run.startedAt ? new Date(run.startedAt).toLocaleString() : '' })}</Typography>{(run.entries || []).map((entry, index) => <Paper key={index} variant="outlined" sx={{ p: 1, mb: 1 }}>{entry.question || entry.student ? <Typography variant="subtitle2">{[entry.question, entry.student].filter(Boolean).join(' · ')}</Typography> : null}{entry.status !== 'skipped' && entry.points !== undefined ? <Typography variant="body2">{t('grades.aiGrading.assignedGrade', { points: entry.points, outOf: entry.outOf })}</Typography> : null}{entry.note ? <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mt: 0.5 }}>{entry.note}</Typography> : null}{entry.justification ? <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mt: 0.5 }}><strong>{t('grades.aiGrading.justification')}:</strong> {entry.justification}</Typography> : null}{entry.feedback ? <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mt: 0.5 }}>{entry.feedback}</Typography> : null}</Paper>)}</Box>)}
           <Divider sx={{ my: 2 }} />
           <Typography variant="subtitle2" sx={{ mb: 1 }}>{t('grades.aiGrading.inappropriateResponses')}</Typography>
-          {inappropriateAiResponses.length ? inappropriateAiResponses.map((entry, index) => <Alert key={`${entry.question}-${entry.student}-${index}`} severity="warning" sx={{ mb: 1 }}><Typography variant="subtitle2">{[entry.question, entry.student].filter(Boolean).join(' · ')}</Typography><Typography variant="body2">“{entry.quote}”</Typography>{entry.reason ? <Typography variant="caption">{entry.reason}</Typography> : null}</Alert>) : <Typography variant="body2" color="text.secondary">{t('grades.aiGrading.noInappropriateResponses')}</Typography>}
+          {inappropriateAiResponses.length ? inappropriateAiResponses.map((entry, index) => <Alert key={`${entry.question}-${entry.student}-${index}`} severity="warning" sx={{ mb: 1 }}><Typography variant="subtitle2">{[entry.question, entry.student].filter(Boolean).join(' · ')}</Typography><Typography variant="body2">“{entry.quote}”</Typography>{entry.reason ? <Typography variant="caption">{entry.reason}</Typography> : null}</Alert>) : <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>{t('grades.aiGrading.noInappropriateResponses')}</Typography>}
         </DialogContent>
         <DialogActions><Button onClick={() => setAiGradingReportOpen(false)}>{t('common.close')}</Button></DialogActions>
       </Dialog>

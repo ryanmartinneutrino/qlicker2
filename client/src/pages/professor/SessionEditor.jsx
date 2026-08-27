@@ -1157,138 +1157,145 @@ export default function SessionEditor() {
       : currentIndex < questions.length);
 
     return (
-    <Card key={key} variant="outlined" sx={{ mb: PAGE_SECTION_GAP }}>
-      <CardContent
-        sx={{
-          display: 'flex',
-          flexDirection: { xs: 'column', sm: 'row' },
-          gap: { xs: 1, sm: 1.5 },
-          alignItems: 'flex-start',
-          minWidth: 0,
-          overflow: 'hidden',
-          '&:last-child': { pb: 2 },
-        }}
-      >
-        <Box
+      <Card key={key} variant="outlined" sx={{ mb: PAGE_SECTION_GAP }}>
+        <CardContent
           sx={{
-            display: { xs: 'flex', sm: 'none' },
-            width: '100%',
-            alignItems: 'center',
-            justifyContent: 'space-between',
+            display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
+            gap: { xs: 1, sm: 1.5 },
+            alignItems: 'flex-start',
+            minWidth: 0,
+            overflow: 'hidden',
+            '&:last-child': { pb: 2 },
           }}
         >
-          <Typography variant="subtitle2" color="text.secondary">
-            {initialQuestion ? t('professor.sessionEditor.questionNumber', { number: currentIndex + 1 }) : t('professor.sessionEditor.insertAt', { number: index + 1 })}
-          </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+          <Box
+            sx={{
+              display: { xs: 'flex', sm: 'none' },
+              width: '100%',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Typography variant="subtitle2" sx={{
+              color: "text.secondary"
+            }}>
+              {initialQuestion ? t('professor.sessionEditor.questionNumber', { number: currentIndex + 1 }) : t('professor.sessionEditor.insertAt', { number: index + 1 })}
+            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+              <Tooltip title={t('professor.sessionEditor.closeEditor')}>
+                <IconButton size="small" aria-label={t('professor.sessionEditor.closeEditor')} onClick={requestInlineEditorClose}>
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <IconButton
+                size="small"
+                aria-label={t('common.moreActions')}
+                onClick={(event) => openQuestionActions(event, {
+                  mode: initialQuestion ? 'edit' : 'insert',
+                  index,
+                  question: initialQuestion || null,
+                })}
+              >
+                <MoreIcon fontSize="small" />
+              </IconButton>
+            </Box>
+          </Box>
+
+          <Box
+            sx={{
+              display: { xs: 'none', sm: 'flex' },
+              flexDirection: 'column',
+              alignItems: 'center',
+              minWidth: 34,
+              flexShrink: 0,
+            }}
+          >
             <Tooltip title={t('professor.sessionEditor.closeEditor')}>
               <IconButton size="small" aria-label={t('professor.sessionEditor.closeEditor')} onClick={requestInlineEditorClose}>
                 <CloseIcon fontSize="small" />
               </IconButton>
             </Tooltip>
-            <IconButton
-              size="small"
-              aria-label={t('common.moreActions')}
-              onClick={(event) => openQuestionActions(event, {
-                mode: initialQuestion ? 'edit' : 'insert',
-                index,
-                question: initialQuestion || null,
-              })}
-            >
-              <MoreIcon fontSize="small" />
-            </IconButton>
+            <Tooltip title={initialQuestion ? t('professor.sessionEditor.moveUp') : t('professor.sessionEditor.moveInsertionUp')}>
+              <span>
+                <IconButton
+                  size="small"
+                  aria-label={t('common.moveUp')}
+                  disabled={!canMoveUp}
+                  onClick={() => {
+                    if (initialQuestion?._id) moveQuestionByQuestionId(initialQuestion._id, -1);
+                    else shiftInsertEditor(-1);
+                  }}
+                >
+                  <UpIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Typography
+              variant="subtitle2"
+              sx={{
+                color: "text.secondary",
+                lineHeight: 1.2
+              }}>
+              {currentIndex + 1}.
+            </Typography>
+            <Tooltip title={initialQuestion ? t('professor.sessionEditor.moveDown') : t('professor.sessionEditor.moveInsertionDown')}>
+              <span>
+                <IconButton
+                  size="small"
+                  aria-label={t('common.moveDown')}
+                  disabled={!canMoveDown}
+                  onClick={() => {
+                    if (initialQuestion?._id) moveQuestionByQuestionId(initialQuestion._id, 1);
+                    else shiftInsertEditor(1);
+                  }}
+                >
+                  <DownIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+            {initialQuestion ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 0.5 }}>
+                <Tooltip title={questionHasResponses ? t('professor.sessionEditor.cannotDeleteHasResponses') : t('common.delete')}>
+                  <span>
+                    <IconButton
+                      size="small"
+                      color="error"
+                      aria-label={t('common.delete')}
+                      disabled={questionsEditingLocked || questionHasResponses}
+                      onClick={() => setDeleteQTarget(initialQuestion)}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              </Box>
+            ) : null}
           </Box>
-        </Box>
 
-        <Box
-          sx={{
-            display: { xs: 'none', sm: 'flex' },
-            flexDirection: 'column',
-            alignItems: 'center',
-            minWidth: 34,
-            flexShrink: 0,
-          }}
-        >
-          <Tooltip title={t('professor.sessionEditor.closeEditor')}>
-            <IconButton size="small" aria-label={t('professor.sessionEditor.closeEditor')} onClick={requestInlineEditorClose}>
-              <CloseIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title={initialQuestion ? t('professor.sessionEditor.moveUp') : t('professor.sessionEditor.moveInsertionUp')}>
-            <span>
-              <IconButton
-                size="small"
-                aria-label={t('common.moveUp')}
-                disabled={!canMoveUp}
-                onClick={() => {
-                  if (initialQuestion?._id) moveQuestionByQuestionId(initialQuestion._id, -1);
-                  else shiftInsertEditor(-1);
-                }}
-              >
-                <UpIcon fontSize="small" />
-              </IconButton>
-            </span>
-          </Tooltip>
-          <Typography variant="subtitle2" color="text.secondary" sx={{ lineHeight: 1.2 }}>
-            {currentIndex + 1}.
-          </Typography>
-          <Tooltip title={initialQuestion ? t('professor.sessionEditor.moveDown') : t('professor.sessionEditor.moveInsertionDown')}>
-            <span>
-              <IconButton
-                size="small"
-                aria-label={t('common.moveDown')}
-                disabled={!canMoveDown}
-                onClick={() => {
-                  if (initialQuestion?._id) moveQuestionByQuestionId(initialQuestion._id, 1);
-                  else shiftInsertEditor(1);
-                }}
-              >
-                <DownIcon fontSize="small" />
-              </IconButton>
-            </span>
-          </Tooltip>
-          {initialQuestion ? (
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 0.5 }}>
-              <Tooltip title={questionHasResponses ? t('professor.sessionEditor.cannotDeleteHasResponses') : t('common.delete')}>
-                <span>
-                  <IconButton
-                    size="small"
-                    color="error"
-                    aria-label={t('common.delete')}
-                    disabled={questionsEditingLocked || questionHasResponses}
-                    onClick={() => setDeleteQTarget(initialQuestion)}
-                  >
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </span>
-              </Tooltip>
-            </Box>
-          ) : null}
-        </Box>
+          <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+            <QuestionEditor
+              ref={inlineQuestionEditorRef}
+              key={`inline-editor-${inlineEditor?.key}`}
+              inline
+              open
+              onClose={closeInlineEditor}
+              onAutoSave={handleAutoSaveQuestion}
+              initial={initialQuestion}
+              initialBaseline={baselineQuestion}
+              disableTypeSelection={questionHasResponses}
+              disableOptionCountChanges={questionHasResponses}
+              optionCountLockReason={t('professor.sessionEditor.questionOptionsLocked')}
+              typeSelectionLockReason={t('professor.sessionEditor.questionTypeLocked')}
+              tagSuggestions={course?.tags || []}
+              showVisibilityControls={false}
+              allowCustomTags={false}
+              showCourseTagSettingsHint
+            />
+          </Box>
 
-        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-          <QuestionEditor
-            ref={inlineQuestionEditorRef}
-            key={`inline-editor-${inlineEditor?.key}`}
-            inline
-            open
-            onClose={closeInlineEditor}
-            onAutoSave={handleAutoSaveQuestion}
-            initial={initialQuestion}
-            initialBaseline={baselineQuestion}
-            disableTypeSelection={questionHasResponses}
-            disableOptionCountChanges={questionHasResponses}
-            optionCountLockReason={t('professor.sessionEditor.questionOptionsLocked')}
-            typeSelectionLockReason={t('professor.sessionEditor.questionTypeLocked')}
-            tagSuggestions={course?.tags || []}
-            showVisibilityControls={false}
-            allowCustomTags={false}
-            showCourseTagSettingsHint
-          />
-        </Box>
-
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
     );
   };
 
@@ -1315,7 +1322,13 @@ export default function SessionEditor() {
               </Typography>
             ) : null}
             {courseSection ? (
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+              <Typography
+                variant="caption"
+                sx={{
+                  color: "text.secondary",
+                  display: 'block',
+                  mb: 0.5
+                }}>
                 {t('professor.course.sectionHeader', { section: courseSection })}
               </Typography>
             ) : null}
@@ -1538,7 +1551,7 @@ export default function SessionEditor() {
                       label={t('professor.sessionEditor.codeRefreshInterval')}
                       size="small"
                       type="number"
-                      inputProps={{ min: 5, max: 120 }}
+                      slotProps={{ htmlInput: { min: 5, max: 120 } }}
                       value={joinCodeInterval}
                       onChange={(e) => {
                         const val = Number(e.target.value);
@@ -1573,7 +1586,12 @@ export default function SessionEditor() {
               <MenuItem value="all-or-nothing">{t('professor.sessionEditor.allOrNothing')}</MenuItem>
               <MenuItem value="correctness-ratio">{t('professor.sessionEditor.correctnessRatio')}</MenuItem>
             </Select>
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+            <Typography
+              variant="caption"
+              sx={{
+                color: "text.secondary",
+                mt: 0.5
+              }}>
               {t('professor.sessionEditor.msScoringHelp')}
             </Typography>
           </FormControl>
@@ -1675,12 +1693,16 @@ export default function SessionEditor() {
                 >
                   {t('professor.sessionEditor.add12hToEndDate')}
                 </Button>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" sx={{
+                  color: "text.secondary"
+                }}>
                   {t('professor.sessionEditor.defaultQuizWindows')}
                 </Typography>
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" sx={{
+                  color: "text.secondary"
+                }}>
                   {t('professor.sessionEditor.quizExtensions', { count: extensionDrafts.length })}
                 </Typography>
                 <Button
@@ -1779,7 +1801,12 @@ export default function SessionEditor() {
           aria-disabled={questionsEditingLocked}
         >
           {questions.length === 0 && (
-            <Typography color="text.secondary" sx={{ pb: 1.5, textAlign: 'center' }}>
+            <Typography
+              sx={{
+                color: "text.secondary",
+                pb: 1.5,
+                textAlign: 'center'
+              }}>
               {t('professor.sessionEditor.noQuestionsYet')}
             </Typography>
           )}
@@ -1807,252 +1834,261 @@ export default function SessionEditor() {
             : false;
 
             return (
-            <Box key={slotKey}>
-              {activeEditorSlotIndex === slotIdx ? (
-                renderInlineEditorCard({
-                  key: `inline-editor-${inlineEditor?.key}`,
-                  index: slotIdx,
-                  initialQuestion: inlineEditor?.mode === 'edit' ? currentQuestion : null,
-                  baselineQuestion: inlineEditor?.mode === 'edit' ? activeBaseline : null,
-                })
-              ) : (
-                <Box sx={{ display: 'flex', justifyContent: 'center', mb: PAGE_SECTION_GAP }}>
-                  {isEdgeInsertSlot ? (
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      startIcon={<AddIcon />}
-                      onClick={() => openAddQuestionDialogAt(slotIdx)}
-                      disabled={questionsEditingLocked}
-                      aria-label={t('professor.sessionEditor.addQuestionAtPositionAria', { position: slotIdx + 1 })}
-                    >
-                      {t('professor.sessionEditor.addQuestion')}
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="text"
-                      size="small"
-                      onClick={() => openAddQuestionDialogAt(slotIdx)}
-                      disabled={questionsEditingLocked}
-                      aria-label={t('professor.sessionEditor.addQuestionAtPositionAria', { position: slotIdx + 1 })}
-                      sx={{
-                        width: '100%',
-                        minWidth: 0,
-                        maxWidth: { xs: '100%', sm: 620 },
-                        px: 0.5,
-                        py: 0.35,
-                        borderRadius: 1.5,
-                        color: 'text.secondary',
-                        justifyContent: 'flex-end',
-                        textTransform: 'none',
-                        '& .insert-question-line': {
-                          flexGrow: 1,
-                          borderTop: '3px solid',
-                          borderColor: 'divider',
-                          borderRadius: 999,
-                          mr: 0.9,
-                          transition: 'border-color 0.2s ease',
-                        },
-                        '&:hover .insert-question-line': {
-                          borderColor: 'text.secondary',
-                        },
-                      }}
-                    >
-                      <Box className="insert-question-line" />
-                      <AddIcon fontSize="small" />
-                      <Typography variant="caption" sx={{ ml: 0.2, display: { xs: 'none', sm: 'inline' } }}>
-                        {t('common.add')}
-                      </Typography>
-                    </Button>
-                  )}
-                </Box>
-              )}
-
-              {currentQuestion && slotIdx !== editingQuestionIndex ? (
-                  <Card key={currentQuestion._id} variant="outlined" sx={{ mb: PAGE_SECTION_GAP }}>
-                    <CardContent
-                      sx={{
-                        display: 'flex',
-                        flexDirection: { xs: 'column', sm: 'row' },
-                        gap: { xs: 1, sm: 1.5 },
-                        alignItems: 'flex-start',
-                        minWidth: 0,
-                        overflow: 'hidden',
-                        '&:last-child': { pb: 2 },
-                      }}
-                    >
-                      <Box
+              <Box key={slotKey}>
+                {activeEditorSlotIndex === slotIdx ? (
+                  renderInlineEditorCard({
+                    key: `inline-editor-${inlineEditor?.key}`,
+                    index: slotIdx,
+                    initialQuestion: inlineEditor?.mode === 'edit' ? currentQuestion : null,
+                    baselineQuestion: inlineEditor?.mode === 'edit' ? activeBaseline : null,
+                  })
+                ) : (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mb: PAGE_SECTION_GAP }}>
+                    {isEdgeInsertSlot ? (
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<AddIcon />}
+                        onClick={() => openAddQuestionDialogAt(slotIdx)}
+                        disabled={questionsEditingLocked}
+                        aria-label={t('professor.sessionEditor.addQuestionAtPositionAria', { position: slotIdx + 1 })}
+                      >
+                        {t('professor.sessionEditor.addQuestion')}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="text"
+                        size="small"
+                        onClick={() => openAddQuestionDialogAt(slotIdx)}
+                        disabled={questionsEditingLocked}
+                        aria-label={t('professor.sessionEditor.addQuestionAtPositionAria', { position: slotIdx + 1 })}
                         sx={{
-                          display: { xs: 'flex', sm: 'none' },
                           width: '100%',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
+                          minWidth: 0,
+                          maxWidth: { xs: '100%', sm: 620 },
+                          px: 0.5,
+                          py: 0.35,
+                          borderRadius: 1.5,
+                          color: 'text.secondary',
+                          justifyContent: 'flex-end',
+                          textTransform: 'none',
+                          '& .insert-question-line': {
+                            flexGrow: 1,
+                            borderTop: '3px solid',
+                            borderColor: 'divider',
+                            borderRadius: 999,
+                            mr: 0.9,
+                            transition: 'border-color 0.2s ease',
+                          },
+                          '&:hover .insert-question-line': {
+                            borderColor: 'text.secondary',
+                          },
                         }}
                       >
-                        <Typography variant="subtitle2" color="text.secondary">
-                          {t('professor.sessionEditor.questionNumber', { number: displayedQuestionNumber })}
+                        <Box className="insert-question-line" />
+                        <AddIcon fontSize="small" />
+                        <Typography variant="caption" sx={{ ml: 0.2, display: { xs: 'none', sm: 'inline' } }}>
+                          {t('common.add')}
                         </Typography>
-                        <IconButton
-                          size="small"
-                          aria-label={t('common.moreActions')}
-                          disabled={questionsEditingLocked}
-                          onClick={(event) => openQuestionActions(event, {
-                            mode: 'view',
-                            index: slotIdx,
-                            question: currentQuestion,
-                          })}
-                        >
-                          <MoreIcon fontSize="small" />
-                        </IconButton>
-                      </Box>
+                      </Button>
+                    )}
+                  </Box>
+                )}
 
-                      <Box
+                {currentQuestion && slotIdx !== editingQuestionIndex ? (
+                    <Card key={currentQuestion._id} variant="outlined" sx={{ mb: PAGE_SECTION_GAP }}>
+                      <CardContent
                         sx={{
-                          display: { xs: 'none', sm: 'flex' },
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          minWidth: 34,
-                          flexShrink: 0,
+                          display: 'flex',
+                          flexDirection: { xs: 'column', sm: 'row' },
+                          gap: { xs: 1, sm: 1.5 },
+                          alignItems: 'flex-start',
+                          minWidth: 0,
+                          overflow: 'hidden',
+                          '&:last-child': { pb: 2 },
                         }}
                       >
-                        <Tooltip title={t('common.edit')}>
-                          <span>
-                            <IconButton
-                              size="small"
-                              aria-label={t('common.edit')}
-                              disabled={questionsEditingLocked}
-                              onClick={() => openEditEditor(currentQuestion._id)}
-                            >
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                        <Tooltip title={t('professor.sessionEditor.moveUp')}>
-                          <span>
-                            <IconButton
-                              size="small"
-                              aria-label={t('common.moveUp')}
-                              disabled={!canMoveCurrentQuestionUp}
-                              onClick={() => moveQuestionByQuestionId(currentQuestion._id, -1)}
-                            >
-                              <UpIcon fontSize="small" />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                        <Typography variant="subtitle2" color="text.secondary" sx={{ lineHeight: 1.2 }}>
-                          {displayedQuestionNumber}.
-                        </Typography>
-                        <Tooltip title={t('professor.sessionEditor.moveDown')}>
-                          <span>
-                            <IconButton
-                              size="small"
-                              aria-label={t('common.moveDown')}
-                              disabled={!canMoveCurrentQuestionDown}
-                              onClick={() => moveQuestionByQuestionId(currentQuestion._id, 1)}
-                            >
-                              <DownIcon fontSize="small" />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                        <Tooltip title={questionHasResponses ? t('professor.sessionEditor.cannotDeleteHasResponses') : t('common.delete')}>
-                          <span>
-                            <IconButton
-                              size="small"
-                              color="error"
-                              aria-label={t('common.delete')}
-                              disabled={questionsEditingLocked || questionHasResponses}
-                              onClick={() => setDeleteQTarget(currentQuestion)}
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                      </Box>
-
-                      <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                         <Box
                           sx={{
-                            position: 'relative',
-                            cursor: 'pointer',
-                            borderRadius: 1,
-                            px: { xs: 0.2, sm: 0.35 },
-                            py: 0.2,
-                            '&:hover': {
-                              backgroundColor: 'action.hover',
-                            },
+                            display: { xs: 'flex', sm: 'none' },
+                            width: '100%',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
                           }}
-                          onClick={() => toggleQuestionExpanded(currentQuestion._id)}
-                          onKeyDown={(event) => handleQuestionPreviewKeyDown(event, currentQuestion._id)}
-                          role="button"
-                          tabIndex={0}
-                          aria-expanded={isQuestionExpanded}
-                          aria-label={isQuestionExpanded
-                            ? `Collapse question ${displayedQuestionNumber}`
-                            : `Expand question ${displayedQuestionNumber}`}
                         >
-                          {normalizeTagValues(currentQuestion.tags || []).filter((tag) => tag.toLowerCase() !== 'qlicker').length > 0 ? (
-                            <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', px: { xs: 0.25, sm: 0.5 }, pb: 0.5 }}>
-                              {normalizeTagValues(currentQuestion.tags || [])
-                                .filter((tag) => tag.toLowerCase() !== 'qlicker')
-                                .map((tag) => (
-                                  <Chip
-                                    key={`${currentQuestion._id}-tag-${tag}`}
-                                    size="small"
-                                    variant="outlined"
-                                    label={tag}
-                                  />
-                                ))}
-                            </Box>
-                          ) : null}
-                          <Box
-                            sx={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              px: { xs: 0.25, sm: 0.5 },
-                              pb: 0.5,
-                            }}
+                          <Typography variant="subtitle2" sx={{
+                            color: "text.secondary"
+                          }}>
+                            {t('professor.sessionEditor.questionNumber', { number: displayedQuestionNumber })}
+                          </Typography>
+                          <IconButton
+                            size="small"
+                            aria-label={t('common.moreActions')}
+                            disabled={questionsEditingLocked}
+                            onClick={(event) => openQuestionActions(event, {
+                              mode: 'view',
+                              index: slotIdx,
+                              question: currentQuestion,
+                            })}
                           >
-                            <Typography variant="caption" color="text.secondary">
-                              {isQuestionExpanded ? t('professor.sessionEditor.tapCollapse') : t('professor.sessionEditor.tapExpand')}
-                            </Typography>
-                            <ExpandMoreIcon
-                              fontSize="small"
-                              sx={{
-                                transform: isQuestionExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                                transition: 'transform 0.2s ease',
-                                color: 'text.secondary',
-                              }}
-                            />
-                          </Box>
+                            <MoreIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
+
+                        <Box
+                          sx={{
+                            display: { xs: 'none', sm: 'flex' },
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            minWidth: 34,
+                            flexShrink: 0,
+                          }}
+                        >
+                          <Tooltip title={t('common.edit')}>
+                            <span>
+                              <IconButton
+                                size="small"
+                                aria-label={t('common.edit')}
+                                disabled={questionsEditingLocked}
+                                onClick={() => openEditEditor(currentQuestion._id)}
+                              >
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                          <Tooltip title={t('professor.sessionEditor.moveUp')}>
+                            <span>
+                              <IconButton
+                                size="small"
+                                aria-label={t('common.moveUp')}
+                                disabled={!canMoveCurrentQuestionUp}
+                                onClick={() => moveQuestionByQuestionId(currentQuestion._id, -1)}
+                              >
+                                <UpIcon fontSize="small" />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                          <Typography
+                            variant="subtitle2"
+                            sx={{
+                              color: "text.secondary",
+                              lineHeight: 1.2
+                            }}>
+                            {displayedQuestionNumber}.
+                          </Typography>
+                          <Tooltip title={t('professor.sessionEditor.moveDown')}>
+                            <span>
+                              <IconButton
+                                size="small"
+                                aria-label={t('common.moveDown')}
+                                disabled={!canMoveCurrentQuestionDown}
+                                onClick={() => moveQuestionByQuestionId(currentQuestion._id, 1)}
+                              >
+                                <DownIcon fontSize="small" />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                          <Tooltip title={questionHasResponses ? t('professor.sessionEditor.cannotDeleteHasResponses') : t('common.delete')}>
+                            <span>
+                              <IconButton
+                                size="small"
+                                color="error"
+                                aria-label={t('common.delete')}
+                                disabled={questionsEditingLocked || questionHasResponses}
+                                onClick={() => setDeleteQTarget(currentQuestion)}
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                        </Box>
+
+                        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                           <Box
                             sx={{
-                              maxHeight: isQuestionExpanded ? 'none' : { xs: 180, sm: 210 },
-                              overflow: 'hidden',
                               position: 'relative',
+                              cursor: 'pointer',
+                              borderRadius: 1,
+                              px: { xs: 0.2, sm: 0.35 },
+                              py: 0.2,
+                              '&:hover': {
+                                backgroundColor: 'action.hover',
+                              },
                             }}
+                            onClick={() => toggleQuestionExpanded(currentQuestion._id)}
+                            onKeyDown={(event) => handleQuestionPreviewKeyDown(event, currentQuestion._id)}
+                            role="button"
+                            tabIndex={0}
+                            aria-expanded={isQuestionExpanded}
+                            aria-label={isQuestionExpanded
+                              ? `Collapse question ${displayedQuestionNumber}`
+                              : `Expand question ${displayedQuestionNumber}`}
                           >
-                            <QuestionDisplay question={currentQuestion} />
-                            {!isQuestionExpanded && (
-                              <Box
+                            {normalizeTagValues(currentQuestion.tags || []).filter((tag) => tag.toLowerCase() !== 'qlicker').length > 0 ? (
+                              <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', px: { xs: 0.25, sm: 0.5 }, pb: 0.5 }}>
+                                {normalizeTagValues(currentQuestion.tags || [])
+                                  .filter((tag) => tag.toLowerCase() !== 'qlicker')
+                                  .map((tag) => (
+                                    <Chip
+                                      key={`${currentQuestion._id}-tag-${tag}`}
+                                      size="small"
+                                      variant="outlined"
+                                      label={tag}
+                                    />
+                                  ))}
+                              </Box>
+                            ) : null}
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                px: { xs: 0.25, sm: 0.5 },
+                                pb: 0.5,
+                              }}
+                            >
+                              <Typography variant="caption" sx={{
+                                color: "text.secondary"
+                              }}>
+                                {isQuestionExpanded ? t('professor.sessionEditor.tapCollapse') : t('professor.sessionEditor.tapExpand')}
+                              </Typography>
+                              <ExpandMoreIcon
+                                fontSize="small"
                                 sx={{
-                                  position: 'absolute',
-                                  left: 0,
-                                  right: 0,
-                                  bottom: 0,
-                                  height: 40,
-                                  background: theme => `linear-gradient(to bottom, rgba(255,255,255,0), ${theme.palette.background.paper})`,
+                                  transform: isQuestionExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                                  transition: 'transform 0.2s ease',
+                                  color: 'text.secondary',
                                 }}
                               />
-                            )}
+                            </Box>
+                            <Box
+                              sx={{
+                                maxHeight: isQuestionExpanded ? 'none' : { xs: 180, sm: 210 },
+                                overflow: 'hidden',
+                                position: 'relative',
+                              }}
+                            >
+                              <QuestionDisplay question={currentQuestion} />
+                              {!isQuestionExpanded && (
+                                <Box
+                                  sx={{
+                                    position: 'absolute',
+                                    left: 0,
+                                    right: 0,
+                                    bottom: 0,
+                                    height: 40,
+                                    background: theme => `linear-gradient(to bottom, rgba(255,255,255,0), ${theme.palette.background.paper})`,
+                                  }}
+                                />
+                              )}
+                            </Box>
                           </Box>
                         </Box>
-                      </Box>
-                    </CardContent>
-                  </Card>
-                
-              ) : null}
-            </Box>
+                      </CardContent>
+                    </Card>
+
+                ) : null}
+              </Box>
             );
           })}
         </Box>
@@ -2062,7 +2098,9 @@ export default function SessionEditor() {
         <DialogTitle>{t('professor.sessionEditor.exportTitle')}</DialogTitle>
         <DialogContent dividers>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" sx={{
+              color: "text.secondary"
+            }}>
               {t('professor.sessionEditor.exportDescription')}
             </Typography>
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
@@ -2082,7 +2120,9 @@ export default function SessionEditor() {
 
             {exportFormat === 'json' ? (
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" sx={{
+                  color: "text.secondary"
+                }}>
                   {t('professor.sessionEditor.exportJsonDescription')}
                 </Typography>
                 <Button
@@ -2097,7 +2137,9 @@ export default function SessionEditor() {
               </Box>
             ) : (
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" sx={{
+                  color: "text.secondary"
+                }}>
                   {t('professor.sessionEditor.exportPdfDescription')}
                 </Typography>
                 <Button variant="outlined" onClick={() => handleExportPdfVariant('questions')} disabled={exportingSession}>
@@ -2113,7 +2155,9 @@ export default function SessionEditor() {
                 >
                   {t('professor.sessionEditor.pdfAnswersSolutions')}
                 </Button>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" sx={{
+                  color: "text.secondary"
+                }}>
                   {t('professor.sessionEditor.exportPdfHint')}
                 </Typography>
               </Box>
@@ -2182,7 +2226,9 @@ export default function SessionEditor() {
         <DialogTitle>{t('professor.sessionEditor.importSession')}</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2}>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" sx={{
+              color: "text.secondary"
+            }}>
               {t('professor.sessionEditor.importPreviewDescription', {
                 defaultValue: 'Review the imported questions, remove any you do not want, and choose tags to apply to all imported questions.',
               })}
@@ -2190,7 +2236,7 @@ export default function SessionEditor() {
             <TextField
               label={t('professor.sessionEditor.sessionName', { defaultValue: 'Session name' })}
               value={sessionImportPreview?.session?.name || ''}
-              InputProps={{ readOnly: true }}
+              slotProps={{ input: { readOnly: true } }}
             />
             <Autocomplete
               multiple
@@ -2361,7 +2407,9 @@ export default function SessionEditor() {
       >
         <DialogTitle>{t('professor.sessionEditor.extensionsTitle')}</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" sx={{
+            color: "text.secondary"
+          }}>
             {t('professor.sessionEditor.extensionsMessage')}
           </Typography>
           <Box sx={{ display: 'flex', gap: 1, flexDirection: { xs: 'column', sm: 'row' } }}>

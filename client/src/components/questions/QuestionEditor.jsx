@@ -600,359 +600,388 @@ function QuestionEditor({
 
           return (
             <>
-        <Box
-          sx={{
-            display: 'flex',
-            gap: 1.25,
-            mb: 2,
-            mt: 1,
-            alignItems: 'flex-start',
-            flexWrap: 'wrap',
-          }}
-        >
-          <Box sx={{ flexGrow: 1, minWidth: { xs: '100%', sm: 260 }, maxWidth: { sm: 360 } }}>
-            <FormControl
-              size="small"
-              sx={{
-                width: '100%',
-                ...COMPACT_FIELD_SX,
-              }}
-            >
-              <InputLabel>{t('questions.editor.questionType')}</InputLabel>
-              <Select
-                size="small"
-                value={form.type}
-                label={t('questions.editor.questionType')}
-                disabled={disableTypeSelection}
-                onChange={e => handleTypeChange(Number(e.target.value))}
+              <Box
+                sx={{
+                  display: 'flex',
+                  gap: 1.25,
+                  mb: 2,
+                  mt: 1,
+                  alignItems: 'flex-start',
+                  flexWrap: 'wrap',
+                }}
               >
-                {Object.entries(TYPE_LABELS).map(([k, v]) => (
-                  <MenuItem key={k} value={Number(k)}>{getQuestionTypeLabel(t, Number(k), { defaultValue: v })}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            {disableTypeSelection && (
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                {typeSelectionLockReason}
-              </Typography>
-            )}
-          </Box>
-
-          {!slideMode && (
-            <TextField
-              label={t('questions.editor.points')}
-              type="number"
-              size="small"
-              sx={{ width: 120, ...COMPACT_FIELD_SX }}
-              inputProps={{ min: 0 }}
-              value={form.points}
-              onChange={e => updateForm((prev) => ({ ...prev, points: e.target.value }))}
-            />
-          )}
-        </Box>
-
-        <Autocomplete
-          multiple
-          freeSolo={allowCustomTags}
-          disabled={disableTagEditing}
-          options={normalizedTagSuggestions}
-          value={form.tags || []}
-          onChange={(_event, nextValue) => {
-            updateForm((prev) => ({
-              ...prev,
-              tags: (() => {
-                const previousTagValues = new Set(
-                  (prev.tags || [])
-                    .map((tag) => String(tag || '').trim().toLowerCase())
-                    .filter(Boolean)
-                );
-                const nextTags = [];
-                const seenNextTags = new Set();
-                (nextValue || []).forEach((tag) => {
-                  const normalizedTag = normalizeTagLabel(tag);
-                  const normalizedTagValue = normalizedTag.toLowerCase();
-                  if (!normalizedTag || seenNextTags.has(normalizedTagValue)) return;
-                  if (
-                    !allowCustomTags
-                    && !normalizedAllowedTagValues.has(normalizedTagValue)
-                    && !previousTagValues.has(normalizedTagValue)
-                  ) {
-                    return;
-                  }
-                  seenNextTags.add(normalizedTagValue);
-                  nextTags.push(normalizedTag);
-                });
-                return nextTags;
-              })(),
-            }));
-          }}
-          renderTags={(value, getTagProps) => value.map((tag, index) => (
-            <Chip
-              {...getTagProps({ index })}
-              key={`${tag}-${index}`}
-              label={tag}
-              size="small"
-            />
-          ))}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label={t('questions.editor.tags', { defaultValue: 'Tags' })}
-              placeholder={tagPlaceholder}
-              size="small"
-            />
-          )}
-          sx={{ mb: 2 }}
-        />
-
-        {showVisibilityControls ? (
-          <>
-            <FormGroup sx={{ mb: 2, gap: 0.5 }}>
-              <FormControlLabel
-                control={(
-                  <Switch
-                    checked={!!form.public}
-                    onChange={(event) => {
-                      const checked = event.target.checked;
-                      updateForm((prev) => ({
-                        ...prev,
-                        public: checked,
-                        ...(checked ? {} : {
-                          publicOnQlicker: false,
-                          publicOnQlickerForStudents: false,
-                        }),
-                      }));
-                    }}
-                  />
-                )}
-                label={t('questions.editor.coursePublic', { defaultValue: 'Visible to students in this course' })}
-              />
-              <FormControlLabel
-                control={(
-                  <Switch
-                    checked={!!form.publicOnQlicker}
-                    onChange={(event) => {
-                      const checked = event.target.checked;
-                      updateForm((prev) => ({
-                        ...prev,
-                        public: checked ? true : prev.public,
-                        publicOnQlicker: checked,
-                        publicOnQlickerForStudents: checked ? prev.publicOnQlickerForStudents : false,
-                      }));
-                    }}
-                  />
-                )}
-                label={t('questions.editor.qlickerPublic', { defaultValue: 'Visible to any prof on Qlicker' })}
-              />
-              {form.publicOnQlicker ? (
-                <FormControlLabel
-                  sx={{ ml: 3 }}
-                  control={(
-                    <Switch
-                      checked={!!form.publicOnQlickerForStudents}
-                      onChange={(event) => {
-                        const checked = event.target.checked;
-                        updateForm((prev) => ({
-                          ...prev,
-                          publicOnQlickerForStudents: checked,
-                        }));
-                      }}
-                    />
-                  )}
-                  label={t('questions.editor.qlickerPublicStudents', { defaultValue: 'Allow student accounts to view it outside this course' })}
-                />
-              ) : null}
-            </FormGroup>
-            {showVisibilityReviewableWarning ? (
-              <Alert severity="warning" sx={{ mb: 2 }}>
-                {t('questions.editor.sessionVisibilityWarning', {
-                  count: linkedSessionCount,
-                  defaultValue: 'This question is already used in a session. Students usually see session questions by making the session reviewable rather than making the individual question public.',
-                })}
-              </Alert>
-            ) : null}
-          </>
-        ) : null}
-
-        <Paper variant="outlined" sx={EMPHASIZED_SECTION_SX}>
-          <RichTextEditor
-            value={form.content}
-            onChange={({ html }) => updateForm((prev) => ({ ...prev, content: html }))}
-            placeholder={questionPlaceholder}
-            minHeight={56}
-            resizable
-            showTip={false}
-            enableVideo
-            borderEmphasis="strong"
-          />
-        </Paper>
-
-        {isOptionBasedQuestionType(form.type) && (
-          <Paper variant="outlined" sx={EMPHASIZED_SECTION_SX}>
-            <Typography variant="subtitle2" sx={{ mb: 1 }}>
-              {form.type === QUESTION_TYPES.MULTI_SELECT ? t('questions.editor.optionsSelectAll') : t('questions.editor.optionsSelectOne')}
-            </Typography>
-            {disableOptionCountChanges && (
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                {optionCountLockReason}
-              </Typography>
-            )}
-            {form.options.map((opt, i) => (
-              <Box key={i} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 1.5 }}>
-                {form.type === QUESTION_TYPES.MULTI_SELECT ? (
-                  <Checkbox checked={opt.correct} onChange={e => setOption(i, 'correct', e.target.checked)} sx={{ mt: 0.5 }} />
-                ) : (
-                  <Checkbox checked={opt.correct} onChange={() => setOption(i, 'correct', true)} sx={{ mt: 0.5 }} />
-                )}
-                <Box sx={{ flexGrow: 1 }}>
-                  <RichTextEditor
-                    value={opt.content}
-                    onChange={({ html }) => setOption(i, 'content', html)}
-                    placeholder={t('questions.editor.optionPlaceholder', { number: i + 1 })}
-                    minHeight={30}
-                    compact
-                    borderEmphasis="strong"
-                  />
-                </Box>
-                {form.options.length > 2 && (
-                  <IconButton size="small" aria-label={t('common.removeOption')} disabled={disableOptionCountChanges} onClick={() => removeOption(i)} sx={{ mt: 0.5 }}><DeleteIcon fontSize="small" /></IconButton>
-                )}
-              </Box>
-            ))}
-            <Button size="small" startIcon={<AddIcon />} onClick={addOption} disabled={disableOptionCountChanges}>{t('questions.editor.addOption')}</Button>
-          </Paper>
-        )}
-
-        {form.type === QUESTION_TYPES.TRUE_FALSE && (
-          <Paper variant="outlined" sx={EMPHASIZED_SECTION_SX}>
-            <Typography variant="subtitle2" sx={{ mb: 1 }}>{t('questions.editor.correctAnswer')}</Typography>
-            <FormGroup row>
-              <FormControlLabel
-                control={<Checkbox checked={form.options[0]?.correct || false} onChange={() => {
-                  updateForm((prev) => ({ ...prev, options: buildTrueFalseOptions(0) }));
-                }} />}
-                label={t('questions.editor.true')}
-              />
-              <FormControlLabel
-                control={<Checkbox checked={form.options[1]?.correct || false} onChange={() => {
-                  updateForm((prev) => ({ ...prev, options: buildTrueFalseOptions(1) }));
-                }} />}
-                label={t('questions.editor.false')}
-              />
-            </FormGroup>
-          </Paper>
-        )}
-
-        {form.type === QUESTION_TYPES.NUMERICAL && (
-          <Paper variant="outlined" sx={EMPHASIZED_SECTION_SX}>
-            <Box sx={{ display: 'flex', gap: 2 }}>
-            <TextField
-              label={t('questions.editor.correctAnswer')}
-              type="number"
-              fullWidth
-              value={form.correctNumerical}
-              onChange={e => updateForm((prev) => ({ ...prev, correctNumerical: e.target.value }))}
-            />
-            <TextField
-              label={t('questions.editor.toleranceLabel')}
-              type="number"
-              fullWidth
-              value={form.toleranceNumerical}
-              onChange={e => updateForm((prev) => ({ ...prev, toleranceNumerical: e.target.value }))}
-            />
-            </Box>
-          </Paper>
-        )}
-
-        {!slideMode && (
-          <>
-            <Divider sx={{ my: 2 }} />
-
-            <Paper variant="outlined" sx={EMPHASIZED_SECTION_SX}>
-              <RichTextEditor
-                label={t('questions.editor.solutionLabel')}
-                value={form.solution}
-                onChange={({ html }) => updateForm((prev) => ({ ...prev, solution: html }))}
-                placeholder={t('questions.editor.solutionPlaceholder')}
-                minHeight={40}
-                resizable
-                borderEmphasis="strong"
-              />
-            </Paper>
-          </>
-        )}
-        <Divider sx={{ my: 2.5, borderColor: 'text.primary', opacity: 0.28, borderBottomWidth: 2 }} />
-        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-          {t('questions.editor.livePreview')}
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
-          {t('questions.editor.mathDelimitersNote')}
-        </Typography>
-        <Paper variant="outlined" sx={{ mt: 1, p: 1.5 }}>
-          <Typography variant="caption" color="text.secondary">
-            Question
-          </Typography>
-          <MathLivePreview
-            html={previewPayload.content}
-            fallback={previewPayload.plainText}
-            emptyText="(no question text yet)"
-            allowVideoEmbeds
-          />
-
-          {(isOptionBasedQuestionType(form.type) || form.type === QUESTION_TYPES.TRUE_FALSE)
-            && (previewPayload.options || []).length > 0 && (
-              <Box sx={{ mt: 1 }}>
-                {(previewPayload.options || []).map((option, optionIdx) => (
-                  <Box
-                    key={`preview-option-${optionIdx}`}
+                <Box sx={{ flexGrow: 1, minWidth: { xs: '100%', sm: 260 }, maxWidth: { sm: 360 } }}>
+                  <FormControl
+                    size="small"
                     sx={{
-                      display: 'grid',
-                      gridTemplateColumns: '20px minmax(0, 1fr)',
-                      columnGap: 0.5,
-                      alignItems: 'start',
-                      mb: 0.75,
+                      width: '100%',
+                      ...COMPACT_FIELD_SX,
                     }}
                   >
-                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5 }}>
-                      {String.fromCharCode(65 + optionIdx)}.
+                    <InputLabel>{t('questions.editor.questionType')}</InputLabel>
+                    <Select
+                      size="small"
+                      value={form.type}
+                      label={t('questions.editor.questionType')}
+                      disabled={disableTypeSelection}
+                      onChange={e => handleTypeChange(Number(e.target.value))}
+                    >
+                      {Object.entries(TYPE_LABELS).map(([k, v]) => (
+                        <MenuItem key={k} value={Number(k)}>{getQuestionTypeLabel(t, Number(k), { defaultValue: v })}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  {disableTypeSelection && (
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: "text.secondary",
+                        display: 'block',
+                        mt: 0.5
+                      }}>
+                      {typeSelectionLockReason}
                     </Typography>
-                    <Box sx={{ '& p': { my: 0 }, '& ul, & ol': { my: 0, pl: 2.5 }, '& li': { my: 0 } }}>
-                      <MathLivePreview
-                        html={option.content}
-                        fallback={option.plainText || option.answer}
-                        emptyText={`(empty option ${optionIdx + 1})`}
-                        compact
-                      />
-                    </Box>
-                  </Box>
-                ))}
+                  )}
+                </Box>
+
+                {!slideMode && (
+                  <TextField
+                    label={t('questions.editor.points')}
+                    type="number"
+                    size="small"
+                    sx={{ width: 120, ...COMPACT_FIELD_SX }}
+                    value={form.points}
+                    onChange={e => updateForm((prev) => ({ ...prev, points: e.target.value }))}
+                    slotProps={{
+                      htmlInput: { min: 0 }
+                    }}
+                  />
+                )}
               </Box>
-            )}
 
-          {form.type === QUESTION_TYPES.NUMERICAL && (
-            <Box sx={{ mt: 0.75 }}>
-              <Typography variant="body2" color="text.secondary">
-                {t('questions.editor.correctValue', { value: previewPayload.correctNumerical ?? 0 })}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {t('questions.editor.toleranceValue', { value: previewPayload.toleranceNumerical ?? 0 })}
-              </Typography>
-            </Box>
-          )}
-
-          {!slideMode && previewPayload.solution ? (
-            <Box sx={{ mt: 1, pt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
-              <Typography variant="caption" color="text.secondary">
-                {t('common.solution')}
-              </Typography>
-              <MathLivePreview
-                html={previewPayload.solution}
-                fallback={previewPayload.solution_plainText}
-                emptyText=""
+              <Autocomplete
+                multiple
+                freeSolo={allowCustomTags}
+                disabled={disableTagEditing}
+                options={normalizedTagSuggestions}
+                value={form.tags || []}
+                onChange={(_event, nextValue) => {
+                  updateForm((prev) => ({
+                    ...prev,
+                    tags: (() => {
+                      const previousTagValues = new Set(
+                        (prev.tags || [])
+                          .map((tag) => String(tag || '').trim().toLowerCase())
+                          .filter(Boolean)
+                      );
+                      const nextTags = [];
+                      const seenNextTags = new Set();
+                      (nextValue || []).forEach((tag) => {
+                        const normalizedTag = normalizeTagLabel(tag);
+                        const normalizedTagValue = normalizedTag.toLowerCase();
+                        if (!normalizedTag || seenNextTags.has(normalizedTagValue)) return;
+                        if (
+                          !allowCustomTags
+                          && !normalizedAllowedTagValues.has(normalizedTagValue)
+                          && !previousTagValues.has(normalizedTagValue)
+                        ) {
+                          return;
+                        }
+                        seenNextTags.add(normalizedTagValue);
+                        nextTags.push(normalizedTag);
+                      });
+                      return nextTags;
+                    })(),
+                  }));
+                }}
+                renderValue={(value, getItemProps) => value.map((tag, index) => (
+                  <Chip
+                    {...getItemProps({ index })}
+                    key={`${tag}-${index}`}
+                    label={tag}
+                    size="small"
+                  />
+                ))}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label={t('questions.editor.tags', { defaultValue: 'Tags' })}
+                    placeholder={tagPlaceholder}
+                    size="small"
+                  />
+                )}
+                sx={{ mb: 2 }}
               />
-            </Box>
-          ) : null}
-        </Paper>
+
+              {showVisibilityControls ? (
+                <>
+                  <FormGroup sx={{ mb: 2, gap: 0.5 }}>
+                    <FormControlLabel
+                      control={(
+                        <Switch
+                          checked={!!form.public}
+                          onChange={(event) => {
+                            const checked = event.target.checked;
+                            updateForm((prev) => ({
+                              ...prev,
+                              public: checked,
+                              ...(checked ? {} : {
+                                publicOnQlicker: false,
+                                publicOnQlickerForStudents: false,
+                              }),
+                            }));
+                          }}
+                        />
+                      )}
+                      label={t('questions.editor.coursePublic', { defaultValue: 'Visible to students in this course' })}
+                    />
+                    <FormControlLabel
+                      control={(
+                        <Switch
+                          checked={!!form.publicOnQlicker}
+                          onChange={(event) => {
+                            const checked = event.target.checked;
+                            updateForm((prev) => ({
+                              ...prev,
+                              public: checked ? true : prev.public,
+                              publicOnQlicker: checked,
+                              publicOnQlickerForStudents: checked ? prev.publicOnQlickerForStudents : false,
+                            }));
+                          }}
+                        />
+                      )}
+                      label={t('questions.editor.qlickerPublic', { defaultValue: 'Visible to any prof on Qlicker' })}
+                    />
+                    {form.publicOnQlicker ? (
+                      <FormControlLabel
+                        sx={{ ml: 3 }}
+                        control={(
+                          <Switch
+                            checked={!!form.publicOnQlickerForStudents}
+                            onChange={(event) => {
+                              const checked = event.target.checked;
+                              updateForm((prev) => ({
+                                ...prev,
+                                publicOnQlickerForStudents: checked,
+                              }));
+                            }}
+                          />
+                        )}
+                        label={t('questions.editor.qlickerPublicStudents', { defaultValue: 'Allow student accounts to view it outside this course' })}
+                      />
+                    ) : null}
+                  </FormGroup>
+                  {showVisibilityReviewableWarning ? (
+                    <Alert severity="warning" sx={{ mb: 2 }}>
+                      {t('questions.editor.sessionVisibilityWarning', {
+                        count: linkedSessionCount,
+                        defaultValue: 'This question is already used in a session. Students usually see session questions by making the session reviewable rather than making the individual question public.',
+                      })}
+                    </Alert>
+                  ) : null}
+                </>
+              ) : null}
+
+              <Paper variant="outlined" sx={EMPHASIZED_SECTION_SX}>
+                <RichTextEditor
+                  value={form.content}
+                  onChange={({ html }) => updateForm((prev) => ({ ...prev, content: html }))}
+                  placeholder={questionPlaceholder}
+                  minHeight={56}
+                  resizable
+                  showTip={false}
+                  enableVideo
+                  borderEmphasis="strong"
+                />
+              </Paper>
+
+              {isOptionBasedQuestionType(form.type) && (
+                <Paper variant="outlined" sx={EMPHASIZED_SECTION_SX}>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                    {form.type === QUESTION_TYPES.MULTI_SELECT ? t('questions.editor.optionsSelectAll') : t('questions.editor.optionsSelectOne')}
+                  </Typography>
+                  {disableOptionCountChanges && (
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: "text.secondary",
+                        display: 'block',
+                        mb: 1
+                      }}>
+                      {optionCountLockReason}
+                    </Typography>
+                  )}
+                  {form.options.map((opt, i) => (
+                    <Box key={i} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 1.5 }}>
+                      {form.type === QUESTION_TYPES.MULTI_SELECT ? (
+                        <Checkbox checked={opt.correct} onChange={e => setOption(i, 'correct', e.target.checked)} sx={{ mt: 0.5 }} />
+                      ) : (
+                        <Checkbox checked={opt.correct} onChange={() => setOption(i, 'correct', true)} sx={{ mt: 0.5 }} />
+                      )}
+                      <Box sx={{ flexGrow: 1 }}>
+                        <RichTextEditor
+                          value={opt.content}
+                          onChange={({ html }) => setOption(i, 'content', html)}
+                          placeholder={t('questions.editor.optionPlaceholder', { number: i + 1 })}
+                          minHeight={30}
+                          compact
+                          borderEmphasis="strong"
+                        />
+                      </Box>
+                      {form.options.length > 2 && (
+                        <IconButton size="small" aria-label={t('common.removeOption')} disabled={disableOptionCountChanges} onClick={() => removeOption(i)} sx={{ mt: 0.5 }}><DeleteIcon fontSize="small" /></IconButton>
+                      )}
+                    </Box>
+                  ))}
+                  <Button size="small" startIcon={<AddIcon />} onClick={addOption} disabled={disableOptionCountChanges}>{t('questions.editor.addOption')}</Button>
+                </Paper>
+              )}
+
+              {form.type === QUESTION_TYPES.TRUE_FALSE && (
+                <Paper variant="outlined" sx={EMPHASIZED_SECTION_SX}>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>{t('questions.editor.correctAnswer')}</Typography>
+                  <FormGroup row>
+                    <FormControlLabel
+                      control={<Checkbox checked={form.options[0]?.correct || false} onChange={() => {
+                        updateForm((prev) => ({ ...prev, options: buildTrueFalseOptions(0) }));
+                      }} />}
+                      label={t('questions.editor.true')}
+                    />
+                    <FormControlLabel
+                      control={<Checkbox checked={form.options[1]?.correct || false} onChange={() => {
+                        updateForm((prev) => ({ ...prev, options: buildTrueFalseOptions(1) }));
+                      }} />}
+                      label={t('questions.editor.false')}
+                    />
+                  </FormGroup>
+                </Paper>
+              )}
+
+              {form.type === QUESTION_TYPES.NUMERICAL && (
+                <Paper variant="outlined" sx={EMPHASIZED_SECTION_SX}>
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                  <TextField
+                    label={t('questions.editor.correctAnswer')}
+                    type="number"
+                    fullWidth
+                    value={form.correctNumerical}
+                    onChange={e => updateForm((prev) => ({ ...prev, correctNumerical: e.target.value }))}
+                  />
+                  <TextField
+                    label={t('questions.editor.toleranceLabel')}
+                    type="number"
+                    fullWidth
+                    value={form.toleranceNumerical}
+                    onChange={e => updateForm((prev) => ({ ...prev, toleranceNumerical: e.target.value }))}
+                  />
+                  </Box>
+                </Paper>
+              )}
+
+              {!slideMode && (
+                <>
+                  <Divider sx={{ my: 2 }} />
+
+                  <Paper variant="outlined" sx={EMPHASIZED_SECTION_SX}>
+                    <RichTextEditor
+                      label={t('questions.editor.solutionLabel')}
+                      value={form.solution}
+                      onChange={({ html }) => updateForm((prev) => ({ ...prev, solution: html }))}
+                      placeholder={t('questions.editor.solutionPlaceholder')}
+                      minHeight={40}
+                      resizable
+                      borderEmphasis="strong"
+                    />
+                  </Paper>
+                </>
+              )}
+              <Divider sx={{ my: 2.5, borderColor: 'text.primary', opacity: 0.28, borderBottomWidth: 2 }} />
+              <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+                {t('questions.editor.livePreview')}
+              </Typography>
+              <Typography variant="caption" sx={{
+                color: "text.secondary"
+              }}>
+                {t('questions.editor.mathDelimitersNote')}
+              </Typography>
+              <Paper variant="outlined" sx={{ mt: 1, p: 1.5 }}>
+                <Typography variant="caption" sx={{
+                  color: "text.secondary"
+                }}>
+                  Question
+                </Typography>
+                <MathLivePreview
+                  html={previewPayload.content}
+                  fallback={previewPayload.plainText}
+                  emptyText="(no question text yet)"
+                  allowVideoEmbeds
+                />
+
+                {(isOptionBasedQuestionType(form.type) || form.type === QUESTION_TYPES.TRUE_FALSE)
+                  && (previewPayload.options || []).length > 0 && (
+                    <Box sx={{ mt: 1 }}>
+                      {(previewPayload.options || []).map((option, optionIdx) => (
+                        <Box
+                          key={`preview-option-${optionIdx}`}
+                          sx={{
+                            display: 'grid',
+                            gridTemplateColumns: '20px minmax(0, 1fr)',
+                            columnGap: 0.5,
+                            alignItems: 'start',
+                            mb: 0.75,
+                          }}
+                        >
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: "text.secondary",
+                              lineHeight: 1.5
+                            }}>
+                            {String.fromCharCode(65 + optionIdx)}.
+                          </Typography>
+                          <Box sx={{ '& p': { my: 0 }, '& ul, & ol': { my: 0, pl: 2.5 }, '& li': { my: 0 } }}>
+                            <MathLivePreview
+                              html={option.content}
+                              fallback={option.plainText || option.answer}
+                              emptyText={`(empty option ${optionIdx + 1})`}
+                              compact
+                            />
+                          </Box>
+                        </Box>
+                      ))}
+                    </Box>
+                  )}
+
+                {form.type === QUESTION_TYPES.NUMERICAL && (
+                  <Box sx={{ mt: 0.75 }}>
+                    <Typography variant="body2" sx={{
+                      color: "text.secondary"
+                    }}>
+                      {t('questions.editor.correctValue', { value: previewPayload.correctNumerical ?? 0 })}
+                    </Typography>
+                    <Typography variant="body2" sx={{
+                      color: "text.secondary"
+                    }}>
+                      {t('questions.editor.toleranceValue', { value: previewPayload.toleranceNumerical ?? 0 })}
+                    </Typography>
+                  </Box>
+                )}
+
+                {!slideMode && previewPayload.solution ? (
+                  <Box sx={{ mt: 1, pt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
+                    <Typography variant="caption" sx={{
+                      color: "text.secondary"
+                    }}>
+                      {t('common.solution')}
+                    </Typography>
+                    <MathLivePreview
+                      html={previewPayload.solution}
+                      fallback={previewPayload.solution_plainText}
+                      emptyText=""
+                    />
+                  </Box>
+                ) : null}
+              </Paper>
             </>
           );
         })()}
