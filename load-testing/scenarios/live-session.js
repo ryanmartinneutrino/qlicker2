@@ -987,7 +987,14 @@ function professorRequest(method, path, token, payload, tagName, expectedStatuse
   const res = jsonRequest(method, path, token, payload, tagName);
   professorActionDuration.add(Date.now() - startedAtMs, { action: tagName });
   const ok = expectedStatuses.includes(res.status);
-  professorActionSuccess.add(ok);
+  professorActionSuccess.add(ok, { action: tagName, status: String(res.status || 'network') });
+  if (!ok) {
+    const responseDetail = String(res?.body || '').replace(/\s+/g, ' ').trim().slice(0, 500);
+    console.warn(
+      `Professor action failed: ${tagName} ${method} ${path} returned HTTP ${res.status || 'network'}`
+      + (responseDetail ? ` — ${responseDetail}` : ''),
+    );
+  }
   check(res, { [`${tagName} ok`]: () => ok });
   return res;
 }
@@ -1095,10 +1102,18 @@ export function professorFlow() {
   });
 
   group('start_session', () => {
-    // The seeded session already has a current question, so the start route
-    // does not apply its "hide the first question" fallback. Hide it before
-    // students can join to prevent timers for the seed attempt from racing the
-    // first attempt opened by the professor flow.
+    // Reset the current question explicitly so this setup is deterministic for
+    // both freshly seeded runs and --test-only reruns of an existing fixture.
+    professorRequest(
+      'PATCH',
+      `/sessions/${sessionId}/current`,
+      professorToken,
+      { questionId: questions[0].id },
+      'select_initial_question',
+    );
+
+    // Hide it before students can join to prevent timers for the seed attempt
+    // from racing the first attempt opened by the professor flow.
     professorRequest(
       'PATCH',
       `/sessions/${sessionId}/question-visibility`,
