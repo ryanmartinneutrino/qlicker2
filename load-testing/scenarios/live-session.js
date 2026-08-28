@@ -102,6 +102,10 @@ const responseToProfessorDuration = new Trend('response_to_professor_duration', 
 const wsConnections = new Counter('ws_connections');
 const wsErrors = new Counter('ws_errors');
 const responseAddedRefreshes = new Counter('response_added_refreshes');
+const respondConflictFailures = new Counter('respond_conflict_failures');
+const respondRejectedFailures = new Counter('respond_rejected_failures');
+const respondServerFailures = new Counter('respond_server_failures');
+const respondStaleTimerSkips = new Counter('respond_stale_timer_skips');
 const chatQuickPostToggles = new Counter('chat_quick_post_toggles');
 const chatPostsCreated = new Counter('chat_posts_created');
 const chatVotesApplied = new Counter('chat_votes_applied');
@@ -917,6 +921,26 @@ function buildResponsePayload(question) {
   return { answer: '' };
 }
 
+function getLiveAttemptKey(snapshot) {
+  const questionId = String(snapshot?.currentQuestion?._id || '').trim();
+  const attemptNumber = Number(snapshot?.currentAttempt?.number || 0);
+  if (!questionId || attemptNumber <= 0) return null;
+  return `${questionId}:${attemptNumber}`;
+}
+
+function recordResponseFailure(res) {
+  const status = Number(res?.status || 0);
+  if (status === 409) {
+    respondConflictFailures.add(1);
+    return;
+  }
+  if (status >= 400 && status < 500) {
+    respondRejectedFailures.add(1, { status: String(status) });
+    return;
+  }
+  respondServerFailures.add(1, { status: String(status || 'network') });
+}
+
 function submitResponse(token, liveData) {
   const question = liveData?.currentQuestion;
   const attemptNumber = Number(liveData?.currentAttempt?.number || 0);
@@ -935,6 +959,7 @@ function submitResponse(token, liveData) {
 
   const ok = res.status === 200 || res.status === 201;
   respondSuccess.add(ok);
+  if (!ok) recordResponseFailure(res);
   return {
     ok,
     key: `${String(question._id || '')}:${attemptNumber}`,
@@ -1077,19 +1102,19 @@ export function professorFlow() {
       }
 
       professorRequest(
-        'PATCH',
-        `/sessions/${sessionId}/question-visibility`,
-        professorToken,
-        { hidden: false, stats: false, correct: false },
-        'show_question',
-      );
-
-      professorRequest(
         'POST',
         `/sessions/${sessionId}/new-attempt`,
         professorToken,
         {},
         'open_attempt',
+      );
+
+      professorRequest(
+        'PATCH',
+        `/sessions/${sessionId}/question-visibility`,
+        professorToken,
+        { hidden: false, stats: false, correct: false },
+        'show_question',
       );
     });
 
@@ -1473,7 +1498,7 @@ export function studentFlow() {
         if (currentAttempt.closed) return;
         if (snapshot?.studentResponse) return;
 
-        const attemptKey = `${String(currentQuestion._id || '')}:${Number(currentAttempt.number || 0)}`;
+        const attemptKey = getLiveAttemptKey(snapshot);
         if (!attemptKey || submittedAttempts[attemptKey] || scheduledAttempts[attemptKey]) {
           return;
         }
@@ -1485,6 +1510,17 @@ export function studentFlow() {
           const latest = liveData || snapshot;
           liveData = latest;
           chatEnabled = SESSION_CHAT_ENABLED && Boolean(latest?.session?.chatEnabled);
+
+          // A timer may have been created from a visibility event immediately
+          // before the professor opened a new attempt. Never let that stale
+          // timer submit against whichever attempt happens to be current when
+          // it wakes; schedule the current attempt through the normal path.
+          if (getLiveAttemptKey(latest) !== attemptKey) {
+            respondStaleTimerSkips.add(1);
+            delete scheduledAttempts[attemptKey];
+            maybeSubmitCurrentAttempt(latest);
+            return;
+          }
 
           if (
             !latest?.currentQuestion
@@ -1505,6 +1541,10 @@ export function studentFlow() {
                 studentResponse: submitted.response.response,
               };
             }
+          } else if (submitted.res?.status === 409) {
+            // A conflict means this student already has a response for this
+            // attempt. Treat it as submitted so later events do not retry it.
+            submittedAttempts[attemptKey] = true;
           }
 
           delete scheduledAttempts[attemptKey];
