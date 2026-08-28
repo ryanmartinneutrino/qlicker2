@@ -3112,6 +3112,16 @@ describe('Live session websocket delta events', () => {
       payload: {},
     });
 
+    await Question.findByIdAndUpdate(secondQuestion._id, {
+      $set: { 'sessionOptions.stats': true },
+    });
+    await Response.create({
+      questionId: secondQuestion._id,
+      studentUserId: 'respondent-not-joined',
+      attempt: 1,
+      answer: '0',
+    });
+
     const wsSendToUsersSpy = vi.spyOn(app, 'wsSendToUsers');
     const changeRes = await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${session._id}/current`, {
       token: profToken,
@@ -3126,7 +3136,7 @@ describe('Live session websocket delta events', () => {
     expect(studentCall).toBeDefined();
     expect(instructorCall[2]).toEqual(expect.objectContaining({
       questionId: secondQuestion._id,
-      responseCount: 0,
+      responseCount: 1,
     }));
     expect(instructorCall[2]).not.toHaveProperty('studentResponse');
     expect(instructorCall[2].question.solution).toBe('<p>Instructor-only solution</p>');
@@ -3134,9 +3144,17 @@ describe('Live session websocket delta events', () => {
 
     expect(studentCall[2]).toEqual(expect.objectContaining({
       questionId: secondQuestion._id,
-      showStats: false,
+      showStats: true,
       showCorrect: false,
       studentResponse: null,
+      responseStats: {
+        type: 'distribution',
+        total: 1,
+        distribution: [
+          expect.objectContaining({ index: 0, count: 1 }),
+          expect.objectContaining({ index: 1, count: 0 }),
+        ],
+      },
     }));
     expect(studentCall[2].question).not.toHaveProperty('solution');
     expect(studentCall[2].question).not.toHaveProperty('solution_plainText');

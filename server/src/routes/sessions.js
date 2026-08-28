@@ -2896,9 +2896,18 @@ async function notifyQuestionChanged(app, course, session, question, data) {
     ...buildInstructorQuestionSnapshot(question, responses, studentNameById, progressPayload),
   });
 
+  // Navigation must carry the same canonical aggregate snapshot as a direct
+  // stats-visibility change. A cached attempt entry can be absent or stale
+  // when returning to an earlier question, while the responses loaded above
+  // are already the authoritative current-attempt set.
+  const studentResponseStats = question?.sessionOptions?.stats && currentAttempt
+    ? buildResponseStats(question, responses, currentAttempt.number)
+    : null;
   const studentBasePayload = {
     ...basePayload,
-    ...buildStudentLiveQuestionSnapshot(question, progressPayload),
+    ...buildStudentLiveQuestionSnapshot(question, progressPayload, {
+      responseStats: studentResponseStats,
+    }),
   };
   const responseByStudentId = new Map();
   responses.forEach((response) => {
