@@ -1,5 +1,5 @@
 import {
-  useCallback, useEffect, useId, useMemo, useRef, useState,
+  startTransition, useCallback, useEffect, useId, useMemo, useRef, useState,
 } from 'react';
 import { Box, Paper, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
@@ -75,7 +75,12 @@ export default function StudentRichTextEditor({
       if (!pendingChangeRef.current || typeof onChangeRef.current !== 'function') return;
       const pendingPayload = pendingChangeRef.current;
       pendingChangeRef.current = null;
-      onChangeRef.current(pendingPayload);
+      // The editor already owns the visible keystroke. Updating the surrounding
+      // chat can rerender a large thread, so let a following keystroke interrupt
+      // that delayed parent update instead of blocking the input.
+      startTransition(() => {
+        onChangeRef.current(pendingPayload);
+      });
     }, debounceMs);
   }, []);
 

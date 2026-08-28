@@ -97,6 +97,7 @@ export default function RichTextEditor({
   const [videoDraft, setVideoDraft] = useState('');
   const [videoError, setVideoError] = useState('');
   const { t } = useTranslation();
+  const lastEditorSourceHtmlRef = useRef('');
   const lastEditorHtmlRef = useRef('');
   const lastPropHtmlRef = useRef('');
   const bubbleMenuKey = useRef(`bubble-menu-${Math.random().toString(36).slice(2)}`);
@@ -122,7 +123,12 @@ export default function RichTextEditor({
 
   const emitEditorChange = (nextEditor) => {
     if (!nextEditor) return;
-    const html = normalizeStoredHtml(nextEditor.getHTML(), { allowVideoEmbeds });
+    const sourceHtml = nextEditor.getHTML();
+    // TipTap reports a document edit through both onTransaction and onUpdate.
+    // Avoid running DOMPurify and plain-text extraction twice per keystroke.
+    if (sourceHtml === lastEditorSourceHtmlRef.current) return;
+    lastEditorSourceHtmlRef.current = sourceHtml;
+    const html = normalizeStoredHtml(sourceHtml, { allowVideoEmbeds });
     if (html === lastEditorHtmlRef.current) return;
     lastEditorHtmlRef.current = html;
     onChangeRef.current?.({ html, plainText: extractPlainTextFromHtml(html) });
@@ -243,7 +249,9 @@ export default function RichTextEditor({
         },
       },
       onCreate: ({ editor: createdEditor }) => {
-        const html = normalizeStoredHtml(createdEditor.getHTML(), { allowVideoEmbeds });
+        const sourceHtml = createdEditor.getHTML();
+        const html = normalizeStoredHtml(sourceHtml, { allowVideoEmbeds });
+        lastEditorSourceHtmlRef.current = sourceHtml;
         lastEditorHtmlRef.current = html;
         lastPropHtmlRef.current = preparedValue || '';
       },
