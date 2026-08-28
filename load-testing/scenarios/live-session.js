@@ -639,17 +639,31 @@ function applyVisibilityChangedDelta(previousData, eventPayload = {}) {
 
 function applyInstructorVisibilityChangedDelta(previousData, eventPayload = {}) {
   if (!previousData?.currentQuestion) return previousData;
+  const currentQuestionId = String(previousData.currentQuestion?._id || '');
+  const eventQuestionId = String(eventPayload?.questionId || '');
+  if (currentQuestionId && eventQuestionId && currentQuestionId !== eventQuestionId) {
+    return previousData;
+  }
+
+  const questionHidden = eventPayload?.hidden ?? previousData.questionHidden;
+  const showStats = eventPayload?.stats ?? previousData.showStats;
+  const showCorrect = eventPayload?.correct ?? previousData.showCorrect;
+  const showResponseList = eventPayload?.responseListVisible ?? previousData.showResponseList;
+
   return {
     ...previousData,
+    questionHidden,
+    showStats,
+    showCorrect,
+    showResponseList,
     currentQuestion: {
       ...previousData.currentQuestion,
       sessionOptions: {
         ...(previousData.currentQuestion.sessionOptions || {}),
-        hidden: eventPayload?.hidden ?? previousData.currentQuestion?.sessionOptions?.hidden,
-        stats: eventPayload?.stats ?? previousData.currentQuestion?.sessionOptions?.stats,
-        correct: eventPayload?.correct ?? previousData.currentQuestion?.sessionOptions?.correct,
-        responseListVisible: eventPayload?.responseListVisible
-          ?? previousData.currentQuestion?.sessionOptions?.responseListVisible,
+        hidden: questionHidden,
+        stats: showStats,
+        correct: showCorrect,
+        responseListVisible: showResponseList,
       },
     },
   };
@@ -1081,6 +1095,17 @@ export function professorFlow() {
   });
 
   group('start_session', () => {
+    // The seeded session already has a current question, so the start route
+    // does not apply its "hide the first question" fallback. Hide it before
+    // students can join to prevent timers for the seed attempt from racing the
+    // first attempt opened by the professor flow.
+    professorRequest(
+      'PATCH',
+      `/sessions/${sessionId}/question-visibility`,
+      professorToken,
+      { hidden: true, stats: false, correct: false },
+      'hide_initial_question',
+    );
     professorRequest('POST', `/sessions/${sessionId}/start`, professorToken, {}, 'start_session');
   });
 

@@ -96,7 +96,9 @@ email login is normally blocked for non-admin accounts.
 The k6 scenario is no longer just a rough login-and-post loop. It now tracks
 the real live-session update path used by the browser:
 
-1. Professor logs in and starts the session.
+1. Professor logs in, hides the seeded current question, and starts the
+   session. Hiding it first prevents students from scheduling responses against
+   the seed attempt before the first test attempt opens.
 2. Students log in and fetch `/sessions/:id/live`.
 3. Students join the running session.
 4. Students open `/ws?token=...`.
