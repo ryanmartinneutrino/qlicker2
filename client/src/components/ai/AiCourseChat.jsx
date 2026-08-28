@@ -8,7 +8,7 @@ import { extractPlainTextFromHtml } from '../questions/richTextUtils';
 import AiMarkdownContent from './AiMarkdownContent';
 import AiModelSelect, { parseAiModelValue } from './AiModelSelect';
 
-const AI_CHAT_EDITOR_CHANGE_DEBOUNCE_MS = 80;
+const AI_CHAT_EDITOR_CHANGE_DEBOUNCE_MS = 160;
 
 function formatMessageTime(value) {
   const date = new Date(value || 0);

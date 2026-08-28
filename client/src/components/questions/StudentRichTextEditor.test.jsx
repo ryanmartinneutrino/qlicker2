@@ -1,5 +1,9 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  act, fireEvent, render, screen,
+} from '@testing-library/react';
+import {
+  afterEach, beforeEach, describe, expect, it, vi,
+} from 'vitest';
 import StudentRichTextEditor from './StudentRichTextEditor';
 import i18n from '../../i18n';
 
@@ -19,6 +23,36 @@ vi.mock('./RichTextEditor', () => ({
 describe('StudentRichTextEditor', () => {
   beforeEach(() => {
     i18n.changeLanguage('en');
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('coalesces draft updates while typing and delivers only the newest value', () => {
+    vi.useFakeTimers();
+    const onChange = vi.fn();
+
+    render(
+      <StudentRichTextEditor
+        value=""
+        onChange={onChange}
+        onChangeDebounceMs={200}
+        ariaLabel="Chat message"
+        showMathHint={false}
+      />
+    );
+
+    const editor = screen.getByLabelText('Chat message');
+    fireEvent.change(editor, { target: { value: 'First' } });
+    act(() => vi.advanceTimersByTime(100));
+    fireEvent.change(editor, { target: { value: 'Latest' } });
+    act(() => vi.advanceTimersByTime(199));
+    expect(onChange).not.toHaveBeenCalled();
+
+    act(() => vi.advanceTimersByTime(1));
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith({ html: 'Latest', plainText: 'Latest' });
   });
 
   it('flushes a debounced draft before an Enter-to-submit handler runs', () => {

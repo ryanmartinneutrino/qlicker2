@@ -55,7 +55,7 @@ const richContentSx = {
 };
 
 const CHAT_REFRESH_DEBOUNCE_MS = 150;
-const CHAT_EDITOR_CHANGE_DEBOUNCE_MS = 120;
+const CHAT_EDITOR_CHANGE_DEBOUNCE_MS = 200;
 
 function getTimestampMs(value) {
   const timestamp = new Date(value || 0).getTime();
