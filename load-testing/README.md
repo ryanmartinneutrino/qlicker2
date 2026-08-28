@@ -137,7 +137,8 @@ Timing and sync variables:
   question loop begins, giving students time to join.
 - `RESPONSE_JITTER_MS`: maximum deterministic delay before each student
   responds. The delay is derived from student, question, and attempt identifiers
-  so equivalent runs create the same submission wave (default `2000`).
+  so equivalent runs create the same submission wave (default `2000`). A value
+  of `0` uses k6's minimum valid one-millisecond WebSocket timer.
 - `RESPONSE_ADDED_REFRESH_MS`: fallback debounce used before refreshing `/live`
   after a `session:response-added` websocket event when the delta does not
   carry enough state to patch locally.
@@ -159,7 +160,8 @@ Chat-behavior variables:
 - `CHAT_RANDOM_UPVOTE_STUDENT_FRACTION`: fraction of students in each chat wave
   who upvote a visible regular discussion post.
 - `CHAT_ACTION_JITTER_MS`: max delay before a scheduled student chat action
-  fires, to avoid an unrealistic same-millisecond burst.
+  fires, to avoid an unrealistic same-millisecond burst. A value of `0` uses a
+  one-millisecond timer.
 - `CHAT_REPLY_PROFESSOR_LIMIT`: maximum number of professor replies during a
   run.
 - `PROFESSOR_REPLY_DELAY_MS`: delay before the professor reviews and replies to
@@ -192,6 +194,9 @@ The scenario tracks and thresholds these key signals:
 - `respond_attempts`
 - `respond_successful_submissions`
 - `professor_response_events`
+- `professor_driver_completions`
+- `professor_viewer_completions`
+- `student_flow_completions`
 - `live_refresh_success{role:student}`
 - `live_refresh_success{role:professor}`
 - `event_sync_success{role:student}`
@@ -212,6 +217,7 @@ The scenario tracks and thresholds these key signals:
 - `response_to_professor_duration`
 - `response_server_processing_duration`
 - `response_delivery_to_professor_duration`
+- `professor_observer_loop_lag`
 - `live_refresh_duration{role:student}`
 - `live_refresh_duration{role:professor}`
 - `event_sync_duration{role:student}`
@@ -233,6 +239,12 @@ aggregate-statistics work performed before the websocket event is emitted.
 `response_delivery_to_professor_duration` reports the emit-to-observer portion.
 This split shows whether a slow professor update came from response/statistics
 processing or from transport/observer backlog.
+
+`professor_observer_loop_lag` samples a 250 ms timer in the professor k6 VU.
+High loop lag alongside high delivery latency means the shared load generator
+is struggling to schedule the observer and may overstate browser latency. Low
+loop lag with high delivery latency points instead to Redis/WebSocket/network
+fan-out in the deployed path.
 
 The event metrics use the same split: `event_delivery_duration` measures server
 emit to WebSocket receipt and `event_apply_duration` measures receipt to a
@@ -256,6 +268,10 @@ Additional counters include:
 - `respond_successful_submissions`: every accepted response
 - `professor_response_events`: accepted responses observed by the professor
   WebSocket client
+- `professor_driver_completions`, `professor_viewer_completions`, and
+  `student_flow_completions`: exact counts of scenario flows that reached their
+  normal end; unlike a success rate, these expose callbacks aborted by a runner
+  exception
 - `respond_conflict_failures`: `/respond` returned `409` because a response
   already existed for that student and attempt
 - `respond_rejected_failures`: `/respond` returned another `4xx` response,
@@ -315,6 +331,10 @@ The current acceptance bar is intentionally strict for classroom use:
   `professor_response_events` must each equal the seeded student count times
   the number of response-capable questions. This prevents a clean percentage
   from hiding missing, duplicate, or unobserved responses.
+- `professor_driver_completions` and `professor_viewer_completions` must each
+  equal `1`, and `student_flow_completions` must equal the seeded student count.
+  A JavaScript exception or early return therefore cannot disappear from a
+  percentage whose denominator only contains completed callbacks.
 - `respond_conflict_failures`, `respond_rejected_failures`,
   `respond_server_failures`, `respond_stale_timer_skips`, and
   `invalid_server_timestamps` must stay at `0`.
@@ -372,6 +392,7 @@ For live-session correctness, the most important lines are:
 - `respond_attempts`
 - `respond_successful_submissions`
 - `professor_response_events`
+- `student_flow_completions`
 - `ws_connect_success{role:student}`
 - `ws_connect_success{role:professor}`
 - `professor_action_success`
@@ -405,6 +426,8 @@ For "does the instructor side stay current too?", focus on:
 - `response_to_professor_duration`: complete submit-to-observer latency
 - `response_server_processing_duration`: submit-to-server-emit latency
 - `response_delivery_to_professor_duration`: server-emit-to-observer latency
+- `professor_observer_loop_lag`: delay scheduling the professor observer within
+  k6 itself
 
 Use `event_delivery_duration{role:professor}` and
 `event_apply_duration{role:professor}` to split any slow end-to-end event sample.

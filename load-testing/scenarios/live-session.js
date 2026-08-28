@@ -86,6 +86,7 @@ const CHAT_ACTION_JITTER_MS = parseNonNegativeInt(__ENV.CHAT_ACTION_JITTER_MS ||
 const CHAT_REPLY_PROFESSOR_LIMIT = parseNonNegativeInt(__ENV.CHAT_REPLY_PROFESSOR_LIMIT || '3', 3);
 const PROFESSOR_REPLY_DELAY_MS = parseNonNegativeInt(__ENV.PROFESSOR_REPLY_DELAY_MS || '1500', 1500);
 const CHAT_EVENT_REFRESH_DEBOUNCE_MS = 150;
+const PROFESSOR_OBSERVER_TICK_MS = 250;
 
 const state = JSON.parse(open(STATE_FILE));
 const students = new SharedArray('students', () => state.students);
@@ -109,11 +110,15 @@ const professorActionDuration = new Trend('professor_action_duration', true);
 const responseToProfessorDuration = new Trend('response_to_professor_duration', true);
 const responseServerProcessingDuration = new Trend('response_server_processing_duration', true);
 const responseDeliveryToProfessorDuration = new Trend('response_delivery_to_professor_duration', true);
+const professorObserverLoopLag = new Trend('professor_observer_loop_lag', true);
 
 const wsConnections = new Counter('ws_connections');
 const wsErrors = new Counter('ws_errors');
 const responseAddedRefreshes = new Counter('response_added_refreshes');
 const professorResponseEvents = new Counter('professor_response_events');
+const professorDriverCompletions = new Counter('professor_driver_completions');
+const professorViewerCompletions = new Counter('professor_viewer_completions');
+const studentFlowCompletions = new Counter('student_flow_completions');
 const respondAttempts = new Counter('respond_attempts');
 const respondSuccessfulSubmissions = new Counter('respond_successful_submissions');
 const respondConflictFailures = new Counter('respond_conflict_failures');
@@ -145,6 +150,9 @@ const thresholds = {
   'login_success{role:professor}': ['rate==1'],
   join_success: ['rate==1'],
   respond_success: ['rate==1'],
+  professor_driver_completions: ['count==1'],
+  professor_viewer_completions: ['count==1'],
+  student_flow_completions: [`count==${students.length}`],
   professor_response_events: [`count==${expectedResponseCount}`],
   respond_attempts: [`count==${expectedResponseCount}`],
   respond_successful_submissions: [`count==${expectedResponseCount}`],
@@ -259,6 +267,12 @@ function parseTimestampMs(value) {
   if (value == null || value === '') return null;
   const timestampMs = Date.parse(value);
   return Number.isFinite(timestampMs) ? timestampMs : null;
+}
+
+function normalizeSocketTimeoutMs(value) {
+  const timeoutMs = Number(value);
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) return 1;
+  return Math.max(1, Math.ceil(timeoutMs));
 }
 
 function recordSyncTiming({
@@ -923,7 +937,7 @@ function createSocketDebouncer(socket, delayMs, callback) {
       pendingView = 'live';
 
       callback(nextReason, nextExpectation, nextSyncContext, nextView);
-    }, delayMs);
+    }, normalizeSocketTimeoutMs(delayMs));
   };
 }
 
@@ -1315,6 +1329,7 @@ export function professorFlow() {
   group('end_session', () => {
     professorRequest('POST', `/sessions/${sessionId}/end`, professorToken, {}, 'end_session');
   });
+  professorDriverCompletions.add(1);
 }
 
 export function professorViewerFlow() {
@@ -1325,6 +1340,7 @@ export function professorViewerFlow() {
   let chatData = null;
   let chatEnabled = false;
   let sessionEnded = false;
+  let nextObserverTickAtMs = null;
 
   group('professor_viewer_login', () => {
     const start = Date.now();
@@ -1383,6 +1399,14 @@ export function professorViewerFlow() {
       if (chatEnabled) {
         chatData = fetchChat(token, role, 'professor_viewer_ws_open_chat').data || chatData;
       }
+      nextObserverTickAtMs = Date.now() + PROFESSOR_OBSERVER_TICK_MS;
+      socket.setInterval(() => {
+        const nowMs = Date.now();
+        if (nextObserverTickAtMs != null) {
+          professorObserverLoopLag.add(Math.max(0, nowMs - nextObserverTickAtMs));
+        }
+        nextObserverTickAtMs = nowMs + PROFESSOR_OBSERVER_TICK_MS;
+      }, PROFESSOR_OBSERVER_TICK_MS);
       socket.setInterval(() => {
         socket.send(JSON.stringify({ event: 'ping' }));
       }, 15000);
@@ -1528,7 +1552,7 @@ export function professorViewerFlow() {
 
     socket.setTimeout(() => {
       socket.close();
-    }, 18 * 60 * 1000);
+    }, normalizeSocketTimeoutMs(18 * 60 * 1000));
   });
 
   check(response, { 'professor viewer ws connected': (res) => res && res.status === 101 });
@@ -1540,6 +1564,7 @@ export function professorViewerFlow() {
   if (!sessionEnded && liveData?.session?.status !== 'done') {
     chatData = chatData || null;
   }
+  professorViewerCompletions.add(1);
 }
 
 export function studentFlow() {
@@ -1627,6 +1652,7 @@ export function studentFlow() {
     return;
   }
 
+  let studentFlowCompleted = false;
   group('student_ws_session', () => {
     const wsUrl = `${WS_URL}?token=${encodeURIComponent(token)}`;
     const submittedAttempts = {};
@@ -1730,7 +1756,7 @@ export function studentFlow() {
           }
 
           delete scheduledAttempts[attemptKey];
-        }, responseDelayMs);
+        }, normalizeSocketTimeoutMs(responseDelayMs));
       };
 
       const refreshForEvent = (reason, expectation = {}, syncContext = null) => {
@@ -1805,7 +1831,9 @@ export function studentFlow() {
         completedChatWaves.add(questionNumber);
         socket.setTimeout(() => {
           runChatWave(questionNumber);
-        }, seededRatio(studentIndex, questionNumber, 71) * CHAT_ACTION_JITTER_MS);
+        }, normalizeSocketTimeoutMs(
+          seededRatio(studentIndex, questionNumber, 71) * CHAT_ACTION_JITTER_MS,
+        ));
       };
       const refreshChatObserver = (reason, expectation = {}, syncContext = null, view = 'live') => {
         const refreshed = refreshChatAfterEvent(token, role, reason, expectation, syncContext, view);
@@ -2006,7 +2034,7 @@ export function studentFlow() {
 
       socket.setTimeout(() => {
         socket.close();
-      }, 18 * 60 * 1000);
+      }, normalizeSocketTimeoutMs(18 * 60 * 1000));
     });
 
     check(response, { 'ws connected': (res) => res && res.status === 101 });
@@ -2017,5 +2045,10 @@ export function studentFlow() {
     }
 
     sessionCompletion.add(sessionEnded || liveData?.session?.status === 'done');
+    studentFlowCompleted = true;
   });
+
+  if (studentFlowCompleted) {
+    studentFlowCompletions.add(1);
+  }
 }
