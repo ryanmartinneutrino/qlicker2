@@ -206,6 +206,117 @@ describe('Student LiveSession', () => {
     expect(within(screen.getByRole('tab', { name: 'Chat' })).queryByText('1')).not.toBeInTheDocument();
   });
 
+  it('applies complete stats immediately when navigating forward and back between questions', async () => {
+    const buildView = () => (
+      <MemoryRouter initialEntries={['/student/course/course-1/live/session-1']}>
+        <Routes>
+          <Route path="/student/course/:courseId/live/:sessionId" element={<LiveSession />} />
+        </Routes>
+      </MemoryRouter>
+    );
+    const { rerender } = render(buildView());
+    expect(await screen.findByText('Live math session')).toBeInTheDocument();
+
+    websocketState.lastEvent = {
+      event: 'session:question-changed',
+      data: {
+        sessionId: 'session-1',
+        questionId: 'q-2',
+        question: {
+          _id: 'q-2',
+          type: QUESTION_TYPES.MULTIPLE_CHOICE,
+          content: '<p>Second question</p>',
+          options: [{ content: '<p>A</p>' }, { content: '<p>B</p>' }],
+          sessionOptions: { hidden: false, stats: false, correct: false },
+        },
+        currentAttempt: { number: 1, closed: false },
+        questionHidden: false,
+        showStats: false,
+        showCorrect: false,
+        responseStats: null,
+        studentResponse: null,
+        questionNumber: 2,
+        questionCount: 2,
+      },
+      receivedAtMs: Date.now(),
+    };
+    rerender(buildView());
+    expect(await screen.findByText('Second question')).toBeInTheDocument();
+    expect(screen.queryByText('75%')).not.toBeInTheDocument();
+
+    websocketState.lastEvent = {
+      event: 'session:question-changed',
+      data: {
+        sessionId: 'session-1',
+        questionId: 'q-1',
+        question: {
+          _id: 'q-1',
+          type: QUESTION_TYPES.MULTIPLE_CHOICE,
+          content: '<p>First question again</p>',
+          options: [{ content: '<p>A</p>' }, { content: '<p>B</p>' }],
+          sessionOptions: { hidden: false, stats: true, correct: false },
+        },
+        currentAttempt: { number: 1, closed: false },
+        questionHidden: false,
+        showStats: true,
+        showCorrect: false,
+        responseStats: {
+          type: 'distribution',
+          total: 4,
+          distribution: [
+            { index: 0, answer: 'A', count: 3 },
+            { index: 1, answer: 'B', count: 1 },
+          ],
+        },
+        studentResponse: null,
+        questionNumber: 1,
+        questionCount: 2,
+      },
+      receivedAtMs: Date.now(),
+    };
+    rerender(buildView());
+
+    expect(await screen.findByText('First question again')).toBeInTheDocument();
+    expect(await screen.findByText('75%')).toBeInTheDocument();
+    expect(screen.getByText(/response statistics are visible/i)).toBeInTheDocument();
+    expect(apiClient.get).toHaveBeenCalledTimes(1);
+  });
+
+  it('refreshes immediately when a stats-enabled navigation event is incomplete', async () => {
+    const buildView = () => (
+      <MemoryRouter initialEntries={['/student/course/course-1/live/session-1']}>
+        <Routes>
+          <Route path="/student/course/:courseId/live/:sessionId" element={<LiveSession />} />
+        </Routes>
+      </MemoryRouter>
+    );
+    const { rerender } = render(buildView());
+    expect(await screen.findByText('Live math session')).toBeInTheDocument();
+    expect(apiClient.get).toHaveBeenCalledTimes(1);
+
+    websocketState.lastEvent = {
+      event: 'session:question-changed',
+      data: {
+        sessionId: 'session-1',
+        questionId: 'q-2',
+        question: {
+          _id: 'q-2',
+          type: QUESTION_TYPES.MULTIPLE_CHOICE,
+          content: '<p>Incomplete stats snapshot</p>',
+          options: [{ content: '<p>A</p>' }, { content: '<p>B</p>' }],
+          sessionOptions: { hidden: false, stats: true, correct: false },
+        },
+        questionHidden: false,
+        showStats: true,
+        showCorrect: false,
+      },
+      receivedAtMs: Date.now(),
+    };
+    rerender(buildView());
+
+    await waitFor(() => expect(apiClient.get).toHaveBeenCalledTimes(2));
+  });
+
   it('applies role-safe stats and correct-answer snapshots without refetching live state', async () => {
     const buildView = () => (
       <MemoryRouter initialEntries={['/student/course/course-1/live/session-1']}>

@@ -368,6 +368,12 @@ function LiveSessionContent() {
       case 'session:question-changed':
         if (Object.prototype.hasOwnProperty.call(data || {}, 'question')) {
           setLiveData((prev) => applyQuestionChanged(prev, data));
+          // A complete question-change snapshot includes aggregate data when
+          // stats are visible. Recover immediately from an older/incomplete
+          // server event instead of waiting for a focus or click refresh.
+          if (data?.showStats && !data?.responseStats) {
+            fetchLive(syncContext);
+          }
           scheduleUiSyncMeasurement({
             emittedAtMs: syncContext?.emittedAtMs,
             receivedAtMs: syncContext?.receivedAtMs,

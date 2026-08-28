@@ -251,6 +251,18 @@ test('live session flow carries multiple student responses and visibility change
     solution_plainText: 'Four is the correct answer.',
   });
   await addQuestionToSessionViaApi(request, admin.token, session._id, question._id);
+  const secondQuestion = await createQuestionViaApi(request, admin.token, {
+    sessionId: session._id,
+    courseId: course._id,
+    content: 'What is 3 + 3?',
+    solution: '<p>Six is the correct answer.</p>',
+    solution_plainText: 'Six is the correct answer.',
+    options: [
+      { answer: '5', correct: false },
+      { answer: '6', correct: true },
+    ],
+  });
+  await addQuestionToSessionViaApi(request, admin.token, session._id, secondQuestion._id);
 
   const professorContext = await browser.newContext();
   const professorPage = await professorContext.newPage();
@@ -361,6 +373,23 @@ test('live session flow carries multiple student responses and visibility change
   await professorPage.getByLabel(/^Show Stats$/i).click();
   await expect(studentPage.getByRole('status').filter({ hasText: /response statistics are visible/i }).first()).toBeVisible();
   await expect(secondStudentPage.getByRole('status').filter({ hasText: /response statistics are visible/i }).first()).toBeVisible();
+  await expect(presentationPage.getByText('50%', { exact: true })).toHaveCount(2);
+
+  // Moving forward and then back to a question that already has stats enabled
+  // must repaint every passive viewer from the websocket snapshot alone. Do
+  // not click either student or presentation page between these assertions.
+  await professorPage.getByRole('button', { name: /next question/i }).click();
+  await expect(studentPage.getByText('What is 3 + 3?')).toBeVisible();
+  await expect(secondStudentPage.getByText('What is 3 + 3?')).toBeVisible();
+  await expect(presentationPage.getByText('What is 3 + 3?')).toBeVisible();
+  await expect(studentPage.getByRole('status').filter({ hasText: /response statistics are visible/i })).toHaveCount(0);
+
+  await professorPage.getByRole('button', { name: /previous question/i }).click();
+  await expect(studentPage.getByText('What is 2 + 2?')).toBeVisible();
+  await expect(secondStudentPage.getByText('What is 2 + 2?')).toBeVisible();
+  await expect(presentationPage.getByText('What is 2 + 2?')).toBeVisible();
+  await expect(studentPage.getByText('50%', { exact: true })).toHaveCount(2);
+  await expect(secondStudentPage.getByText('50%', { exact: true })).toHaveCount(2);
   await expect(presentationPage.getByText('50%', { exact: true })).toHaveCount(2);
 
   await professorPage.getByLabel(/^Show Correct$/i).click();
