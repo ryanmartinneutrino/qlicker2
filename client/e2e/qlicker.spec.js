@@ -309,6 +309,13 @@ test('live session flow carries multiple student responses and visibility change
   await expect(presentationPage.getByText('Four is the correct answer.')).not.toBeVisible();
   await expect(studentPage.getByText('Four is the correct answer.')).not.toBeVisible();
 
+  await professorPage.getByLabel(/^Show Stats$/i).click();
+  await expect(studentPage.getByRole('status').filter({ hasText: /response statistics are visible/i }).first()).toBeVisible();
+  await expect(presentationPage.getByText('0%', { exact: true })).toHaveCount(2);
+  await professorPage.getByLabel(/^Show Stats$/i).click();
+  await expect(studentPage.getByRole('status').filter({ hasText: /response statistics are visible/i })).toHaveCount(0);
+  await expect(presentationPage.getByText('0%', { exact: true })).toHaveCount(0);
+
   await studentPage.getByLabel('Option B').check();
   await studentPage.getByRole('button', { name: /submit response/i }).click();
   await expect(studentPage.getByRole('alert').filter({ hasText: /submitted/i })).toBeVisible();
