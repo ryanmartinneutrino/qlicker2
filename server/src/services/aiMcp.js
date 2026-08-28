@@ -6,6 +6,7 @@ import {
   getCourseGradeTable,
   getQuestionResponses,
   getSessionGradeTable,
+  getSessionDetails,
   getSessionQuestions,
   getStudentReviewableSessionGrade,
   getStudentReviewableSessionQuestions,
@@ -213,6 +214,20 @@ export async function createCourseMcpClient({
     annotations: { readOnlyHint: true },
   }, async ({ session_id: sessionId }) => {
     try { return toolResult(await getSessionQuestions(courseId, sessionId)); }
+    catch (error) { return toolError(error); }
+  });
+
+  server.registerTool('get_session_details', {
+    title: 'Get complete session details',
+    description: 'Get every persisted property for one instructor-created session in the current course, including quiz start/end dates, status, question IDs, visibility and join-code settings, response tracking, chat settings, and the identities of students who joined or submitted. Participants are paginated; follow next_participant_offset until null when the complete student list is needed. Session IDs must come from list_course_sessions.',
+    inputSchema: {
+      session_id: z.string().min(1),
+      participant_offset: z.number().int().min(0).optional(),
+      participant_limit: z.number().int().min(1).max(50).optional(),
+    },
+    annotations: { readOnlyHint: true },
+  }, async ({ session_id: sessionId, participant_offset: participantOffset, participant_limit: participantLimit }) => {
+    try { return toolResult(await getSessionDetails(courseId, sessionId, { participantOffset, participantLimit })); }
     catch (error) { return toolError(error); }
   });
 

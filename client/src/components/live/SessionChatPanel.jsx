@@ -48,6 +48,7 @@ const richContentSx = {
 };
 
 const CHAT_REFRESH_DEBOUNCE_MS = 150;
+const CHAT_EDITOR_CHANGE_DEBOUNCE_MS = 120;
 
 function getTimestampMs(value) {
   if (!value) return 0;
@@ -311,6 +312,7 @@ function CommentThread({
               <StudentRichTextEditor
                 value={commentDraft}
                 onChange={({ html }) => onCommentDraftChange(html)}
+                onChangeDebounceMs={CHAT_EDITOR_CHANGE_DEBOUNCE_MS}
                 showMathHint={false}
                 placeholder={t('sessionChat.commentPlaceholder')}
                 ariaLabel={t('sessionChat.commentEditorAria')}
@@ -749,6 +751,7 @@ export default function SessionChatPanel({
             <StudentRichTextEditor
               value={draftHtml}
               onChange={({ html }) => setDraftHtml(html)}
+              onChangeDebounceMs={CHAT_EDITOR_CHANGE_DEBOUNCE_MS}
               placeholder={t('sessionChat.postPlaceholder')}
               ariaLabel={t('sessionChat.postEditorAria')}
               showMathHint
@@ -813,6 +816,7 @@ export default function SessionChatPanel({
                     <StudentRichTextEditor
                       value={editBodyDraft}
                       onChange={({ html }) => setEditBodyDraft(html)}
+                      onChangeDebounceMs={CHAT_EDITOR_CHANGE_DEBOUNCE_MS}
                       placeholder={t('sessionChat.postPlaceholder')}
                       ariaLabel={t('sessionChat.editPostEditorAria')}
                       showMathHint

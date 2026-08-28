@@ -8,6 +8,8 @@ import { extractPlainTextFromHtml } from '../questions/richTextUtils';
 import AiMarkdownContent from './AiMarkdownContent';
 import AiModelSelect, { parseAiModelValue } from './AiModelSelect';
 
+const AI_CHAT_EDITOR_CHANGE_DEBOUNCE_MS = 80;
+
 function formatMessageTime(value) {
   const date = new Date(value || 0);
   return Number.isNaN(date.getTime()) ? '' : date.toLocaleString();
@@ -179,12 +181,13 @@ export default function AiCourseChat({ courseId, audience = 'instructor' }) {
     } catch (err) { setError(err.response?.data?.message || t('ai.chat.failedLoad')); }
   };
 
-  const send = async () => {
-    const content = draft.plainText.trim();
+  const send = async (draftOverride) => {
+    const resolvedDraft = normalizeDraft(draftOverride || draft);
+    const content = resolvedDraft.plainText.trim();
     if (!content || pendingMessage || selected?.pending) return;
 
-    const submittedDraft = { ...draft, content };
-    setPendingMessage({ conversationId: selected?._id || '', content, contentWysiwyg: draft.html });
+    const submittedDraft = { ...resolvedDraft, content };
+    setPendingMessage({ conversationId: selected?._id || '', content, contentWysiwyg: resolvedDraft.html });
     setDraft({ html: '', plainText: '' });
     setError('');
 
@@ -226,10 +229,10 @@ export default function AiCourseChat({ courseId, audience = 'instructor' }) {
     }
   };
 
-  const handleDraftKeyDown = useCallback((event) => {
+  const handleDraftKeyDown = useCallback((event, latestDraft) => {
     if (event.key !== 'Enter' || event.shiftKey || event.isComposing || event.nativeEvent?.isComposing) return false;
     event.preventDefault();
-    send();
+    send(latestDraft);
     return true;
   }, [send]);
 
@@ -296,9 +299,9 @@ export default function AiCourseChat({ courseId, audience = 'instructor' }) {
             {selected?.pendingThinking ? <Box sx={{ mt: 1, pl: 3.25, maxHeight: 280, overflowY: 'auto' }}><AiMarkdownContent content={selected.pendingThinking} /></Box> : null}
           </Paper> : null}
         </Box>
-        <StudentRichTextEditor value={draft.html} onChange={(value) => setDraft(normalizeDraft(value))} onKeyDown={handleDraftKeyDown} placeholder={t('ai.chat.messagePlaceholder')} disabled={isThinking} ariaLabel={t('ai.chat.messagePlaceholder')} minHeight={110} />
+        <StudentRichTextEditor value={draft.html} onChange={(value) => setDraft(normalizeDraft(value))} onChangeDebounceMs={AI_CHAT_EDITOR_CHANGE_DEBOUNCE_MS} onKeyDown={handleDraftKeyDown} placeholder={t('ai.chat.messagePlaceholder')} disabled={isThinking} ariaLabel={t('ai.chat.messagePlaceholder')} minHeight={110} />
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
-          <Button variant="contained" color={isThinking ? 'error' : 'primary'} startIcon={isThinking ? <StopIcon /> : undefined} disabled={isThinking ? (!selected?.pending || stopping) : (!draft.plainText.trim() || !selectedModel)} onClick={isThinking ? stop : send}>
+          <Button variant="contained" color={isThinking ? 'error' : 'primary'} startIcon={isThinking ? <StopIcon /> : undefined} disabled={isThinking ? (!selected?.pending || stopping) : (!draft.plainText.trim() || !selectedModel)} onClick={isThinking ? stop : () => send()}>
             {isThinking ? t('ai.chat.stop') : t('ai.chat.send')}
           </Button>
         </Box>

@@ -17,6 +17,7 @@ export default function StudentRichTextEditor({
   disabled = false,
   ariaLabel,
   onKeyDown,
+  minHeight = 80,
   showMathHint = true,
   enableVideo = false,
 }) {
@@ -24,6 +25,7 @@ export default function StudentRichTextEditor({
   const resolvedPlaceholder = placeholder || t('questions.studentRichText.placeholder');
   const resolvedAriaLabel = ariaLabel || t('questions.studentRichText.editorLabel');
   const onChangeRef = useRef(onChange);
+  const onKeyDownRef = useRef(onKeyDown);
   const onChangeDebounceMsRef = useRef(onChangeDebounceMs);
   const debounceTimerRef = useRef(null);
   const pendingChangeRef = useRef(null);
@@ -43,6 +45,10 @@ export default function StudentRichTextEditor({
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
+
+  useEffect(() => {
+    onKeyDownRef.current = onKeyDown;
+  }, [onKeyDown]);
 
   useEffect(() => {
     onChangeDebounceMsRef.current = onChangeDebounceMs;
@@ -73,6 +79,21 @@ export default function StudentRichTextEditor({
     }, debounceMs);
   }, []);
 
+  const handleEditorKeyDown = useCallback((event) => {
+    const pendingPayload = pendingChangeRef.current;
+    // Enter-to-submit handlers need the newest editor value immediately. Flush
+    // before invoking them so a debounced parent cannot send a stale draft.
+    if (
+      event.key === 'Enter'
+      && !event.shiftKey
+      && !event.isComposing
+      && !event.nativeEvent?.isComposing
+    ) {
+      flushPendingChange();
+    }
+    return onKeyDownRef.current?.(event, pendingPayload);
+  }, [flushPendingChange]);
+
   useEffect(() => () => {
     flushPendingChange();
   }, [flushPendingChange]);
@@ -84,11 +105,11 @@ export default function StudentRichTextEditor({
         onChange={handleEditorChange}
         placeholder={resolvedPlaceholder}
         disabled={disabled}
-        minHeight={80}
+        minHeight={minHeight}
         ariaLabel={resolvedAriaLabel}
         ariaDescribedBy={showMathHint ? mathHintId : undefined}
         onBlur={flushPendingChange}
-        onKeyDown={onKeyDown}
+        onKeyDown={handleEditorKeyDown}
         enableVideo={enableVideo}
       />
       {showMathHint && (
