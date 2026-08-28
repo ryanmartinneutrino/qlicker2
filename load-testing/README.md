@@ -224,6 +224,14 @@ Additional counters include:
 - `ws_connections`
 - `ws_errors`
 - `response_added_refreshes`
+- `respond_conflict_failures`: `/respond` returned `409` because a response
+  already existed for that student and attempt
+- `respond_rejected_failures`: `/respond` returned another `4xx` response,
+  such as a closed or hidden attempt
+- `respond_server_failures`: `/respond` returned a `5xx` response or failed at
+  the transport layer
+- `respond_stale_timer_skips`: a delayed simulated response was safely skipped
+  because the professor had already changed the question or attempt
 - `chat_quick_post_toggles`
 - `chat_posts_created`
 - `chat_votes_applied`
