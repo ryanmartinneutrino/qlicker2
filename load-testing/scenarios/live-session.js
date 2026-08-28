@@ -74,6 +74,7 @@ const ANSWER_WINDOW_S = parseNonNegativeInt(__ENV.ANSWER_WINDOW_S || '30', 30);
 const STATS_PAUSE_S = parseNonNegativeInt(__ENV.STATS_PAUSE_S || '15', 15);
 const CORRECT_PAUSE_S = parseNonNegativeInt(__ENV.CORRECT_PAUSE_S || '15', 15);
 const JOIN_GRACE_S = parseNonNegativeInt(__ENV.JOIN_GRACE_S || '5', 5);
+const RESPONSE_JITTER_MS = parseNonNegativeInt(__ENV.RESPONSE_JITTER_MS || '2000', 2000);
 const RESPONSE_ADDED_REFRESH_MS = parseNonNegativeInt(__ENV.RESPONSE_ADDED_REFRESH_MS || '2000', 2000);
 const STUDENT_LOGIN_SPREAD_S = parsePositiveFloat(__ENV.STUDENT_LOGIN_SPREAD_S || '12', 12);
 const CHAT_ACTIVITY_EVERY_N_QUESTIONS = parsePositiveInt(__ENV.CHAT_ACTIVITY_EVERY_N_QUESTIONS || '2', 2);
@@ -88,24 +89,38 @@ const CHAT_EVENT_REFRESH_DEBOUNCE_MS = 150;
 
 const state = JSON.parse(open(STATE_FILE));
 const students = new SharedArray('students', () => state.students);
+const responseQuestionCount = (Array.isArray(state.questions) ? state.questions : [])
+  .filter((question) => normalizeQuestionType(question) !== 6)
+  .length;
+const expectedResponseCount = students.length * responseQuestionCount;
 
 const loginDuration = new Trend('login_duration', true);
 const joinDuration = new Trend('join_duration', true);
 const respondDuration = new Trend('respond_duration', true);
 const liveRefreshDuration = new Trend('live_refresh_duration', true);
 const eventSyncDuration = new Trend('event_sync_duration', true);
+const eventDeliveryDuration = new Trend('event_delivery_duration', true);
+const eventApplyDuration = new Trend('event_apply_duration', true);
 const chatRefreshDuration = new Trend('chat_refresh_duration', true);
 const chatEventSyncDuration = new Trend('chat_event_sync_duration', true);
+const chatEventDeliveryDuration = new Trend('chat_event_delivery_duration', true);
+const chatEventApplyDuration = new Trend('chat_event_apply_duration', true);
 const professorActionDuration = new Trend('professor_action_duration', true);
 const responseToProfessorDuration = new Trend('response_to_professor_duration', true);
+const responseServerProcessingDuration = new Trend('response_server_processing_duration', true);
+const responseDeliveryToProfessorDuration = new Trend('response_delivery_to_professor_duration', true);
 
 const wsConnections = new Counter('ws_connections');
 const wsErrors = new Counter('ws_errors');
 const responseAddedRefreshes = new Counter('response_added_refreshes');
+const professorResponseEvents = new Counter('professor_response_events');
+const respondAttempts = new Counter('respond_attempts');
+const respondSuccessfulSubmissions = new Counter('respond_successful_submissions');
 const respondConflictFailures = new Counter('respond_conflict_failures');
 const respondRejectedFailures = new Counter('respond_rejected_failures');
 const respondServerFailures = new Counter('respond_server_failures');
 const respondStaleTimerSkips = new Counter('respond_stale_timer_skips');
+const invalidServerTimestamps = new Counter('invalid_server_timestamps');
 const chatQuickPostToggles = new Counter('chat_quick_post_toggles');
 const chatPostsCreated = new Counter('chat_posts_created');
 const chatVotesApplied = new Counter('chat_votes_applied');
@@ -130,6 +145,14 @@ const thresholds = {
   'login_success{role:professor}': ['rate==1'],
   join_success: ['rate==1'],
   respond_success: ['rate==1'],
+  professor_response_events: [`count==${expectedResponseCount}`],
+  respond_attempts: [`count==${expectedResponseCount}`],
+  respond_successful_submissions: [`count==${expectedResponseCount}`],
+  respond_conflict_failures: ['count==0'],
+  respond_rejected_failures: ['count==0'],
+  respond_server_failures: ['count==0'],
+  respond_stale_timer_skips: ['count==0'],
+  invalid_server_timestamps: ['count==0'],
   'live_refresh_success{role:student}': ['rate==1'],
   'live_refresh_success{role:professor}': ['rate==1'],
   'event_sync_success{role:student}': ['rate==1'],
@@ -236,6 +259,39 @@ function parseTimestampMs(value) {
   if (value == null || value === '') return null;
   const timestampMs = Date.parse(value);
   return Number.isFinite(timestampMs) ? timestampMs : null;
+}
+
+function recordSyncTiming({
+  endToEndMetric,
+  deliveryMetric,
+  applyMetric,
+  role,
+  reason,
+  syncContext,
+  startedAtMs,
+  completedAtMs,
+}) {
+  const tags = metricTags(role, { event: reason });
+  const receivedAtMs = Number(syncContext?.receivedAtMs || startedAtMs || completedAtMs);
+  const emittedAtMs = parseTimestampMs(syncContext?.emittedAt);
+
+  if (Number.isFinite(receivedAtMs) && completedAtMs >= receivedAtMs) {
+    applyMetric.add(completedAtMs - receivedAtMs, tags);
+  }
+
+  let baselineMs = receivedAtMs;
+  if (emittedAtMs != null) {
+    if (Number.isFinite(receivedAtMs) && emittedAtMs <= receivedAtMs) {
+      deliveryMetric.add(receivedAtMs - emittedAtMs, tags);
+      baselineMs = emittedAtMs;
+    } else {
+      invalidServerTimestamps.add(1, { event: reason, relation: 'emitted_after_received' });
+    }
+  }
+
+  if (Number.isFinite(baselineMs) && completedAtMs >= baselineMs) {
+    endToEndMetric.add(completedAtMs - baselineMs, tags);
+  }
 }
 
 function isTrueFalseOptions(options = []) {
@@ -359,12 +415,16 @@ function validateLiveState(data, expectation = {}) {
 function refreshLiveAfterEvent(token, role, reason, expectation = {}, syncContext = null) {
   const result = fetchLive(token, role, `live_${reason}`);
   const ok = result.ok && validateLiveState(result.data, expectation);
-  const emittedAtMs = parseTimestampMs(syncContext?.emittedAt);
-  const receivedAtMs = Number(syncContext?.receivedAtMs || result.startedAtMs || Date.now());
-  const baselineMs = emittedAtMs != null && emittedAtMs <= result.completedAtMs
-    ? emittedAtMs
-    : receivedAtMs;
-  eventSyncDuration.add(Math.max(0, result.completedAtMs - baselineMs), metricTags(role, { event: reason }));
+  recordSyncTiming({
+    endToEndMetric: eventSyncDuration,
+    deliveryMetric: eventDeliveryDuration,
+    applyMetric: eventApplyDuration,
+    role,
+    reason,
+    syncContext,
+    startedAtMs: result.startedAtMs,
+    completedAtMs: result.completedAtMs,
+  });
   eventSyncSuccess.add(ok, metricTags(role));
   return result.ok ? result.data : null;
 }
@@ -374,12 +434,16 @@ function syncLiveAfterEvent(currentData, role, updater, expectation = {}, syncCo
   const nextData = updater(currentData);
   const completedAtMs = Date.now();
   const ok = Boolean(nextData) && validateLiveState(nextData, expectation);
-  const emittedAtMs = parseTimestampMs(syncContext?.emittedAt);
-  const receivedAtMs = Number(syncContext?.receivedAtMs || startedAtMs || Date.now());
-  const baselineMs = emittedAtMs != null && emittedAtMs <= completedAtMs
-    ? emittedAtMs
-    : receivedAtMs;
-  eventSyncDuration.add(Math.max(0, completedAtMs - baselineMs), metricTags(role, { event: reason }));
+  recordSyncTiming({
+    endToEndMetric: eventSyncDuration,
+    deliveryMetric: eventDeliveryDuration,
+    applyMetric: eventApplyDuration,
+    role,
+    reason,
+    syncContext,
+    startedAtMs,
+    completedAtMs,
+  });
   eventSyncSuccess.add(ok, metricTags(role));
   return nextData;
 }
@@ -569,13 +633,18 @@ function applyLiveResponseAddedDelta(previousData, eventPayload = {}) {
       nextResponseStats = eventPayload.responseStats;
     } else {
       const existingAnswers = Array.isArray(currentStats?.answers) ? currentStats.answers : [];
-      const mergedAnswers = nextResponse
-        ? mergeResponsesNewestFirst(existingAnswers, [nextResponse])
-        : existingAnswers;
+      const payloadAnswers = Array.isArray(eventPayload.responseStats.answers)
+        ? eventPayload.responseStats.answers
+        : null;
+      const mergedAnswers = payloadAnswers
+        ? payloadAnswers
+        : nextResponse
+          ? mergeResponsesNewestFirst(existingAnswers, [nextResponse])
+          : existingAnswers;
       nextResponseStats = {
         ...(currentStats || {}),
         ...eventPayload.responseStats,
-        ...(mergedAnswers.length > 0 ? { answers: mergedAnswers } : {}),
+        ...(mergedAnswers.length > 0 || payloadAnswers ? { answers: mergedAnswers } : {}),
       };
     }
   } else if (currentStats && nextResponse && ['shortAnswer', 'numerical'].includes(currentStats.type)) {
@@ -767,12 +836,16 @@ function fetchChat(token, role, reason = 'chat_refresh', view = 'live') {
 function refreshChatAfterEvent(token, role, reason, expectation = {}, syncContext = null, view = 'live') {
   const result = fetchChat(token, role, `chat_${reason}`, view);
   const ok = result.ok && validateChatState(result.data, expectation);
-  const emittedAtMs = parseTimestampMs(syncContext?.emittedAt);
-  const receivedAtMs = Number(syncContext?.receivedAtMs || result.startedAtMs || Date.now());
-  const baselineMs = emittedAtMs != null && emittedAtMs <= result.completedAtMs
-    ? emittedAtMs
-    : receivedAtMs;
-  chatEventSyncDuration.add(Math.max(0, result.completedAtMs - baselineMs), metricTags(role, { event: reason }));
+  recordSyncTiming({
+    endToEndMetric: chatEventSyncDuration,
+    deliveryMetric: chatEventDeliveryDuration,
+    applyMetric: chatEventApplyDuration,
+    role,
+    reason,
+    syncContext,
+    startedAtMs: result.startedAtMs,
+    completedAtMs: result.completedAtMs,
+  });
   chatEventSyncSuccess.add(ok, metricTags(role));
   return result.ok ? result.data : null;
 }
@@ -782,12 +855,16 @@ function syncChatAfterEvent(currentData, role, eventPayload, expectation = {}, s
   const nextData = applyChatEventData(currentData, eventPayload);
   const completedAtMs = Date.now();
   const ok = Boolean(nextData) && validateChatState(nextData, expectation);
-  const emittedAtMs = parseTimestampMs(syncContext?.emittedAt);
-  const receivedAtMs = Number(syncContext?.receivedAtMs || startedAtMs || Date.now());
-  const baselineMs = emittedAtMs != null && emittedAtMs <= completedAtMs
-    ? emittedAtMs
-    : receivedAtMs;
-  chatEventSyncDuration.add(Math.max(0, completedAtMs - baselineMs), metricTags(role, { event: reason }));
+  recordSyncTiming({
+    endToEndMetric: chatEventSyncDuration,
+    deliveryMetric: chatEventDeliveryDuration,
+    applyMetric: chatEventApplyDuration,
+    role,
+    reason,
+    syncContext,
+    startedAtMs,
+    completedAtMs,
+  });
   chatEventSyncSuccess.add(ok, metricTags(role));
   return nextData;
 }
@@ -964,6 +1041,7 @@ function submitResponse(token, liveData) {
 
   const payload = buildResponsePayload(question);
   const start = Date.now();
+  respondAttempts.add(1);
   const res = http.post(
     `${API}/sessions/${state.session.id}/respond`,
     JSON.stringify(payload),
@@ -973,7 +1051,11 @@ function submitResponse(token, liveData) {
 
   const ok = res.status === 200 || res.status === 201;
   respondSuccess.add(ok);
-  if (!ok) recordResponseFailure(res);
+  if (ok) {
+    respondSuccessfulSubmissions.add(1);
+  } else {
+    recordResponseFailure(res);
+  }
   return {
     ok,
     key: `${String(question._id || '')}:${attemptNumber}`,
@@ -1132,6 +1214,17 @@ export function professorFlow() {
 
     group(`question_${questionNumber}_open`, () => {
       if (index > 0) {
+        // Make question transitions atomic from the simulated students'
+        // perspective. The server carries the current visibility flags to the
+        // next question, so hide the old question before navigating and only
+        // expose the new one after its attempt has been opened.
+        professorRequest(
+          'PATCH',
+          `/sessions/${sessionId}/question-visibility`,
+          professorToken,
+          { hidden: true, stats: false, correct: false },
+          'hide_between_questions',
+        );
         professorRequest(
           'PATCH',
           `/sessions/${sessionId}/current`,
@@ -1367,9 +1460,31 @@ export function professorViewerFlow() {
           break;
         case 'session:response-added':
           {
+            professorResponseEvents.add(1);
             const submittedAtMs = parseTimestampMs(data?.responseSubmittedAt);
+            const emittedAtMs = parseTimestampMs(data?.emittedAt);
             if (submittedAtMs != null && submittedAtMs <= receivedAtMs) {
               responseToProfessorDuration.add(receivedAtMs - submittedAtMs);
+            }
+            if (submittedAtMs != null && emittedAtMs != null) {
+              if (submittedAtMs <= emittedAtMs) {
+                responseServerProcessingDuration.add(emittedAtMs - submittedAtMs);
+              } else {
+                invalidServerTimestamps.add(1, {
+                  event: 'response_added',
+                  relation: 'submitted_after_emitted',
+                });
+              }
+            }
+            if (emittedAtMs != null) {
+              if (emittedAtMs <= receivedAtMs) {
+                responseDeliveryToProfessorDuration.add(receivedAtMs - emittedAtMs);
+              } else {
+                invalidServerTimestamps.add(1, {
+                  event: 'response_added',
+                  relation: 'emitted_after_professor_received',
+                });
+              }
             }
           }
           liveData = syncLiveAfterEvent(
@@ -1466,6 +1581,7 @@ export function studentFlow() {
     joinSuccess.add(false);
     respondSuccess.add(false);
     liveRefreshSuccess.add(false, metricTags(role));
+    sessionCompletion.add(false);
     return;
   }
 
@@ -1519,6 +1635,7 @@ export function studentFlow() {
     const ownPostIds = new Set();
     let createdRandomPostCount = 0;
     let sessionEnded = false;
+    let responseWindowAttemptKey = null;
 
     const response = ws.connect(wsUrl, {}, (socket) => {
       const ensureChatSnapshot = (reason) => {
@@ -1530,6 +1647,21 @@ export function studentFlow() {
         return chatData;
       };
 
+      const updateResponseWindow = (snapshot) => {
+        const attemptKey = getLiveAttemptKey(snapshot);
+        const responseWindowIsOpen = Boolean(
+          attemptKey
+          && snapshot?.currentQuestion
+          && snapshot?.currentAttempt
+          && !readLiveVisibilityFlag(snapshot, 'hidden')
+          && !readLiveVisibilityFlag(snapshot, 'stats')
+          && !readLiveVisibilityFlag(snapshot, 'correct')
+          && !snapshot.currentAttempt.closed
+        );
+        responseWindowAttemptKey = responseWindowIsOpen ? attemptKey : null;
+        return responseWindowAttemptKey;
+      };
+
       const maybeSubmitCurrentAttempt = (snapshot) => {
         const currentQuestion = snapshot?.currentQuestion;
         const currentAttempt = snapshot?.currentAttempt;
@@ -1539,11 +1671,21 @@ export function studentFlow() {
         if (snapshot?.studentResponse) return;
 
         const attemptKey = getLiveAttemptKey(snapshot);
-        if (!attemptKey || submittedAttempts[attemptKey] || scheduledAttempts[attemptKey]) {
+        if (
+          !attemptKey
+          || responseWindowAttemptKey !== attemptKey
+          || submittedAttempts[attemptKey]
+          || scheduledAttempts[attemptKey]
+        ) {
           return;
         }
 
         scheduledAttempts[attemptKey] = true;
+        const responseDelayMs = seededRatio(
+          studentIndex,
+          Number(snapshot?.questionNumber || 0),
+          Number(currentAttempt?.number || 0),
+        ) * RESPONSE_JITTER_MS;
         socket.setTimeout(() => {
           // Match the browser: submit from the websocket-synchronized snapshot
           // instead of issuing an extra /live request immediately beforehand.
@@ -1555,7 +1697,7 @@ export function studentFlow() {
           // before the professor opened a new attempt. Never let that stale
           // timer submit against whichever attempt happens to be current when
           // it wakes; schedule the current attempt through the normal path.
-          if (getLiveAttemptKey(latest) !== attemptKey) {
+          if (getLiveAttemptKey(latest) !== attemptKey || responseWindowAttemptKey !== attemptKey) {
             respondStaleTimerSkips.add(1);
             delete scheduledAttempts[attemptKey];
             maybeSubmitCurrentAttempt(latest);
@@ -1588,7 +1730,7 @@ export function studentFlow() {
           }
 
           delete scheduledAttempts[attemptKey];
-        }, Math.random() * 2000);
+        }, responseDelayMs);
       };
 
       const refreshForEvent = (reason, expectation = {}, syncContext = null) => {
@@ -1597,7 +1739,7 @@ export function studentFlow() {
           liveData = refreshed;
           chatEnabled = SESSION_CHAT_ENABLED && Boolean(refreshed?.session?.chatEnabled);
         }
-        maybeSubmitCurrentAttempt(liveData);
+        return liveData;
       };
 
       const runChatWave = (questionNumber) => {
@@ -1695,6 +1837,7 @@ export function studentFlow() {
         if (chatEnabled && watchesChat) {
           chatData = fetchChat(token, role, 'student_ws_open_chat').data || chatData;
         }
+        updateResponseWindow(liveData);
         maybeSubmitCurrentAttempt(liveData);
         socket.setInterval(() => {
           socket.send(JSON.stringify({ event: 'ping' }));
@@ -1722,6 +1865,7 @@ export function studentFlow() {
 
         switch (event) {
           case 'session:status-changed':
+            responseWindowAttemptKey = null;
             liveData = refreshLiveAfterEvent(
               token,
               role,
@@ -1737,6 +1881,7 @@ export function studentFlow() {
             break;
 
           case 'session:question-changed':
+            responseWindowAttemptKey = null;
             if (Object.prototype.hasOwnProperty.call(data || {}, 'question')) {
               liveData = syncLiveAfterEvent(
                 liveData,
@@ -1746,7 +1891,6 @@ export function studentFlow() {
                 syncContext,
                 'question_changed',
               ) || liveData;
-              maybeSubmitCurrentAttempt(liveData);
             } else {
               refreshForEvent('question_changed', { questionNumber: data.questionNumber }, syncContext);
             }
@@ -1767,7 +1911,6 @@ export function studentFlow() {
                 syncContext,
                 'visibility_changed',
               ) || liveData;
-              maybeSubmitCurrentAttempt(liveData);
             } else {
               refreshForEvent('visibility_changed', {
                 hidden: data.hidden,
@@ -1775,9 +1918,12 @@ export function studentFlow() {
                 correct: data.correct,
               }, syncContext);
             }
+            updateResponseWindow(liveData);
+            maybeSubmitCurrentAttempt(liveData);
             break;
 
           case 'session:attempt-changed':
+            responseWindowAttemptKey = null;
             liveData = syncLiveAfterEvent(
               liveData,
               role,
@@ -1789,7 +1935,6 @@ export function studentFlow() {
               syncContext,
               'attempt_changed',
             ) || liveData;
-            maybeSubmitCurrentAttempt(liveData);
             break;
 
           case 'session:word-cloud-updated':
