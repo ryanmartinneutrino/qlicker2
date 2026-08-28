@@ -189,7 +189,7 @@ describe('SessionEditor inline close behavior', () => {
     });
   });
 
-  it('uses the date-based quiz status label and warns before activating a currently live quiz', async () => {
+  it('uses the date-based quiz status label and warns when changing a draft quiz to date-controlled status', async () => {
     const originalGet = apiClientMock.get.getMockImplementation();
     const quizStart = new Date(Date.now() - 60_000).toISOString();
     const quizEnd = new Date(Date.now() + 60_000).toISOString();
@@ -207,7 +207,7 @@ describe('SessionEditor inline close behavior', () => {
               quizEnd,
               msScoringMethod: 'right-minus-wrong',
               reviewable: false,
-              status: 'visible',
+              status: 'hidden',
               tags: [],
               questions: ['q1'],
               quizExtensions: [],
@@ -217,6 +217,23 @@ describe('SessionEditor inline close behavior', () => {
       }
       return originalGet(url);
     });
+    apiClientMock.patch.mockResolvedValue({
+      data: {
+        session: {
+          _id: 'session-1',
+          name: 'Scheduled Quiz',
+          description: '',
+          quiz: true,
+          practiceQuiz: false,
+          quizStart,
+          quizEnd,
+          status: 'visible',
+          tags: [],
+          questions: ['q1'],
+          quizExtensions: [],
+        },
+      },
+    });
 
     render(<SessionEditor />);
 
@@ -225,6 +242,13 @@ describe('SessionEditor inline close behavior', () => {
     fireEvent.click(await screen.findByRole('option', { name: 'professor.sessionEditor.liveBasedOnDate' }));
 
     expect(await screen.findByText('professor.sessionEditor.scheduledQuizLiveWarning')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'professor.sessionEditor.makeQuizLive' }));
+
+    await waitFor(() => {
+      expect(apiClientMock.patch).toHaveBeenCalledWith('/sessions/session-1', { status: 'visible' });
+      expect(screen.getByText('running')).toBeInTheDocument();
+    });
   });
 
   it('creates a new session-authored question once and inserts it into the session order directly', async () => {

@@ -816,7 +816,7 @@
       "name": "Nome",
       "description": "Descrizione",
       "status": "Stato",
-      "liveBasedOnDate": "Attivo in base alla data",
+      "liveBasedOnDate": "Passa ad Attivo/Terminato in base alle date",
       "scheduledQuizLiveWarning": "Questo quiz rientra nella finestra temporale programmata e sarà immediatamente disponibile per gli studenti.",
       "makeQuizLive": "Rendi attivo il quiz",
       "quiz": "Quiz",

@@ -816,7 +816,7 @@
       "name": "Nombre",
       "description": "Descripción",
       "status": "Estado",
-      "liveBasedOnDate": "En vivo según la fecha",
+      "liveBasedOnDate": "Cambiar a En vivo/Finalizada según las fechas",
       "scheduledQuizLiveWarning": "Este cuestionario está dentro de su período programado y estará disponible para los estudiantes de inmediato.",
       "makeQuizLive": "Activar cuestionario",
       "quiz": "Cuestionario",

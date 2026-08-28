@@ -816,7 +816,7 @@
       "name": "名称",
       "description": "描述",
       "status": "状态",
-      "liveBasedOnDate": "按日期开放",
+      "liveBasedOnDate": "根据日期切换为进行中/已结束",
       "scheduledQuizLiveWarning": "此测验当前处于设定的开放时间内，学生将立即可以访问。",
       "makeQuizLive": "开放测验",
       "quiz": "测验",

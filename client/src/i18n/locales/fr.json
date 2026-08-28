@@ -816,7 +816,7 @@
       "name": "Nom",
       "description": "Description",
       "status": "Statut",
-      "liveBasedOnDate": "En direct selon la date",
+      "liveBasedOnDate": "Passer à En direct/Terminé selon les dates",
       "scheduledQuizLiveWarning": "Ce questionnaire est dans sa plage horaire prévue et sera immédiatement accessible aux étudiants.",
       "makeQuizLive": "Mettre le questionnaire en direct",
       "quiz": "Questionnaire",

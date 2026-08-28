@@ -42,6 +42,14 @@ export function getEffectiveQuizStatus(session, now = Date.now()) {
   return status;
 }
 
+export function quizWouldBeLiveImmediately(session, now = Date.now()) {
+  if (!isQuizSession(session)) return false;
+  return getEffectiveQuizStatus({
+    ...session,
+    status: 'visible',
+  }, now) === 'running';
+}
+
 export function getSessionSortTime(session, now = Date.now()) {
   const isQuiz = isQuizSession(session);
   const status = isQuiz ? getEffectiveQuizStatus(session, now) : String(session?.status || '');

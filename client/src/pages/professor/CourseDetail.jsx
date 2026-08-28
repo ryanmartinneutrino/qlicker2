@@ -28,6 +28,7 @@ import {
   sessionCanShowLiveReviewAction,
 } from '../../utils/professorSessions';
 import { getSessionTimingText } from '../../utils/sessionDisplay';
+import { quizWouldBeLiveImmediately } from '../../utils/studentSessions';
 import AutoSaveStatus from '../../components/common/AutoSaveStatus';
 import ResponsiveTabsNavigation from '../../components/common/ResponsiveTabsNavigation';
 import SessionStatusChip from '../../components/common/SessionStatusChip';
@@ -371,6 +372,7 @@ export default function CourseDetail() {
   const [copySessionsSourceSessions, setCopySessionsSourceSessions] = useState([]);
   const [selectedCopySessionIds, setSelectedCopySessionIds] = useState([]);
   const [copyingSessions, setCopyingSessions] = useState(false);
+  const [scheduledQuizStatusTarget, setScheduledQuizStatusTarget] = useState(null);
   const [instructorCourses, setInstructorCourses] = useState([]);
   const [sessionUpdatesInFlight, setSessionUpdatesInFlight] = useState({});
   const [chatRefreshToken, setChatRefreshToken] = useState(0);
@@ -1411,6 +1413,23 @@ export default function CourseDetail() {
     }
   };
 
+  const handleSessionStatusChange = (session, nextStatus) => {
+    if (nextStatus === session.status) return;
+    if (nextStatus === 'visible' && quizWouldBeLiveImmediately(session)) {
+      setScheduledQuizStatusTarget(session);
+      return;
+    }
+    patchSessionFromList(session._id, { status: nextStatus });
+  };
+
+  const confirmScheduledQuizStatus = () => {
+    const sessionId = scheduledQuizStatusTarget?._id;
+    setScheduledQuizStatusTarget(null);
+    if (sessionId) {
+      patchSessionFromList(sessionId, { status: 'visible' });
+    }
+  };
+
   const handleLaunchSession = async (sessionId) => {
     try {
       await apiClient.post(`/sessions/${sessionId}/start`);
@@ -1768,12 +1787,14 @@ export default function CourseDetail() {
                         size="small"
                         label={t('common.status')}
                         value={s.status || 'hidden'}
-                        onChange={(event) => patchSessionFromList(s._id, { status: event.target.value })}
+                        onChange={(event) => handleSessionStatusChange(s, event.target.value)}
                         disabled={!!sessionUpdatesInFlight[s._id]}
-                        sx={{ minWidth: 122 }}
+                        sx={{ minWidth: s.quiz ? 300 : 122 }}
                       >
                         <MenuItem value="hidden">{t('sessionStatus.draft')}</MenuItem>
-                        <MenuItem value="visible">{t('sessionStatus.upcoming')}</MenuItem>
+                        <MenuItem value="visible">
+                          {s.quiz ? t('professor.sessionEditor.liveBasedOnDate') : t('sessionStatus.upcoming')}
+                        </MenuItem>
                         <MenuItem value="running">{t('sessionStatus.live')}</MenuItem>
                         <MenuItem value="done">{t('sessionStatus.ended')}</MenuItem>
                       </TextField>
@@ -2602,6 +2623,22 @@ export default function CourseDetail() {
         title={t('notifications.manage.courseDialogTitle', { course: headerTitle })}
         use24Hour={use24HourNotifications}
       />
+
+      <Dialog
+        open={!!scheduledQuizStatusTarget}
+        onClose={() => setScheduledQuizStatusTarget(null)}
+      >
+        <DialogTitle>{t('professor.sessionEditor.liveBasedOnDate')}</DialogTitle>
+        <DialogContent>
+          <Typography>{t('professor.sessionEditor.scheduledQuizLiveWarning')}</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setScheduledQuizStatusTarget(null)}>{t('common.cancel')}</Button>
+          <Button variant="contained" color="warning" onClick={confirmScheduledQuizStatus}>
+            {t('professor.sessionEditor.makeQuizLive')}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Create Session Dialog */}
       <Dialog

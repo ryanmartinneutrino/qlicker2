@@ -816,7 +816,7 @@
       "name": "Name",
       "description": "Description",
       "status": "Status",
-      "liveBasedOnDate": "Live based on date",
+      "liveBasedOnDate": "Switch to Live/Ended based on dates",
       "scheduledQuizLiveWarning": "This quiz is within its scheduled time window and will be available to students immediately.",
       "makeQuizLive": "Make quiz live",
       "quiz": "Quiz",

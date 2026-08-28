@@ -28,7 +28,7 @@ import BackLinkButton from '../../components/common/BackLinkButton';
 import DateTimePreferenceField from '../../components/common/DateTimePreferenceField';
 import SessionStatusChip from '../../components/common/SessionStatusChip';
 import { buildCourseTitle } from '../../utils/courseTitle';
-import { getEffectiveQuizStatus } from '../../utils/studentSessions';
+import { getEffectiveQuizStatus, quizWouldBeLiveImmediately } from '../../utils/studentSessions';
 import {
   buildSessionExportFilename,
   buildPrintableSessionHtml,
@@ -452,16 +452,6 @@ export default function SessionEditor() {
     persistQuizWindow(quizStart, nextWindow.quizEnd);
   }, [persistQuizWindow, quizEnd, quizStart]);
 
-  const quizWouldBeLiveImmediately = () => (
-    quiz
-    && getEffectiveQuizStatus({
-      quiz: true,
-      status: 'visible',
-      quizStart: toIsoIfValid(quizStart),
-      quizEnd: toIsoIfValid(quizEnd),
-    }) === 'running'
-  );
-
   const saveScheduledQuizStatus = () => {
     setConfirmScheduledQuizLiveOpen(false);
     setStatus('running');
@@ -470,7 +460,12 @@ export default function SessionEditor() {
 
   const handleStatusChange = (nextStatus) => {
     if (nextStatus === status) return;
-    if (nextStatus === 'visible' && quiz && quizWouldBeLiveImmediately()) {
+    if (nextStatus === 'visible' && quizWouldBeLiveImmediately({
+      quiz,
+      practiceQuiz,
+      quizStart: toIsoIfValid(quizStart),
+      quizEnd: toIsoIfValid(quizEnd),
+    })) {
       setConfirmScheduledQuizLiveOpen(true);
       return;
     }
@@ -1422,7 +1417,7 @@ export default function SessionEditor() {
             sx={{ '& .MuiInputBase-input': { py: 1.05 } }}
           />
 
-          <FormControl size="small" sx={{ maxWidth: 280 }}>
+          <FormControl size="small" sx={{ maxWidth: quiz ? 360 : 280 }}>
             <InputLabel>{t('professor.sessionEditor.status')}</InputLabel>
             <Select
               label={t('professor.sessionEditor.status')}

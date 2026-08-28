@@ -816,7 +816,7 @@
       "name": "Moniker",
       "description": "Blurb",
       "status": "Standing",
-      "liveBasedOnDate": "Live by th' date",
+      "liveBasedOnDate": "Switch to Live/Ended by th' dates",
       "scheduledQuizLiveWarning": "This reckoning be within its scheduled time window and be available to th' crew right away.",
       "makeQuizLive": "Make reckoning live",
       "quiz": "Reckoning",
