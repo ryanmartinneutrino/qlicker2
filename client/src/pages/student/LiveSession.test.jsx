@@ -264,6 +264,35 @@ describe('Student LiveSession', () => {
           type: QUESTION_TYPES.MULTI_SELECT,
           content: '<p>Select all matching options</p>',
           options: [
+            { content: '<p>First</p>' },
+            { content: '<p>Other</p>' },
+          ],
+          sessionOptions: { hidden: false, stats: false, correct: false },
+        },
+        currentAttempt: { number: 1, closed: false },
+        questionHidden: false,
+        showStats: false,
+        showCorrect: false,
+        showResponseList: true,
+        responseStats: null,
+      },
+      receivedAtMs: Date.now(),
+    };
+    rerender(buildView());
+
+    await waitFor(() => expect(screen.queryByText('100%')).not.toBeInTheDocument());
+    expect(apiClient.get).toHaveBeenCalledTimes(1);
+
+    websocketState.lastEvent = {
+      event: 'session:visibility-changed',
+      data: {
+        sessionId: 'session-1',
+        questionId: 'q-1',
+        question: {
+          _id: 'q-1',
+          type: QUESTION_TYPES.MULTI_SELECT,
+          content: '<p>Select all matching options</p>',
+          options: [
             { content: '<p>First</p>', correct: true },
             { content: '<p>Other</p>', correct: false },
           ],

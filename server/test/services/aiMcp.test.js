@@ -39,6 +39,7 @@ describe('course AI MCP audience and history', () => {
       const tools = await mcp.client.listTools();
       expect(tools.tools.map((tool) => tool.name)).toEqual(expect.arrayContaining([
         'get_conversation_history',
+        'get_session_details',
         'create_course_session',
         'edit_course_session',
         'list_course_questions',

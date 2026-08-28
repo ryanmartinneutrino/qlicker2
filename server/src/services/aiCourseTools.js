@@ -117,6 +117,22 @@ function clampPageValue(value, fallback, maximum) {
   return Math.min(parsed, maximum);
 }
 
+function jsonSafeSessionValue(value) {
+  if (value instanceof Date) return value.toISOString();
+  if (value instanceof Map) {
+    return Object.fromEntries([...value.entries()].map(([key, entry]) => [key, jsonSafeSessionValue(entry)]));
+  }
+  if (Array.isArray(value)) return value.map(jsonSafeSessionValue);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([key]) => key !== '__v')
+        .map(([key, entry]) => [key, jsonSafeSessionValue(entry)])
+    );
+  }
+  return value;
+}
+
 function questionPrompt(question) {
   return String(question?.plainText || question?.content || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 }
@@ -292,6 +308,64 @@ export async function getSessionQuestions(courseId, sessionId) {
   return {
     session: { session_id: String(session._id), name: session.name || '' },
     questions: questions.map(serializeQuestion),
+  };
+}
+
+export async function getSessionDetails(
+  courseId,
+  sessionId,
+  { participantOffset = 0, participantLimit = DEFAULT_PAGE_SIZE } = {}
+) {
+  const session = await requireCourseSession(courseId, sessionId);
+  const joinedIds = [...new Set([
+    ...(session.joined || []).map(String),
+    ...(session.joinRecords || []).map((record) => String(record.userId || '')).filter(Boolean),
+  ])];
+  const submittedIds = (session.submittedQuiz || []).map(String);
+  const extensionIds = (session.quizExtensions || []).map((extension) => String(extension.userId || '')).filter(Boolean);
+  const participantIds = [...new Set([...joinedIds, ...submittedIds, ...extensionIds])];
+  const pageOffset = clampPageValue(participantOffset, 0, Number.MAX_SAFE_INTEGER);
+  const pageSize = clampPageValue(participantLimit, DEFAULT_PAGE_SIZE, DEFAULT_PAGE_SIZE) || DEFAULT_PAGE_SIZE;
+  const pageIds = participantIds.slice(pageOffset, pageOffset + pageSize);
+  const users = pageIds.length > 0
+    ? await User.find({ _id: { $in: pageIds } }).select('_id profile emails email').lean()
+    : [];
+  const userById = new Map(users.map((user) => [String(user._id), formatStudent(user)]));
+  const joinedSet = new Set(joinedIds);
+  const submittedSet = new Set(submittedIds);
+  const extensionSet = new Set(extensionIds);
+  const joinRecordByUserId = new Map(
+    (session.joinRecords || []).map((record) => [String(record.userId || ''), record])
+  );
+
+  return {
+    // Keep the model's field names so every persisted session property is
+    // available, including future schema additions, without maintaining a
+    // second lossy serializer for the AI tool.
+    session: jsonSafeSessionValue(session),
+    joined_student_count: joinedIds.length,
+    submitted_quiz_student_count: submittedIds.length,
+    participant_count: participantIds.length,
+    participant_offset: pageOffset,
+    returned_participant_count: pageIds.length,
+    next_participant_offset: pageOffset + pageIds.length < participantIds.length
+      ? pageOffset + pageIds.length
+      : null,
+    participants: pageIds.map((participantId) => {
+      const joinRecord = joinRecordByUserId.get(participantId);
+      return {
+        student: userById.get(participantId) || {
+          student_id: participantId,
+          name: 'Unknown student',
+          email: '',
+        },
+        joined: joinedSet.has(participantId),
+        joined_at: joinRecord?.joinedAt ? new Date(joinRecord.joinedAt).toISOString() : null,
+        joined_with_code: !!joinRecord?.joinedWithCode,
+        submitted_quiz: submittedSet.has(participantId),
+        has_quiz_extension: extensionSet.has(participantId),
+      };
+    }),
   };
 }
 

@@ -2148,16 +2148,18 @@ function sanitizeStudentOwnResponse(response) {
   };
 }
 
-function buildStudentLiveQuestionSnapshot(question, extra = {}) {
+function buildStudentLiveQuestionSnapshot(question, extra = {}, { responseStats: resolvedResponseStats } = {}) {
   const questionHidden = !!question?.sessionOptions?.hidden;
   const collectsResponses = isQuestionResponseCollectionEnabled(question);
   const showStats = collectsResponses && !!question?.sessionOptions?.stats;
   const showCorrect = collectsResponses && !!question?.sessionOptions?.correct;
   const showResponseList = question?.sessionOptions?.responseListVisible !== false;
   const currentAttempt = collectsResponses ? getCurrentAttempt(question) : null;
-  const cachedStats = currentAttempt
-    ? materializeAttemptStatsEntry(getAttemptStatsEntry(question, currentAttempt.number))
-    : null;
+  const cachedStats = resolvedResponseStats !== undefined
+    ? resolvedResponseStats
+    : currentAttempt
+      ? materializeAttemptStatsEntry(getAttemptStatsEntry(question, currentAttempt.number))
+      : null;
   const responseStats = showStats
     ? formatStudentLiveResponseStats(cachedStats, { showCorrect, showResponseList })
     : null;
@@ -2923,7 +2925,7 @@ async function notifyQuestionChanged(app, course, session, question, data) {
 }
 
 /** Role-safe delta: question visibility/stats/correct toggled. */
-function notifyVisibilityChanged(app, course, session, question) {
+async function notifyVisibilityChanged(app, course, session, question) {
   if (!session?._id || !question?._id) return;
   const basePayload = {
     courseId: String(course._id),
@@ -2938,9 +2940,16 @@ function notifyVisibilityChanged(app, course, session, question) {
     responseListVisible: question?.sessionOptions?.responseListVisible !== false,
   };
   sendToInstructors(app, course, 'session:visibility-changed', instructorPayload);
+
+  const currentAttempt = isQuestionResponseCollectionEnabled(question)
+    ? getCurrentAttempt(question)
+    : null;
+  const responseStats = question?.sessionOptions?.stats && currentAttempt
+    ? await getQuestionAttemptStats(question, currentAttempt.number)
+    : null;
   sendToJoinedStudents(app, session, 'session:visibility-changed', {
     ...basePayload,
-    ...buildStudentLiveQuestionSnapshot(question),
+    ...buildStudentLiveQuestionSnapshot(question, {}, { responseStats }),
   });
 }
 
@@ -6074,7 +6083,7 @@ export default async function sessionRoutes(app) {
         { returnDocument: 'after' }
       );
 
-      notifyVisibilityChanged(app, course, session, updatedQuestion);
+      await notifyVisibilityChanged(app, course, session, updatedQuestion);
 
       return { question: updatedQuestion?.toObject() };
     }

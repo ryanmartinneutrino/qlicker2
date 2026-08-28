@@ -771,7 +771,7 @@ describe('AI course configuration and chat', () => {
     });
     expect(fetch).toHaveBeenCalledTimes(2);
     const secondRequest = JSON.parse(fetch.mock.calls[1][1].body);
-    expect(secondRequest.tools.map((tool) => tool.function.name)).toEqual(expect.arrayContaining(['get_conversation_history', 'list_course_students', 'list_course_sessions', 'get_session_questions', 'get_question_responses', 'get_session_grade_table', 'get_course_grade_table', 'list_course_chat_topics', 'get_course_chat_topic', 'draft_course_chat_message', 'publish_course_chat_draft', 'create_course_session', 'edit_course_session', 'list_course_questions', 'create_course_question', 'edit_course_question', 'apply_course_action_draft']));
+    expect(secondRequest.tools.map((tool) => tool.function.name)).toEqual(expect.arrayContaining(['get_conversation_history', 'list_course_students', 'list_course_sessions', 'get_session_details', 'get_session_questions', 'get_question_responses', 'get_session_grade_table', 'get_course_grade_table', 'list_course_chat_topics', 'get_course_chat_topic', 'draft_course_chat_message', 'publish_course_chat_draft', 'create_course_session', 'edit_course_session', 'list_course_questions', 'create_course_question', 'edit_course_question', 'apply_course_action_draft']));
     expect(secondRequest.messages).toContainEqual(expect.objectContaining({
       role: 'tool',
       tool_name: 'list_course_students',

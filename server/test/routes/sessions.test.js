@@ -3016,6 +3016,60 @@ describe('Live session websocket delta events', () => {
     expect(correctStudentCall[2].responseStats.distribution[0].correct).toBe(true);
   });
 
+  it('includes canonical empty stats when stats are enabled before any response aggregate exists', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const { profToken, course, student, studentToken } = await setupCourseWithStudent();
+    const sessRes = await createSessionInCourse(profToken, course._id);
+    const session = sessRes.json().session;
+    await createQuestionInSession(profToken, {
+      type: 0,
+      content: '<p>Zero-response stats question</p>',
+      plainText: 'Zero-response stats question',
+      sessionId: session._id,
+      courseId: course._id,
+      options: [
+        { content: 'A', correct: true },
+        { content: 'B', correct: false },
+      ],
+    });
+
+    await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/start`, {
+      token: profToken,
+    });
+    await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${session._id}/question-visibility`, {
+      token: profToken,
+      payload: { hidden: false, stats: false, correct: false },
+    });
+    await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/join`, {
+      token: studentToken,
+      payload: {},
+    });
+
+    const wsSendToUsersSpy = vi.spyOn(app, 'wsSendToUsers');
+    const statsRes = await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${session._id}/question-visibility`, {
+      token: profToken,
+      payload: { hidden: false, stats: true, correct: false },
+    });
+    expect(statsRes.statusCode).toBe(200);
+
+    const studentCall = wsSendToUsersSpy.mock.calls.find(([userIds, event]) => (
+      event === 'session:visibility-changed' && userIds.includes(String(student._id))
+    ));
+    expect(studentCall).toBeDefined();
+    expect(studentCall[2]).toEqual(expect.objectContaining({
+      showStats: true,
+      showCorrect: false,
+      responseStats: {
+        type: 'distribution',
+        total: 0,
+        distribution: [
+          { index: 0, answer: 'A', count: 0 },
+          { index: 1, answer: 'B', count: 0 },
+        ],
+      },
+    }));
+  });
+
   it('broadcasts role-safe question snapshots when the instructor changes questions', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
     const { prof, profToken, course, student, studentToken } = await setupCourseWithStudent();

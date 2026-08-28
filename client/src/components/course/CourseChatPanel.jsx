@@ -55,6 +55,7 @@ const richContentSx = {
 };
 
 const CHAT_REFRESH_DEBOUNCE_MS = 150;
+const CHAT_EDITOR_CHANGE_DEBOUNCE_MS = 120;
 
 function getTimestampMs(value) {
   const timestamp = new Date(value || 0).getTime();
@@ -680,6 +681,7 @@ export default function CourseChatPanel({
               <StudentRichTextEditor
                 value={draftHtml}
                 onChange={({ html }) => setDraftHtml(html)}
+                onChangeDebounceMs={CHAT_EDITOR_CHANGE_DEBOUNCE_MS}
                 placeholder={t('courseChat.postPlaceholder')}
                 ariaLabel={t('courseChat.postEditorLabel')}
                 enableVideo
@@ -794,6 +796,7 @@ export default function CourseChatPanel({
                   <StudentRichTextEditor
                     value={editBodyDraft}
                     onChange={({ html }) => setEditBodyDraft(html)}
+                    onChangeDebounceMs={CHAT_EDITOR_CHANGE_DEBOUNCE_MS}
                     placeholder={t('courseChat.postPlaceholder')}
                     ariaLabel={t('courseChat.editPostEditorLabel')}
                     enableVideo
@@ -851,6 +854,7 @@ export default function CourseChatPanel({
                        <StudentRichTextEditor
                          value={commentDrafts[post._id] || ''}
                          onChange={({ html }) => setCommentDrafts((prev) => ({ ...prev, [post._id]: html }))}
+                         onChangeDebounceMs={CHAT_EDITOR_CHANGE_DEBOUNCE_MS}
                          placeholder={t('courseChat.commentPlaceholder')}
                          ariaLabel={t('courseChat.commentEditorLabel')}
                          enableVideo
