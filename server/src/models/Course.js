@@ -6,6 +6,7 @@ const AiModelSchema = new mongoose.Schema(
     id: { type: String, required: true },
     name: { type: String, required: true },
     displayName: { type: String, default: '', maxlength: 200 },
+    compatibility: { type: String, enum: ['', 'qrag'], default: '' },
     available: { type: Boolean, default: true },
   },
   { _id: false }

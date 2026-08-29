@@ -156,16 +156,39 @@ function normalizeModelPolicies(value) {
 function effectiveModelPolicies(course, settings, policy) {
   const configured = normalizeModelPolicies(course.aiModelPolicies);
   if (configured.length) return configured;
-  const backendId = course.aiDefaultBackendId || course.aiSelectedBackendId || settings.AI_DefaultBackendId || '';
-  const modelId = course.aiDefaultModelId || course.aiSelectedModelId || settings.AI_DefaultModelId || '';
-  return findModel(availableBackends(course, settings, policy), backendId, modelId)
-    ? [{ backendId, modelId, studentAvailable: false }]
-    : [];
+  return availableBackends(course, settings, policy).flatMap((backend) => backend.models.map((model) => ({
+    backendId: backend.id,
+    modelId: model.id,
+    studentAvailable: false,
+  })));
+}
+
+function preferredModel(course, settings, policy) {
+  const backends = availableBackends(course, settings, policy);
+  const approved = new Set(effectiveModelPolicies(course, settings, policy)
+    .map((entry) => modelKey(entry.backendId, entry.modelId)));
+  const candidates = [
+    [course.aiDefaultBackendId, course.aiDefaultModelId],
+    [course.aiSelectedBackendId, course.aiSelectedModelId],
+    [settings.AI_DefaultBackendId, settings.AI_DefaultModelId],
+  ];
+  for (const [backendId, modelId] of candidates) {
+    if (backendId && modelId && approved.has(modelKey(backendId, modelId))) {
+      const selected = findModel(backends, backendId, modelId);
+      if (selected) return selected;
+    }
+  }
+  for (const backend of backends) {
+    const model = backend.models.find((entry) => approved.has(modelKey(backend.id, entry.id)));
+    if (model) return { backend, model };
+  }
+  return null;
 }
 
 function resolveModel(course, settings, policy, requested = {}) {
-  const backendId = requested.backendId || course.aiDefaultBackendId || course.aiSelectedBackendId || settings.AI_DefaultBackendId;
-  const modelId = requested.modelId || course.aiDefaultModelId || course.aiSelectedModelId || settings.AI_DefaultModelId;
+  const fallback = preferredModel(course, settings, policy);
+  const backendId = requested.backendId || fallback?.backend.id || '';
+  const modelId = requested.modelId || fallback?.model.id || '';
   const approved = new Set(effectiveModelPolicies(course, settings, policy).map((entry) => modelKey(entry.backendId, entry.modelId)));
   if (!approved.has(modelKey(backendId, modelId))) return null;
   return findModel(availableBackends(course, settings, policy), backendId, modelId);
@@ -402,8 +425,9 @@ export default async function aiRoutes(app) {
     const settings = await getOrCreateSettingsDocument({ lean: true });
     const policy = coursePolicy(settings, course._id);
     const modelPolicies = effectiveModelPolicies(course, settings, policy);
-    const defaultBackendId = course.aiDefaultBackendId || course.aiSelectedBackendId || settings.AI_DefaultBackendId || '';
-    const defaultModelId = course.aiDefaultModelId || course.aiSelectedModelId || settings.AI_DefaultModelId || '';
+    const defaultModel = preferredModel(course, settings, policy);
+    const defaultBackendId = defaultModel?.backend.id || '';
+    const defaultModelId = defaultModel?.model.id || '';
     const availableModels = approvedModels(course, settings, policy);
     const studentModels = availableModels.filter((model) => model.studentAvailable);
     const configuredStudentModel = studentModels.find((model) => (

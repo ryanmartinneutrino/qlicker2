@@ -107,9 +107,16 @@ describe('AI course configuration and chat', () => {
     expect(config.json().adminBackends[0].apiToken).toBe('');
     expect(config.json().adminBackends[0].apiTokenSet).toBe(true);
     expect(JSON.stringify(config.json())).not.toContain('admin-secret');
+    expect(config.json()).toMatchObject({
+      defaultBackendId: 'ollama-local',
+      defaultModelId: 'llama3.2',
+    });
     expect(config.json().approvedModels).toEqual([
       expect.objectContaining({
         backendId: 'ollama-local', modelId: 'llama3.2', displayName: 'Friendly Llama', studentAvailable: false,
+      }),
+      expect.objectContaining({
+        backendId: 'ollama-local', modelId: 'qwen3', studentAvailable: false,
       }),
     ]);
     expect(config.json()).toMatchObject({
@@ -173,6 +180,27 @@ describe('AI course configuration and chat', () => {
     });
     expect(invalidLimit.statusCode).toBe(400);
     expect((await Course.findById(course._id).lean()).aiInstructorChatMaxToolRounds).toBe(24);
+  });
+
+  it('falls back to the site default when a removed course backend left stale selections', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const professor = await createTestUser({ email: 'ai-stale-default-prof@example.com', roles: ['professor'] });
+    const token = await getAuthToken(app, professor);
+    const course = await createCourse(token);
+    await configureAi(course._id);
+    await Course.findByIdAndUpdate(course._id, { $set: {
+      aiSelectedBackendId: 'removed-course-backend',
+      aiSelectedModelId: 'removed-course-model',
+    } });
+
+    const config = await authenticatedRequest(app, 'GET', `/api/v1/ai/courses/${course._id}/config`, { token });
+
+    expect(config.statusCode).toBe(200);
+    expect(config.json()).toMatchObject({
+      defaultBackendId: 'ollama-local',
+      defaultModelId: 'llama3.2',
+    });
+    expect(config.json().approvedModels.map((model) => model.modelId)).toEqual(['llama3.2', 'qwen3']);
   });
 
   it('persists professor-managed backend tokens across masked saves and an app restart', async (ctx) => {
