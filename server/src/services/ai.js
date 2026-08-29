@@ -195,6 +195,7 @@ export function normalizeAiBackends(value = []) {
       id: String(model?.id || model?.name || '').trim(),
       name: String(model?.name || model?.id || '').trim(),
       displayName: String(model?.displayName || '').trim().slice(0, 200),
+      compatibility: model?.compatibility === 'qrag' ? 'qrag' : '',
       available: model?.available !== false,
     })).filter((model) => model.id && model.name),
   })).filter((backend) => backend.url && backend.id);
@@ -220,7 +221,11 @@ export async function discoverOllamaModels(url, apiToken = '') {
     throw new Error(`Ollama model discovery failed at ${endpoint} (${response.status}${detail ? `: ${detail}` : ''})`);
   }
   const payload = await boundedJson(response);
-  return (Array.isArray(payload?.models) ? payload.models : []).map((model) => ({ id: String(model?.name || '').trim(), name: String(model?.name || '').trim() })).filter((model) => model.id);
+  return (Array.isArray(payload?.models) ? payload.models : []).map((model) => ({
+    id: String(model?.name || '').trim(),
+    name: String(model?.name || '').trim(),
+    ...(model?.details?.format === 'qrag-expert' ? { compatibility: 'qrag' } : {}),
+  })).filter((model) => model.id);
 }
 
 export async function discoverOpenAiModels(url, apiToken = '') {
@@ -389,9 +394,18 @@ async function requestAiMessageOnce(backend, modelId, messages, tools = [], sign
   if (backend.apiToken) headers.authorization = `Bearer ${backend.apiToken}`;
   const baseUrl = normalizeAiUrl(backend.url);
   const isOpenAi = backend.type === 'openai';
-  const streamThinking = !isOpenAi && typeof requestOptions.onThinking === 'function';
+  const wantsThinking = !isOpenAi && typeof requestOptions.onThinking === 'function';
+  const configuredModel = (backend.models || []).find((model) => String(model.id) === String(modelId));
+  let backendPath = '';
+  try { backendPath = new URL(baseUrl).pathname.replace(/\/+$/, ''); } catch { /* normalizeAiUrl validates this earlier. */ }
+  // Qrag's Ollama compatibility endpoint does its own agent/tool loop before it
+  // can emit a useful chunk. A failure after streaming headers are sent reaches
+  // Node as the opaque transport error "terminated". Its non-streaming endpoint
+  // instead returns the completed response or a readable HTTP error.
+  const qragCompatibility = configuredModel?.compatibility === 'qrag' || backendPath.endsWith('/ollama');
+  const streamThinking = wantsThinking && !qragCompatibility;
   const requestBody = { model: modelId, messages, stream: streamThinking };
-  if (streamThinking) requestBody.think = true;
+  if (wantsThinking) requestBody.think = true;
   if (requestOptions.jsonMode && !isOpenAi) requestBody.format = 'json';
   const requestTimeoutMs = Number.isFinite(Number(backend?.requestTimeoutMs))
     ? Math.max(1_000, Number(backend.requestTimeoutMs))

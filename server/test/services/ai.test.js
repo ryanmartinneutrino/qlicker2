@@ -42,6 +42,15 @@ describe('discoverOllamaModels', () => {
     );
   });
 
+  it('marks Qrag experts so chat can use its safer non-streaming compatibility path', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      models: [{ name: 'physics-expert', details: { format: 'qrag-expert', family: 'qrag' } }],
+    }), { status: 200 })));
+
+    await expect(discoverOllamaModels('http://localhost:8000/ollama', 'qrag-token'))
+      .resolves.toEqual([{ id: 'physics-expert', name: 'physics-expert', compatibility: 'qrag' }]);
+  });
+
   it('includes the endpoint and upstream response in discovery errors', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('missing token', { status: 401 })));
 
@@ -67,6 +76,36 @@ describe('discoverOpenAiModels', () => {
 });
 
 describe('requestAiMessage', () => {
+  it('uses non-streaming Ollama responses for Qrag compatibility backends', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      message: { content: 'Qrag answer.', thinking: 'Qrag reasoning.' },
+      done: true,
+    }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const thinkingUpdates = [];
+
+    await expect(requestAiMessage(
+      { type: 'ollama', url: 'http://localhost:8000/ollama' },
+      'physics-expert',
+      [{ role: 'user', content: 'Answer this.' }],
+      [],
+      undefined,
+      (thinking) => thinkingUpdates.push(thinking)
+    )).resolves.toEqual({
+      content: 'Qrag answer.',
+      thinking: 'Qrag reasoning.',
+      toolCalls: [],
+      artifacts: [],
+    });
+
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({
+      model: 'physics-expert',
+      stream: false,
+      think: true,
+    });
+    expect(thinkingUpdates).toEqual(['Qrag reasoning.']);
+  });
+
   it('streams Ollama thinking output while retaining it with the final response', async () => {
     const encoder = new TextEncoder();
     const body = new ReadableStream({
