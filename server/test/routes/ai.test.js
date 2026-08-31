@@ -226,6 +226,17 @@ describe('AI course configuration and chat', () => {
     expect(saved.statusCode).toBe(200);
     expect(saved.json().courseBackends[0]).toMatchObject({ apiToken: '', apiTokenSet: true });
 
+    const combinedConfig = await authenticatedRequest(app, 'GET', `/api/v1/ai/courses/${course._id}/config`, { token });
+    expect(combinedConfig.statusCode).toBe(200);
+    expect(combinedConfig.json().adminBackends).toEqual([
+      expect.objectContaining({ id: 'ollama-local' }),
+    ]);
+    expect(combinedConfig.json().courseBackends).toEqual([
+      expect.objectContaining({ id: 'course-ollama' }),
+    ]);
+    expect(combinedConfig.json().approvedModels.map(({ backendId, modelId }) => `${backendId}::${modelId}`))
+      .toEqual(['ollama-local::llama3.2', 'ollama-local::qwen3', 'course-ollama::course-model']);
+
     const maskedRoundTrip = await authenticatedRequest(app, 'PATCH', `/api/v1/ai/courses/${course._id}/config`, {
       token,
       payload: { backends: saved.json().courseBackends },

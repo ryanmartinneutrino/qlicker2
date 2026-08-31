@@ -793,6 +793,9 @@
       "selectRubric": "Search or select guidance",
       "rubricInstructions": "Rubric instructions",
       "aiNotAvailable": "AI helper is not enabled for this course by the administrator.",
+      "aiAdminModels": "Models rigged by the admiral",
+      "aiAdminModelsHelp": "Choose which admiral-rigged models professors may use in this course. Student access can be granted separately for each approved model.",
+      "aiCourseModels": "Models rigged for this course",
       "aiBackendHelp": "Configure the OpenAI-compatible backend used only by this course.",
       "aiAdminBackendOnly": "This course uses the AI backend configured by the Qlicker administrator. Its connection details are not shown here.",
       "aiApiUrl": "OpenAI-compatible API URL",
@@ -2497,6 +2500,7 @@
       "discoveryFailed": "Could not find models on this backend.",
       "modelsHelp": "Only checked models are available for course AI use.",
       "displayName": "Model name fer display",
+      "availableToProfessors": "Available to professors in this course",
       "availableToStudents": "Available to students",
       "showAvailableModels": "Show available models",
       "makeDefault": "Make default"

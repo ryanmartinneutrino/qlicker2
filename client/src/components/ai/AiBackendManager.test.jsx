@@ -111,7 +111,7 @@ describe('AiBackendManager', () => {
     ]);
   });
 
-  it('shows only approved course models initially and controls student access separately', () => {
+  it('shows all administrator models and controls professor and student access separately', () => {
     const onModelPoliciesChange = vi.fn();
     render(<AiBackendManager
       backends={[{
@@ -133,11 +133,17 @@ describe('AiBackendManager', () => {
       onModelPoliciesChange={onModelPoliciesChange}
     />);
 
-    expect(screen.getByRole('checkbox', { name: 'Model 1' })).toBeInTheDocument();
-    expect(screen.queryByRole('checkbox', { name: 'Model 2' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Model 1: Available to students' }));
+    expect(screen.getByRole('checkbox', { name: 'Shared backend — Model 1: Available to professors in this course' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Shared backend — Model 2: Available to professors in this course' })).not.toBeChecked();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Shared backend — Model 1: Available to students' }));
     expect(onModelPoliciesChange).toHaveBeenLastCalledWith([
       { backendId: 'backend-1', modelId: 'model-1', studentAvailable: true },
+    ]);
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Shared backend — Model 2: Available to professors in this course' }));
+    expect(onModelPoliciesChange).toHaveBeenLastCalledWith([
+      { backendId: 'backend-1', modelId: 'model-1', studentAvailable: false },
+      { backendId: 'backend-1', modelId: 'model-2', studentAvailable: false },
     ]);
   });
 

@@ -1216,7 +1216,9 @@ export default function CourseDetail() {
         studentDefaultModelId: fallbackStudentModel?.model.id || '',
       } : {}),
     };
-    handleAiConfigChange(updates, updates);
+    // Availability changes affect every AI model selector. Start saving them
+    // immediately so opening chat cannot fetch an older approved-model list.
+    handleAiConfigChange(updates, updates, { saveImmediately: true });
   };
 
   const handleStudentAiChatEnabledChange = (event) => {
@@ -2229,7 +2231,24 @@ export default function CourseDetail() {
                   fullWidth
                 />
               </> : null}
+              <Typography variant="subtitle2">{t('professor.course.aiAdminModels')}</Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                {t('professor.course.aiAdminModelsHelp')}
+              </Typography>
+              <AiBackendManager
+                backends={aiConfig.adminBackends}
+                courseId={id}
+                canAddBackends={false}
+                readOnly
+                onChange={(adminBackends) => setAiConfig((current) => ({ ...current, adminBackends }))}
+                defaultBackendId={aiConfig.defaultBackendId}
+                defaultModelId={aiConfig.defaultModelId}
+                modelPolicies={aiConfig.modelPolicies}
+                onModelPoliciesChange={handleAiModelPoliciesChange}
+              />
               {aiCoursePolicy.allowCourseBackend ? <>
+                <Divider />
+                <Typography variant="subtitle2">{t('professor.course.aiCourseModels')}</Typography>
                 <Typography variant="body2" sx={{
                   color: "text.secondary"
                 }}>{t('professor.course.aiBackendHelp')}</Typography>
@@ -2245,17 +2264,6 @@ export default function CourseDetail() {
                   onModelPoliciesChange={handleAiModelPoliciesChange}
                 />
               </> : <>
-                <AiBackendManager
-                  backends={aiConfig.adminBackends}
-                  courseId={id}
-                  canAddBackends={false}
-                  readOnly
-                  onChange={(adminBackends) => setAiConfig((current) => ({ ...current, adminBackends }))}
-                  defaultBackendId={aiConfig.defaultBackendId}
-                  defaultModelId={aiConfig.defaultModelId}
-                  modelPolicies={aiConfig.modelPolicies}
-                  onModelPoliciesChange={handleAiModelPoliciesChange}
-                />
                 <Alert severity="info">{t('professor.course.aiAdminBackendOnly')}</Alert>
               </>}
             </>}

@@ -27,7 +27,6 @@ export default function AiBackendManager({
 }) {
   const { t } = useTranslation();
   const [discovering, setDiscovering] = useState({});
-  const [expandedModels, setExpandedModels] = useState({});
   const [editingTokens, setEditingTokens] = useState({});
   const [error, setError] = useState('');
 
@@ -70,7 +69,6 @@ export default function AiBackendManager({
         displayName: existing.get(model.id)?.displayName || '',
         available: existing.get(model.id)?.available !== false,
       })) });
-      setExpandedModels((current) => ({ ...current, [backend.id]: true }));
     } catch (err) { setError(err.response?.data?.message || t('ai.backends.discoveryFailed')); }
     finally { setDiscovering((current) => ({ ...current, [backend.id]: false })); }
   };
@@ -80,9 +78,12 @@ export default function AiBackendManager({
       {error ? <Alert severity="error" onClose={() => setError('')}>{error}</Alert> : null}
       {backends.map((backend, index) => {
         const models = backend.models || [];
-        const visibleModels = !courseId || expandedModels[backend.id]
-          ? models
-          : models.filter((model) => !!policyFor(backend.id, model.id));
+        // Course settings must show every eligible model, including models the
+        // professor has not approved yet. Hiding unchecked models made it look
+        // as though administrator-configured models were unavailable.
+        const visibleModels = courseId
+          ? models.filter((model) => model.available !== false)
+          : models;
         const editingToken = !!editingTokens[backend.id];
         return (
           <Paper key={backend.id} variant="outlined" sx={{ p: 1.5 }}>
@@ -119,7 +120,6 @@ export default function AiBackendManager({
                 <Button variant="outlined" startIcon={<DiscoverIcon />} disabled={!backend.url || discovering[backend.id]} onClick={() => discover(backend)}>{t('ai.backends.showAvailableModels')}</Button>
               </Box>
             </> : null}
-            {readOnly ? <Button size="small" variant="outlined" startIcon={<DiscoverIcon />} disabled={!backend.url || discovering[backend.id]} onClick={() => discover(backend)}>{t('ai.backends.showAvailableModels')}</Button> : null}
             {visibleModels.length > 0 ? <>
               <Divider sx={{ my: 1.25 }} />
               <Typography
@@ -133,6 +133,7 @@ export default function AiBackendManager({
                 const modelPolicy = policyFor(backend.id, model.id);
                 const isDefault = defaultBackendId === backend.id && defaultModelId === model.id;
                 const defaultDisplayName = getAiModelDisplayName(backend, model);
+                const resolvedDisplayName = getAiModelDisplayName(backend, model, modelPolicy?.displayName);
                 const modelRowSx = {
                   display: 'grid',
                   gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(180px, 0.75fr) minmax(260px, 1.25fr) auto' },
@@ -148,11 +149,23 @@ export default function AiBackendManager({
                 return (
                   <Box key={model.id} sx={modelRowSx}>
                     {courseId ? <>
-                      <FormControlLabel sx={availabilitySx} control={<Checkbox checked={!!modelPolicy} disabled={isDefault} onChange={(event) => updateModelPolicy(backend.id, model.id, { approved: event.target.checked })} />} label={model.name} />
+                      <FormControlLabel
+                        sx={availabilitySx}
+                        control={<Checkbox
+                          checked={!!modelPolicy}
+                          disabled={isDefault}
+                          onChange={(event) => updateModelPolicy(backend.id, model.id, { approved: event.target.checked })}
+                          slotProps={{ input: { 'aria-label': `${resolvedDisplayName}: ${t('ai.backends.availableToProfessors')}` } }}
+                        />}
+                        label={<Box>
+                          <Typography variant="body2">{resolvedDisplayName}</Typography>
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>{t('ai.backends.availableToProfessors')}</Typography>
+                        </Box>}
+                      />
                       <TextField
                         size="small"
                         label={t('ai.backends.displayName')}
-                        value={modelPolicy?.displayName || defaultDisplayName}
+                        value={resolvedDisplayName}
                         disabled={!modelPolicy}
                         onChange={(event) => updateModelPolicy(backend.id, model.id, { displayName: event.target.value })}
                         sx={nameFieldSx}
@@ -163,7 +176,7 @@ export default function AiBackendManager({
                       {modelPolicy ? <FormControlLabel
                         sx={{ m: 0, gridColumn: { xs: '1', md: '2 / -1' }, justifySelf: 'start' }}
                         control={<Checkbox size="small" checked={!!modelPolicy.studentAvailable} onChange={(event) => updateModelPolicy(backend.id, model.id, { studentAvailable: event.target.checked })} slotProps={{
-                          input: { 'aria-label': `${model.name}: ${t('ai.backends.availableToStudents')}` }
+                          input: { 'aria-label': `${resolvedDisplayName}: ${t('ai.backends.availableToStudents')}` }
                         }} />}
                         label={t('ai.backends.availableToStudents')}
                       /> : null}

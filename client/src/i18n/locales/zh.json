@@ -793,6 +793,9 @@
       "selectRubric": "搜索或选择指导",
       "rubricInstructions": "评分量规说明",
       "aiNotAvailable": "AI helper is not enabled for this course by the administrator.",
+      "aiAdminModels": "管理员配置的模型",
+      "aiAdminModelsHelp": "选择本课程教师可以使用的管理员配置模型。对于每个已批准的模型，可以单独允许学生访问。",
+      "aiCourseModels": "课程配置的模型",
       "aiBackendHelp": "Configure the OpenAI-compatible backend used only by this course.",
       "aiAdminBackendOnly": "This course uses the AI backend configured by the Qlicker administrator. Its connection details are not shown here.",
       "aiApiUrl": "OpenAI-compatible API URL",
@@ -2485,6 +2488,7 @@
       "discoveryFailed": "Could not find models on this backend.",
       "modelsHelp": "Only checked models are available for course AI use.",
       "displayName": "模型显示名称",
+      "availableToProfessors": "可供本课程教师使用",
       "availableToStudents": "可供学生使用",
       "showAvailableModels": "显示可用模型",
       "makeDefault": "Make default"

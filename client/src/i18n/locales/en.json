@@ -664,6 +664,9 @@
       "selectRubric": "Search or select guidance",
       "rubricInstructions": "Guidance instructions",
       "aiNotAvailable": "AI helper is not enabled for this course by the administrator.",
+      "aiAdminModels": "Administrator-configured models",
+      "aiAdminModelsHelp": "Choose which administrator-configured models professors may use in this course. For each approved model, you can separately allow student access.",
+      "aiCourseModels": "Course-configured models",
       "aiBackendHelp": "Configure the OpenAI-compatible backend used only by this course.",
       "aiAdminBackendOnly": "This course uses the AI backend configured by the Qlicker administrator. Its connection details are not shown here.",
       "aiApiUrl": "OpenAI-compatible API URL",
@@ -1851,6 +1854,7 @@
       "discoveryFailed": "Could not find models on this backend.",
       "modelsHelp": "Only checked models are available for course AI use.",
       "displayName": "User-facing model name",
+      "availableToProfessors": "Available to professors in this course",
       "availableToStudents": "Available to students",
       "showAvailableModels": "Show available models",
       "makeDefault": "Make default"
