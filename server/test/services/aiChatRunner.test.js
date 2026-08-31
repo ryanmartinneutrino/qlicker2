@@ -1,12 +1,33 @@
 import { describe, expect, it } from 'vitest';
 import {
   courseChatMaxToolRounds,
+  currentDateTimeContext,
   DEFAULT_INSTRUCTOR_CHAT_MAX_TOOL_ROUNDS,
   DEFAULT_STUDENT_CHAT_MAX_TOOL_ROUNDS,
   instructorCreationGoals,
   normalizeAiArtifacts,
   recentConversationMessages,
+  systemMessage,
 } from '../../src/services/aiChatRunner.js';
+
+describe('AI chat current date and time context', () => {
+  const now = new Date('2026-08-31T18:30:45.000Z');
+
+  it('formats the server clock in the quiz-date timezone for both audiences', () => {
+    const expected = 'The current date and time is 2026-08-31 14:30:45 (America/Toronto, UTC-04:00). Quiz dates and times use this timezone.';
+
+    expect(currentDateTimeContext('America/Toronto', now)).toBe(expected);
+    expect(systemMessage({ name: 'Physics' }, 'instructor', { timeZone: 'America/Toronto', now }).content)
+      .toContain(expected);
+    expect(systemMessage({ name: 'Physics' }, 'student', { timeZone: 'America/Toronto', now }).content)
+      .toContain(expected);
+  });
+
+  it('uses UTC when a client supplies an invalid timezone', () => {
+    expect(currentDateTimeContext('not/a-timezone', now))
+      .toContain('2026-08-31 18:30:45 (UTC, UTC+00:00)');
+  });
+});
 
 describe('recentConversationMessages', () => {
   it('keeps the five most recent user prompts and their assistant responses', () => {

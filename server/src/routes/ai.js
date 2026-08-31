@@ -641,6 +641,7 @@ export default async function aiRoutes(app) {
       modelId: selected.model.id,
       course,
       user: request.user,
+      timeZone: request.body?.timeZone,
       onCourseChatUpdated: (payload) => notifyCourseChatUpdated(app, course, payload),
     });
     return reply.code(202).send({ conversation: serializeConversation(conversation.toObject(), true) });
@@ -778,6 +779,7 @@ export default async function aiRoutes(app) {
       modelId: selected.model.id,
       course,
       user: request.user,
+      timeZone: request.body?.timeZone,
     });
     return reply.code(202).send({ conversation: serializeConversation(conversation.toObject(), true) });
   });

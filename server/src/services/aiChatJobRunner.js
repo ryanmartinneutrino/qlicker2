@@ -55,6 +55,7 @@ export function queueAiCourseChat({
   course,
   user,
   onCourseChatUpdated,
+  timeZone,
 }) {
   const controller = new AbortController();
   activeJobs.set(String(conversationId), controller);
@@ -79,6 +80,7 @@ export function queueAiCourseChat({
         onProgress: () => AiConversation.updateOne(filter, { $set: { updatedAt: new Date() } }),
         onThinking: thinking.update,
         signal: controller.signal,
+        timeZone,
       });
       await thinking.flush();
       const content = typeof result === 'string' ? result : result?.content || '';

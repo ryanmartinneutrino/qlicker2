@@ -26,6 +26,16 @@ async function typeAtHumanCadence(editor, text) {
   await expect(editor).toContainText(text);
 }
 
+async function typeWithPauses(page, editor, parts) {
+  let expected = '';
+  for (const part of parts) {
+    await editor.pressSequentially(part, { delay: 35 });
+    expected += part;
+    await page.waitForTimeout(220);
+    await expect(editor).toContainText(expected);
+  }
+}
+
 test('course and live-session chat stay responsive while typing', async ({ page, request }) => {
   const { admin, professor } = await seedUsers(request, { student: false });
   const course = await createCourseViaApi(request, admin.token, { courseChatEnabled: true });
@@ -56,8 +66,10 @@ test('course and live-session chat stay responsive while typing', async ({ page,
   const courseEditor = page.getByRole('textbox', { name: 'Course chat post editor' });
   const courseMessage = 'Course chat remains smooth.';
   await typeAtHumanCadence(courseEditor, courseMessage);
+  await typeWithPauses(page, courseEditor, [' Pauses', ' keep', ' every character.']);
+  const fullCourseMessage = `${courseMessage} Pauses keep every character.`;
   await page.getByRole('button', { name: 'Publish post' }).click();
-  await expect(page.getByText(courseMessage)).toBeVisible();
+  await expect(page.getByText(fullCourseMessage)).toBeVisible();
 
   const startResult = await apiJson(request, 'POST', `/sessions/${session._id}/start`, {
     token: professor.token,
@@ -78,6 +90,8 @@ test('course and live-session chat stay responsive while typing', async ({ page,
   }
   const sessionMessage = 'Session chat remains smooth.';
   await typeAtHumanCadence(sessionEditor, sessionMessage);
+  await typeWithPauses(page, sessionEditor, [' Pauses', ' keep', ' every character.']);
+  const fullSessionMessage = `${sessionMessage} Pauses keep every character.`;
   await page.getByRole('button', { name: 'Post', exact: true }).click();
-  await expect(page.getByText(sessionMessage)).toBeVisible();
+  await expect(page.getByText(fullSessionMessage)).toBeVisible();
 });

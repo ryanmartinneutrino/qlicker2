@@ -23,6 +23,14 @@ function normalizeDraft(value) {
   return { html, plainText: String(value?.plainText ?? extractPlainTextFromHtml(html)) };
 }
 
+function getQuizTimeZone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+}
+
 function AiMessageArtifacts({ conversationId, artifacts = [] }) {
   const { t } = useTranslation();
   const [unavailable, setUnavailable] = useState({});
@@ -205,7 +213,12 @@ export default function AiCourseChat({ courseId, audience = 'instructor' }) {
     try {
       const { data } = await apiClient.post(
         `${apiBase}/conversations/${conversation._id}/messages`,
-        { content, contentWysiwyg: submittedDraft.html, ...parseAiModelValue(selectedModel) }
+        {
+          content,
+          contentWysiwyg: submittedDraft.html,
+          timeZone: getQuizTimeZone(),
+          ...parseAiModelValue(selectedModel),
+        }
       );
       updateConversation(data.conversation);
       setPendingMessage(null);

@@ -64,6 +64,7 @@ describe('AiCourseChat', () => {
       expect(apiClient.post).toHaveBeenLastCalledWith('/ai/courses/course-1/conversations/conversation-1/messages', {
         content: 'Can you help?',
         contentWysiwyg: '<p>Can you help?</p>',
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
         backendId: 'backend-1',
         modelId: 'model-1',
       });
