@@ -104,10 +104,23 @@ function toTagObjects(tags = []) {
 
 function mergeQuestionTagsWithSessionTags(questionTags = [], sessionTags = [], allowedTags = []) {
   const allowedTagSet = new Set(normalizeTagValues(allowedTags).map((tag) => tag.toLowerCase()));
-  return [...new Set([
-    ...normalizeTagValues(questionTags).filter((tag) => allowedTagSet.has(tag.toLowerCase())),
-    ...normalizeTagValues(sessionTags).filter((tag) => allowedTagSet.has(tag.toLowerCase())),
-  ])];
+  const mergedTags = [];
+  const seenTags = new Set();
+
+  const addTag = (tag) => {
+    const normalizedTag = String(tag || '').trim();
+    const normalizedKey = normalizedTag.toLowerCase();
+    if (!normalizedKey || seenTags.has(normalizedKey)) return;
+    seenTags.add(normalizedKey);
+    mergedTags.push(normalizedTag);
+  };
+
+  normalizeTagValues(questionTags).forEach(addTag);
+  normalizeTagValues(sessionTags)
+    .filter((tag) => allowedTagSet.has(tag.toLowerCase()))
+    .forEach(addTag);
+
+  return mergedTags;
 }
 
 function buildExtendedQuizEnd(endValue = '', startValue = '') {
@@ -212,10 +225,12 @@ export default function SessionEditor() {
   const [importingSession, setImportingSession] = useState(false);
   const [addQuestionDialog, setAddQuestionDialog] = useState({ open: false, index: 0 });
   const [libraryDialogOpen, setLibraryDialogOpen] = useState(false);
+  const [librarySelectionCount, setLibrarySelectionCount] = useState(0);
   const [sessionImportPreview, setSessionImportPreview] = useState(null);
   const [sessionImportSelectedIds, setSessionImportSelectedIds] = useState([]);
   const [sessionImportTags, setSessionImportTags] = useState(['Imported']);
   const importInputRef = useRef(null);
+  const libraryPanelRef = useRef(null);
 
   // Question editor
   const [inlineEditor, setInlineEditor] = useState(null);
@@ -821,6 +836,7 @@ export default function SessionEditor() {
       await apiClient.patch(`/sessions/${sessionId}/questions/order`, { questions: orderedIds });
     }
     setLibraryDialogOpen(false);
+    setLibrarySelectionCount(0);
     setAddQuestionDialog({ open: false, index: insertIndex });
     await fetchSession();
   }, [addQuestionDialog.index, fetchSession, questions, sessionId]);
@@ -2182,6 +2198,7 @@ export default function SessionEditor() {
               variant="outlined"
               startIcon={<CopyIcon />}
               onClick={() => {
+                setLibrarySelectionCount(0);
                 setLibraryDialogOpen(true);
                 setAddQuestionDialog((current) => ({ ...current, open: false }));
               }}
@@ -2195,11 +2212,20 @@ export default function SessionEditor() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={libraryDialogOpen} onClose={() => setLibraryDialogOpen(false)} maxWidth="lg" fullWidth>
+      <Dialog
+        open={libraryDialogOpen}
+        onClose={() => {
+          setLibraryDialogOpen(false);
+          setLibrarySelectionCount(0);
+        }}
+        maxWidth="lg"
+        fullWidth
+      >
         <DialogTitle>{t('student.course.copyFromQuestionLibrary', { defaultValue: 'Copy from Question Library' })}</DialogTitle>
         <DialogContent dividers sx={{ p: 0 }}>
           <Box sx={{ p: 2 }}>
             <QuestionLibraryPanel
+              ref={libraryPanelRef}
               courseId={courseId}
               currentCourse={course}
               availableSessions={[]}
@@ -2208,12 +2234,29 @@ export default function SessionEditor() {
                 buttonLabel: t('questionLibrary.bulk.addToSession', { defaultValue: 'Add to session' }),
                 hideImport: true,
                 onSubmit: handleAddQuestionsFromLibrary,
+                onSelectionChange: (questionIds) => setLibrarySelectionCount(questionIds.length),
               }}
             />
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setLibraryDialogOpen(false)}>{t('common.close')}</Button>
+          <Button
+            variant="contained"
+            disabled={librarySelectionCount === 0}
+            onClick={async () => {
+              await libraryPanelRef.current?.submitSelectedQuestions();
+            }}
+          >
+            {t('questionLibrary.bulk.addToSession', { defaultValue: 'Add to session' })}
+          </Button>
+          <Button
+            onClick={() => {
+              setLibraryDialogOpen(false);
+              setLibrarySelectionCount(0);
+            }}
+          >
+            {t('common.cancel')}
+          </Button>
         </DialogActions>
       </Dialog>
 

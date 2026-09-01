@@ -53,10 +53,23 @@ function toTagObjects(tags = []) {
 
 function mergeQuestionTagsWithSessionTags(questionTags = [], sessionTags = [], allowedTags = []) {
   const allowedTagSet = new Set(normalizeTagValues(allowedTags).map((tag) => tag.toLowerCase()));
-  return [...new Set([
-    ...normalizeTagValues(questionTags).filter((tag) => allowedTagSet.has(tag.toLowerCase())),
-    ...normalizeTagValues(sessionTags).filter((tag) => allowedTagSet.has(tag.toLowerCase())),
-  ])];
+  const mergedTags = [];
+  const seenTags = new Set();
+
+  const addTag = (tag) => {
+    const normalizedTag = String(tag || '').trim();
+    const normalizedKey = normalizedTag.toLowerCase();
+    if (!normalizedKey || seenTags.has(normalizedKey)) return;
+    seenTags.add(normalizedKey);
+    mergedTags.push(normalizedTag);
+  };
+
+  normalizeTagValues(questionTags).forEach(addTag);
+  normalizeTagValues(sessionTags)
+    .filter((tag) => allowedTagSet.has(tag.toLowerCase()))
+    .forEach(addTag);
+
+  return mergedTags;
 }
 
 function insertQuestionsAtIndex(existingQuestions, incomingQuestions, insertAtIndex) {
@@ -688,7 +701,7 @@ export default function PracticeSessionEditor() {
             >
               {t('questionLibrary.bulk.addSelectedToPracticeSession', { defaultValue: 'Add selected questions to practice session' })}
             </Button>
-            <Button onClick={closeAddQuestionFlow}>{t('common.close')}</Button>
+            <Button onClick={closeAddQuestionFlow}>{t('common.cancel')}</Button>
           </Stack>
         </DialogActions>
       </Dialog>

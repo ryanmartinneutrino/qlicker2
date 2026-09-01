@@ -119,7 +119,7 @@ describe('PracticeSessionEditor', () => {
             question: {
               _id: url.endsWith('q1') ? 'q1' : 'q2',
               content: url.endsWith('q1') ? 'Question One' : 'Question Two',
-              tags: [{ value: url.endsWith('q1') ? 'algebra' : 'geometry', label: url.endsWith('q1') ? 'algebra' : 'geometry' }],
+              tags: [{ value: url.endsWith('q1') ? 'Algebra' : 'geometry', label: url.endsWith('q1') ? 'Algebra' : 'geometry' }],
             },
           },
         });
@@ -191,10 +191,13 @@ describe('PracticeSessionEditor', () => {
 
     await waitFor(() => {
       expect(apiClientMock.patch).toHaveBeenCalledWith('/questions/q1', {
-        tags: [{ value: 'algebra', label: 'algebra' }],
+        tags: [{ value: 'Algebra', label: 'Algebra' }],
       });
       expect(apiClientMock.patch).toHaveBeenCalledWith('/questions/q2', {
-        tags: [{ value: 'algebra', label: 'algebra' }],
+        tags: [
+          { value: 'geometry', label: 'geometry' },
+          { value: 'algebra', label: 'algebra' },
+        ],
       });
     });
   });
@@ -212,6 +215,7 @@ describe('PracticeSessionEditor', () => {
 
     expect(await screen.findByText('Mock Question Library Panel')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add selected questions to practice session' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'common.cancel' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Add selected questions to practice session' }));
 

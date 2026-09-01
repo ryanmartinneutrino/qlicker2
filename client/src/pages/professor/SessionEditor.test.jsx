@@ -11,6 +11,8 @@ const {
   downloadPdfMock,
   downloadJsonMock,
   lastQuestionEditorProps,
+  questionLibraryPanelPropsMock,
+  submitSelectedQuestionsMock,
 } = vi.hoisted(() => ({
   navigateMock: vi.fn(),
   requestCloseMock: vi.fn(),
@@ -24,6 +26,8 @@ const {
   downloadPdfMock: vi.fn().mockResolvedValue(undefined),
   downloadJsonMock: vi.fn(),
   lastQuestionEditorProps: { current: null },
+  questionLibraryPanelPropsMock: vi.fn(),
+  submitSelectedQuestionsMock: vi.fn(),
 }));
 
 vi.mock('react-i18next', () => ({
@@ -59,6 +63,21 @@ vi.mock('../../components/questions/QuestionEditor', () => ({
 
 vi.mock('../../components/questions/QuestionDisplay', () => ({
   default: ({ question }) => <div>{question?.content || ''}</div>,
+}));
+
+vi.mock('../../components/questions/QuestionLibraryPanel', () => ({
+  default: function MockQuestionLibraryPanel({ ref, ...props }) {
+    React.useImperativeHandle(ref, () => ({
+      submitSelectedQuestions: submitSelectedQuestionsMock,
+    }));
+
+    React.useEffect(() => {
+      props.selectionAction?.onSelectionChange?.(['library-q1']);
+    }, [props.selectionAction]);
+
+    questionLibraryPanelPropsMock(props);
+    return <div>Mock Question Library Panel</div>;
+  },
 }));
 
 vi.mock('../../components/common/AutoSaveStatus', () => ({
@@ -105,6 +124,8 @@ describe('SessionEditor inline close behavior', () => {
     buildPrintableSessionHtmlMock.mockClear();
     downloadPdfMock.mockClear();
     downloadJsonMock.mockReset();
+    questionLibraryPanelPropsMock.mockReset();
+    submitSelectedQuestionsMock.mockReset();
 
     apiClientMock.get.mockImplementation((url) => {
       if (url === '/sessions/session-1') {
@@ -393,6 +414,28 @@ describe('SessionEditor inline close behavior', () => {
   });
 
   it('applies session tags to every question in the session', async () => {
+    const originalGet = apiClientMock.get.getMockImplementation();
+    apiClientMock.get.mockImplementation((url) => {
+      if (url === '/questions/q1') {
+        return Promise.resolve({
+          data: {
+            question: {
+              _id: 'q1',
+              type: 2,
+              content: 'Original content',
+              plainText: 'Original content',
+              options: [],
+              tags: [
+                { value: 'Kinematics', label: 'Kinematics' },
+                { value: 'legacy', label: 'legacy' },
+              ],
+              sessionOptions: { points: 1 },
+            },
+          },
+        });
+      }
+      return originalGet(url);
+    });
     apiClientMock.patch.mockResolvedValue({
       data: {
         question: {
@@ -413,8 +456,40 @@ describe('SessionEditor inline close behavior', () => {
 
     await waitFor(() => {
       expect(apiClientMock.patch).toHaveBeenCalledWith('/questions/q1', {
-        tags: [{ value: 'kinematics', label: 'kinematics' }],
+        tags: [
+          { value: 'Kinematics', label: 'Kinematics' },
+          { value: 'legacy', label: 'legacy' },
+        ],
       });
     });
+  });
+
+  it('offers an Add to session action beside Cancel at the bottom of the library modal', async () => {
+    submitSelectedQuestionsMock.mockResolvedValue(undefined);
+
+    render(<SessionEditor />);
+
+    const addQuestionButtons = await screen.findAllByRole('button', {
+      name: 'professor.sessionEditor.addQuestionAtPositionAria',
+    });
+    fireEvent.click(addQuestionButtons[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'student.course.copyFromQuestionLibrary' }));
+
+    expect(await screen.findByText('Mock Question Library Panel')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'common.cancel' })).toBeInTheDocument();
+
+    const addToSessionButton = screen.getByRole('button', { name: 'questionLibrary.bulk.addToSession' });
+    expect(addToSessionButton).toBeEnabled();
+    fireEvent.click(addToSessionButton);
+
+    await waitFor(() => {
+      expect(submitSelectedQuestionsMock).toHaveBeenCalledTimes(1);
+    });
+    expect(questionLibraryPanelPropsMock).toHaveBeenCalledWith(expect.objectContaining({
+      selectionAction: expect.objectContaining({
+        hideImport: true,
+        onSelectionChange: expect.any(Function),
+      }),
+    }));
   });
 });
