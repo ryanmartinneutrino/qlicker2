@@ -100,6 +100,7 @@ export default function RichTextEditor({
   const lastEditorSourceHtmlRef = useRef('');
   const lastEditorHtmlRef = useRef('');
   const lastPropHtmlRef = useRef('');
+  const emittedHtmlRef = useRef([]);
   const bubbleMenuKey = useRef(`bubble-menu-${Math.random().toString(36).slice(2)}`);
   const fileInputRef = useRef(null);
   const [toolbarExpanded, setToolbarExpanded] = useState(false);
@@ -131,7 +132,11 @@ export default function RichTextEditor({
     const html = normalizeStoredHtml(sourceHtml, { allowVideoEmbeds });
     if (html === lastEditorHtmlRef.current) return;
     lastEditorHtmlRef.current = html;
-    onChangeRef.current?.({ html, plainText: extractPlainTextFromHtml(html) });
+    if (typeof onChangeRef.current === 'function') {
+      emittedHtmlRef.current.push(html);
+      if (emittedHtmlRef.current.length > 50) emittedHtmlRef.current.shift();
+      onChangeRef.current({ html, plainText: extractPlainTextFromHtml(html) });
+    }
   };
 
   const uploadImage = async (file, maxEditorImageWidth) => {
@@ -291,6 +296,15 @@ export default function RichTextEditor({
     lastPropHtmlRef.current = targetHtml;
     if (!propChanged) return;
 
+    const acknowledgementIndex = emittedHtmlRef.current.lastIndexOf(targetHtml);
+    if (acknowledgementIndex >= 0) {
+      // A parent-controlled value may be rendered after TipTap has already
+      // accepted more typing. Treat values emitted by this editor as delayed
+      // acknowledgements, never as commands to replace its current document.
+      emittedHtmlRef.current.splice(0, acknowledgementIndex + 1);
+      return;
+    }
+
     const currentHtml = normalizeStoredHtml(editor.getHTML(), { allowVideoEmbeds });
     if (targetHtml === currentHtml || targetHtml === lastEditorHtmlRef.current) return;
 
@@ -331,7 +345,11 @@ export default function RichTextEditor({
     editor.commands.setContent(normalizeStoredHtml(sourceDraft || '', { allowVideoEmbeds }), false, { preserveWhitespace: 'full' });
     const html = normalizeStoredHtml(editor.getHTML(), { allowVideoEmbeds });
     lastEditorHtmlRef.current = html;
-    onChangeRef.current?.({ html, plainText: extractPlainTextFromHtml(html) });
+    if (typeof onChangeRef.current === 'function') {
+      emittedHtmlRef.current.push(html);
+      if (emittedHtmlRef.current.length > 50) emittedHtmlRef.current.shift();
+      onChangeRef.current({ html, plainText: extractPlainTextFromHtml(html) });
+    }
     setSourceDialogOpen(false);
   };
 

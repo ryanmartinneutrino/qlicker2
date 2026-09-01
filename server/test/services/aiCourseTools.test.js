@@ -3,7 +3,83 @@ import mongoose from 'mongoose';
 import Course from '../../src/models/Course.js';
 import Session from '../../src/models/Session.js';
 import User from '../../src/models/User.js';
-import { getSessionDetails } from '../../src/services/aiCourseTools.js';
+import {
+  getCourseSessionOverview,
+  getSessionDetails,
+  getStudentSessionOverview,
+} from '../../src/services/aiCourseTools.js';
+
+describe('AI course session overview tools', () => {
+  it('returns all instructor sessions but never exposes drafts to students', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const course = await Course.create({
+      name: 'Overview course', deptCode: 'TEST', courseNumber: '200', section: '001', semester: 'Fall 2026',
+      owner: 'prof-overview', instructors: ['prof-overview'], students: ['student-overview'], enrollmentCode: 'OVERV1',
+    });
+    const now = new Date('2026-09-01T15:00:00.000Z');
+    const sessions = await Session.create([
+      {
+        name: 'Draft planning session', courseId: course._id, creator: 'prof-overview', status: 'hidden',
+        date: new Date('2026-08-30T15:00:00.000Z'), questions: ['q-draft'], tags: [{ value: 'private', label: 'Private' }],
+      },
+      {
+        name: 'Upcoming quiz', courseId: course._id, creator: 'prof-overview', status: 'visible', quiz: true,
+        quizStart: new Date('2026-09-03T15:00:00.000Z'), quizEnd: new Date('2026-09-03T16:00:00.000Z'),
+        questions: ['q-1', 'q-2'], reviewable: false, tags: [{ value: 'unit-1', label: 'Unit 1' }],
+      },
+      {
+        name: 'Quiz in progress', courseId: course._id, creator: 'prof-overview', status: 'visible', quiz: true,
+        quizStart: new Date('2026-09-01T14:00:00.000Z'), quizEnd: new Date('2026-09-01T16:00:00.000Z'),
+        questions: ['q-3'], joined: ['student-overview'],
+        joinRecords: [{ userId: 'student-overview' }, { userId: 'student-2' }],
+        tags: [{ value: 'exam', label: 'Exam' }],
+      },
+      {
+        name: 'Ended interactive', courseId: course._id, creator: 'prof-overview', status: 'done',
+        date: new Date('2026-08-20T14:00:00.000Z'), reviewable: true, questions: ['q-4', 'q-5', 'q-6'],
+      },
+      {
+        name: 'Private student practice', courseId: course._id, creator: 'another-student', studentCreated: true,
+        status: 'running', practiceQuiz: true,
+      },
+    ]);
+
+    const instructorResult = await getCourseSessionOverview(course._id, { now });
+    expect(instructorResult.session_count).toBe(4);
+    expect(instructorResult.sessions.map((session) => session.name)).toContain('Draft planning session');
+    expect(instructorResult.sessions.find((session) => session.name === 'Quiz in progress')).toMatchObject({
+      session_id: sessions[2]._id,
+      quiz: true,
+      status: 'live',
+      reviewable: false,
+      quiz_start: '2026-09-01T14:00:00.000Z',
+      quiz_end: '2026-09-01T16:00:00.000Z',
+      date: null,
+      question_count: 1,
+      joined_student_count: 2,
+      tags: ['Exam'],
+    });
+    expect(instructorResult.sessions.find((session) => session.name === 'Draft planning session')?.status).toBe('draft');
+
+    const studentResult = await getStudentSessionOverview(course._id, 'student-overview', { now });
+    expect(studentResult.session_count).toBe(3);
+    expect(studentResult.sessions.map((session) => session.name)).toEqual(expect.arrayContaining([
+      'Upcoming quiz', 'Quiz in progress', 'Ended interactive',
+    ]));
+    expect(studentResult.sessions.map((session) => session.name)).not.toContain('Draft planning session');
+    expect(studentResult.sessions.map((session) => session.name)).not.toContain('Private student practice');
+    expect(studentResult.sessions.find((session) => session.name === 'Ended interactive')).toMatchObject({
+      status: 'ended',
+      reviewable: true,
+      date: '2026-08-20T14:00:00.000Z',
+      quiz_start: null,
+      quiz_end: null,
+      question_count: 3,
+      tags: [],
+    });
+    expect(studentResult.sessions[0]).not.toHaveProperty('joined_student_count');
+  });
+});
 
 describe('AI course session detail tool', () => {
   it('returns every session property and paginated participant identities', async (ctx) => {

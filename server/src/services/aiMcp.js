@@ -4,12 +4,14 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import {
   getCourseGradeTable,
+  getCourseSessionOverview,
   getQuestionResponses,
   getSessionGradeTable,
   getSessionDetails,
   getSessionQuestions,
   getStudentReviewableSessionGrade,
   getStudentReviewableSessionQuestions,
+  getStudentSessionOverview,
   listCourseSessions,
   listCourseStudents,
   listStudentReviewableSessions,
@@ -126,6 +128,16 @@ export async function createCourseMcpClient({
   const server = new McpServer({ name: 'qlicker-course-tools', version: '1.0.0' });
 
   if (audience === 'student') {
+    server.registerTool('get_course_session_overview', {
+      title: 'Get visible course session overview',
+      description: 'Get all instructor-created sessions the current student may know about in one call, with status, dates, reviewability, question count, and tags. Draft sessions are excluded by a server-side database permission filter and can never be requested through this tool.',
+      inputSchema: {},
+      annotations: { readOnlyHint: true },
+    }, async () => {
+      try { return toolResult(await getStudentSessionOverview(courseId, userId)); }
+      catch (error) { return toolError(error); }
+    });
+
     server.registerTool('list_reviewable_sessions', {
       title: 'List sessions available for student review',
       description: 'List only ended, instructor-created sessions in this course that are currently marked reviewable. Results are paginated. Session IDs returned here can be used with the other student review tools.',
@@ -204,6 +216,16 @@ export async function createCourseMcpClient({
     annotations: { readOnlyHint: true },
   }, async ({ query, offset, limit }) => {
     try { return toolResult(await listCourseSessions(courseId, { query, offset, limit })); }
+    catch (error) { return toolError(error); }
+  });
+
+  server.registerTool('get_course_session_overview', {
+    title: 'Get complete course session overview',
+    description: 'Get every instructor-created session in the current course in one call, including draft, upcoming, live, and ended sessions. Each summary includes the session name and ID, quiz type, normalized status, reviewability, relevant date or quiz window, question count, unique joined-student count, and tags.',
+    inputSchema: {},
+    annotations: { readOnlyHint: true },
+  }, async () => {
+    try { return toolResult(await getCourseSessionOverview(courseId)); }
     catch (error) { return toolError(error); }
   });
 

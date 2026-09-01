@@ -20,6 +20,13 @@ const MAX_COURSE_GRADE_SESSION_COLUMNS = 25;
 const DEFAULT_COURSE_GRADE_SESSION_LIMIT = 10;
 const DEFAULT_STUDENT_SESSION_LIMIT = 25;
 const MAX_STUDENT_SESSION_LIMIT = 50;
+const STUDENT_OVERVIEW_SESSION_STATUSES = Object.freeze(['visible', 'running', 'done']);
+const SESSION_STATUS_LABELS = Object.freeze({
+  hidden: 'draft',
+  visible: 'upcoming',
+  running: 'live',
+  done: 'ended',
+});
 
 function formatStudent(student) {
   const firstname = String(student?.profile?.firstname || '').trim();
@@ -34,6 +41,64 @@ function formatStudent(student) {
 
 function sessionSortTime(session) {
   return new Date(session?.date || session?.quizStart || session?.createdAt || 0).getTime();
+}
+
+function sessionOverviewStatus(session, { now = new Date(), userId = '', instructorView = false } = {}) {
+  const storedStatus = String(session?.status || 'hidden');
+  if (storedStatus !== 'visible' || !(session?.quiz || session?.practiceQuiz)) {
+    return SESSION_STATUS_LABELS[storedStatus] || storedStatus || 'unknown';
+  }
+
+  const windows = [];
+  const addWindow = (startValue, endValue) => {
+    const start = startValue ? new Date(startValue) : null;
+    const end = endValue ? new Date(endValue) : null;
+    if (start && end && Number.isFinite(start.getTime()) && Number.isFinite(end.getTime())) {
+      windows.push({ start: start.getTime(), end: end.getTime() });
+    }
+  };
+  addWindow(session.quizStart, session.quizEnd);
+  (session.quizExtensions || []).forEach((extension) => {
+    if (instructorView || String(extension?.userId || '') === String(userId || '')) {
+      addWindow(extension?.quizStart, extension?.quizEnd);
+    }
+  });
+  if (windows.length === 0) return 'upcoming';
+
+  const nowMs = now.getTime();
+  if (windows.some((window) => nowMs >= window.start && nowMs <= window.end)) return 'live';
+  if (windows.every((window) => nowMs > window.end)) return 'ended';
+  return 'upcoming';
+}
+
+function sessionOverviewTags(session) {
+  return [...new Set((session?.tags || [])
+    .map((tag) => String(tag?.label || tag?.value || tag || '').trim())
+    .filter(Boolean))];
+}
+
+function sessionOverviewRow(session, { includeJoinedCount = false, now, userId, instructorView } = {}) {
+  const quiz = !!(session?.quiz || session?.practiceQuiz);
+  const row = {
+    session_id: String(session?._id || ''),
+    name: session?.name || '',
+    quiz,
+    practice_quiz: !!session?.practiceQuiz,
+    status: sessionOverviewStatus(session, { now, userId, instructorView }),
+    reviewable: !!session?.reviewable,
+    quiz_start: quiz && session?.quizStart ? new Date(session.quizStart).toISOString() : null,
+    quiz_end: quiz && session?.quizEnd ? new Date(session.quizEnd).toISOString() : null,
+    date: !quiz && session?.date ? new Date(session.date).toISOString() : null,
+    question_count: Array.isArray(session?.questions) ? session.questions.length : 0,
+    tags: sessionOverviewTags(session),
+  };
+  if (includeJoinedCount) {
+    row.joined_student_count = new Set([
+      ...(session?.joined || []).map(String),
+      ...(session?.joinRecords || []).map((record) => String(record?.userId || '')).filter(Boolean),
+    ]).size;
+  }
+  return row;
 }
 
 function escapeRegex(value) {
@@ -212,6 +277,46 @@ export async function listCourseSessions(courseId, { query = '', offset = 0, lim
       practice_quiz: !!session.practiceQuiz,
       reviewable: !!session.reviewable,
       question_count: Array.isArray(session.questions) ? session.questions.length : 0,
+    })),
+  };
+}
+
+export async function getCourseSessionOverview(courseId, { now = new Date() } = {}) {
+  const sessions = await Session.find({
+    courseId: String(courseId),
+    studentCreated: { $ne: true },
+  })
+    .select('_id name status date quiz quizStart quizEnd quizExtensions practiceQuiz reviewable createdAt questions joined joinRecords tags')
+    .sort({ date: -1, quizStart: -1, createdAt: -1 })
+    .lean();
+  return {
+    session_count: sessions.length,
+    sessions: sessions.map((session) => sessionOverviewRow(session, {
+      includeJoinedCount: true,
+      instructorView: true,
+      now,
+    })),
+  };
+}
+
+export async function getStudentSessionOverview(courseId, userId, { now = new Date() } = {}) {
+  await requireEnrolledStudent(courseId, userId);
+  // This visibility rule is intentionally enforced in the database query.
+  // Student AI prompts and model-supplied arguments cannot broaden it to
+  // draft sessions or sessions created privately by another student.
+  const sessions = await Session.find({
+    courseId: String(courseId),
+    studentCreated: { $ne: true },
+    status: { $in: STUDENT_OVERVIEW_SESSION_STATUSES },
+  })
+    .select('_id name status date quiz quizStart quizEnd quizExtensions practiceQuiz reviewable createdAt questions tags')
+    .sort({ date: -1, quizStart: -1, createdAt: -1 })
+    .lean();
+  return {
+    session_count: sessions.length,
+    sessions: sessions.map((session) => sessionOverviewRow(session, {
+      userId,
+      now,
     })),
   };
 }

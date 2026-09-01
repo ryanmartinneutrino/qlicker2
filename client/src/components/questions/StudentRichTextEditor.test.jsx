@@ -12,7 +12,7 @@ vi.mock('./RichTextEditor', () => ({
     <textarea
       aria-label={ariaLabel}
       data-min-height={minHeight}
-      value={value}
+      defaultValue={value}
       onChange={(event) => onChange({ html: event.target.value, plainText: event.target.value })}
       onBlur={onBlur}
       onKeyDown={onKeyDown}
@@ -79,6 +79,61 @@ describe('StudentRichTextEditor', () => {
     const latestDraft = { html: '<p>Latest text</p>', plainText: '<p>Latest text</p>' };
     expect(onChange).toHaveBeenCalledWith(latestDraft);
     expect(onKeyDown).toHaveBeenCalledWith(expect.objectContaining({ key: 'Enter' }), latestDraft);
+    expect(screen.getByLabelText('Chat message')).toHaveValue('');
+  });
+
+  it('does not let a delayed parent acknowledgement overwrite newer typing', () => {
+    vi.useFakeTimers();
+    const onChange = vi.fn();
+    const { rerender } = render(
+      <StudentRichTextEditor
+        value=""
+        onChange={onChange}
+        onChangeDebounceMs={200}
+        ariaLabel="Chat message"
+        showMathHint={false}
+      />
+    );
+
+    const editor = screen.getByLabelText('Chat message');
+    fireEvent.change(editor, { target: { value: 'Text before pause' } });
+    act(() => vi.advanceTimersByTime(200));
+    fireEvent.change(editor, { target: { value: 'Text before pause and after' } });
+
+    rerender(
+      <StudentRichTextEditor
+        value="Text before pause"
+        onChange={onChange}
+        onChangeDebounceMs={200}
+        ariaLabel="Chat message"
+        showMathHint={false}
+      />
+    );
+
+    expect(editor).toHaveValue('Text before pause and after');
+  });
+
+  it('still applies genuine external clears', () => {
+    const onChange = vi.fn();
+    const { rerender } = render(
+      <StudentRichTextEditor
+        value="Initial draft"
+        onChange={onChange}
+        ariaLabel="Chat message"
+        showMathHint={false}
+      />
+    );
+
+    expect(screen.getByLabelText('Chat message')).toHaveValue('Initial draft');
+    rerender(
+      <StudentRichTextEditor
+        value=""
+        onChange={onChange}
+        ariaLabel="Chat message"
+        showMathHint={false}
+      />
+    );
+    expect(screen.getByLabelText('Chat message')).toHaveValue('');
   });
 
   it('passes the requested editor height through', () => {

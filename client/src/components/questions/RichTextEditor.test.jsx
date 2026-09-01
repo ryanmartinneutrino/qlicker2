@@ -69,6 +69,33 @@ function installRectMocks(container) {
 }
 
 describe('RichTextEditor image resizing', () => {
+  it('does not replace newer TipTap content with a delayed parent acknowledgement', async () => {
+    const onChange = vi.fn();
+    const view = render(<RichTextEditor value="" onChange={onChange} />);
+
+    await waitFor(() => expect(view.container.querySelector('.ProseMirror')).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: 'questions.richText.showToolbar' }));
+
+    const applySource = async (html) => {
+      fireEvent.click(screen.getByRole('button', { name: 'questions.richText.source' }));
+      const sourceInput = document.querySelector('[role="dialog"] textarea');
+      expect(sourceInput).toBeTruthy();
+      fireEvent.change(sourceInput, { target: { value: html } });
+      fireEvent.click(screen.getByRole('button', { name: 'questions.richText.applySource' }));
+      await waitFor(() => expect(view.container.querySelector('.ProseMirror')?.innerHTML).toContain(html.replace(/^<p>|<\/p>$/g, '')));
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    };
+
+    await applySource('<p>Text before pause</p>');
+    await applySource('<p>Text before pause and after</p>');
+
+    view.rerender(<RichTextEditor value="<p>Text before pause</p>" onChange={onChange} />);
+
+    await waitFor(() => {
+      expect(view.container.querySelector('.ProseMirror')?.textContent).toBe('Text before pause and after');
+    });
+  });
+
   it('emits resized image HTML when the resize handle changes image width', async () => {
     const changes = [];
     const initialValue = '<img src="https://example.com/image.png" width="320" data-width="320">';

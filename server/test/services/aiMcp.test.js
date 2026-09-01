@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { createCourseMcpClient } from '../../src/services/aiMcp.js';
 
 describe('course AI MCP audience and history', () => {
-  it('gives the student audience only reviewable-session and own-grade tools', async () => {
+  it('gives the student audience only visible-overview, reviewable-session, and own-grade tools', async () => {
     const mcp = await createCourseMcpClient({ courseId: 'course-1', userId: 'student-1', audience: 'student' });
     try {
       const tools = await mcp.client.listTools();
       expect(tools.tools.map((tool) => tool.name)).toEqual([
+        'get_course_session_overview',
         'list_reviewable_sessions',
         'get_reviewable_session_questions',
         'get_my_reviewable_session_grade',
@@ -39,6 +40,7 @@ describe('course AI MCP audience and history', () => {
       const tools = await mcp.client.listTools();
       expect(tools.tools.map((tool) => tool.name)).toEqual(expect.arrayContaining([
         'get_conversation_history',
+        'get_course_session_overview',
         'get_session_details',
         'create_course_session',
         'edit_course_session',
