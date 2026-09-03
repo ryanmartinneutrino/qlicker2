@@ -368,6 +368,106 @@ describe('Grading routes', () => {
     expect(persistedSession.msScoringMethod).toBe('right-minus-wrong');
   });
 
+  it('calculates expected marks and totals for mixed question point values and responses', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+
+    const { profToken, course, students } = await setupCourseWithStudents({
+      studentCount: 2,
+      prefix: 'mixed-question-points',
+    });
+    const session = await createSessionInCourse(profToken, course._id, {
+      name: 'Mixed question points session',
+    });
+    const questions = await Promise.all([
+      createMcQuestion({
+        creatorId: course.instructors[0],
+        sessionId: session._id,
+        courseId: course._id,
+        points: 1,
+      }),
+      createMcQuestion({
+        creatorId: course.instructors[0],
+        sessionId: session._id,
+        courseId: course._id,
+        points: 2,
+      }),
+      createMcQuestion({
+        creatorId: course.instructors[0],
+        sessionId: session._id,
+        courseId: course._id,
+        points: 0,
+      }),
+    ]);
+
+    await Session.findByIdAndUpdate(session._id, {
+      $set: {
+        status: 'done',
+        reviewable: true,
+        joined: students.map((student) => student._id),
+        questions: questions.map((question) => question._id),
+      },
+    });
+
+    const responseTime = new Date('2026-01-01T00:00:00.000Z');
+    await Response.create([
+      // Student 0: 1/1, 0/2, and a correct response to the zero-point question.
+      { questionId: questions[0]._id, studentUserId: students[0]._id, attempt: 1, answer: 'A', createdAt: responseTime, updatedAt: responseTime },
+      { questionId: questions[1]._id, studentUserId: students[0]._id, attempt: 1, answer: 'B', createdAt: responseTime, updatedAt: responseTime },
+      { questionId: questions[2]._id, studentUserId: students[0]._id, attempt: 1, answer: 'A', createdAt: responseTime, updatedAt: responseTime },
+      // Student 1: 0/1 and 2/2; no response is needed for the zero-point question.
+      { questionId: questions[0]._id, studentUserId: students[1]._id, attempt: 1, answer: 'B', createdAt: responseTime, updatedAt: responseTime },
+      { questionId: questions[1]._id, studentUserId: students[1]._id, attempt: 1, answer: 'A', createdAt: responseTime, updatedAt: responseTime },
+    ]);
+
+    const recalc = await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/grades/recalculate`, {
+      token: profToken,
+      payload: { missingOnly: false },
+    });
+    expect(recalc.statusCode).toBe(200);
+
+    const gradesResponse = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/grades`, {
+      token: profToken,
+    });
+    expect(gradesResponse.statusCode).toBe(200);
+    const gradesByStudentId = new Map(
+      gradesResponse.json().grades.map((grade) => [String(grade.userId), grade])
+    );
+
+    const firstGrade = gradesByStudentId.get(String(students[0]._id));
+    expect(firstGrade).toMatchObject({
+      points: 1,
+      outOf: 3,
+      value: 33.3,
+      participation: 100,
+      numAnswered: 2,
+      numQuestions: 2,
+      numAnsweredTotal: 3,
+      numQuestionsTotal: 3,
+    });
+    expect(firstGrade.marks.map(({ points, outOf }) => ({ points, outOf }))).toEqual([
+      { points: 1, outOf: 1 },
+      { points: 0, outOf: 2 },
+      { points: 0, outOf: 0 },
+    ]);
+
+    const secondGrade = gradesByStudentId.get(String(students[1]._id));
+    expect(secondGrade).toMatchObject({
+      points: 2,
+      outOf: 3,
+      value: 66.7,
+      participation: 100,
+      numAnswered: 2,
+      numQuestions: 2,
+      numAnsweredTotal: 2,
+      numQuestionsTotal: 3,
+    });
+    expect(secondGrade.marks.map(({ points, outOf }) => ({ points, outOf }))).toEqual([
+      { points: 0, outOf: 1 },
+      { points: 2, outOf: 2 },
+      { points: 0, outOf: 0 },
+    ]);
+  });
+
   it('counts blank short-answer responses for participation without requiring grading', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
 

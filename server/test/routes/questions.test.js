@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import mongoose from 'mongoose';
 import { createApp, createTestUser, getAuthToken, authenticatedRequest } from '../helpers.js';
 import Course from '../../src/models/Course.js';
+import Grade from '../../src/models/Grade.js';
 import Session from '../../src/models/Session.js';
 import Question from '../../src/models/Question.js';
 import Response from '../../src/models/Response.js';
@@ -549,6 +550,42 @@ describe('PATCH /api/v1/questions/:id', () => {
     const body = res.json();
     expect(body.question.content).toBe('Updated content');
     expect(body.question.solution).toBe('The answer is 42');
+  });
+
+  it('persists zero points without resetting other session options and reports affected grades', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const { prof, profToken, course, session } = await setupCourseAndSession();
+    const qRes = await createQuestionAsProf(profToken, {
+      courseId: course._id,
+      sessionId: session._id,
+      sessionOptions: {
+        points: 1,
+        hidden: true,
+        stats: true,
+        maxAttempts: 3,
+      },
+    });
+    const question = qRes.json().question;
+    await Grade.create({
+      userId: String(prof._id),
+      courseId: String(course._id),
+      sessionId: String(session._id),
+      marks: [{ questionId: question._id, points: 1, outOf: 1 }],
+    });
+
+    const res = await authenticatedRequest(app, 'PATCH', `/api/v1/questions/${question._id}`, {
+      token: profToken,
+      payload: { sessionOptions: { points: 0 } },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().gradingAffected).toBe(true);
+    expect(res.json().question.sessionOptions).toMatchObject({
+      points: 0,
+      hidden: true,
+      stats: true,
+      maxAttempts: 3,
+    });
   });
 
   it('preserves slide content when a slide question is updated', async (ctx) => {
@@ -2101,6 +2138,74 @@ describe('DELETE /api/v1/sessions/:sessionId/questions/:questionId', () => {
     );
 
     expect(res.statusCode).toBe(403);
+  });
+});
+
+// ---------- PATCH /api/v1/sessions/:sessionId/questions/points ----------
+describe('PATCH /api/v1/sessions/:sessionId/questions/points', () => {
+  it('sets all gradable questions to zero, leaves slides at zero, and reports affected grades', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const { prof, profToken, course, session } = await setupCourseAndSession();
+    const questionResponses = await Promise.all([
+      createQuestionAsProf(profToken, {
+        type: 2,
+        content: 'First question',
+        courseId: course._id,
+        sessionId: session._id,
+        sessionOptions: { points: 1, hidden: true, maxAttempts: 2 },
+      }),
+      createQuestionAsProf(profToken, {
+        type: 4,
+        content: 'Second question',
+        courseId: course._id,
+        sessionId: session._id,
+        sessionOptions: { points: 2 },
+      }),
+      createQuestionAsProf(profToken, {
+        type: 6,
+        content: 'Explanatory slide',
+        courseId: course._id,
+        sessionId: session._id,
+        sessionOptions: { points: 0 },
+      }),
+    ]);
+    const [firstQuestion, secondQuestion, slide] = questionResponses.map((response) => response.json().question);
+    await Session.findByIdAndUpdate(session._id, {
+      $set: { questions: [firstQuestion._id, secondQuestion._id, slide._id] },
+    });
+    await Grade.create({
+      userId: String(prof._id),
+      courseId: String(course._id),
+      sessionId: String(session._id),
+      marks: [{ questionId: firstQuestion._id, points: 1, outOf: 1 }],
+    });
+
+    const res = await authenticatedRequest(
+      app,
+      'PATCH',
+      `/api/v1/sessions/${session._id}/questions/points`,
+      { token: profToken, payload: { points: 0 } }
+    );
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({
+      points: 0,
+      updatedCount: 2,
+      gradingAffected: true,
+    });
+    expect(res.json().updatedQuestionIds).toEqual(expect.arrayContaining([
+      firstQuestion._id,
+      secondQuestion._id,
+    ]));
+
+    const [updatedFirst, updatedSecond, updatedSlide] = await Promise.all([
+      Question.findById(firstQuestion._id).lean(),
+      Question.findById(secondQuestion._id).lean(),
+      Question.findById(slide._id).lean(),
+    ]);
+    expect(updatedFirst.sessionOptions).toMatchObject({ points: 0, hidden: true, maxAttempts: 2 });
+    expect(updatedSecond.sessionOptions.points).toBe(0);
+    expect(updatedSlide.sessionOptions.points).toBe(0);
   });
 });
 

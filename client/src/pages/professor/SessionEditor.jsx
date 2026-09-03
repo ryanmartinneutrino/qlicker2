@@ -23,6 +23,7 @@ import apiClient from '../../api/client';
 import QuestionEditor from '../../components/questions/QuestionEditor';
 import QuestionDisplay from '../../components/questions/QuestionDisplay';
 import QuestionLibraryPanel from '../../components/questions/QuestionLibraryPanel';
+import { isSlideType } from '../../components/questions/constants';
 import AutoSaveStatus from '../../components/common/AutoSaveStatus';
 import BackLinkButton from '../../components/common/BackLinkButton';
 import DateTimePreferenceField from '../../components/common/DateTimePreferenceField';
@@ -189,6 +190,8 @@ export default function SessionEditor() {
   const [sessionSaveStatus, setSessionSaveStatus] = useState('idle');
   const [sessionSaveError, setSessionSaveError] = useState('');
   const [applyingSessionTags, setApplyingSessionTags] = useState(false);
+  const [allQuestionPoints, setAllQuestionPoints] = useState('1');
+  const [applyingQuestionPoints, setApplyingQuestionPoints] = useState(false);
 
   // Quiz settings
   const [quiz, setQuiz] = useState(false);
@@ -742,6 +745,47 @@ export default function SessionEditor() {
     }
   }, [course?.tags, questions, sessionTags, t, upsertQuestionLocally]);
 
+  const handleApplyPointsToAllQuestions = useCallback(async () => {
+    const normalizedValue = String(allQuestionPoints).trim();
+    const points = Number(normalizedValue);
+    if (normalizedValue === '' || !Number.isFinite(points) || points < 0) {
+      setMsg({ severity: 'error', text: t('professor.sessionEditor.invalidQuestionPoints') });
+      return;
+    }
+
+    setApplyingQuestionPoints(true);
+    try {
+      const { data } = await apiClient.patch(`/sessions/${sessionId}/questions/points`, { points });
+      const updatedIds = new Set((data.updatedQuestionIds || []).map(String));
+      if (updatedIds.size > 0) {
+        setQuestions((prev) => prev.map((question) => (
+          updatedIds.has(String(question._id))
+            ? {
+              ...question,
+              sessionOptions: {
+                ...(question.sessionOptions || {}),
+                points,
+              },
+            }
+            : question
+        )));
+      }
+      setMsg({
+        severity: data.gradingAffected ? 'warning' : 'success',
+        text: data.gradingAffected
+          ? t('professor.sessionEditor.pointsChangedRegradeWarning')
+          : t('professor.sessionEditor.appliedPointsToAllQuestions', { points }),
+      });
+    } catch (err) {
+      setMsg({
+        severity: 'error',
+        text: err.response?.data?.message || t('professor.sessionEditor.failedApplyPointsToQuestions'),
+      });
+    } finally {
+      setApplyingQuestionPoints(false);
+    }
+  }, [allQuestionPoints, sessionId, t]);
+
   const hasResponseDataForQuestion = useCallback(
     (questionId) => responseBackedQuestionIds.has(String(questionId)),
     [responseBackedQuestionIds]
@@ -847,6 +891,9 @@ export default function SessionEditor() {
         const { data } = await apiClient.patch(`/questions/${questionId}`, payload);
         const updated = data.question || data;
         upsertQuestionLocally(updated);
+        if (data.gradingAffected) {
+          setMsg({ severity: 'warning', text: t('professor.sessionEditor.pointsChangedRegradeWarning') });
+        }
         return updated;
       }
 
@@ -1316,6 +1363,12 @@ export default function SessionEditor() {
   const courseSection = String(course?.section || '').trim();
   const canReviewRunningQuiz = (session.quiz || session.practiceQuiz) && status === 'running';
   const canReviewEndedSession = status === 'done';
+  const hasGradableQuestions = questions.some((question) => !isSlideType(question.type));
+  const normalizedAllQuestionPoints = String(allQuestionPoints).trim();
+  const parsedAllQuestionPoints = Number(normalizedAllQuestionPoints);
+  const allQuestionPointsInvalid = normalizedAllQuestionPoints === ''
+    || !Number.isFinite(parsedAllQuestionPoints)
+    || parsedAllQuestionPoints < 0;
 
   return (
     <Box sx={{ px: { xs: 1.5, sm: 2 }, pt: 1.25, pb: 2, maxWidth: 980, mx: 'auto' }}>
@@ -1777,7 +1830,46 @@ export default function SessionEditor() {
 
       {/* Questions */}
       <Paper sx={{ p: { xs: 2, sm: 2.25 } }}>
-        <Typography variant="h6" sx={{ mb: SETTINGS_STACK_GAP }}>{t('professor.sessionEditor.questionsCount', { count: questions.length })}</Typography>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
+            alignItems: { xs: 'stretch', sm: 'flex-start' },
+            justifyContent: 'space-between',
+            gap: 1.25,
+            mb: SETTINGS_STACK_GAP,
+          }}
+        >
+          <Typography variant="h6">{t('professor.sessionEditor.questionsCount', { count: questions.length })}</Typography>
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, flexWrap: 'wrap' }}>
+            <TextField
+              label={t('professor.sessionEditor.pointsPerQuestion')}
+              type="number"
+              size="small"
+              value={allQuestionPoints}
+              onChange={(event) => setAllQuestionPoints(event.target.value)}
+              error={normalizedAllQuestionPoints !== '' && allQuestionPointsInvalid}
+              slotProps={{ htmlInput: { min: 0, step: 'any' } }}
+              sx={{ width: { xs: 160, sm: 180 } }}
+            />
+            <Button
+              variant="outlined"
+              onClick={handleApplyPointsToAllQuestions}
+              disabled={
+                applyingQuestionPoints
+                || allQuestionPointsInvalid
+                || !hasGradableQuestions
+                || questionsEditingLocked
+                || !!inlineEditor
+              }
+              sx={{ minHeight: 40 }}
+            >
+              {applyingQuestionPoints
+                ? t('professor.sessionEditor.applyingPointsToQuestions')
+                : t('professor.sessionEditor.applyPointsToAllQuestions')}
+            </Button>
+          </Box>
+        </Box>
 
         {status === 'done' && questionsEditingLocked && (
           <Alert
@@ -2529,7 +2621,7 @@ export default function SessionEditor() {
       </Dialog>
 
       {/* Snackbar */}
-      <Snackbar open={!!msg} autoHideDuration={4000} onClose={() => setMsg(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+      <Snackbar open={!!msg} autoHideDuration={msg?.severity === 'warning' ? 8000 : 4000} onClose={() => setMsg(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
         {msg ? <Alert severity={msg.severity} onClose={() => setMsg(null)}>{msg.text}</Alert> : undefined}
       </Snackbar>
     </Box>

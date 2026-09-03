@@ -1,6 +1,7 @@
 import Question from '../models/Question.js';
 import Session from '../models/Session.js';
 import Course from '../models/Course.js';
+import Grade from '../models/Grade.js';
 import Response from '../models/Response.js';
 import { copyQuestionToSession } from '../services/questionCopy.js';
 import {
@@ -55,7 +56,7 @@ const createQuestionSchema = {
           stats: { type: 'boolean' },
           correct: { type: 'boolean' },
           responseListVisible: { type: 'boolean' },
-          points: { type: 'number' },
+          points: { type: 'number', minimum: 0 },
           maxAttempts: { type: 'number' },
           attemptWeights: { type: 'array', items: { type: 'number' } },
           attempts: {
@@ -140,7 +141,7 @@ const updateQuestionSchema = {
           stats: { type: 'boolean' },
           correct: { type: 'boolean' },
           responseListVisible: { type: 'boolean' },
-          points: { type: 'number' },
+          points: { type: 'number', minimum: 0 },
           maxAttempts: { type: 'number' },
           attemptWeights: { type: 'array', items: { type: 'number' } },
           attempts: {
@@ -361,6 +362,17 @@ const reorderQuestionsSchema = {
     required: ['questions'],
     properties: {
       questions: { type: 'array', items: { type: 'string' } },
+    },
+    additionalProperties: false,
+  },
+};
+
+const setSessionQuestionPointsSchema = {
+  body: {
+    type: 'object',
+    required: ['points'],
+    properties: {
+      points: { type: 'number', minimum: 0 },
     },
     additionalProperties: false,
   },
@@ -1360,22 +1372,41 @@ export default async function questionRoutes(app) {
         updates.publicOnQlickerForStudents = false;
       }
 
+      const requestedPoints = request.body.sessionOptions?.points;
+      const pointsChanged = requestedPoints !== undefined
+        && Number(requestedPoints) !== Number(question.sessionOptions?.points ?? 1);
+      const gradingAffected = pointsChanged && !!(await Grade.exists({
+        'marks.questionId': String(question._id),
+      }));
+
+      // sessionOptions contains live-session state as well as authoring fields.
+      // Patch individual supplied properties so changing points or question text
+      // cannot reset visibility, attempts, or cached review data.
+      const sessionOptionUpdates = updates.sessionOptions;
+      delete updates.sessionOptions;
+      const updateFields = {
+        ...updates,
+        owner: request.user.userId,
+        lastEditedAt: new Date(),
+        ...(updates.tags !== undefined ? { tags: normalizeTags(updates.tags) } : {}),
+      };
+      if (sessionOptionUpdates) {
+        Object.entries(sessionOptionUpdates).forEach(([key, value]) => {
+          updateFields[`sessionOptions.${key}`] = value;
+        });
+      }
+
       const updated = await Question.findByIdAndUpdate(
         request.params.id,
         {
-          $set: {
-            ...updates,
-            owner: request.user.userId,
-            lastEditedAt: new Date(),
-            ...(updates.tags !== undefined ? { tags: normalizeTags(updates.tags) } : {}),
-          },
+          $set: updateFields,
         },
         { returnDocument: 'after' }
       );
 
       await notifyLinkedSessionQuestionUpdated(app, updated || question);
 
-      return { question: updated.toObject() };
+      return { question: updated.toObject(), gradingAffected };
     }
   );
 
@@ -1999,6 +2030,73 @@ export default async function questionRoutes(app) {
       await inheritSessionTagsForQuestions(updated.toObject(), newOrder);
 
       return { session: updated.toObject() };
+    }
+  );
+
+  // PATCH /sessions/:sessionId/questions/points - Set every gradable question's points
+  app.patch(
+    '/sessions/:sessionId/questions/points',
+    {
+      preHandler: authenticate,
+      schema: setSessionQuestionPointsSchema,
+    },
+    async (request, reply) => {
+      const session = await Session.findById(request.params.sessionId).lean();
+      if (!session) {
+        return reply.code(404).send({ error: 'Not Found', message: 'Session not found' });
+      }
+
+      const course = await Course.findById(session.courseId).lean();
+      if (!course) {
+        return reply.code(404).send({ error: 'Not Found', message: 'Course not found' });
+      }
+
+      if (!isInstructorOrAdmin(course, request.user)) {
+        return reply.code(403).send({ error: 'Forbidden', message: 'Insufficient permissions' });
+      }
+
+      const sessionQuestionIds = (session.questions || []).map((questionId) => String(questionId));
+      const gradableQuestions = sessionQuestionIds.length > 0
+        ? await Question.find({
+          _id: { $in: sessionQuestionIds },
+          type: { $ne: 6 },
+        }).lean()
+        : [];
+      const points = Number(request.body.points);
+      const changedQuestionIds = gradableQuestions
+        .filter((question) => Number(question.sessionOptions?.points ?? 1) !== points)
+        .map((question) => String(question._id));
+
+      const gradingAffected = changedQuestionIds.length > 0 && !!(await Grade.exists({
+        sessionId: String(session._id),
+        courseId: String(course._id),
+        'marks.questionId': { $in: changedQuestionIds },
+      }));
+
+      if (changedQuestionIds.length > 0) {
+        await Question.updateMany(
+          { _id: { $in: changedQuestionIds } },
+          {
+            $set: {
+              'sessionOptions.points': points,
+              owner: request.user.userId,
+              lastEditedAt: new Date(),
+            },
+          }
+        );
+      }
+
+      const updatedQuestions = changedQuestionIds.length > 0
+        ? await Question.find({ _id: { $in: changedQuestionIds } })
+        : [];
+      await Promise.all(updatedQuestions.map((question) => notifyLinkedSessionQuestionUpdated(app, question)));
+
+      return {
+        points,
+        updatedCount: updatedQuestions.length,
+        updatedQuestionIds: changedQuestionIds,
+        gradingAffected,
+      };
     }
   );
 

@@ -154,6 +154,50 @@ describe('QuestionEditor', () => {
     vi.useRealTimers();
   });
 
+  it('keeps points editable for response-backed questions and persists zero points', async () => {
+    vi.useFakeTimers();
+    const onAutoSave = vi.fn().mockResolvedValue({ _id: 'question-with-responses' });
+
+    render(
+      <QuestionEditor
+        open
+        inline
+        initial={{
+          _id: 'question-with-responses',
+          type: 0,
+          content: '<p>Already answered</p>',
+          options: [
+            { content: '<p>Yes</p>', correct: true },
+            { content: '<p>No</p>', correct: false },
+          ],
+          sessionOptions: { points: 1 },
+        }}
+        onAutoSave={onAutoSave}
+        disableTypeSelection
+        disableOptionCountChanges
+        showVisibilityControls={false}
+      />
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    const pointsInput = screen.getByRole('spinbutton', { name: 'questions.editor.points' });
+    expect(pointsInput).toBeEnabled();
+    fireEvent.change(pointsInput, { target: { value: '0' } });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(750);
+    });
+
+    expect(onAutoSave).toHaveBeenCalledWith(expect.objectContaining({
+      sessionOptions: { points: 0 },
+    }), 'question-with-responses');
+
+    vi.useRealTimers();
+  });
+
   it('persists a new slide on close when the content is structural HTML only', async () => {
     vi.useFakeTimers();
     const onAutoSave = vi.fn().mockResolvedValue({ _id: 'slide-1' });

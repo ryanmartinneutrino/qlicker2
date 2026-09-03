@@ -464,6 +464,37 @@ describe('SessionEditor inline close behavior', () => {
     });
   });
 
+  it('sets every gradable question to zero points and warns when grades exist', async () => {
+    apiClientMock.patch.mockImplementation((url, payload) => {
+      if (url === '/sessions/session-1/questions/points') {
+        expect(payload).toEqual({ points: 0 });
+        return Promise.resolve({
+          data: {
+            points: 0,
+            updatedCount: 1,
+            updatedQuestionIds: ['q1'],
+            gradingAffected: true,
+          },
+        });
+      }
+      return Promise.reject(new Error(`Unexpected PATCH ${url}`));
+    });
+
+    render(<SessionEditor />);
+
+    fireEvent.change(await screen.findByRole('spinbutton', {
+      name: 'professor.sessionEditor.pointsPerQuestion',
+    }), { target: { value: '0' } });
+    fireEvent.click(screen.getByRole('button', {
+      name: 'professor.sessionEditor.applyPointsToAllQuestions',
+    }));
+
+    await waitFor(() => {
+      expect(apiClientMock.patch).toHaveBeenCalledWith('/sessions/session-1/questions/points', { points: 0 });
+      expect(screen.getByText('professor.sessionEditor.pointsChangedRegradeWarning')).toBeInTheDocument();
+    });
+  });
+
   it('offers an Add to session action beside Cancel at the bottom of the library modal', async () => {
     submitSelectedQuestionsMock.mockResolvedValue(undefined);
 

@@ -153,7 +153,13 @@ function buildQuestionPayload(form, options = {}) {
   const content = normalizeStoredHtml(form.content, { allowVideoEmbeds: true });
   const isSlide = isSlideType(form.type);
   const solution = isSlide ? '' : normalizeStoredHtml(form.solution);
-  const points = isSlide ? 0 : Number(form.points) || 1;
+  const rawPoints = String(form.points ?? '').trim();
+  const parsedPoints = Number(rawPoints);
+  const points = isSlide
+    ? 0
+    : rawPoints !== '' && Number.isFinite(parsedPoints) && parsedPoints >= 0
+      ? parsedPoints
+      : 1;
   const publicOnQlicker = !!effectiveVisibility.publicOnQlicker;
   const payload = {
     type: form.type,
