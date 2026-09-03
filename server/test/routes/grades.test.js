@@ -1406,7 +1406,13 @@ describe('Grading routes', () => {
       userId: students[0]._id,
     }).lean();
     expect(persistedGrades).toHaveLength(1);
+    expect(persistedGrades[0].points).toBe(0);
     expect(persistedGrades[0].outOf).toBe(0);
+    expect(persistedGrades[0].value).toBe(0);
+    expect(persistedGrades[0].participation).toBe(100);
+    expect(persistedGrades[0].numQuestions).toBe(0);
+    expect(Number.isFinite(persistedGrades[0].value)).toBe(true);
+    expect(Number.isFinite(persistedGrades[0].participation)).toBe(true);
     expect(persistedGrades[0].marks[0]?.outOf).toBe(0);
     expect(persistedGrades[0].marks[0]?.attempt).toBe(2);
     expect(persistedGrades[0].marks[0]?.needsGrading).toBe(false);
