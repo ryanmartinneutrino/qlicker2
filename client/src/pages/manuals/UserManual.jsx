@@ -183,15 +183,13 @@ function ManualScreenshot({ screenshot, figureId }) {
   );
 }
 
-function getScreenshotPreset(t, screenshot) {
-  if (!screenshot?.variant) return null;
-
+function getScreenshotPreset(screenshot, context = {}) {
   const base = {
-    title: screenshot.title,
-    description: screenshot.description,
+    title: screenshot?.title,
+    description: screenshot?.description,
   };
 
-  switch (screenshot.variant) {
+  switch (screenshot?.variant) {
     case 'adminOverview':
       return {
         ...base,
@@ -229,14 +227,39 @@ function getScreenshotPreset(t, screenshot) {
         alt: screenshot.title,
       };
     default:
-      return null;
+      break;
   }
+
+  const supplementalImages = {
+    admin: {
+      3: '/manuals/admin-users.png',
+    },
+    professor: {
+      1: '/manuals/professor-groups.png',
+      4: '/manuals/professor-question-library.png',
+      5: '/manuals/professor-live-session.png',
+      6: '/manuals/professor-grades.png',
+    },
+    student: {
+      1: '/manuals/student-live-session.png',
+      4: '/manuals/student-practice-session.png',
+    },
+  };
+  const imageSrc = supplementalImages[context.manualRole]?.[context.index];
+  if (!imageSrc) return null;
+
+  return {
+    imageSrc,
+    title: context.section?.title || '',
+    description: context.section?.subtitle || context.section?.paragraphs?.[0] || '',
+    alt: context.section?.title || '',
+  };
 }
 
-function Section({ section, index, sectionId, t }) {
+function Section({ section, index, manualRole, sectionId, t }) {
   const bullets = Array.isArray(section?.bullets) ? section.bullets : [];
   const paragraphs = Array.isArray(section?.paragraphs) ? section.paragraphs : [];
-  const screenshot = getScreenshotPreset(t, section?.screenshot);
+  const screenshot = getScreenshotPreset(section?.screenshot, { index, manualRole, section });
 
   return (
     <Paper
@@ -533,6 +556,7 @@ export default function UserManual() {
                 key={section.title}
                 section={section}
                 index={index}
+                manualRole={manualRole}
                 sectionId={section.id}
                 t={t}
               />

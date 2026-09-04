@@ -1,248 +1,301 @@
 # Student User Manual
 
-Use this guide to enroll in courses, join live sessions, complete quizzes, review feedback, and build practice sessions in the current Qlicker app.
+Use this manual to join courses, participate in live classes, complete quizzes, review feedback, check grades, use discussion tools, and create your own practice sessions.
 
-## At a glance
+If this is your first visit, read [Getting started](getting-started.md) first.
 
-- **Best starting page:** your course page
-- **Best study habit:** return to reviewable sessions after class and compare your answer with the released explanation
-- **Best self-study tool:** practice sessions built from visible library questions
-- **Related guides:** [Professor manual](professor.md), [Admin manual](admin.md), [Grading guide](grading.md)
+## Contents
 
-## Table of contents
+1. [Use the student dashboard and enroll](#1-use-the-student-dashboard-and-enroll)
+2. [Understand the course page](#2-understand-the-course-page)
+3. [Join an interactive live session](#3-join-an-interactive-live-session)
+4. [Answer each question type](#4-answer-each-question-type)
+5. [Take and submit a quiz](#5-take-and-submit-a-quiz)
+6. [Review completed work](#6-review-completed-work)
+7. [Read grades and feedback](#7-read-grades-and-feedback)
+8. [Use the question library and practice sessions](#8-use-the-question-library-and-practice-sessions)
+9. [Use chat, video, AI, notifications, and profile tools](#9-use-chat-video-ai-notifications-and-profile-tools)
+10. [Common study scenarios](#10-common-study-scenarios)
+11. [Troubleshooting](#11-troubleshooting)
 
-1. [Dashboard and enrollment](#dashboard-and-enrollment)
-2. [Understand the course page](#understand-the-course-page)
-3. [Join live sessions](#join-live-sessions)
-4. [Take quizzes](#take-quizzes)
-5. [Review finished work](#review-finished-work)
-6. [Build practice sessions](#build-practice-sessions)
-7. [Grades, feedback, and profile settings](#grades-feedback-and-profile-settings)
-8. [Troubleshooting checklist](#troubleshooting-checklist)
+## Quick start for class
 
-## Quick start checklist
+1. Sign in a few minutes before class and open the correct course.
+2. Select the live activity card when it appears.
+3. Enter the current join code if asked, then select **Join Session**.
+4. Wait for the instructor to show a question and open responses.
+5. Select or enter your answer and submit it.
+6. Watch for the confirmation; do not assume an unsent draft was recorded.
 
-1. Log in with your Qlicker account or institution SSO.
-2. Enter the course code supplied by your instructor.
-3. Open the course page and choose the correct tab for the task you need right now.
-4. Return to reviewable sessions and practice sessions after class to study from feedback.
+## 1. Use the student dashboard and enroll
 
-## Dashboard and enrollment
+The dashboard lists your courses and highlights activities that are live now. Use it to return to a course or enter a new enrollment code.
 
-The student dashboard is the starting point for every course.
+![Student dashboard showing a biology course and current activities](../assets/manuals/student-dashboard.png)
 
-From the dashboard you can:
+### Enroll in a course
 
-- see every course in which you are enrolled
-- enter a new course code to join another course
-- return to course work without searching through older pages
+1. Get the current enrollment code from the instructor.
+2. Enter it exactly in the enrollment field on your dashboard.
+3. Submit the code.
+4. Open the new course card and confirm the course name, number, section, and semester.
 
-### Enrollment tips
+You normally enroll only once. The course stays on the dashboard until the instructor/admin removes you or the course is no longer available to your account.
 
-- Enter the course code exactly as your instructor provided it.
-- If the course is inactive, enrollment is rejected immediately. You will need to try again after the instructor or admin activates the course.
-- If your institution requires verified email or SSO, finish that setup before assuming the code is wrong.
-- After you join successfully, the course stays on your dashboard until you are removed or the course is archived for your account.
+### If enrollment fails
 
-## Understand the course page
+- Re-enter the current code; an instructor can regenerate it, making an older code invalid.
+- Confirm that you are signed into the intended account.
+- Complete email verification if the course requires it.
+- Ask the instructor whether the course is active.
 
-The course page separates each type of work into tabs so that live class work, quizzes, review, practice, and grades do not get mixed together.
+Do not post enrollment codes publicly.
 
-![Student course page](../assets/manuals/student-course.png)
+## 2. Understand the course page
 
-On the course page you will typically see:
+Open a course to find its activities. The exact tabs depend on course settings and enabled platform features.
 
-- **Lectures / live sessions** for instructor-led interactive sessions
-- **Quizzes** for timed assessments
-- **Practice sessions** for self-study and rehearsal
-- **Question library** for visible study questions and question-based practice workflows
-- **Grades** for your own course and session results
-- **Course Chat** when your instructor enables course-wide discussion
-- **Video chat** when your course has Jitsi enabled
+![Student course page with lecture, quiz, practice, grades, chat, and settings tabs](../assets/manuals/student-course.png)
 
-If the instructor turns off **Allow students access to practice questions**, the **Practice sessions** and **Question library** tabs are hidden for that course. You can still review finished sessions and their released answers.
-
-If a course has many sessions, the page shows the first batch of session cards quickly and continues loading the remaining session lists in the background.
-Search, status, page-size, and pagination controls now live inside a collapsible **Search sessions** area so the session cards remain easier to scan.
-When a course currently has a live activity, matching live tiles also appear above the tabs so you can jump into that course's active work immediately. Submitted live quizzes are excluded from that quick-access area.
-Quiz cards now show the relevant date and time directly on the course page: upcoming quizzes show when they start, live quizzes show when they end, and ended quizzes show when they ended.
-If your instructor enables course chat, the course page also gains a **Course Chat** tab with course-wide posts and comments.
-
-### How to choose the right tab
-
-| If you want to… | Start here |
+| Tab | Use it for |
 | --- | --- |
-| join a class activity controlled by the instructor | live sessions / lectures |
-| complete a scheduled assessment | quizzes |
-| review answers and explanations later | reviewable session or quiz link |
-| study on your own time | practice sessions or question library |
-| check marks and feedback | grades |
+| Lectures | Instructor-paced interactive sessions and their review links |
+| Quizzes | Scheduled assessments, practice quizzes, and review links |
+| Practice Sessions | Study sets you build for yourself |
+| Question Library | Questions your instructor has made available for practice |
+| Grades | Your own visible course/session results |
+| Course Chat | Course-wide posts and comments when enabled |
+| AI Chat | Course-scoped AI assistance when authorized and enabled |
+| Video | Course/group Jitsi meeting access when enabled |
+| Settings | Student-visible course/account options |
 
-## Join live sessions
+If practice access is disabled, **Practice Sessions** and **Question Library** are hidden. If chat, AI, or video is not configured, those tabs are also absent.
 
-Live sessions are used when an instructor is controlling the pace of the class.
+### Session cards
 
-### Typical workflow
+Cards show status and the action currently available: join, start/continue a quiz, review, or no action yet. Quiz cards display the relevant start/end time. A live activity may also appear above the tabs as a quick-access tile.
 
-1. Open the course page.
-2. Select the live tile or live session card when it becomes available.
-3. Enter the join code or passcode if required.
-4. Wait for the current question or slide to appear.
-5. Submit your answer once the instructor allows responses.
+For courses with many sessions, expand **Search sessions** to search, filter by status, choose rows per page, and navigate pages. The app may load the first group of cards before background loading finishes.
 
-### Important live-session behavior
+## 3. Join an interactive live session
 
-- Instructors can hide the question temporarily.
-- Instructors can stop responses and reopen them for another attempt.
-- Slides can appear between questions. Slides are content-only pages, so read them before moving on.
-- Statistics and correct answers only become visible when the instructor turns them on.
-- When statistics include a word cloud or histogram, those visualizations should appear automatically as soon as the instructor reveals them.
-- For short-answer questions, your instructor can show or hide the shared response list separately from the word cloud, so you may see one without the other.
-- If your instructor enables session chat, a **Chat** tab appears during the live session. You can write posts and comments with math and image formatting, and you can upvote posts that are helpful to the class.
-- Student chat posts stay anonymous to classmates and the presentation screen, but they are still visible to the instructor.
-- Quick-post buttons let you send **I didn't understand question i** for earlier questions without typing the whole message each time.
+Interactive sessions follow the instructor's pace.
 
-## Take quizzes
+### Join
 
-Quizzes differ from live sessions because they open during scheduled windows rather than following the instructor question by question.
+1. Open the course and **Lectures** tab.
+2. Select the live session card or quick-access tile.
+3. If a join period is open, enter the current six-digit code when requested.
+4. Select **Join Session**.
+5. Wait if the instructor has not made a page visible yet.
 
-### What to expect
+The instructor may admit you manually if you arrived while passcode entry was closed. A rotating code can expire, so use the latest code on the classroom display.
 
-- A quiz is available only during its configured time window unless you have an extension.
-- Your responses save as you move through the quiz.
-- Some deployments display one question at a time while others allow more navigation.
-- Once submitted, a normal quiz cannot be edited again.
+### Participate
 
-### Before you start a quiz
+When the question is visible and responses are open:
 
-Check:
+1. Read the entire prompt, including images and math.
+2. Choose or enter your answer.
+3. Select **Submit Response**.
+4. Look for the submitted confirmation.
+5. If another attempt opens, decide whether to revise before submitting again.
 
-- the quiz start time
-- the quiz end time
-- any extension or accommodation that applies to you
-- whether you are in a quiet environment with enough time to finish
+![Student live-session question with answer options and submission controls](../assets/manuals/student-live-session.png)
 
-## Review finished work
+The instructor can independently hide/show the page, open/close responses, show statistics, reveal the solution, and advance. Slides are content pages, not answerable questions.
 
-When an instructor marks a session or quiz as reviewable, you can return to study your answers and feedback.
+### Statistics and shared answers
 
-![Student review page](../assets/manuals/student-review.png)
+When released, you may see option percentages, a numerical histogram, or a word cloud. For short answers, the shared response list and word cloud have separate visibility controls. Student identities remain hidden from classmates where the UI describes responses as anonymous; instructors can still moderate/authenticate authors.
 
-Review pages are useful because they can show:
+## 4. Answer each question type
 
-- your submitted answer
-- the released correct answer
-- the instructor's explanation or solution
-- feedback on manually graded questions
-- points and participation information
+| Type | How to answer |
+| --- | --- |
+| Multiple Choice | Select the one best option and submit |
+| True/False | Select one value and submit |
+| Multi-Select | Select every option you believe applies; the scoring method may penalize incorrect selections |
+| Numerical | Enter the requested number and units only if the prompt asks for them; grading can use a tolerance |
+| Short Answer | Type the requested explanation; rich text, equations, or images may be available |
+| Slide | Read it; there is no response to submit |
 
-Live session chat stays out of the student review view. Posts and comments are only available while the live session is running.
+### Rich text and math
 
-### Best review habit
+For written responses, use formatting only when it clarifies the answer. Equations may use the math support shown in the editor. Preview carefully: a formatting error can change meaning. If uploads are enabled, attach only relevant images and wait for the image to finish uploading before submitting.
 
-Move one question at a time. Compare:
+### Attempts
 
-1. what the question asked
-2. what you submitted
-3. what the released answer or solution says
-4. what feedback tells you to improve next time
+An instructor can allow more than one attempt and weight attempts differently. The current attempt number and open/closed state matter. A response from an earlier attempt does not guarantee that a new attempt was submitted.
 
-## Participate in course chat
+## 5. Take and submit a quiz
 
-- Use the course **Course Chat** tab to ask questions that are not tied to one live session.
-- New posts need a topic and can be tagged with the course topics chosen by your instructor.
-- Rich text posts and comments support images, equations, and video links.
-- Your posts and comments stay anonymous to other students, but instructors and TAs can still identify who wrote them.
-- You can upvote helpful posts and comments, and you can delete your own posts or comments later if needed.
+Quizzes are student-paced within a scheduled window. An instructor may give you an individual extension, so your end time can differ from the main class.
 
-## Build practice sessions
+### Before starting
 
-Practice sessions are student-paced study sessions.
+- Check the course/quiz name and the displayed start/end time.
+- Confirm whether the time is shown in 12-hour or 24-hour format.
+- Use a stable connection and allow enough uninterrupted time.
+- Close duplicate Qlicker tabs to avoid confusion about the newest saved answer.
 
-Use them when you want to:
+### Complete the quiz
 
-- rehearse visible library questions on your own schedule
-- create a short study set before a quiz or exam
-- immediately review your results and try again
+1. Open **Quizzes** and select **Start quiz** or **Continue quiz**.
+2. Read the instructions and progress indicator.
+3. Answer each question. Your response saves as you navigate.
+4. Revisit unanswered items before the deadline.
+5. Select **Submit Quiz** and confirm only when finished.
 
-### Good practice workflow
+![Active quiz with question navigation, saved response controls, and submission action](../assets/manuals/student-quiz.png)
 
-1. Search the question library for the topic you want to revisit.
-2. Add selected questions to a new practice session.
-3. Complete the practice session.
-4. Review the results immediately and repeat with another set if needed.
+A submitted normal quiz cannot be edited again. If time expires, the server's rules determine whether further saves/submission are accepted; do not rely on leaving the page open past the deadline.
 
-### Question library expectations
+### Practice quiz versus normal quiz
 
-Student access to the library depends on what instructors have made visible.
+A practice quiz is designed for rehearsal and may support repeated review. A normal quiz is an assessment and normally locks after final submission. Read the card label before starting.
 
-If your course hides practice-question access entirely, you will not see the library or practice-session tabs at all.
+## 6. Review completed work
 
-The student library may include:
+When an instructor ends an activity and makes it reviewable, its card offers **Review**.
 
-- questions shared with students in the course
-- course-visible questions approved by instructors
-- student-created material in practice workflows when allowed
+![Student review showing submitted answer, released solution, points, and navigation](../assets/manuals/student-review.png)
 
-Use the library to find practice material, not as a replacement for the course tabs. Live sessions and quizzes still begin from the course page.
+### Review effectively
 
-## Grades, feedback, and profile settings
+For each question, compare:
 
-### Grades and feedback
+1. the prompt
+2. your submitted answer and attempt
+3. the correct answer or released solution
+4. points earned and possible
+5. instructor feedback
 
-The Grades tab shows only your own grades.
+Move one question at a time and write down the misconception, not just the correct choice. Then try a related practice question.
 
-Keep in mind:
+Not every detail is always released. The instructor controls reviewability and grade visibility. Live session chat is not shown in the student review page even though instructors can retain/review it for moderation.
 
-- a session usually must be reviewable before detailed results appear
-- non-reviewable sessions may stay hidden from your student grade view
-- feedback can arrive later if the instructor manually grades short-answer work after the activity
+## 7. Read grades and feedback
 
-See also the shared [grading guide](grading.md).
+The **Grades** tab shows only your own results and only sessions the instructor has made visible/reviewable under the current rules.
 
-### Profile and account settings
+- Objective items may be graded automatically.
+- Short answers usually remain incomplete until an instructor assigns points.
+- Feedback can appear after the initial result.
+- A session can disappear if the instructor turns reviewability off while correcting results.
+- Participation and score are different measures; a submitted answer can receive participation credit but zero correctness points.
 
-From the account menu you can:
+Open the corresponding review page to understand a grade. If you believe something is wrong, identify the course, session, question number/type, attempt, and what you expected; do not send passwords or access tokens.
 
-- open your profile
-- change supported profile fields
-- update your password if your account is not managed by SSO
-- change your preferred language when multiple locales are available
+See [Grading guide](grading.md) for the shared rules.
 
-If your account is SSO-managed, your name and password may be locked intentionally unless an administrator has explicitly allowed email login for your account. In that case, password-reset email is also unavailable until the exception is granted.
+## 8. Use the question library and practice sessions
 
-When you upload a profile picture, Qlicker now opens an editor so you can drag the image, rotate it, and choose the square area used for your avatar circle.
+These tools appear only when the instructor enables practice-question access.
 
-## Troubleshooting checklist
+### Find practice material
+
+Open **Question Library**, then search/filter by topic or type. You only see material that has been made available to students. Library visibility does not mean that every future assessment question is visible.
+
+### Create a practice session
+
+1. Open **Practice Sessions**.
+2. Select **New practice session**.
+3. Enter a clear name for the topic you are studying.
+4. Search the available library.
+5. Add the questions you want and arrange the set.
+6. Save/start the session, answer at your pace, then review.
+
+![New practice-session editor with available questions and selected-question area](../assets/manuals/student-practice-session.png)
+
+You can edit or delete your own practice sessions from the course page. Repeat a practice set after reviewing feedback, but vary the questions so you learn the concept rather than the order.
+
+## 9. Use chat, video, AI, notifications, and profile tools
+
+### Course chat
+
+When enabled, **Course Chat** supports posts with a required topic, course tags, and comments. Posts/comments can include rich text, images, equations, and links. You can upvote useful contributions and delete your own material where the controls permit.
+
+Your identity is hidden from other students, but instructors/TAs can identify authors for moderation. Anonymity is not permission to violate course conduct rules.
+
+### Session chat
+
+During a live session, a **Chat** tab may let you write a post/comment or use quick buttons to request clarification for an earlier question. Upvote a post instead of duplicating it. Session chat is available only while the live workflow permits it and does not appear in student review afterward.
+
+### Video
+
+The **Video** tab appears only for courses configured by the institution. Allow microphone/camera access only when needed. Group video destinations depend on your current group assignment.
+
+### AI Chat
+
+AI appears only when the institution and course authorize a model for students. Follow course policy. AI answers can be incomplete or incorrect; verify them against course materials, and do not submit generated work where it is prohibited.
+
+### Notifications
+
+The avatar badge signals active system or course notices and new feedback. Open **Notifications** to read/dismiss them. Dismissal affects your account only.
+
+### Profile
+
+From the avatar menu, open **Profile** to change language and allowed account fields. Local name/password editing and reset email can be locked for SSO-managed accounts. Profile image uploads open a crop/rotate editor before saving the avatar.
+
+## 10. Common study scenarios
+
+### Prepare for an upcoming quiz
+
+Review the quiz's start/end time, open past reviewable sessions, note weak topics, build a tagged practice session, and repeat only the questions you could not explain. Do not assume practice questions reveal the exact quiz content.
+
+### Rejoin after losing connection live
+
+Reconnect, return to the course, select the live tile again, and use the current join code if requested. Confirm the current page/attempt before submitting; do not keep clicking submit on a stale page.
+
+### Use feedback after manual grading
+
+Open the notification, go to the session review, read the comment with your response visible, and attempt a similar practice question. If feedback is unclear, ask about the specific reasoning step.
+
+### Ask anonymously during class
+
+Use session chat or a quick clarification post. Other students do not see your identity, while the teaching team does. Upvote an existing question when it matches yours.
+
+### Work with an accommodation
+
+Before the assessment, confirm the extension with the instructor. In Qlicker, open the quiz card and check your displayed availability. Report discrepancies before starting when possible.
+
+## 11. Troubleshooting
+
+### I cannot sign in
+
+Confirm whether your institution requires SSO or local email login. SSO-managed accounts may not support password reset. Check spelling and contact the administrator if the account is disabled or the wrong role appears.
 
 ### I cannot join a course
 
-Check the following in order:
+Use the newest code, confirm the course is active, finish required email verification, and make sure you are not using a second account.
 
-1. The course code was entered exactly as supplied.
-2. Your account is verified if your institution requires verified email.
-3. You are signing in through the correct route: email/password or SSO.
-4. The instructor has not rotated the enrollment code since you received it.
+### I cannot see a live activity
 
-### I cannot answer a live question
+Reload the course page once, check both the quick-access area and **Lectures/Quizzes**, and confirm the activity name with the instructor. A quiz outside its window may be listed but unavailable.
 
-Possible reasons:
+### I cannot submit a live answer
 
-- the instructor has not opened responses yet
-- responses have been disabled for the current attempt
-- the instructor has moved to a slide or a different question
-- the workflow does not allow another attempt after your first submission
+Responses may be closed, the page may be hidden/a slide, your allowed attempts may be used, or the instructor may have advanced. Read the on-screen status before retrying.
 
-### I cannot see my results
+### My quiz answer looks unsaved
 
-Possible reasons:
+Stay on the page briefly and look for the save state. Keep the network connected and do not use multiple tabs. If a save error persists, note the exact time/question and tell the instructor immediately.
 
-- the session is not reviewable yet
-- manual grading is still in progress
-- the instructor has hidden grades for that session
+### I cannot see review or grades
 
-## Related manuals
+The activity may not be ended/reviewable, grading may still be underway, or visibility may be temporarily disabled while corrections are made. Ask the instructor when results are expected.
 
-- [Professor user manual](professor.md)
-- [Admin user manual](admin.md)
+### Practice/library tabs are missing
+
+The instructor has disabled practice-question access for this course. This is a course setting, not a browser problem.
+
+### Live pages stop updating
+
+Confirm the network, reload once, and re-enter the activity. If several classmates see the same problem, give the instructor the session name and approximate time.
+
+## Related guides
+
+- [Getting started](getting-started.md)
+- [Professor and TA manual](professor.md)
 - [Grading guide](grading.md)

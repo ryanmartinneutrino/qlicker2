@@ -1,85 +1,91 @@
-# API Reference
+# API and Realtime Reference
 
-Qlicker exposes interactive API documentation directly from the Fastify server.
+Qlicker's Fastify route schemas are the authoritative machine-readable API reference. This page explains how to access them and maps the major API/realtime areas; it is not a hand-maintained list of all 200+ operations.
 
-## Live docs
+## Generated OpenAPI documentation
 
-When the backend is running locally:
+Set `ENABLE_API_DOCS=true` for a trusted development/administration environment, start the server, then use:
 
 - Swagger UI: `http://localhost:3001/docs`
 - OpenAPI JSON: `http://localhost:3001/docs/json`
 
-## Route groups
+The Swagger UI is admin-protected. Production defaults keep it disabled on internet-facing installations. Do not enable it publicly just for convenience.
 
-The current app exposes route groups for:
+Fastify schemas supply parameters, request bodies, response shapes, tags, and bearer-auth metadata. If generated documentation and a prose example disagree, fix the route schema and implementation together.
 
-- **Auth**: registration, login, logout, refresh, forgot/reset password, email verification, SSO
-- **Users**: profile, password changes, avatar thumbnail regeneration, admin user management, admin password reset
-- **Courses**: CRUD, enrollment, instructors, students, course settings, session listing
-- **Sessions**: CRUD, live sessions, quiz payloads, session chat payloads, review payloads, join-code settings, question ordering, import/export
-- **Questions**: library CRUD, visibility, copying, import/export helpers
-- **Grades**: course grades, session grades, recalculation, feedback and manual overrides, CSV export
-- **Groups**: group categories, membership, CSV import/export
-- **Video**: Jitsi availability and course/group connection data
-- **Images**: image upload and deletion
-- **Settings**: public settings (`SSO_enabled`, `timeFormat`, `maxImageWidth`, `avatarThumbnailSize`, etc.) and admin-only configuration (including advanced SAML settings)
-- **Health / docs**: service health and generated API docs
+## Conventions
 
-## WebSocket events
+- Versioned REST routes use `/api/v1`.
+- Authenticated API requests generally use `Authorization: Bearer <access-token>`.
+- State-changing browser requests also carry `X-Requested-With: XMLHttpRequest` for the CSRF policy.
+- Access tokens are short-lived; the browser uses an HTTP-only refresh cookie to obtain a new token within the configured session hard expiry.
+- Normal API errors use `{ "error": "...", "message": "..." }`.
+- Legacy SAML aliases remain outside the versioned prefix for identity-provider compatibility.
+- Uploaded images are read through authenticated `/uploads/<key>` paths.
 
-The app also exposes live updates over WebSocket at `/ws`.
+## Route families
 
-Important event families include:
+| Prefix/area | Responsibilities |
+| --- | --- |
+| `/api/v1/auth` and legacy SAML paths | Registration, login/logout, refresh, email verification, reset, SAML metadata/callback/logout |
+| `/api/v1/users` | Current profile/avatar/password plus admin account search, creation, role, state, properties, and password support |
+| `/api/v1/settings` | Public settings, admin configuration, backup health, storage, SAML, video, and AI policy |
+| `/api/v1/courses` | Course CRUD, enrollment, rosters, sessions, groups, grades, and course video endpoints |
+| `/api/v1/sessions` | Session CRUD/copy/import/export, live state/actions, quiz saves/submission, review, grading integration, and session chat |
+| `/api/v1/questions` and course/session question paths | Question CRUD, visibility, library search/copy/import/export, aggregates, and ordering |
+| `/api/v1/grades` and course/session grade paths | Grade tables, recalculation, point/feedback/manual overrides, visibility, and CSV data |
+| `/api/v1/.../chat` | Course/session posts, comments, votes, quick posts, moderation, settings, summaries, and review payloads |
+| `/api/v1/notifications` | System/course notice management, active notices, dismissal, and feedback notifications |
+| `/api/v1/ai` and `/ai` media proxy | Admin/course AI configuration, chats, tool-backed operations, histories, rubrics, and allowlisted media |
+| `/api/v1/images` and `/uploads/*` | Validated image write/delete and authenticated reads across local/S3/Azure storage |
+| `/api/v1/health` | Process health timestamp plus WebSocket/Redis availability |
 
-- `session:question-changed`
-- `session:question-updated`
-- `session:response-added`
-- `session:attempt-changed`
-- `session:participant-joined`
-- `session:join-code-changed`
-- `session:chat-settings-changed`
-- `session:chat-updated`
-- `session:status-changed`
-- `session:visibility-changed`
-- `session:updated`
-- `session:quiz-submitted`
-- `video:updated`
+Permission checks vary by operation. A global professor role and course instructor membership are not interchangeable; API tests should cover unauthenticated, wrong-role, and non-member access.
 
-These power live-session dashboards, session review refreshes, and course-page freshness.
+## WebSocket connection
 
-## How the OpenAPI docs are generated
+The browser connects to:
 
-Qlicker uses:
-
-- `@fastify/swagger`
-- `@fastify/swagger-ui`
-- route-level JSON schema definitions
-- shared transform helpers that infer tags, auth metadata, and path parameters
-
-## Updating the docs when you add or change routes
-
-1. Define or update the route schema in the Fastify route module.
-2. Keep request bodies, query strings, and path parameters documented in schema.
-3. Verify the route appears correctly in `/docs`.
-4. If the route changes how developers integrate with the app, update this file and any related developer docs.
-
-Recent auth/storage-specific route additions worth checking in Swagger:
-
-- `POST /api/v1/users/me/image/thumbnail` regenerates the cropped avatar thumbnail from the stored full-size profile image.
-- The thumbnail endpoint accepts drag-generated decimal crop coordinates and rounds them server-side before extraction.
-- `PATCH /api/v1/users/:id/password` lets admins reset a user's local password.
-- `GET /api/v1/settings/public` now includes `maxImageWidth` and `avatarThumbnailSize` so clients can normalize uploads and generate sharp profile thumbnails before sending them.
-- `GET /api/v1/courses/:courseId/sessions` supports opt-in `page` / `limit` pagination, returns `sessionTypeCounts` alongside paginated totals so course pages can reserve stable session-list controls before background hydration completes, and session rows now include `hasResponses` so professor course pages can show review affordances without scanning the `responses` collection on every load.
-- Session chat routes now live under `/api/v1/sessions/:id/chat*`, with lean live payloads for student, professor, presentation, and review views plus separate write endpoints for posts, comments, votes, quick posts, moderation, and the professor-only `PATCH /api/v1/sessions/:id/chat-settings` toggle.
-
-## Local verification workflow
-
-A good verification sequence is:
-
-```bash
-cd server && npm test
-cd client && npm test
-cd client && npm run build
+```text
+ws://localhost:3001/ws?token=<access-token>
 ```
 
-Then open `/docs` and confirm the changed route shape matches the real handler behavior.
+The native browser WebSocket API cannot set an Authorization header, so the access token is passed in the query string. Do not log or share the full URL. The server verifies the token, limits incoming messages, closes the socket at token expiry, and clients reconnect after refresh. Production uses `wss://` behind TLS.
+
+Server messages have an event name and data payload. Important event families include:
+
+- `session:question-changed`, `session:question-updated`, and `session:status-changed`
+- `session:response-added`, `session:attempt-changed`, and aggregate/statistics updates
+- `session:participant-joined`, join-code, visibility, and quiz-submission updates
+- `session:chat-settings-changed` and `session:chat-updated`
+- `session:feedback-updated`
+- course question/library and course-chat updates
+- notification updates
+- `video:updated`
+
+Clients should patch local state when the delta is sufficient and perform a targeted refresh for legacy/incomplete payloads. Do not respond to a high-frequency event with an unconditional full-session refetch.
+
+Redis publishes user-targeted/broadcast events between API replicas. Without Redis, WebSockets work only within a single server process.
+
+## Adding or changing an endpoint
+
+1. Define/update Fastify request and response schema.
+2. Apply authentication, global role, and resource-membership checks.
+3. Validate imported content, external URLs, IDs, paging, and limits.
+4. Keep errors/status codes consistent.
+5. Add success, validation, and authorization tests.
+6. Update the client and any WebSocket delta/fallback contract.
+7. Start with `ENABLE_API_DOCS=true` and inspect `/docs` and `/docs/json`.
+8. Update this overview only when the route family or integration contract changes.
+9. Update user/developer/operations manuals when behavior is visible outside the API.
+
+## Local verification
+
+```bash
+npm test --prefix server
+npm test --prefix client
+npm run build --prefix client
+./scripts/qlicker.sh e2e
+```
+
+For authentication, SSO, uploads, AI URL policy, grading, or WebSocket changes, add focused security/permission cases rather than relying only on the broad suite.

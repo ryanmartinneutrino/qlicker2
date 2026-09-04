@@ -1,6 +1,6 @@
 # Admin User Manual
 
-Use this guide when configuring institution-wide settings, storage, SSO, user roles, and course-level support in the current Qlicker app.
+Use this guide to configure institution-wide settings and integrations, support accounts/courses, monitor use, and protect recoverability. Read [Getting started](getting-started.md) before changing a production system.
 
 ## At a glance
 
@@ -17,13 +17,15 @@ Use this guide when configuring institution-wide settings, storage, SSO, user ro
 4. [User and course support](#user-and-course-support)
 5. [Storage configuration](#storage-configuration)
 6. [SSO configuration](#sso-configuration)
-7. [Video configuration](#video-configuration)
-8. [Troubleshooting checklist](#troubleshooting-checklist)
+7. [Usage statistics](#usage-statistics)
+8. [Video configuration](#video-configuration)
+9. [AI helper configuration](#ai-helper-configuration)
+10. [Operational safety and troubleshooting](#operational-safety-and-troubleshooting)
 
 ## Quick start checklist
 
 1. Confirm the deployment environment and public URLs before changing app settings.
-2. Review general settings, storage, SSO, and video before large onboarding periods.
+2. Review general settings, backup, storage, SSO, video, and AI policy before large onboarding periods.
 3. Use the Users and Courses tabs for day-to-day support and verification.
 4. Retest any global auth or storage change before announcing it to users.
 
@@ -36,12 +38,14 @@ The admin dashboard centralizes institution-wide configuration.
 The current app exposes these major tabs:
 
 - **Settings** for general platform defaults
+- **Backup** for scheduled database backup policy and recovery status
 - **Users** for role and account management
 - **Courses** for broad course lookup and support
-- **Backup** for scheduled database backup policy and recovery status
+- **Usage Statistics** for active-use trends and the most active courses
 - **Storage** for image backends
 - **SSO Configuration** for SAML settings
 - **Video** for Jitsi configuration and availability
+- **AI** for permitted backends, models, private-network policy, and course availability
 
 Because the dashboard autosaves after short pauses, review each field carefully before leaving a tab.
 
@@ -93,6 +97,8 @@ For full disaster recovery, follow the restore workflow in [production_setup/REA
 ### Users tab
 
 The Users tab is your main support surface for accounts.
+
+![Admin Users tab with search, role filtering, account state, and support actions](../assets/manuals/admin-users.png)
 
 From there you can:
 
@@ -196,6 +202,15 @@ If your IdP expects the newer callback/logout surface, switch the presented rout
 
 If SSO is wrong, it can prevent access for many users at once, so make changes during a maintenance window when possible.
 
+## Usage statistics
+
+Use **Usage Statistics** to compare active users over the past hour, 24 hours, and 7 days and to see the five most active courses. This view is operational context, not an academic analytics report.
+
+- Use trends to decide whether a reported incident is isolated or site-wide.
+- Expect values to depend on the app's recorded activity windows; do not interpret them as attendance or grades.
+- Avoid sharing screenshots that expose course names or usage patterns beyond the support team.
+- Correlate unexpected changes with server/Redis/MongoDB health and deployment logs.
+
 ## Video configuration
 
 Qlicker can integrate Jitsi-based video workflows.
@@ -209,7 +224,37 @@ The Video tab is where you:
 
 After configuration, test with a real course before announcing the feature.
 
-## Troubleshooting checklist
+## AI helper configuration
+
+The **AI** tab controls whether instructors can configure course AI, which backends/models are available, and whether a model may be offered to students. Backends can use supported Ollama- or OpenAI-compatible APIs.
+
+Before enabling a backend:
+
+1. Confirm institutional privacy, retention, and academic-integrity policy.
+2. Enter the exact HTTPS or approved internal endpoint and API token.
+3. For private-network hosts, allow only the exact trusted hostname in the production environment; do not allow an entire private subnet.
+4. Add models with clear display names and mark only tested models available.
+5. Decide which models students may use; instructor availability does not imply student availability.
+6. Test a low-risk course, including errors/timeouts, before broad access.
+
+Course instructors can then opt in per course, choose defaults, set student guidance and tool-round limits, and maintain reusable grading/feedback/summary rubrics. AI can produce inaccurate content or grading, so human review remains required.
+
+Treat AI API tokens as secrets. Never put credentials into course guidance or model display names.
+
+## Operational safety and troubleshooting
+
+### Change-management checklist
+
+For SSO, storage, backup, or AI changes:
+
+1. Record the current setting without copying secret values into tickets or chat.
+2. Confirm a recent restorable backup for changes that can affect data access.
+3. Make the change during an appropriate support window.
+4. Wait for the autosave confirmation.
+5. Test with non-production/sample accounts and content.
+6. Check health/logs, then communicate the outcome and rollback plan.
+
+The UI configures application policy. Host files, TLS certificates, Docker services, off-host backup copies, and restore drills remain operator responsibilities documented in the [production guide](../../production_setup/README.md).
 
 ### Users cannot sign in
 
@@ -249,8 +294,19 @@ Check:
 - course settings such as video availability or student-submission permissions
 - whether the feature depends on a global admin setting
 
+### AI is missing or requests fail
+
+Check:
+
+- whether global AI and course-backend access are enabled
+- the exact backend URL, token, and configured model ID
+- whether the model is marked available and, for students, student-available
+- private-host allowlist policy and TLS/network reachability from the server container
+- the configured request timeout and backend logs
+
 ## Related manuals
 
 - [Professor user manual](professor.md)
 - [Student user manual](student.md)
+- [Grading guide](grading.md)
 - [Production deployment guide](../../production_setup/README.md)

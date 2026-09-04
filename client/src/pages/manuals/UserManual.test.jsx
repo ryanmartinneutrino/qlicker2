@@ -67,6 +67,8 @@ describe('UserManual', () => {
     expect(screen.getByText(/review and practice preview/i)).toBeInTheDocument();
     expect(screen.getByRole('img', { name: /student course page preview/i })).toHaveAttribute('src', '/manuals/student-course.png');
     expect(screen.getByRole('img', { name: /review and practice preview/i })).toHaveAttribute('src', '/manuals/student-review.png');
+    expect(screen.getByRole('img', { name: /join live sessions and understand how quizzes differ/i })).toHaveAttribute('src', '/manuals/student-live-session.png');
+    expect(screen.getByRole('img', { name: /use the question library to build practice sessions/i })).toHaveAttribute('src', '/manuals/student-practice-session.png');
     expect(screen.getAllByRole('link').find((link) => link.getAttribute('href') === '#manual-section-1')).toBeTruthy();
     expect(screen.getByRole('link', { name: /↑ navigation/i })).toHaveAttribute('href', '#manual-top');
   });
@@ -95,6 +97,10 @@ describe('UserManual', () => {
     expect(screen.getByText(/session editor preview/i)).toBeInTheDocument();
     expect(screen.getByRole('img', { name: /professor course workspace preview/i })).toHaveAttribute('src', '/manuals/professor-course.png');
     expect(screen.getByRole('img', { name: /session editor preview/i })).toHaveAttribute('src', '/manuals/session-editor.png');
+    expect(screen.getByRole('img', { name: /set up groups before you need them in class/i })).toHaveAttribute('src', '/manuals/professor-groups.png');
+    expect(screen.getByRole('img', { name: /use the library, import\/export, and copy tools to prepare efficiently/i })).toHaveAttribute('src', '/manuals/professor-question-library.png');
+    expect(screen.getByRole('img', { name: /run interactive sessions and quizzes intentionally/i })).toHaveAttribute('src', '/manuals/professor-live-session.png');
+    expect(screen.getByRole('img', { name: /review results, grade consistently, and communicate feedback/i })).toHaveAttribute('src', '/manuals/professor-grades.png');
   });
 
   it('renders the admin manual with a real storage screenshot', async () => {
@@ -112,6 +118,7 @@ describe('UserManual', () => {
     expect(screen.getByRole('link', { name: /back to dashboard/i })).toHaveAttribute('href', '/admin');
     expect(screen.getByRole('img', { name: /admin dashboard overview/i })).toHaveAttribute('src', '/manuals/admin-dashboard.png');
     expect(screen.getByRole('img', { name: /storage configuration preview/i })).toHaveAttribute('src', '/manuals/admin-storage.png');
+    expect(screen.getByRole('img', { name: /manage users, courses, and role-based support/i })).toHaveAttribute('src', '/manuals/admin-users.png');
     expect(screen.getAllByRole('link').find((link) => link.getAttribute('href') === '#manual-section-2')).toBeTruthy();
   });
 });

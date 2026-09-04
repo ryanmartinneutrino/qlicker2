@@ -32,7 +32,7 @@
 ## Validation commands
 
 ```bash
-cd /home/runner/work/qlicker-1/qlicker-1/server && npm test
-cd /home/runner/work/qlicker-1/qlicker-1/client && npm test
-cd /home/runner/work/qlicker-1/qlicker-1/client && npm run build
+npm test --prefix server
+npm test --prefix client
+npm run build --prefix client
 ```
