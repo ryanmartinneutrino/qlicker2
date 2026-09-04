@@ -88,7 +88,7 @@ export async function buildApp(opts = {}) {
       openapi: {
         info: {
           title: 'Qlicker API',
-          description: 'Fastify API for the Qlicker migration project.',
+          description: 'Fastify API for the Qlicker classroom response system.',
           version: app.config.appVersion,
         },
         servers: [

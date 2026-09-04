@@ -1,29 +1,39 @@
 # Developer Documentation
 
-This section collects the developer-facing documentation for the current Fastify + React version of Qlicker.
+This documentation covers the active React + Fastify application.
 
-## Core guides
+## Recommended reading order
 
-- [Application architecture overview](architecture.md)
-- [Database and data model](data-model.md)
-- [Development guide](development-guide.md)
-- [Grading developer notes](grading.md)
-- [API reference and OpenAPI workflow](../api-reference.md)
+1. [Repository README](../../README.md) for setup and commands.
+2. [Coding standards](../../CODING_STANDARDS.md) and [agent guide](../../AGENTS.md) for contribution requirements.
+3. [Architecture](architecture.md) for system boundaries and request/realtime flow.
+4. [Development guide](development-guide.md) for implementation and verification workflows.
+5. [Data model](data-model.md) before changing persisted data.
+6. [API reference](../api-reference.md) for OpenAPI and WebSocket documentation.
+7. [Grading internals](grading.md) when changing scores, attempts, reviewability, or feedback.
 
-## Also important
+Read the [legacy database reference](../../meteorjs_migration/LEGACY_DB.md) before changing schemas, IDs, or migration/repair utilities. The other migration files are primarily historical/status context, not day-to-day architecture guidance.
 
-- [Repository README](../../README.md)
-- [Coding standards](../../CODING_STANDARDS.md)
-- [Migration plan and phase checklist](../../meteorjs_migration/MIGRATION.md)
-- [Legacy DB compatibility notes](../../meteorjs_migration/LEGACY_DB.md)
-- [Production deployment guide](../../production_setup/README.md)
+## Validation baseline
 
-## Verified build and test commands
+From the repository root:
 
 ```bash
-cd server && npm test
-cd client && npm test
-cd client && npm run build
+npm test --prefix server
+npm test --prefix client
+npm run build --prefix client
+./scripts/qlicker.sh e2e
 ```
 
-The repository also includes Playwright E2E coverage via `./scripts/qlicker.sh e2e` or `cd client && npm run test:e2e`.
+Not every change needs every suite during iteration, but the final validation should match the risk. Route/model/auth/grading work normally needs server tests; React behavior needs client tests/build; cross-role workflows need Playwright.
+
+## Documentation map
+
+| Change | Update/check |
+| --- | --- |
+| Visible workflow or label | `docs/user-manual/` and in-app manual locale content |
+| New/changed API | Fastify schema, generated `/docs`, `docs/api-reference.md` |
+| Model/compatibility | `data-model.md`, legacy DB reference, migration script docs |
+| Grading | user grading guide and `grading.md` |
+| Deployment/env/backup | `production_setup/README.md` and `.env.example` |
+| Screenshot-visible UI | opt-in `client/e2e/manual-screenshots.spec.js` capture |

@@ -1,37 +1,34 @@
 # Qlicker User Manuals
 
-These guides describe the current Fastify + React version of Qlicker. They are intentionally role-specific so admins, professors, and students can each follow the workflow that matches the screens they actually see.
+These manuals are organized around real tasks rather than screen inventories. Begin with [Getting started](getting-started.md), then use the guide for your role.
 
-## Start here
-
-| Role | Use this manual when you need to… | Main screenshots |
+| Role | Manual | Common tasks |
 | --- | --- | --- |
-| [Student](student.md) | join a course, take part in live sessions, complete quizzes, review feedback, and build practice sessions | course dashboard, review page |
-| [Professor](professor.md) | create courses, organize content, run live sessions or quizzes, and interpret results | dashboard, course workspace, session editor |
-| [Admin](admin.md) | configure platform-wide settings, storage, SSO, video, and user support workflows | admin dashboard, storage configuration |
-| [Grading guide](grading.md) | understand reviewability, recalculation, manual grading, and grade visibility | cross-role workflow notes |
+| Student | [Student manual](student.md) | Join a course, participate live, take a quiz, review work, use course/session chat and AI study help, practice, and check grades |
+| Professor or TA | [Professor manual](professor.md) | Build a course, manage people/groups, author content, teach live, run chat, configure and use AI, assess, grade, and reuse material |
+| Administrator | [Admin manual](admin.md) | Configure the service, support accounts/courses, monitor use, and protect recoverability |
+| Professor/student | [Grading guide](grading.md) | Understand score calculation, reviewability, manual overrides, feedback, and visibility |
+
+## How to use the manuals
+
+- Follow numbered procedures for a task you are doing now.
+- Read **What students see** or **What instructors see** notes before changing visibility.
+- Use scenario and troubleshooting sections when the normal procedure does not match what is on screen.
+- Labels are written as they appear in the English interface. Other locales follow the same page structure.
 
 ## In-app manual
 
-The application also includes an in-app user manual at `/manual/:role`. It uses the same role split as the markdown manuals, but adds:
+Signed-in users can select **User Manual** from the avatar menu. The in-app version is localized and restricts admin/professor material according to role. These Markdown guides are the deeper reference and include more scenarios and browser captures.
 
-- role-aware access control
-- a left-side navigation rail on larger screens
-- direct links back into the relevant dashboard
-- screenshot captions and manual switching without leaving the app
+## Screenshot policy
 
-## Screenshot asset locations
+Every image under `docs/assets/manuals/` is a Chromium capture of the current application populated with synthetic example data. No production accounts or courses are used.
 
-Manual screenshots are kept in two places so that the markdown docs and the in-app manual stay aligned:
+Regenerate the set after a material UI change:
 
-- `docs/assets/manuals/` — source images used in markdown documentation
-- `client/public/manuals/` — public assets served by the React app
+```bash
+cd client
+REDIS_URL= QCLICKER_CAPTURE_MANUALS=1 npx playwright test e2e/manual-screenshots.spec.js --project=chromium
+```
 
-When you replace a screenshot, update both locations with the same file.
-
-## Recommended reading order
-
-1. Read the manual for your own role.
-2. If you support another role, read that manual next so you can compare the two workflows.
-3. Use the [grading guide](grading.md) when you need more detail about recalculation, feedback, or visibility rules.
-4. For deployment or operational context, continue with the [production deployment guide](../../production_setup/README.md).
+The opt-in capture test also copies the same files to `client/public/manuals/` for the in-app manual. Review every generated image before committing it.

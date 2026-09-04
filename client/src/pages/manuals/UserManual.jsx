@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link as RouterLink, Navigate, useParams } from 'react-router-dom';
 import {
   Alert,
@@ -5,11 +6,13 @@ import {
   Button,
   Chip,
   Divider,
+  Drawer,
   Paper,
   Stack,
   Tooltip,
   Typography,
 } from '@mui/material';
+import MenuIcon from '@mui/icons-material/Menu';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
 import {
@@ -183,60 +186,100 @@ function ManualScreenshot({ screenshot, figureId }) {
   );
 }
 
-function getScreenshotPreset(t, screenshot) {
-  if (!screenshot?.variant) return null;
-
+function getScreenshotPresets(screenshot, t, context = {}) {
   const base = {
-    title: screenshot.title,
-    description: screenshot.description,
+    title: screenshot?.title,
+    description: screenshot?.description,
   };
 
-  switch (screenshot.variant) {
+  switch (screenshot?.variant) {
     case 'adminOverview':
-      return {
+      return [{
         ...base,
         imageSrc: '/manuals/admin-dashboard.png',
         alt: screenshot.title,
-      };
+      }];
     case 'adminStorage':
-      return {
+      return [{
         ...base,
         imageSrc: '/manuals/admin-storage.png',
         alt: screenshot.title,
-      };
+      }];
     case 'professorCourse':
-      return {
+      return [{
         ...base,
         imageSrc: '/manuals/professor-course.png',
         alt: screenshot.title,
-      };
+      }];
     case 'professorSession':
-      return {
+      return [{
         ...base,
         imageSrc: '/manuals/session-editor.png',
         alt: screenshot.title,
-      };
+      }];
     case 'studentCourse':
-      return {
+      return [{
         ...base,
         imageSrc: '/manuals/student-course.png',
         alt: screenshot.title,
-      };
+      }];
     case 'studentReview':
-      return {
+      return [{
         ...base,
         imageSrc: '/manuals/student-review.png',
         alt: screenshot.title,
-      };
+      }];
     default:
-      return null;
+      break;
   }
+
+  const supplementalImages = {
+    admin: {
+      3: '/manuals/admin-users.png',
+    },
+    professor: {
+      1: '/manuals/professor-groups.png',
+      4: '/manuals/professor-question-library.png',
+      5: '/manuals/professor-live-session.png',
+      6: '/manuals/professor-grades.png',
+      7: [
+        { imageSrc: '/manuals/professor-course-chat.png', titleKey: 'courseChat.title' },
+        { imageSrc: '/manuals/professor-session-chat.png', titleKey: 'sessionChat.chat' },
+      ],
+      8: [
+        { imageSrc: '/manuals/professor-ai-settings.png', titleKey: 'professor.course.aiSettings' },
+        { imageSrc: '/manuals/professor-ai-chat.png', titleKey: 'ai.chat.title' },
+      ],
+    },
+    student: {
+      1: '/manuals/student-live-session.png',
+      4: '/manuals/student-practice-session.png',
+      5: [
+        { imageSrc: '/manuals/student-course-chat.png', titleKey: 'courseChat.title' },
+        { imageSrc: '/manuals/student-session-chat.png', titleKey: 'sessionChat.chat' },
+      ],
+      6: [{ imageSrc: '/manuals/student-ai-chat.png', titleKey: 'ai.chat.title' }],
+    },
+  };
+  const configuredImages = supplementalImages[context.manualRole]?.[context.index];
+  if (!configuredImages) return [];
+
+  return (Array.isArray(configuredImages) ? configuredImages : [configuredImages]).map((configuredImage) => {
+    const image = typeof configuredImage === 'string' ? { imageSrc: configuredImage } : configuredImage;
+    const title = image.titleKey ? t(image.titleKey) : context.section?.title || '';
+    return {
+      imageSrc: image.imageSrc,
+      title,
+      description: context.section?.subtitle || context.section?.paragraphs?.[0] || '',
+      alt: title,
+    };
+  });
 }
 
-function Section({ section, index, sectionId, t }) {
+function Section({ section, index, manualRole, sectionId, t }) {
   const bullets = Array.isArray(section?.bullets) ? section.bullets : [];
   const paragraphs = Array.isArray(section?.paragraphs) ? section.paragraphs : [];
-  const screenshot = getScreenshotPreset(t, section?.screenshot);
+  const screenshots = getScreenshotPresets(section?.screenshot, t, { index, manualRole, section });
 
   return (
     <Paper
@@ -283,7 +326,13 @@ function Section({ section, index, sectionId, t }) {
         {section.warning ? <Alert severity="warning">{section.warning}</Alert> : null}
         {section.success ? <Alert severity="success">{section.success}</Alert> : null}
 
-        {screenshot ? <ManualScreenshot screenshot={screenshot} figureId={`${sectionId}-figure`} /> : null}
+        {screenshots.map((screenshot, screenshotIndex) => (
+          <ManualScreenshot
+            key={screenshot.imageSrc || `${sectionId}-${screenshotIndex}`}
+            screenshot={screenshot}
+            figureId={`${sectionId}-figure-${screenshotIndex + 1}`}
+          />
+        ))}
       </Stack>
     </Paper>
   );
@@ -317,6 +366,73 @@ function ManualNavigation({ dashboardPath, t }) {
   );
 }
 
+function ManualContents({ sections, t, onNavigate }) {
+  return (
+    <Box component="nav" aria-label={t('manuals.shared.contentsTitle')}>
+      <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.25 }}>
+        {t('manuals.shared.contentsTitle')}
+      </Typography>
+      <Stack spacing={0.5}>
+        {sections.map((section, index) => (
+          <Button
+            key={section.id}
+            component="a"
+            href={`#${section.id}`}
+            variant="text"
+            color="inherit"
+            onClick={onNavigate}
+            sx={{ justifyContent: 'flex-start', textAlign: 'left', lineHeight: 1.3 }}
+          >
+            {index + 1}. {section.title}
+          </Button>
+        ))}
+        {!!sections.length && (
+          <Button
+            component="a"
+            href="#manual-top"
+            variant="text"
+            color="inherit"
+            onClick={onNavigate}
+            sx={{ justifyContent: 'flex-start' }}
+          >
+            ↑ {t('manuals.shared.navigationTitle')}
+          </Button>
+        )}
+      </Stack>
+    </Box>
+  );
+}
+
+function RelatedManuals({ manualRole, relatedManualRoles, t, onNavigate }) {
+  return (
+    <Box>
+      <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.25 }}>
+        {t('manuals.shared.relatedManualsTitle')}
+      </Typography>
+      <Stack spacing={1}>
+        {relatedManualRoles.map((role) => (
+          <Tooltip
+            key={role}
+            title={t('manuals.shared.relatedManualTooltip', { role: t(`manuals.shared.roles.${role}`) })}
+            arrow
+          >
+            <Button
+              component={RouterLink}
+              to={getManualPath(role)}
+              variant={role === manualRole ? 'contained' : 'outlined'}
+              fullWidth
+              onClick={onNavigate}
+              sx={{ justifyContent: 'flex-start' }}
+            >
+              {t(`manuals.shared.roles.${role}`)}
+            </Button>
+          </Tooltip>
+        ))}
+      </Stack>
+    </Box>
+  );
+}
+
 function ManualSidebar({
   dashboardPath,
   manual,
@@ -330,11 +446,19 @@ function ManualSidebar({
       spacing={2}
       sx={{
         minWidth: 0,
+        display: { xs: 'none', md: 'flex' },
         position: { md: 'sticky' },
         top: { md: MANUAL_SIDEBAR_STICKY_TOP },
+        maxHeight: { md: `calc(100vh - ${MANUAL_SIDEBAR_STICKY_TOP * 2}px)` },
+        overflowY: { md: 'auto' },
+        pr: { md: 0.5 },
       }}
     >
-      <Paper id="manual-top" variant="outlined" sx={{ p: { xs: 2, md: 2.5 } }}>
+      <Paper variant="outlined" sx={{ p: { xs: 2, md: 2.5 } }}>
+        <ManualContents sections={sections} t={t} />
+      </Paper>
+
+      <Paper variant="outlined" sx={{ p: { xs: 2, md: 2.5 } }}>
         <Stack spacing={2}>
           <Box>
             <Chip color="primary" variant="outlined" size="small" label={t(`manuals.shared.roles.${manualRole}`)} />
@@ -370,55 +494,80 @@ function ManualSidebar({
       </Paper>
 
       <Paper variant="outlined" sx={{ p: { xs: 2, md: 2.5 } }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.25 }}>
-          {t('manuals.shared.relatedManualsTitle')}
-        </Typography>
-        <Stack spacing={1}>
-          {relatedManualRoles.map((role) => (
-            <Tooltip
-              key={role}
-              title={t('manuals.shared.relatedManualTooltip', { role: t(`manuals.shared.roles.${role}`) })}
-              arrow
-            >
-              <Button
-                component={RouterLink}
-                to={getManualPath(role)}
-                variant={role === manualRole ? 'contained' : 'outlined'}
-                fullWidth
-                sx={{ justifyContent: 'flex-start' }}
-              >
-                {t(`manuals.shared.roles.${role}`)}
-              </Button>
-            </Tooltip>
-          ))}
-        </Stack>
-      </Paper>
-
-      <Paper variant="outlined" sx={{ p: { xs: 2, md: 2.5 } }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.25 }}>
-          {t('manuals.shared.contentsTitle')}
-        </Typography>
-        <Stack spacing={0.75}>
-          {sections.map((section, index) => (
-            <Button
-              key={section.id}
-              component="a"
-              href={`#${section.id}`}
-              variant="text"
-              color="inherit"
-              sx={{ justifyContent: 'flex-start', textAlign: 'left' }}
-            >
-              {index + 1}. {section.title}
-            </Button>
-          ))}
-          {!!sections.length && (
-            <Button component="a" href="#manual-top" variant="text" color="inherit" sx={{ justifyContent: 'flex-start' }}>
-              ↑ {t('manuals.shared.navigationTitle')}
-            </Button>
-          )}
-        </Stack>
+        <RelatedManuals
+          manualRole={manualRole}
+          relatedManualRoles={relatedManualRoles}
+          t={t}
+        />
       </Paper>
     </Stack>
+  );
+}
+
+function ManualTopNavigation({
+  dashboardPath,
+  manual,
+  manualRole,
+  relatedManualRoles,
+  sections,
+  t,
+}) {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  return (
+    <>
+      <Paper
+        id="manual-top"
+        variant="outlined"
+        sx={{
+          position: 'sticky',
+          top: 8,
+          zIndex: 10,
+          mb: 3,
+          px: { xs: 1.5, sm: 2 },
+          py: 1.25,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 2,
+          bgcolor: 'background.paper',
+          boxShadow: 2,
+        }}
+      >
+        <Button
+          variant="contained"
+          startIcon={<MenuIcon />}
+          onClick={() => setDrawerOpen(true)}
+          aria-haspopup="dialog"
+        >
+          {t('manuals.shared.contentsTitle')}
+        </Button>
+        <Typography variant="body2" sx={{ fontWeight: 700, display: { xs: 'none', sm: 'block' } }} noWrap>
+          {manual.title}
+        </Typography>
+        <Chip size="small" variant="outlined" label={t(`manuals.shared.roles.${manualRole}`)} />
+      </Paper>
+
+      <Drawer anchor="left" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
+        <Box sx={{ width: { xs: 300, sm: 380 }, maxWidth: '90vw', p: 2.5 }}>
+          <Stack spacing={2.5}>
+            <Box>
+              <Chip color="primary" variant="outlined" size="small" label={t(`manuals.shared.roles.${manualRole}`)} />
+              <Typography variant="h6" sx={{ mt: 1.5, fontWeight: 700 }}>{manual.title}</Typography>
+            </Box>
+            <ManualContents sections={sections} t={t} onNavigate={() => setDrawerOpen(false)} />
+            <Divider />
+            <ManualNavigation dashboardPath={dashboardPath} t={t} />
+            <RelatedManuals
+              manualRole={manualRole}
+              relatedManualRoles={relatedManualRoles}
+              t={t}
+              onNavigate={() => setDrawerOpen(false)}
+            />
+          </Stack>
+        </Box>
+      </Drawer>
+    </>
   );
 }
 
@@ -476,13 +625,21 @@ export default function UserManual() {
   const relatedManualRoles = availableRoles;
 
   return (
-    <Box sx={{ p: 3, maxWidth: 1200, mx: 'auto' }}>
+    <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, maxWidth: 1320, mx: 'auto' }}>
+      <ManualTopNavigation
+        dashboardPath={dashboardPath}
+        manual={manual}
+        manualRole={manualRole}
+        relatedManualRoles={relatedManualRoles}
+        sections={sectionEntries}
+        t={t}
+      />
       <Box
         sx={{
           display: 'grid',
           gap: 3,
           alignItems: 'start',
-          gridTemplateColumns: { xs: '1fr', md: '280px minmax(0, 1fr)' },
+          gridTemplateColumns: { xs: '1fr', md: '300px minmax(0, 1fr)' },
         }}
       >
         <ManualSidebar
@@ -533,6 +690,7 @@ export default function UserManual() {
                 key={section.title}
                 section={section}
                 index={index}
+                manualRole={manualRole}
                 sectionId={section.id}
                 t={t}
               />

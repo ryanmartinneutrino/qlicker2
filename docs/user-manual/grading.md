@@ -1,92 +1,178 @@
 # Grading Guide
 
-This guide supplements the role manuals and focuses on the parts of Qlicker where reviewability, recalculation, manual grading, and student visibility matter most.
+This guide explains how Qlicker turns participation and responses into visible grades. It supplements the [Professor manual](professor.md) and [Student manual](student.md).
 
-Related manuals:
+## The grading lifecycle
 
-- [Professor user manual](professor.md)
-- [Student user manual](student.md)
-- [Admin user manual](admin.md)
+```text
+Students respond → instructor ends session → grade rows are created/recalculated
+                  → manual work is completed → reviewability releases results
+```
 
-## Table of contents
+These states are intentionally separate:
 
-1. [Instructor workflow](#instructor-workflow)
-2. [Session review workflow](#session-review-workflow)
-3. [Reviewability and student visibility](#reviewability-and-student-visibility)
-4. [Multiple-select scoring methods](#multiple-select-scoring-methods)
-5. [Manual overrides and feedback](#manual-overrides-and-feedback)
-6. [Student expectations](#student-expectations)
+- **Running/visible** controls participation.
+- **Ended** unlocks instructor grading and creates grade items.
+- **Reviewable** controls whether students can see the session/grade under the student workflow.
+- Grade visibility can be managed while corrections or manual work are underway.
+
+An instructor can review live response data while an interactive session is running, but cannot edit/recalculate grades until it ends.
 
 ## Instructor workflow
 
-1. Open a course and go to the **Grades** tab.
-2. Select one or more sessions to display.
-3. Make sure the session is **Ended** before you recalculate or edit grades.
-4. Use **Re-calculate** for one session or all visible sessions to run autograding.
-5. Click a grade cell to open grade details.
-6. Edit marks and feedback per question as needed.
-7. Export CSV using the currently visible columns or sessions.
+1. End the activity.
+2. Open session **Review → Grading**, or open course **Grades**.
+3. Recalculate when grades have not been created or scoring/content changed.
+4. Resolve warnings and manually grade short-answer responses.
+5. Add actionable feedback.
+6. Confirm question points, total points, percentages, and participation.
+7. Make the session reviewable/visible when release is intended.
+8. Export CSV and inspect the selected columns before importing elsewhere.
 
-### Good instructor habits
+![Course grade table with one completed quiz selected](../assets/manuals/professor-grades.png)
 
-- Recalculate after changing scoring rules.
-- Finish manual grading for short-answer work before announcing that feedback is complete.
-- Leave clear comments when you override an automatically generated score.
-- Review grade visibility from the student point of view if a session is meant to be study material later.
+In the course table, select sessions through **Show Grade Table**. Select a percentage to inspect one student's grade, then select a question label such as `Q1(MC)` or `Q2(SA)` for the response and mark editor.
 
-## Session review workflow
+## Automatic scoring
 
-1. Open **Review** for a session.
-2. Switch to the **Grading** tab.
-3. If the session is still live and interactive, you can still open review to watch results, but the grading tab stays locked until the session reaches **Ended**.
-4. If needed, change the point value for a question and confirm the recalculation warning.
-5. Recalculate and review any conflicts or warnings.
-6. Resolve manual-vs-auto conflicts by accepting auto marks per row or in bulk when appropriate.
-7. Return to the student summary view to confirm the grading state makes sense overall.
+Qlicker automatically grades:
 
-Useful cues in the current review UI:
+- multiple choice
+- true/false
+- multi-select
+- numerical responses (using the configured correct value/tolerance)
 
-- the Results tab shows the student's actual session grade before participation
-- clicking a student avatar in the Students tab opens the larger profile photo
-- question rows opened from the course grade table now show the question number plus type, such as `Q4(SA)`, with red/green cues for whether manual grading is still required
+Short answer normally requires manual grading. If points are not set, short answer defaults to `0` while other answerable types default to `1`; instructors should set deliberate point values before delivery.
 
-## Reviewability and student visibility
+When a student has multiple responses, grading uses that student's latest attempt for the question, based on attempt number and response update time.
 
-- Ending a session creates the instructor-facing grade rows, even if the session is not reviewable yet.
-- Making a session reviewable makes those grades visible to students.
-- Making a session non-reviewable hides grades from students.
-- If autograding cannot fully grade a session, warnings appear so you know more manual work is required.
-- A non-reviewable session does not appear in the student grade table, even if the activity has already finished.
+### Multi-select methods
 
-## Multiple-select scoring methods
+The session editor selects one method:
 
-Configured in the Session Editor:
-
-| Method | What it means |
+| Method | Meaning |
 | --- | --- |
-| `Right minus wrong` | rewards correct choices and subtracts for incorrect ones |
-| `All or nothing` | awards points only when the full answer is correct |
-| `Correctness ratio` | awards a proportional score based on correctness |
+| Right minus wrong | Rewards correct selections, subtracts for incorrect selections, and never goes below zero |
+| All or nothing | Awards credit only for the exact correct set |
+| Correctness ratio | Awards a proportional score based on correctly classified options |
 
-Tooltip text in the Session Editor explains each formula in the app.
+Explain the selected policy before students begin. A learner may make different choices when wrong selections are penalized.
 
-## Manual overrides and feedback
+### Low-participation exclusion
 
-- Manual mark edits are preserved during recalculation.
-- Changing a question's point value from the session-review grading panel also triggers recalculation, and those manual marks remain preserved.
-- If recalculation disagrees with an existing manual mark, the manual mark is not overwritten automatically.
-- A conflict dialog lists these differences and allows you to apply automatic values explicitly.
-- When a student has multiple attempts on a question, grading uses that student's latest attempt for that question.
-- Zero-point questions should not be treated as needing grading even if an older mark record still has a stale `needsGrading` flag.
-- A submitted short-answer response that is blank still counts for participation, but it is automatically scored `0` and does not remain flagged for manual grading.
-- Duplicate `{ userId, courseId, sessionId }` grade identities are now blocked in the backend. If you are cleaning up older data, run the documented `scripts/dedupe-grades.js` maintenance script first.
-- Students receive notifications when new feedback is published, so concise and actionable comments are better than long notes.
+For a single-attempt question, if unique responders are fewer than 10% of the students who joined, the question is treated as `outOf = 0`. This prevents a nearly unused question from distorting grades. Check joined/responded counts when a question unexpectedly contributes no points.
 
-## Student expectations
+### Blank short answers
 
-Students should expect the following:
+A submitted blank short answer counts as participation but is automatically worth zero and does not remain in the manual-grading queue.
 
-- they only see their own grades
-- they only see sessions that are reviewable and visible to students
-- short-answer feedback may arrive later because manual grading takes time, but blank submitted answers do not wait for grading
-- a session that disappears from the visible grade list is often no longer reviewable
+## Manual marks and feedback
+
+Open the question detail from the course grade table or session grading view:
+
+1. Read the exact prompt, response, and attempt.
+2. Enter manual points within the allowed total.
+3. Write feedback that identifies the next useful action.
+4. Save and verify that the overall grade updates.
+
+A manually edited question mark is an override. Recalculation preserves it and reports a conflict if the new automatic value differs. You can explicitly restore automatic scoring for an autogradeable mark or the overall value.
+
+Good feedback is brief and specific: “Your setup is correct; explain why the membrane is selectively permeable” is more useful than “needs work.” Publishing new feedback creates a student notification.
+
+## AI-assisted grading
+
+When AI is authorized and enabled for the course, **Review → Grading → AI Grading Assistant** can process selected eligible questions. It is an optional batch assistant, not a separate grading policy.
+
+Before starting:
+
+1. Select only the questions that should be processed.
+2. For every selected question, choose or create a **grading instruction** describing how points should be assigned.
+3. Choose or create a separate **feedback-to-student instruction** describing useful feedback.
+4. Select an approved model and confirm the instructions match the current question and point value.
+
+While the job runs, Qlicker shows progress. You can halt it and inspect a partial report if the instructions, provider, or output look wrong. Completed, halted, and failed runs retain a report and detailed log so you can see which work finished.
+
+Afterward, sample responses across strong, borderline, and weak answers; verify every selected question's point range; read student-facing feedback; and correct individual marks before release. AI grading does not remove the instructor's responsibility for the final grade, and students should have a human route to question the result.
+
+Reusable grading and feedback instructions are managed in course **AI Settings** and can be copied from another course. Recheck copied criteria before use. For response summaries, AI Chat, and student AI configuration, see [Use AI for teaching and course management](professor.md#10-use-ai-for-teaching-and-course-management).
+
+## Changing points after delivery
+
+Changing a question's point value from session review prompts for confirmation and recalculates the whole session. Existing manual marks remain preserved, but the total/percentage may change.
+
+Before confirming:
+
+- verify that the new point value is intentional
+- tell the teaching team that percentages may change
+- review conflicts after recalculation
+- re-export any grade file created earlier
+
+Avoid changing the meaning/correct answer of a question after students have responded. Some edits are restricted for this reason.
+
+## Student visibility
+
+Students see only their own grades and only activities released through the current reviewability/visibility rules. They may see:
+
+- their submitted answer and attempt
+- released correct answer and solution
+- earned/possible points
+- instructor feedback
+- participation information
+
+They do not see instructor-only grading conflicts or other students' identities/marks. A non-reviewable activity can be present in instructor grade data while absent from the student's course/grade view.
+
+## Recalculation scenarios
+
+### New completed session
+
+End the session and recalculate if the grade rows are not already available. Resolve any short-answer/manual warnings before release.
+
+### Correct answer or scoring rule changed
+
+Recalculate, inspect conflict/warning summaries, sample several students, and communicate material grade changes.
+
+### Late manual grade
+
+Open the specific student/question, save the mark and feedback, and confirm the overall percentage. A full recalculation is not normally needed just to save a manual mark.
+
+### Manual mark conflicts with automatic score
+
+Keep the manual mark if it represents an intentional academic decision. Accept/restore automatic only after confirming the configured answer/scoring rule is correct.
+
+### A zero-point question says it needs grading
+
+Zero-point items should not require grading even if an older record contains a stale flag. Check the actual point value and current visual cue before doing unnecessary manual work.
+
+## Export checklist
+
+Before using **Export grades to CSV**:
+
+- select the intended sessions/columns
+- confirm manual grading is complete
+- confirm reviewability/visibility separately (export does not publish)
+- open the CSV and spot-check names, session headings, and percentages
+- store the file according to institutional privacy policy
+
+CSV is a transfer/report file, not a Qlicker database backup.
+
+## Troubleshooting
+
+### Grading controls are locked
+
+The session is probably still running/visible rather than ended. End it first.
+
+### A student has no grade
+
+Confirm enrollment, participation/submission, session ended state, and whether grade recalculation completed. For a quiz, confirm final submission and availability rules.
+
+### A grade changed after recalculation
+
+Check the correct answer, point value, multi-select method, numerical tolerance, latest attempt, and low-participation rule. Manual overrides should be preserved and listed as conflicts rather than silently replaced.
+
+### A student cannot see a grade
+
+Confirm the activity is reviewable and its grade is visible to students. Manual grading can exist instructor-side before release.
+
+### Duplicate or inconsistent legacy rows appear
+
+Do not fix production data manually in MongoDB. Operators/developers should back up first and use the documented maintenance scripts and current server protections; see [developer grading notes](../developer/grading.md).

@@ -1,84 +1,146 @@
 # Qlicker Coding Standards
 
-> Use this file as the default guide for any future work on Qlicker.
+These standards describe the current Fastify/React application. They apply to new code and to code materially changed by a pull request; unrelated legacy code does not need wholesale restyling.
 
-## 1. General expectations
+## 1. Core principles
 
-- Keep changes small, direct, and easy to review.
-- Preserve compatibility with the existing MongoDB data model unless a change is explicitly planned and documented.
-- Prefer extending existing server routes, client components, and utilities over introducing parallel patterns.
-- Update the relevant documentation when behavior, setup, or operations change.
+- Make the smallest coherent change that solves the problem and is easy to review.
+- Preserve the legacy MongoDB contract unless an explicit, documented migration accompanies the change.
+- Extend existing routes, services, components, hooks, and utilities before creating a competing pattern.
+- Treat live-class latency, accessibility, localization, privacy, and security as product requirements.
+- Keep code, tests, generated API schemas, operational instructions, and user manuals in sync.
 
-## 2. Architecture defaults
+## 2. Supported stack
 
-- **Backend:** Fastify, ES modules, Mongoose, JWT auth, WebSockets.
-- **Frontend:** React 19, Vite, Material UI, Axios, react-i18next.
-- **Realtime:** WebSocket deltas first; polling only where a clear reason remains.
-- **Deployment:** development can be native or Docker; production uses `production_setup/`.
+| Layer | Current standard |
+| --- | --- |
+| Runtime | Node.js 22.13 or newer; ES modules |
+| Client | React 19, Vite 8, Material UI, Axios, react-i18next |
+| Server | Fastify 5, Mongoose 9, JWT access tokens and refresh cookies |
+| Realtime | Fastify WebSockets; optional Redis pub/sub across instances |
+| Data | MongoDB 7-compatible schemas using legacy string IDs |
+| Tests | Vitest, Testing Library, Playwright, axe-core |
+| Production | Docker Compose, Nginx, MongoDB, Redis, backup manager |
 
-## 3. Keep the app fast
+Dependencies and exact versions are authoritative in `client/package.json`, `server/package.json`, and their lockfiles.
 
-- Prefer **delta WebSocket updates** over broad refetches, especially for live sessions, session chat, and course/session status changes.
-- Do not add new work that forces every client to reload full live-session payloads when a targeted delta can keep state in sync.
-- Keep query costs down: use lean reads, field selection, batching, and existing cached/derived data patterns where appropriate.
-- Treat live-session responsiveness as a product requirement, not a later optimization.
+## 3. JavaScript style and structure
 
-## 4. Backend conventions
+- Use ES modules (`import`/`export`) and the style already used in the file.
+- Choose descriptive names. Avoid unexplained abbreviations and boolean names that hide their polarity.
+- Prefer early returns and small, testable helpers over deeply nested handlers.
+- Keep constants near their owning feature unless they are genuinely shared.
+- Do not mix broad formatting or mechanical cleanup into a behavioral change.
+- Comments should explain constraints or intent, not restate the code.
+- Log operationally useful context without tokens, passwords, storage keys, raw certificates, or unnecessary personal data.
 
-- Add or extend routes under `server/src/routes/`.
-- Keep business rules in services/utilities when route handlers would otherwise become large or repetitive.
-- Match the existing API error shape: `{ error, message }`.
-- Validate request bodies with Fastify schema support when adding new endpoints.
-- Reuse existing auth helpers and role checks rather than open-coding permission logic.
+## 4. Backend standards
 
-## 5. Frontend conventions
+### Routes and services
 
-- Use Material UI components and the `sx` prop instead of introducing new UI systems.
-- Reuse existing shared components before creating new variants.
-- Keep route-level pages under `client/src/pages/` and reusable pieces under `client/src/components/`.
-- Use the shared API client and existing data-fetching patterns.
+- Add feature routes under `server/src/routes/` and register them through the existing app wiring.
+- Put reusable business rules in `server/src/services/`; keep route handlers focused on validation, authorization, orchestration, and response shaping.
+- Use Fastify JSON schema on new or changed endpoints. Schemas are both validation and the source for generated OpenAPI documentation.
+- Reuse registered auth and role pre-handlers. Course access must distinguish global roles from course owner/instructor membership.
+- Use the established error body: `{ error, message }`. Select status codes deliberately (`400` validation, `401` unauthenticated, `403` unauthorized, `404` missing, `409` conflict).
 
-## 6. i18n is required
+### Data and compatibility
 
-- All user-facing strings must go through `t()`.
-- Add new translation keys to both English and French locale files together.
-- Do not leave new English-only labels, placeholders, dialog text, or aria labels in the code.
-- When changing UX copy, check whether related manual or README text also needs an update.
+- Preserve Meteor-compatible string `_id` values and existing persisted field shapes.
+- Validate IDs and user-controlled filters before using them in queries.
+- Prefer projections and `.lean()` for read-only responses. Avoid per-row queries when batching or aggregation is practical.
+- Add indexes only with a documented query need and consider production build cost.
+- Make migrations and repair scripts idempotent, dry-run by default when destructive, and explicit about backups.
 
-## 7. Accessibility is required
+### Realtime and performance
 
-- Preserve keyboard access for dialogs, menus, tabs, tables, and live-session controls.
-- Label interactive controls clearly, including icon-only buttons.
-- Keep semantic structure intact: headings, lists, table headers, form labels, and live-region behavior should remain meaningful.
-- Any new UI should be checked with accessibility in mind before it is considered done.
+- Send narrow WebSocket deltas for session, response, chat, visibility, and grading updates.
+- Include enough state in events for clients to patch locally; retain a safe refresh fallback for old or incomplete events.
+- Avoid full session refetches on every response or chat event.
+- Do not add unbounded arrays, queries, or broadcasts to a path used by hundreds of connected students.
+- Use the k6 suite when a change could affect classroom-scale concurrency.
 
-## 8. Security expectations
+## 5. Frontend standards
 
-- Do not weaken auth, rate limiting, token handling, or SSO behavior without a documented reason.
-- Keep CSP-sensitive and HTML-rendering paths aligned with the existing sanitization patterns.
-- Treat uploads, external URLs, and any user-controlled HTML as hostile until validated/sanitized.
-- Follow the production patterns already established in `production_setup/`.
+- Route pages belong in `client/src/pages/`; reusable feature UI belongs in `client/src/components/`.
+- Reuse the shared API client, authentication context, course-title utilities, responsive tabs, back-link controls, and session-status helpers.
+- Use Material UI and the shared theme. Prefer `sx` for local styling and extract repeated style objects or components when repetition becomes material.
+- Keep server state authoritative. Make optimistic updates only when rollback and error messaging are clear.
+- Cancel or ignore stale requests when route changes and rapid searches can race.
+- Preserve query parameters such as course tab/return context when navigation helpers already support them.
 
-## 9. Testing and validation
+## 6. Localization
 
-Run the existing project commands before and after meaningful changes:
+- All user-visible text, accessible names, validation messages, empty states, and dialog copy must go through `t()`.
+- Add each key to every file in `client/src/i18n/locales/`; current locales are English, French, German, Spanish, Italian, Pirate, Russian, and Chinese.
+- Preserve interpolation names, markup assumptions, and plural behavior across locales.
+- Do not ship untranslated English placeholders in non-English files without documenting the translation debt.
+- When UX wording changes, update screenshots and user manuals that refer to the old label.
+
+## 7. Accessibility and responsive behavior
+
+- Every control needs an accessible name; icon-only buttons require an `aria-label`.
+- Use semantic headings in order, real buttons/links, form labels, table headers, and descriptive alternative text.
+- Dialogs must manage focus and remain operable with the keyboard. Do not remove focus indicators.
+- Announce asynchronous state changes through the established alerts, snackbars, or live regions.
+- Test dense tab sets and tables at narrow widths. Avoid horizontal page overflow and inaccessible hover-only actions.
+- Run the existing axe-backed E2E checks for changed workflows.
+
+## 8. Security and privacy
+
+- Do not weaken authentication, refresh-token expiry, CSRF/CORS checks, rate limits, account disabling, or permission filters without an explicit security review.
+- Treat rich text, uploads, filenames, external URLs, AI endpoints, SSO metadata, and imported JSON/CSV as hostile input.
+- Keep DOM sanitization and Content Security Policy constraints in mind when rendering HTML.
+- Never return storage credentials, password hashes, refresh tokens, SAML private keys, or AI API tokens to clients.
+- Production private-network AI access must remain allowlisted by exact trusted host.
+- Prefer disabling user accounts to deleting historical academic records unless deletion is explicitly required.
+
+## 9. Testing standards
+
+Every bug fix should include a regression test where practical. New server behavior needs success, validation, and authorization coverage; UI work needs the important loading, empty, success, and error states.
 
 ```bash
-cd /home/runner/work/qlicker-1/qlicker-1/server && npm test
-cd /home/runner/work/qlicker-1/qlicker-1/client && npm test
-cd /home/runner/work/qlicker-1/qlicker-1/client && npm run build
+# Full server suite
+npm test --prefix server
+
+# Full client unit/component suite
+npm test --prefix client
+
+# Production client build
+npm run build --prefix client
+
+# Browser workflows (starts isolated local services)
+./scripts/qlicker.sh e2e
+
+# Local Markdown files and heading anchors
+node scripts/check-doc-links.mjs
 ```
 
-Use the existing Playwright coverage when a change affects end-to-end behavior:
+Examples of focused tests:
 
 ```bash
-cd /home/runner/work/qlicker-1/qlicker-1/client && npm run test:e2e
+npm test --prefix server -- test/routes/sessions.test.js
+npm test --prefix client -- src/pages/student/CourseDetail.test.jsx
 ```
 
-## 10. Documentation to keep aligned
+Use deterministic fixtures. Do not make tests depend on production services, wall-clock races, or execution order. Prefer role/label-based Playwright locators so tests exercise the accessible UI.
 
-- Product and setup overview: [README.md](README.md)
-- Remaining migration items: [meteorjs_migration/MIGRATION.md](meteorjs_migration/MIGRATION.md)
-- Completed migration archive: [meteorjs_migration/MIGRATION_COMPLETED.md](meteorjs_migration/MIGRATION_COMPLETED.md)
-- Legacy schema details: [meteorjs_migration/LEGACY_DB.md](meteorjs_migration/LEGACY_DB.md)
-- Production operations: [production_setup/README.md](production_setup/README.md)
+## 10. Documentation and operations
+
+- Update `README.md` for setup, supported runtime, or repository-level changes.
+- Update `docs/user-manual/` and the localized in-app manual for visible workflows.
+- Update `docs/developer/` for architecture, model, grading, or maintenance changes.
+- Update route schemas and `docs/api-reference.md` for API changes.
+- Update `production_setup/README.md` and `.env.example` together for deployment settings.
+- Keep historical migration documents historical; label obsolete instructions instead of presenting them as the current development path.
+
+Browser screenshots must come from the repeatable Playwright capture documented in `AGENTS.md`. Check that they contain no real personal data or credentials.
+
+## 11. Git and review hygiene
+
+- Use a focused branch and commit only files that belong to the change.
+- Do not commit `.env`, test results, database directories, uploads, backup archives, or editor state.
+- Review the final diff for accidental generated files and stale absolute paths.
+- A pull request should explain the user impact, compatibility considerations, tests run, and any deployment or data migration step.
+
+See `AGENTS.md` for the repository map and agent workflow, and `docs/developer/README.md` for deeper technical documentation.

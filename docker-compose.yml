@@ -19,7 +19,7 @@ services:
     build:
       context: ./server
       args:
-        APP_VERSION: ${APP_VERSION:-v2.0.0.b4}
+        APP_VERSION: ${APP_VERSION:-latest}
     ports:
       - "${API_PORT:?Set API_PORT in .env}:${API_PORT:?Set API_PORT in .env}"
     environment:
@@ -38,7 +38,7 @@ services:
       - NODE_ENV=${NODE_ENV:-production}
       # The development stack proxies API traffic over Docker's private bridge.
       - TRUST_PROXY=${TRUST_PROXY:-loopback,linklocal,uniquelocal}
-      - APP_VERSION=${APP_VERSION:-v2.0.0.b4}
+      - APP_VERSION=${APP_VERSION:-latest}
       - DISABLE_RATE_LIMITS=${DISABLE_RATE_LIMITS:-false}
       - AI_BACKEND_ALLOW_PRIVATE_HOSTS=${AI_BACKEND_ALLOW_PRIVATE_HOSTS:-true}
       - AI_BACKEND_ALLOWED_PRIVATE_HOSTS=${AI_BACKEND_ALLOWED_PRIVATE_HOSTS:-localhost,127.0.0.1,::1,host.docker.internal}
@@ -55,7 +55,7 @@ services:
     build:
       context: ./client
       args:
-        APP_VERSION: ${APP_VERSION:-v2.0.0.b4}
+        APP_VERSION: ${APP_VERSION:-latest}
     ports:
       - "${APP_PORT:?Set APP_PORT in .env}:80"
     environment:
