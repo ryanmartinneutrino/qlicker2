@@ -79,6 +79,23 @@ A manually edited question mark is an override. Recalculation preserves it and r
 
 Good feedback is brief and specific: “Your setup is correct; explain why the membrane is selectively permeable” is more useful than “needs work.” Publishing new feedback creates a student notification.
 
+## AI-assisted grading
+
+When AI is authorized and enabled for the course, **Review → Grading → AI Grading Assistant** can process selected eligible questions. It is an optional batch assistant, not a separate grading policy.
+
+Before starting:
+
+1. Select only the questions that should be processed.
+2. For every selected question, choose or create a **grading instruction** describing how points should be assigned.
+3. Choose or create a separate **feedback-to-student instruction** describing useful feedback.
+4. Select an approved model and confirm the instructions match the current question and point value.
+
+While the job runs, Qlicker shows progress. You can halt it and inspect a partial report if the instructions, provider, or output look wrong. Completed, halted, and failed runs retain a report and detailed log so you can see which work finished.
+
+Afterward, sample responses across strong, borderline, and weak answers; verify every selected question's point range; read student-facing feedback; and correct individual marks before release. AI grading does not remove the instructor's responsibility for the final grade, and students should have a human route to question the result.
+
+Reusable grading and feedback instructions are managed in course **AI Settings** and can be copied from another course. Recheck copied criteria before use. For response summaries, AI Chat, and student AI configuration, see [Use AI for teaching and course management](professor.md#10-use-ai-for-teaching-and-course-management).
+
 ## Changing points after delivery
 
 Changing a question's point value from session review prompts for confirmation and recalculates the whole session. Existing manual marks remain preserved, but the total/percentage may change.

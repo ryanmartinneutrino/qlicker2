@@ -4,8 +4,8 @@ These manuals are organized around real tasks rather than screen inventories. Be
 
 | Role | Manual | Common tasks |
 | --- | --- | --- |
-| Student | [Student manual](student.md) | Join a course, participate live, take a quiz, review work, use chat, practice, and check grades |
-| Professor or TA | [Professor manual](professor.md) | Build a course, manage people/groups, author content, teach live, assess, grade, and reuse material |
+| Student | [Student manual](student.md) | Join a course, participate live, take a quiz, review work, use course/session chat and AI study help, practice, and check grades |
+| Professor or TA | [Professor manual](professor.md) | Build a course, manage people/groups, author content, teach live, run chat, configure and use AI, assess, grade, and reuse material |
 | Administrator | [Admin manual](admin.md) | Configure the service, support accounts/courses, monitor use, and protect recoverability |
 | Professor/student | [Grading guide](grading.md) | Understand score calculation, reviewability, manual overrides, feedback, and visibility |
 

@@ -12,6 +12,7 @@ import {
   enrollStudentViaApi,
   loginViaUi,
   patchSessionViaApi,
+  patchSettingsViaApi,
   seedUsers,
 } from './helpers.js';
 
@@ -63,10 +64,71 @@ test('capture current user-manual screenshots', async ({ browser, request }) => 
   });
   expect(courseUpdate.response.status(), JSON.stringify(courseUpdate.body)).toBe(200);
 
+  await patchSettingsViaApi(request, admin.token, {
+    AI_Enabled: true,
+    AI_EnabledCourses: [course._id],
+    AI_AllowCourseBackendCourses: [course._id],
+    AI_Backends: [{
+      id: 'campus-ai',
+      name: 'Campus AI Service',
+      type: 'openai',
+      url: 'https://ai.example.edu/v1',
+      apiToken: 'synthetic-manual-capture-token',
+      models: [
+        { id: 'teaching-assistant', name: 'teaching-assistant', displayName: 'Teaching Assistant', available: true },
+        { id: 'grading-reviewer', name: 'grading-reviewer', displayName: 'Grading Reviewer', available: true },
+      ],
+    }],
+    AI_DefaultBackendId: 'campus-ai',
+    AI_DefaultModelId: 'teaching-assistant',
+  });
+  const aiCourseUpdate = await apiJson(request, 'PATCH', `/ai/courses/${course._id}/config`, {
+    token: professor.token,
+    payload: {
+      enabled: true,
+      defaultBackendId: 'campus-ai',
+      defaultModelId: 'teaching-assistant',
+      studentChatEnabled: true,
+      studentChatGuidance: 'Explain biology concepts with guiding questions. Do not complete graded work for students.',
+      studentDefaultBackendId: 'campus-ai',
+      studentDefaultModelId: 'teaching-assistant',
+      instructorChatMaxToolRounds: 20,
+      studentChatMaxToolRounds: 5,
+      modelPolicies: [
+        { backendId: 'campus-ai', modelId: 'teaching-assistant', studentAvailable: true },
+        { backendId: 'campus-ai', modelId: 'grading-reviewer', studentAvailable: false },
+      ],
+    },
+  });
+  expect(aiCourseUpdate.response.status(), JSON.stringify(aiCourseUpdate.body)).toBe(200);
+
+  const courseChatPost = await apiJson(request, 'POST', `/courses/${course._id}/chat/posts`, {
+    token: student.token,
+    payload: {
+      title: 'Week 2: cell membrane transport',
+      body: 'Could someone explain how facilitated diffusion differs from active transport?',
+      bodyWysiwyg: '<p>Could someone explain how <strong>facilitated diffusion</strong> differs from active transport?</p>',
+      tags: ['Cell biology'],
+    },
+  });
+  expect(courseChatPost.response.status(), JSON.stringify(courseChatPost.body)).toBe(201);
+  const courseChatComment = await apiJson(
+    request,
+    'POST',
+    `/courses/${course._id}/chat/posts/${courseChatPost.body.postId}/comments`,
+    {
+      token: professor.token,
+      payload: { body: 'Start by comparing whether each process requires cellular energy.' },
+    },
+  );
+  expect(courseChatComment.response.status(), JSON.stringify(courseChatComment.body)).toBe(200);
+
   const interactive = await createSessionViaApi(request, admin.token, course._id, {
     name: 'Cell Structure Check-in',
     description: 'Interactive questions and discussion for Week 2.',
     status: 'visible',
+    chatEnabled: true,
+    richTextChatEnabled: true,
   });
   const interactiveQuestion = await createQuestionViaApi(request, admin.token, {
     courseId: course._id,
@@ -205,6 +267,7 @@ test('capture current user-manual screenshots', async ({ browser, request }) => 
 
   const adminContext = await browser.newContext();
   const adminPage = await adminContext.newPage();
+  adminPage.setDefaultTimeout(15_000);
   await loginViaUi(adminPage, admin.email, admin.password, /\/admin$/);
   await expect(adminPage.getByRole('heading', { name: /admin dashboard/i })).toBeVisible();
   await capture(adminPage, 'admin-dashboard.png');
@@ -217,6 +280,7 @@ test('capture current user-manual screenshots', async ({ browser, request }) => 
 
   const professorContext = await browser.newContext();
   const professorPage = await professorContext.newPage();
+  professorPage.setDefaultTimeout(15_000);
   await loginViaUi(professorPage, professor.email, professor.password, /\/prof$/);
   await expect(professorPage.getByText('BIOL 101: Introduction to Biology')).toBeVisible();
   await capture(professorPage, 'professor-dashboard.png');
@@ -226,6 +290,9 @@ test('capture current user-manual screenshots', async ({ browser, request }) => 
   await professorPage.getByRole('tab', { name: /^Course Settings$/i }).click();
   await expect(professorPage.getByText(new RegExp(course.enrollmentCode))).toBeVisible();
   await capture(professorPage, 'professor-course-settings.png');
+  await professorPage.getByRole('tab', { name: /^Course Chat/i }).click();
+  await expect(professorPage.getByText(/facilitated diffusion differs from active transport/i)).toBeVisible();
+  await capture(professorPage, 'professor-course-chat.png');
   await professorPage.getByRole('tab', { name: /^Question Library$/i }).click();
   await expect(professorPage.getByText(/DNA is replicated before a cell divides/i)).toBeVisible();
   await capture(professorPage, 'professor-question-library.png');
@@ -245,8 +312,29 @@ test('capture current user-manual screenshots', async ({ browser, request }) => 
   await expect(professorPage).toHaveURL(new RegExp(`/session/${interactive._id}/live$`));
   const visibleToggle = professorPage.getByLabel(/^Visible$/i);
   if (!(await visibleToggle.isChecked())) await visibleToggle.click();
+  const sessionChatToggle = professorPage.getByLabel(/^Enable session chat$/i);
+  if (!(await sessionChatToggle.isChecked())) await sessionChatToggle.click();
+  const richTextChatToggle = professorPage.getByLabel(/^Enable rich text chat$/i);
+  if (!(await richTextChatToggle.isChecked())) await richTextChatToggle.click();
   await expect(professorPage.getByText(/Which organelle produces most of a cell's ATP/i)).toBeVisible();
   await capture(professorPage, 'professor-live-session.png');
+  const studentJoin = await apiJson(request, 'POST', `/sessions/${interactive._id}/join`, {
+    token: student.token,
+    payload: {},
+  });
+  expect(studentJoin.response.status(), JSON.stringify(studentJoin.body)).toBe(200);
+  const sessionChatPost = await apiJson(request, 'POST', `/sessions/${interactive._id}/chat/posts`, {
+    token: student.token,
+    payload: {
+      body: 'Why does the mitochondrion have a folded inner membrane?',
+      bodyWysiwyg: '<p>Why does the mitochondrion have a folded inner membrane?</p>',
+    },
+  });
+  expect(sessionChatPost.response.status(), JSON.stringify(sessionChatPost.body)).toBe(200);
+  await professorPage.reload();
+  await professorPage.getByRole('tab', { name: /^Chat$/i }).click();
+  await expect(professorPage.getByText(/folded inner membrane/i)).toBeVisible();
+  await capture(professorPage, 'professor-session-chat.png');
 
   await professorPage.goto(`/prof/course/${course._id}`);
   await professorPage.getByRole('tab', { name: /^Grades$/i }).click();
@@ -256,18 +344,36 @@ test('capture current user-manual screenshots', async ({ browser, request }) => 
   await gradeDialog.getByRole('button', { name: /^Show Table$/i }).click();
   await expect(professorPage.getByText(student.email)).toBeVisible();
   await capture(professorPage, 'professor-grades.png');
+  await professorPage.goto(`/prof/course/${course._id}`);
+  await professorPage.getByRole('tab', { name: /^AI Settings$/i }).click();
+  await expect(professorPage.getByLabel(/^Default model$/i)).toBeVisible();
+  await capture(professorPage, 'professor-ai-settings.png');
+  await professorPage.getByRole('tab', { name: /^AI Chat$/i }).click();
+  await expect(professorPage.getByRole('button', { name: /^New conversation$/i })).toBeVisible();
+  await capture(professorPage, 'professor-ai-chat.png');
 
   const studentContext = await browser.newContext();
   const studentPage = await studentContext.newPage();
+  studentPage.setDefaultTimeout(15_000);
   await loginViaUi(studentPage, student.email, student.password, /\/student$/);
   await expect(studentPage.getByText('BIOL 101: Introduction to Biology', { exact: true })).toBeVisible();
   await capture(studentPage, 'student-dashboard.png');
   await studentPage.goto(`/student/course/${course._id}`);
   await expect(studentPage.getByRole('heading', { name: /Introduction to Biology/i })).toBeVisible();
   await capture(studentPage, 'student-course.png');
+  await studentPage.getByRole('tab', { name: /^Course Chat/i }).click();
+  await expect(studentPage.getByText(/facilitated diffusion differs from active transport/i)).toBeVisible();
+  await capture(studentPage, 'student-course-chat.png');
+  await studentPage.getByRole('tab', { name: /^AI Chat$/i }).click();
+  await expect(studentPage.getByRole('button', { name: /^New conversation$/i })).toBeVisible();
+  await capture(studentPage, 'student-ai-chat.png');
+  await studentPage.getByRole('tab', { name: /^Lectures/i }).click();
   await studentPage.getByRole('button', { name: /Cell Structure Check-in/i }).first().click();
   await expect(studentPage.getByText(/Which organelle produces most of a cell's ATP/i)).toBeVisible();
   await capture(studentPage, 'student-live-session.png');
+  await studentPage.getByRole('tab', { name: /^Chat$/i }).click();
+  await expect(studentPage.getByText(/folded inner membrane/i)).toBeVisible();
+  await capture(studentPage, 'student-session-chat.png');
   await studentPage.goto(`/student/course/${course._id}/session/${activeQuiz._id}/quiz`);
   await expect(studentPage.getByText(/Which molecule carries genetic information/i)).toBeVisible();
   await capture(studentPage, 'student-quiz.png');

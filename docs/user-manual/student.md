@@ -14,9 +14,11 @@ If this is your first visit, read [Getting started](getting-started.md) first.
 6. [Review completed work](#6-review-completed-work)
 7. [Read grades and feedback](#7-read-grades-and-feedback)
 8. [Use the question library and practice sessions](#8-use-the-question-library-and-practice-sessions)
-9. [Use chat, video, AI, notifications, and profile tools](#9-use-chat-video-ai-notifications-and-profile-tools)
-10. [Common study scenarios](#10-common-study-scenarios)
-11. [Troubleshooting](#11-troubleshooting)
+9. [Use course chat and session chat](#9-use-course-chat-and-session-chat)
+10. [Use student AI Chat](#10-use-student-ai-chat)
+11. [Use video, notifications, and profile tools](#11-use-video-notifications-and-profile-tools)
+12. [Common study scenarios](#12-common-study-scenarios)
+13. [Troubleshooting](#13-troubleshooting)
 
 ## Quick start for class
 
@@ -210,25 +212,87 @@ Open **Question Library**, then search/filter by topic or type. You only see mat
 
 You can edit or delete your own practice sessions from the course page. Repeat a practice set after reviewing feedback, but vary the questions so you learn the concept rather than the order.
 
-## 9. Use chat, video, AI, notifications, and profile tools
+## 9. Use course chat and session chat
+
+Course chat and session chat are separate spaces:
+
+| Tool | Use it for |
+| --- | --- |
+| **Course Chat** | Questions and resources that remain relevant across multiple classes |
+| **Session Chat** | Immediate, question-specific discussion during one live activity |
 
 ### Course chat
 
-When enabled, **Course Chat** supports posts with a required topic, course tags, and comments. Posts/comments can include rich text, images, equations, and links. You can upvote useful contributions and delete your own material where the controls permit.
+The **Course Chat** tab appears only when your instructor enables it.
+
+![Student Course Chat showing an anonymous tagged topic and discussion controls](../assets/manuals/student-course-chat.png)
+
+To start a discussion:
+
+1. Open **Course Chat**.
+2. Select **New post**.
+3. Enter a short, specific topic title.
+4. Add relevant course-topic tags when available.
+5. Write the question or resource and publish it.
+
+Open a topic to read or add comments. Upvote a helpful topic/comment instead of posting a duplicate. Use the tag and sorting controls to find earlier answers before starting a new discussion.
+
+Posts and comments can contain rich text, equations, images, links, and embedded video. You may edit your own active post and delete your own material where the visible controls permit. Older discussions can be archived automatically according to the course retention setting.
 
 Your identity is hidden from other students, but instructors/TAs can identify authors for moderation. Anonymity is not permission to violate course conduct rules.
 
 ### Session chat
 
-During a live session, a **Chat** tab may let you write a post/comment or use quick buttons to request clarification for an earlier question. Upvote a post instead of duplicating it. Session chat is available only while the live workflow permits it and does not appear in student review afterward.
+When enabled, the **Chat** panel appears beside **Question** during a live activity. A badge shows unseen chat activity while you are answering.
+
+![Student Session Chat with quick clarification options, comments, and votes](../assets/manuals/student-session-chat.png)
+
+- Write a normal post or comment when rich-text chat is enabled.
+- Use a quick post to signal confusion about the current or an earlier question.
+- Upvote an existing question when it matches yours.
+- Return to **Question** to submit the activity response; chat messages never count as answers.
+
+The instructor can disable rich-text discussion while leaving quick posts available, dismiss a resolved post, or turn off chat completely. Session chat does not appear in the student review page afterward, although the teaching team can retain it for review and moderation.
+
+### Chat etiquette and safety
+
+- Keep one idea per topic/post and name the question number when relevant.
+- Do not post quiz answers, personal information, or content prohibited by course rules.
+- Use an upvote rather than repeating a question.
+- Contact the instructor privately for personal grading or accommodation matters.
+
+## 10. Use student AI Chat
+
+The **AI Chat** tab appears only when both the institution and your instructor enable a student-approved model for this course. Its conversations are separate from course chat and from your instructor's AI conversations.
+
+![Student AI Chat with model selection and private course-aware conversations](../assets/manuals/student-ai-chat.png)
+
+### Start a useful conversation
+
+1. Open **AI Chat** on the course page.
+2. Create a new conversation for one study goal.
+3. Choose from the models your instructor approved.
+4. Ask a specific question and name the session, topic, or feedback you mean.
+5. Check the response against course material and continue with focused follow-ups.
+
+The assistant may use course-aware tools to:
+
+- summarize the visible schedule and status of instructor-created sessions
+- list ended sessions that your instructor made reviewable
+- read the questions, released answers, and solutions from those reviewable sessions
+- explain your own released points and instructor feedback
+
+Those permissions are checked on every request. Student AI Chat cannot expose draft sessions, hidden solutions, another student's answers/grade, instructor-only grade tables, or instructor conversations.
+
+Use it for explanations, comparisons, practice strategies, or interpreting feedback. Do not assume it knows an assessment policy that is not visible in Qlicker, and do not use generated work where your course prohibits it.
+
+AI responses can be incomplete or wrong. Generated images, audio, or files can also expire; download an allowed artifact when you need to retain it or ask for a new one later. Never paste passwords, private personal information, or restricted assessment material into AI Chat.
+
+## 11. Use video, notifications, and profile tools
 
 ### Video
 
 The **Video** tab appears only for courses configured by the institution. Allow microphone/camera access only when needed. Group video destinations depend on your current group assignment.
-
-### AI Chat
-
-AI appears only when the institution and course authorize a model for students. Follow course policy. AI answers can be incomplete or incorrect; verify them against course materials, and do not submit generated work where it is prohibited.
 
 ### Notifications
 
@@ -238,7 +302,7 @@ The avatar badge signals active system or course notices and new feedback. Open 
 
 From the avatar menu, open **Profile** to change language and allowed account fields. Local name/password editing and reset email can be locked for SSO-managed accounts. Profile image uploads open a crop/rotate editor before saving the avatar.
 
-## 10. Common study scenarios
+## 12. Common study scenarios
 
 ### Prepare for an upcoming quiz
 
@@ -260,7 +324,7 @@ Use session chat or a quick clarification post. Other students do not see your i
 
 Before the assessment, confirm the extension with the instructor. In Qlicker, open the quiz card and check your displayed availability. Report discrepancies before starting when possible.
 
-## 11. Troubleshooting
+## 13. Troubleshooting
 
 ### I cannot sign in
 

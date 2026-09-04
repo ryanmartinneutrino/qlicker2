@@ -14,11 +14,13 @@ If this is your first visit, read [Getting started](getting-started.md) first.
 6. [Create an interactive session](#6-create-an-interactive-session)
 7. [Configure and deliver a quiz](#7-configure-and-deliver-a-quiz)
 8. [Run an interactive class](#8-run-an-interactive-class)
-9. [Use course chat, session chat, video, and AI](#9-use-course-chat-session-chat-video-and-ai)
-10. [Review a session and grade students](#10-review-a-session-and-grade-students)
-11. [Copy, import, export, and prepare the next term](#11-copy-import-export-and-prepare-the-next-term)
-12. [Common teaching scenarios](#12-common-teaching-scenarios)
-13. [Troubleshooting](#13-troubleshooting)
+9. [Use course chat and session chat](#9-use-course-chat-and-session-chat)
+10. [Use AI for teaching and course management](#10-use-ai-for-teaching-and-course-management)
+11. [Use course video](#11-use-course-video)
+12. [Review a session and grade students](#12-review-a-session-and-grade-students)
+13. [Copy, import, export, and prepare the next term](#13-copy-import-export-and-prepare-the-next-term)
+14. [Common teaching scenarios](#14-common-teaching-scenarios)
+15. [Troubleshooting](#15-troubleshooting)
 
 ## Quick start for a live class
 
@@ -256,29 +258,152 @@ Statistics include option distributions, word clouds for suitable short answers,
 
 Open a new attempt when students should answer again after discussion. Attempt weights/max attempts affect grading, so set them before class and explain the policy. Live response totals should be interpreted per current attempt.
 
-## 9. Use course chat, session chat, video, and AI
+## 9. Use course chat and session chat
+
+Course chat and session chat solve different communication problems. Explain that distinction to students before using both:
+
+| Tool | Best for | Lifetime |
+| --- | --- | --- |
+| **Course Chat** | Questions, resources, and discussions that should remain useful across classes | Continues across the course and follows the configured retention period |
+| **Session Chat** | Immediate confusion and question-specific discussion during one live activity | Attached to one session and retained for instructor review |
 
 ### Course chat
 
-When enabled in course settings, **Course Chat** supports topic-based posts and comments. Rich text can contain images, equations, and links. Student authors are anonymous to other students but identifiable to instructors/TAs.
+1. Open **Course Settings**.
+2. Enable **Course Chat** and choose a retention period.
+3. Open the new **Course Chat** tab.
+4. Select **New post**, enter a required topic, add relevant course-topic tags, write the post, and publish.
 
-Moderate inaccurate or inappropriate material, respond where the whole class benefits, and use topic tags so discussions remain searchable. Retention follows the course setting.
+![Professor Course Chat with topic filters, author filters, sorting, and a tagged discussion](../assets/manuals/professor-course-chat.png)
 
-### Session chat
+Posts and comments support rich text, images, equations, links, and embedded video. Students can upvote helpful topics and comments. Instructors can:
 
-Enable chat from live controls when the activity benefits from a parallel question channel. Students can post/comment, upvote useful items, and use quick posts such as “I didn't understand question 2.” Instructors can reply, dismiss items from the active queue, and review the complete history—including dismissed posts—after the session.
+- see student identities for moderation while students see anonymous role labels
+- filter by course topic or author and sort by time or upvotes
+- reply to a topic without starting a duplicate thread
+- archive and restore discussions; archived material is hidden from the active list but not deleted
+- delete inappropriate posts or comments when removal is required
 
-### Video
+The retention setting automatically archives older topics. Choose a period long enough for the discussion to remain useful, but do not treat chat as a permanent records system.
 
-If an administrator enabled Jitsi and the course is configured for it, the Video tab/window provides course or group meeting entry. Test the institution's Jitsi domain, microphone/camera permissions, and group assignments before relying on it in class.
+### Session chat during a live activity
 
-### AI helper and AI chat
+1. Launch the interactive session.
+2. Turn on **Enable session chat** in the live controls.
+3. Decide whether **Enable rich text chat** should also be on.
+4. Open the **Chat** panel. Unseen-count badges continue updating when you return to question or student controls.
 
-AI tabs appear only when an administrator has authorized backends/models and the course enables them. Course settings can control the default models, student availability, guidance, maximum tool rounds, and reusable grading/feedback/summary rubrics.
+![Professor Session Chat showing a live question discussion and moderation controls](../assets/manuals/professor-session-chat.png)
 
-AI output can be wrong. Review generated sessions, questions, summaries, grades, and feedback before using or publishing them. Do not put protected student information into an external model unless institutional policy and the configured backend permit it.
+Session chat supports normal posts, comments, and votes when rich text is enabled. Students can also use quick posts associated with the current or an earlier question. Quick posts remain available when rich text is disabled, giving you a lower-distraction clarification channel.
 
-## 10. Review a session and grade students
+Use **Dismiss** when a question has been resolved but should remain in the record. Delete only when content truly needs removal. The instructor review page retains the conversation, including dismissed items, after the session ends.
+
+### Chat operating practices
+
+- Tell students whether you will monitor chat continuously or only at pauses.
+- Ask students to upvote an existing question rather than post duplicates.
+- Keep graded responses in the question interface; a chat message never submits an answer.
+- Disable rich text, or all session chat, when it distracts from the activity.
+- Review unresolved threads after class and move durable answers to course chat or normal course materials.
+
+## 10. Use AI for teaching and course management
+
+Qlicker has several distinct AI workflows. Enabling AI Chat does not automatically run AI grading, and generating a response summary does not change student marks.
+
+### 10.1 Enable AI for a course
+
+AI requires two levels of authorization:
+
+1. A site administrator enables AI and authorizes this course.
+2. A course instructor enables **AI Helper** under **Course Settings**.
+
+After both steps, **AI Settings** and **AI Chat** appear. If the switch says administrator authorization is required, ask the administrator to enable the course; do not paste an API key elsewhere as a workaround.
+
+### 10.2 Configure models, access, and reusable instructions
+
+Open **AI Settings** to configure:
+
+- the default model used for instructor AI Chat
+- administrator-provided models approved for this course
+- optional course-specific OpenAI-compatible backends, when the administrator permits them
+- model display names and which individual models students may use
+- maximum tool rounds for instructor and student conversations
+- whether student AI Chat is enabled, its default model, and course-specific guidance
+- reusable instructions for AI grading, student feedback, and response summaries
+
+![Professor AI Settings with model policy and student AI controls](../assets/manuals/professor-ai-settings.png)
+
+API tokens are write-only after saving. A blank token field does not mean the saved secret was lost. Test model discovery and a low-risk chat before relying on a new backend. Copy reusable rubrics from another course only after checking that their criteria still apply.
+
+### 10.3 Use instructor AI Chat
+
+Start a new conversation in **AI Chat**, choose a model, and state the task with the relevant session or topic name. Keep separate conversations for unrelated jobs.
+
+![Instructor AI Chat with course-aware tools and separate conversations](../assets/manuals/professor-ai-chat.png)
+
+The instructor assistant can use course-scoped tools to:
+
+- inspect the roster and course/session schedule
+- inspect session settings, questions, final-attempt responses, aggregate performance, and grade tables
+- read course-chat topics and comments
+- create new interactive sessions, quizzes, and questions
+- prepare edits to existing sessions/questions or draft a course-chat topic/response
+
+Creating a session or question happens immediately and generated questions receive a **Generated by AI** tag. Inspect the new content, correct its topic/visibility/points, and verify quiz dates before using it.
+
+Edits to existing sessions/questions and course-chat posts use a safer two-turn workflow. The assistant shows an exact draft and a draft-specific approval phrase. Nothing is applied until you review it and send that exact phrase in a later message. The assistant cannot delete course data.
+
+Large rosters, response sets, chats, and grade tables are paginated. If the assistant says it inspected only part of the data, narrow the question or ask it to continue; do not treat a partial result as a complete class analysis.
+
+### 10.4 Summarize written responses
+
+From **Session Review**, locate an individual question and select **Generate AI Response summary**:
+
+1. Choose an approved model.
+2. Select or create a reusable summary instruction.
+3. Start the job and monitor its progress.
+4. View the finished summary, or halt and regenerate it if needed.
+
+Response summaries help identify themes in free-text work. They do not award points or replace reading representative responses, especially when nuance or sensitive language matters.
+
+### 10.5 Use the AI Grading Assistant
+
+AI grading is available from the session **Grading** tab after the session has ended:
+
+1. Open **AI Grading Assistant**.
+2. Select eligible questions.
+3. For every selected question, choose or create separate **grading instructions** and **feedback-to-student instructions**.
+4. Choose an approved model and start grading.
+5. Monitor progress; halt if the instructions or results look wrong.
+6. Read the report and detailed run log.
+7. Inspect individual points and feedback before releasing review/grades.
+
+Halting or a backend failure preserves completed work and a partial report. Treat that as a prompt for review, not evidence that every response was processed.
+
+### 10.6 Configure student AI Chat
+
+Student AI Chat is off until you explicitly enable it in **AI Settings**. Approve only suitable models, set a default and a smaller tool-round limit, and write guidance describing acceptable course use.
+
+The student assistant can see only the student's visible session overview, questions/solutions from ended reviewable sessions, and that student's released grades/feedback. It cannot inspect another student's work, hidden solutions, draft sessions, instructor tools, or instructor conversations.
+
+### AI review and privacy checklist
+
+- Follow institutional rules for sending student/course data to the configured model provider.
+- Do not include secrets or unnecessary personal information in prompts.
+- Verify generated questions, correct answers, dates, summaries, grades, and feedback.
+- Read every proposed write action before using its approval phrase.
+- Keep a human path for students to question an AI-assisted grade or explanation.
+
+AI output can be wrong even when it sounds confident.
+
+## 11. Use course video
+
+If an administrator enabled Jitsi and the course is configured for it, the **Video** tab/window provides course or group meeting entry. Test the institution's Jitsi domain, microphone/camera permissions, and group assignments before relying on it in class.
+
+Video access and group destinations depend on the current course and group configuration. Keep an alternative participation route for people who cannot grant microphone/camera access.
+
+## 12. Review a session and grade students
 
 Open **Review** from a completed session/quiz card. A running interactive session may be reviewed for monitoring, but grading remains locked until the activity is ended.
 
@@ -308,7 +433,7 @@ Open the course **Grades** tab, choose **Show Grade Table**, select sessions, an
 
 Changing a question's point value from review triggers a full session recalculation after confirmation. Existing manual marks remain preserved. For the detailed calculation and visibility rules, use the [Grading guide](grading.md).
 
-## 11. Copy, import, export, and prepare the next term
+## 13. Copy, import, export, and prepare the next term
 
 ### Sessions
 
@@ -334,7 +459,7 @@ Content exports are not a substitute for database backups: they do not contain a
 5. Make the old course inactive rather than deleting it.
 6. Copy only the content needed for the new course and reset all dates/visibility.
 
-## 12. Common teaching scenarios
+## 14. Common teaching scenarios
 
 ### Anonymous muddiest-point discussion
 
@@ -356,7 +481,7 @@ Enable student practice access, publish only suitable library questions, tag the
 
 Import or assign group membership before class, verify every student, enable video only if needed, and export the final group roster. Group categories are course-specific even when sessions are copied.
 
-## 13. Troubleshooting
+## 15. Troubleshooting
 
 ### A student cannot enroll
 

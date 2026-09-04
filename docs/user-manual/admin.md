@@ -239,6 +239,8 @@ Before enabling a backend:
 
 Course instructors can then opt in per course, choose defaults, set student guidance and tool-round limits, and maintain reusable grading/feedback/summary rubrics. AI can produce inaccurate content or grading, so human review remains required.
 
+Instructor AI features are deliberately separate: course-aware AI Chat, draft-and-approval course edits/chat posts, per-question response summaries, AI-assisted grading, and optional student AI Chat. When supporting a course, verify the specific workflow and model policy involved rather than treating the course-level AI switch as proof that every AI feature is ready. See the professor manual's [AI workflow](professor.md#10-use-ai-for-teaching-and-course-management).
+
 Treat AI API tokens as secrets. Never put credentials into course guidance or model display names.
 
 ## Operational safety and troubleshooting
