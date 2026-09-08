@@ -1,4 +1,6 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import {
+  useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo,
+} from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Box, Typography, Button, Paper, Alert, CircularProgress,
@@ -269,14 +271,15 @@ function RichHtml({
     () => prepareRichTextInput(value || '', fallback || '', { allowVideoEmbeds }),
     [allowVideoEmbeds, value, fallback]
   );
+  const innerHtml = useMemo(() => ({ __html: html }), [html]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!ref.current || !html) return;
     renderKatexInElement(ref.current);
   }, [html]);
 
   if (!html) return <Typography variant="body1">{emptyText}</Typography>;
-  return <Box ref={ref} sx={sx} dangerouslySetInnerHTML={{ __html: html }} />;
+  return <Box ref={ref} sx={sx} dangerouslySetInnerHTML={innerHtml} />;
 }
 
 /* ------------------------------------------------------------------ */

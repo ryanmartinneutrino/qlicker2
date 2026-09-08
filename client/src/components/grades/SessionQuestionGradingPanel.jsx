@@ -1,4 +1,6 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Alert,
@@ -334,20 +336,6 @@ function formatCorrectAnswerSummary(question, labels = {}) {
   if (!question) return '—';
   const qType = normalizeQuestionType(question);
 
-  if ([QUESTION_TYPES.MULTIPLE_CHOICE, QUESTION_TYPES.TRUE_FALSE, QUESTION_TYPES.MULTI_SELECT].includes(qType)) {
-    const options = Array.isArray(question.options) ? question.options : [];
-    const correctEntries = options
-      .map((option, idx) => ({ option, idx }))
-      .filter(({ option }) => isCorrectOption(option))
-      .map(({ option, idx }) => {
-        const label = OPTION_LETTERS[idx] || String(idx + 1);
-        const text = stripHtml(optionDisplayHtml(option));
-        return text ? `${label}: ${text}` : label;
-      });
-    if (correctEntries.length === 0) return labels.noCorrectOption || 'No correct option configured.';
-    return correctEntries.join(' | ');
-  }
-
   if (qType === QUESTION_TYPES.NUMERICAL && question.correctNumerical != null) {
     if (question.toleranceNumerical != null) {
       return `${question.correctNumerical} | tolerance: ${question.toleranceNumerical}`;
@@ -394,8 +382,9 @@ function RichContent({ html, fallback, allowVideoEmbeds = false }) {
     fallback || '',
     { allowVideoEmbeds }
   );
+  const innerHtml = useMemo(() => ({ __html: prepared }), [prepared]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (ref.current) renderKatexInElement(ref.current);
   }, [prepared]);
 
@@ -405,7 +394,7 @@ function RichContent({ html, fallback, allowVideoEmbeds = false }) {
     <Box
       ref={ref}
       sx={richContentSx}
-      dangerouslySetInnerHTML={{ __html: prepared }}
+      dangerouslySetInnerHTML={innerHtml}
     />
   );
 }
@@ -1522,7 +1511,6 @@ export default function SessionQuestionGradingPanel({
   const activeQuestionPoints = getQuestionPoints(activeQuestion);
   const hasSolution = !!normalizeValue(activeQuestion.solution);
   const correctAnswerSummary = formatCorrectAnswerSummary(activeQuestion, {
-    noCorrectOption: t('grades.questionPanel.noCorrectOption'),
     manualGradingRequired: t('grades.questionPanel.manualGradingRequired'),
   });
   const optionTypeQuestion = [
@@ -1531,6 +1519,11 @@ export default function SessionQuestionGradingPanel({
     QUESTION_TYPES.MULTI_SELECT,
   ].includes(activeQuestionType);
   const questionOptions = Array.isArray(activeQuestion.options) ? activeQuestion.options : [];
+  const correctOptionEntries = optionTypeQuestion
+    ? questionOptions
+      .map((option, index) => ({ option, index }))
+      .filter(({ option }) => isCorrectOption(option))
+    : [];
   const displayedStudentHint = isQuizSession
     ? t('grades.questionPanel.showingStudentsQuiz', { showing: sortedRows.length, total: allRows.length })
     : t('grades.questionPanel.showingStudentsSession', { showing: sortedRows.length, total: allRows.length });
@@ -1696,9 +1689,37 @@ export default function SessionQuestionGradingPanel({
           </Box>
         )}
 
-        <Typography variant="body2" sx={{ mt: 1 }}>
-          <strong>{t('grades.questionPanel.correctAnswer')}</strong> {correctAnswerSummary}
-        </Typography>
+        <Box sx={{ mt: 1, display: 'flex', alignItems: 'flex-start', gap: 0.75, flexWrap: 'wrap' }}>
+          <Typography variant="body2" component="span" sx={{ fontWeight: 700 }}>
+            {t('grades.questionPanel.correctAnswer')}
+          </Typography>
+          {optionTypeQuestion ? (
+            correctOptionEntries.length > 0 ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, minWidth: 0 }}>
+                {correctOptionEntries.map(({ option, index }) => {
+                  const optionContent = getOptionRichContentProps(option);
+                  return (
+                    <Box
+                      key={option?._id || index}
+                      sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5, minWidth: 0 }}
+                    >
+                      <Typography variant="body2" component="span" sx={{ fontWeight: 700 }}>
+                        {OPTION_LETTERS[index] || String(index + 1)}:
+                      </Typography>
+                      <RichContent html={optionContent.html} fallback={optionContent.fallback} />
+                    </Box>
+                  );
+                })}
+              </Box>
+            ) : (
+              <Typography variant="body2" component="span">
+                {t('grades.questionPanel.noCorrectOption')}
+              </Typography>
+            )
+          ) : (
+            <Typography variant="body2" component="span">{correctAnswerSummary}</Typography>
+          )}
+        </Box>
 
         {hasSolution && (
           <Box sx={{ mt: 1 }}>

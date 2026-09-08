@@ -1,4 +1,6 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Box,
@@ -36,8 +38,9 @@ const richContentSx = {
 function RichContent({ html, fallback }) {
   const ref = useRef(null);
   const prepared = prepareRichTextInput(html || '', fallback || '');
+  const innerHtml = useMemo(() => ({ __html: prepared }), [prepared]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (ref.current) renderKatexInElement(ref.current);
   }, [prepared]);
 
@@ -47,7 +50,7 @@ function RichContent({ html, fallback }) {
     <Box
       ref={ref}
       sx={richContentSx}
-      dangerouslySetInnerHTML={{ __html: prepared }}
+      dangerouslySetInnerHTML={innerHtml}
     />
   );
 }

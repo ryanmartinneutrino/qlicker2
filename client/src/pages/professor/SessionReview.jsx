@@ -1,4 +1,6 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import {
+  useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -532,8 +534,9 @@ function RichContent({ html, fallback, allowVideoEmbeds = false }) {
     fallback || '',
     { allowVideoEmbeds }
   );
+  const innerHtml = useMemo(() => ({ __html: prepared }), [prepared]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (ref.current) renderKatexInElement(ref.current);
   }, [prepared]);
 
@@ -542,7 +545,7 @@ function RichContent({ html, fallback, allowVideoEmbeds = false }) {
     <Box
       ref={ref}
       sx={richContentSx}
-      dangerouslySetInnerHTML={{ __html: prepared }}
+      dangerouslySetInnerHTML={innerHtml}
     />
   );
 }

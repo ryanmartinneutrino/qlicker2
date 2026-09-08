@@ -187,6 +187,42 @@ describe('SessionReview', () => {
     expect(await screen.findByText('Live session destination')).toBeInTheDocument();
   });
 
+  it('renders question math in both the results and grading tabs', async () => {
+    const defaultGet = apiClient.get.getMockImplementation();
+    apiClient.get.mockImplementation(async (url) => {
+      if (url === '/sessions/session-1/results') {
+        const payload = buildResultsPayload();
+        payload.questions[0] = {
+          ...payload.questions[0],
+          content: '<p>Evaluate \\(x^2 + y^2\\)</p>',
+          plainText: 'Evaluate \\(x^2 + y^2\\)',
+          options: [
+            { answer: 'A', plainText: '\\(x^2\\)', correct: false },
+            { answer: 'B', plainText: '\\(x^2 + y^2\\)', correct: true },
+          ],
+        };
+        return { data: payload };
+      }
+      return defaultGet(url);
+    });
+
+    const { container } = renderSessionReview();
+
+    expect(await screen.findByText('Midterm review')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(container.querySelectorAll('.katex').length).toBeGreaterThanOrEqual(3);
+    });
+    expect(container.textContent).not.toContain('\\(');
+
+    fireEvent.click(screen.getByRole('tab', { name: /grading/i }));
+
+    await screen.findByText('Question navigator');
+    await waitFor(() => {
+      expect(container.querySelectorAll('.katex').length).toBeGreaterThanOrEqual(3);
+    });
+    expect(screen.queryByText('B: \\(x^2 + y^2\\)')).not.toBeInTheDocument();
+  });
+
   it('shows the consolidated response data table, sorts rows, and exports the visible CSV', async () => {
     const originalBlob = globalThis.Blob;
     let downloadedBlob = null;

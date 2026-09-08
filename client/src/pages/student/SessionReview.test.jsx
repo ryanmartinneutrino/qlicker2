@@ -32,11 +32,11 @@ describe('Student SessionReview', () => {
               {
                 _id: 'q-1',
                 type: 0,
-                content: '<p>Pick one</p>',
-                plainText: 'Pick one',
+                content: '<p>Choose the expression \\(x^2 + y^2\\)</p>',
+                plainText: 'Choose the expression \\(x^2 + y^2\\)',
                 sessionOptions: { points: 1 },
                 options: [
-                  { answer: 'A', plainText: 'A', correct: true },
+                  { answer: 'A', plainText: '\\(x^2 + y^2\\)', correct: true },
                   { answer: 'B', plainText: 'B', correct: false },
                 ],
               },
@@ -101,5 +101,29 @@ describe('Student SessionReview', () => {
     expect(apiClient.get).not.toHaveBeenCalledWith('/sessions/session-1/grades');
 
     consoleErrorSpy.mockRestore();
+  });
+
+  it('renders question and option math without exposing TeX delimiters', async () => {
+    const view = (
+      <MemoryRouter initialEntries={['/student/course/course-1/session/session-1/review']}>
+        <Routes>
+          <Route path="/student/course/:courseId/session/:sessionId/review" element={<SessionReview />} />
+        </Routes>
+      </MemoryRouter>
+    );
+    const { container, rerender } = render(view);
+
+    expect(await screen.findByText('Practice review')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(container.querySelectorAll('.katex').length).toBeGreaterThanOrEqual(2);
+    });
+    expect(container.textContent).not.toContain('\\(');
+
+    rerender(view);
+
+    await waitFor(() => {
+      expect(container.querySelectorAll('.katex').length).toBeGreaterThanOrEqual(2);
+    });
+    expect(container.textContent).not.toContain('\\(');
   });
 });
