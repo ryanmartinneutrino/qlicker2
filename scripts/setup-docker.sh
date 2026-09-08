@@ -9,6 +9,7 @@ echo ""
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 EXISTING_ENV_FILE="$PROJECT_ROOT/.env"
+APP_VERSION="${APP_VERSION:-$(tr -d '[:space:]' < "$PROJECT_ROOT/VERSION")}"
 
 if [ -f "$EXISTING_ENV_FILE" ]; then
   echo "[INFO] Existing .env found at $EXISTING_ENV_FILE"
@@ -140,6 +141,7 @@ MONGO_PORT=$MONGO_PORT
 REDIS_PORT=$REDIS_PORT
 
 # Server
+APP_VERSION=$APP_VERSION
 JWT_SECRET=$JWT_SECRET
 JWT_REFRESH_SECRET=$JWT_REFRESH_SECRET
 ROOT_URL=http://localhost:$APP_PORT

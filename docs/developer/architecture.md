@@ -1,6 +1,6 @@
 # Application Architecture Overview
 
-Qlicker is a React 19 single-page application backed by a Fastify 5 API server. The new app preserves compatibility with the legacy Meteor database while moving user-facing behavior to REST and WebSocket APIs.
+Qlicker is a React 19 single-page application backed by a Fastify 5 API server. It preserves compatibility with the legacy Meteor database while serving current behavior through REST and WebSocket APIs.
 
 ## High-level architecture
 
@@ -8,14 +8,14 @@ Qlicker is a React 19 single-page application backed by a Fastify 5 API server. 
 Browser (React + MUI + Vite)
   ├─ Auth context + protected routes
   ├─ Role-specific pages (admin / professor / student)
-  ├─ Rich text editing, grading, review, library, and live-session UIs
+  ├─ Rich text, grading, review, libraries, chat, AI, and live-session UIs
   └─ REST + WebSocket client communication
 
 Fastify server
   ├─ JWT auth, refresh cookies, CSRF/CORS enforcement
-  ├─ REST route modules (auth, users, courses, sessions, questions, grades, groups, video, images, settings)
+  ├─ REST route modules (auth, users, courses, sessions, questions, grades, groups, chat, video, AI, images, settings)
   ├─ WebSocket transport for live-session deltas
-  ├─ Services for grading, copying, histogram and word-frequency generation
+  ├─ Services for grading, copying, notifications, AI tools, and aggregate generation
   └─ OpenAPI generation via Fastify Swagger
 
 MongoDB
@@ -26,14 +26,14 @@ MongoDB
 Optional infrastructure
   ├─ Redis pub/sub for multi-instance WebSocket fan-out
   ├─ S3 / Azure / local image storage
-  ├─ SAML identity provider integration
+  ├─ SAML identity-provider and AI-backend integrations
   └─ Docker Compose + Nginx production deployment
 ```
 
 ## Repository layout
 
 ```text
-qlicker-1/
+qlicker2/
 ├── client/                # React frontend (pages, components, contexts, i18n)
 ├── server/                # Fastify backend (routes, models, services, config)
 ├── docs/                  # User and developer documentation
@@ -55,6 +55,7 @@ Important frontend entry points:
 - `client/src/pages/student/` contains student workflows such as dashboard, course detail, live session, quiz, review, and practice sessions.
 - `client/src/components/` contains reusable UI building blocks and feature panels such as grading, question-library, groups, and video.
 - `client/src/i18n/` contains locale files and translation configuration.
+- `client/e2e/` contains role-oriented Playwright workflows and the opt-in manual screenshot capture.
 
 ## Backend structure
 
@@ -66,6 +67,7 @@ Important backend areas:
 - `server/src/services/` contains reusable business logic such as grading and question/session copy behavior.
 - `server/src/utils/` contains lower-level helpers such as histogram calculation.
 - `server/test/` contains route and service tests.
+- `server/scripts/` contains E2E, migration, and data-maintenance entry points.
 
 ## Role-oriented page model
 
@@ -80,6 +82,16 @@ This is useful when adding features because it helps determine:
 - where navigation should live
 - which permissions apply
 - which API payloads can be safely returned to the client
+
+Course instructor membership is distinct from global role. A student-role account assigned as a course instructor can use that course's professor workspace, while unrelated professor/admin pages remain protected by their normal role rules.
+
+## Authentication and authorization
+
+- Access tokens authorize API calls; refresh cookies extend a session up to the configured hard expiry.
+- Browser-changing requests use the established CSRF/request headers and CORS policy.
+- Local accounts can register/login/reset passwords when policy permits; SAML routes support institution-managed accounts.
+- Disabling an account blocks login, refresh, and existing authenticated use without deleting academic history.
+- Authorization is enforced server-side even when the client also hides unavailable navigation.
 
 ## Real-time behavior
 
@@ -96,9 +108,25 @@ Examples of real-time updates include:
 
 Redis can fan these events out across multiple app instances in production.
 
+Clients patch local state from sufficiently complete deltas and use targeted refreshes for incomplete/legacy payloads. Maintain that contract on high-volume response and chat paths.
+
+## Storage and external services
+
+Image storage is selected in database-backed admin settings and can use local files, S3-compatible object storage, or Azure Blob. Clients upload through the API; stored images are served through authenticated `/uploads/<key>` paths rather than direct provider URLs.
+
+Optional integrations are policy-gated:
+
+- SAML settings define identity-provider metadata, attributes, signing/encryption behavior, and route mode.
+- Jitsi settings expose course/group video destinations.
+- AI settings define trusted backends/models globally, with per-course enablement, model policy, student access, and rubrics.
+
+## Production topology
+
+The production Compose stack terminates TLS at Nginx, load-balances API replicas, persists MongoDB/uploads/backups, and uses Redis for WebSocket fan-out. The root `docker-compose.yml` is for development; production operations belong in `production_setup/`.
+
 ## Documentation and API generation
 
-The API docs are generated from Fastify route schema definitions and exposed by the backend at `/docs` and `/docs/json`.
+The API docs are generated from Fastify route schema definitions and exposed to administrators at `/docs` and `/docs/json` when `ENABLE_API_DOCS=true`.
 
 When adding a new route, the architecture expectation is:
 

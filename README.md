@@ -1,108 +1,142 @@
 # Qlicker
 
-Qlicker is an open-source classroom response system for higher education. It gives instructors a mobile-friendly alternative to hardware clickers for live participation, quizzes, grading, course management, and classroom discussion.
+Qlicker is an open-source classroom response system for higher education. Instructors can run live activities, schedule quizzes, organize reusable questions, discuss course material, review participation, and grade work. Students join from any modern browser without dedicated clicker hardware.
 
-This repository contains the current **Fastify + React** version of Qlicker. Migration and legacy-reference documentation now lives under [`meteorjs_migration/`](meteorjs_migration/).
+This repository contains the current React + Fastify application. The completed Meteor migration and legacy database contract are retained in `meteorjs_migration/` for compatibility work.
 
-## What Qlicker includes
+## Highlights
 
-- interactive live sessions with real-time student responses
-- timed quizzes and practice quizzes
-- grading, review, and CSV export
-- course enrollment, TA/professor management, and groups
-- SAML SSO plus local email/password login where allowed
-- image uploads, rich text, math rendering, course/session chat, and Jitsi video chat
-- English/French UI, production deployment tooling, backups, and load testing
+- Interactive instructor-paced sessions with live response counts, statistics, answer reveals, multiple attempts, and a presentation window
+- Scheduled and practice quizzes with autosaved answers, submission tracking, and per-student extensions
+- Multiple-choice, true/false, short-answer, numerical, multiple-select, and slide content
+- Course and session chat, rich text, math, images, word clouds, histograms, and optional Jitsi video
+- Question libraries, tags, session/question import and export, groups with CSV workflows, notifications, and AI-assisted workflows
+- Automatic and manual grading, feedback, review controls, and CSV export
+- Local login or SAML SSO, role-aware access, eight UI locales, responsive layouts, and accessibility coverage
+- Production Docker deployment with Nginx, TLS, Redis fan-out, backups, restore, and migration tooling
 
-## Repository guide
+## Documentation
 
-- [`server/`](server/) - Fastify backend
-- [`client/`](client/) - React frontend
-- [`scripts/`](scripts/) - native/docker setup, seeding, legacy init, local service management
-- [`production_setup/`](production_setup/) - production Docker deployment package
-- [`docs/`](docs/) - user, developer, and API documentation
-- [`load-testing/`](load-testing/) - k6-based load-testing suite
-- [`meteorjs_migration/`](meteorjs_migration/) - migration status, completed archive, legacy DB notes, and original migration requirements
-- [`CODING_STANDARDS.md`](CODING_STANDARDS.md) - future-work conventions
+| Audience | Start here |
+| --- | --- |
+| Students | [Student manual](docs/user-manual/student.md) |
+| Professors and TAs | [Professor manual](docs/user-manual/professor.md) |
+| Site administrators | [Admin manual](docs/user-manual/admin.md) |
+| Developers | [Developer documentation](docs/developer/README.md) |
+| Coding agents | [Repository agent guide](AGENTS.md) |
+| Production operators | [Production deployment guide](production_setup/README.md) |
 
-## Release versioning
+The complete documentation index is at [docs/README.md](docs/README.md). Signed-in users can also open a role-aware manual from the account menu.
 
-- The canonical app release string lives in [`VERSION`](VERSION).
-- Current release: `v2.0.0.b4`.
-- The backend exposes this value via `GET /api/v1/health` as `version`.
-- Docker image builds default to this value as the image tag and bake it into runtime metadata.
+## Repository layout
+
+```text
+client/               React/Vite web client and browser tests
+server/               Fastify API, models, services, and server tests
+docs/                 User, developer, grading, and API documentation
+scripts/              Development setup, seeding, and service control
+production_setup/     Production Docker Compose and operations tooling
+load-testing/         k6 classroom-scale load tests
+ssoserver/            Local SAML identity-provider test environment
+meteorjs_migration/   Legacy schema and migration archive
+```
+
+## Requirements
+
+- Node.js 22.13 or newer
+- npm (lockfiles are committed separately under `client/` and `server/`)
+- For native development: MongoDB; Redis is recommended for testing multi-instance/realtime behavior
+- For container development: Docker Engine with Docker Compose v2
+- OpenSSL for setup-generated JWT secrets
+
+Do not reuse development secrets in production. Do not commit the generated `.env` file.
 
 ## Quick start
 
-### Option 1: native development
+### Native development
+
+From the repository root:
 
 ```bash
-cd /home/runner/work/qlicker2/qlicker2
 ./scripts/setup-native.sh
 ./scripts/qlicker.sh start
+./scripts/qlicker.sh status
 ```
 
-The setup script prepares local `.env` values, installs dependencies, and helps configure MongoDB and Redis. `qlicker.sh` manages the backend and frontend processes for local development.
+The guided setup creates local configuration, installs the client/server dependencies, and checks MongoDB and Redis. The service helper starts both application processes and manages their PID/log files.
 
-### Option 2: Docker development
+### Docker development
 
 ```bash
-cd /home/runner/work/qlicker2/qlicker2
 ./scripts/setup-docker.sh
 docker compose up -d
+docker compose logs -f server client
 ```
 
-This starts MongoDB, Redis, the Fastify API, and the React client in containers.
+The development stack contains MongoDB, Redis, the API, and the client. Stop it with `docker compose down`; named volumes retain development data unless explicitly removed.
+
+### Local addresses
+
+Default ports can be changed during setup.
+
+| Service | Default address |
+| --- | --- |
+| Web app | `http://localhost:3000` |
+| API | `http://localhost:3001/api/v1` |
+| Health check | `http://localhost:3001/api/v1/health` |
+| Admin-protected Swagger UI | `http://localhost:3001/docs` when API docs are enabled |
 
 ## First run
 
-On an empty database:
+On an empty database, the first registered account becomes an administrator. After signing in:
 
-1. Open the app in your browser.
-2. Create the first account.
-3. That first account becomes **admin** automatically.
-4. Use the admin UI to configure storage, SSO, backup policy, and other system settings.
+1. Review global login, locale, date, and session settings.
+2. Configure backups and verify their host storage.
+3. Choose local, S3-compatible, or Azure image storage and test an upload.
+4. Configure SAML, video, or AI only if the deployment will use them.
+5. Create professor accounts or promote existing users, then create a test course and enroll a student.
 
-## Common development commands
+See the [admin manual](docs/user-manual/admin.md) for the UI workflows and the [production guide](production_setup/README.md) for operational requirements.
 
-```bash
-cd /home/runner/work/qlicker2/qlicker2/server && npm test
-cd /home/runner/work/qlicker2/qlicker2/client && npm test
-cd /home/runner/work/qlicker2/qlicker2/client && npm run build
-```
-
-Native helper commands:
+## Development commands
 
 ```bash
-./scripts/qlicker.sh start
-./scripts/qlicker.sh stop
-./scripts/qlicker.sh restart
-./scripts/qlicker.sh status
+# Unit and integration tests
+npm test --prefix server
+npm test --prefix client
+
+# Production client build
+npm run build --prefix client
+
+# Browser workflows
+./scripts/qlicker.sh e2e
+
+# Install the Playwright browser on the first run when needed
 ./scripts/qlicker.sh e2e --install-browser
 ```
 
-## Development user management
-
-Seed test users if you want a ready-made local dataset:
+Run the two application halves directly when you do not need the service helper:
 
 ```bash
-./scripts/seed-db.sh
-./scripts/seed-db-docker.sh
+npm run dev --prefix server
+npm run dev --prefix client
 ```
 
-Reset a development user password directly:
+Development fixtures can be loaded with `./scripts/seed-db.sh` (native) or `./scripts/seed-db-docker.sh` (Docker). See the [development guide](docs/developer/development-guide.md) before making a change and [CODING_STANDARDS.md](CODING_STANDARDS.md) before submitting it.
+
+## Common account-management tasks
+
+For development, reset a local password with:
 
 ```bash
 ./scripts/changeuserpwd.sh --email user@example.com
-./scripts/changeuserpwd.sh --email user@example.com --newpasswd newPassword123
+./scripts/changeuserpwd.sh --email user@example.com --newpasswd 'a-new-password'
 ```
 
-## Production user management
-
-For a deployed Docker stack, use [`production_setup/manage-user.sh`](production_setup/manage-user.sh):
+For production containers, use the supported management wrapper:
 
 ```bash
-cd /home/runner/work/qlicker2/qlicker2/production_setup
+cd production_setup
 ./manage-user.sh list
 ./manage-user.sh create --email prof@example.com --firstname Jane --lastname Smith --role professor
 ./manage-user.sh promote --email prof@example.com --role admin
@@ -110,83 +144,35 @@ cd /home/runner/work/qlicker2/qlicker2/production_setup
 ./manage-user.sh set-email-login --email sso.user@example.com --disable-email-login
 ```
 
-## Production deployment
+## Production and migration
 
-The production-ready deployment package lives in [`production_setup/`](production_setup/). It includes:
-
-- interactive `setup.sh`
-- Docker Compose stack with Nginx, MongoDB, Redis, server replicas, and client
-- TLS support
-- backup and restore scripts
-- legacy-database initialization tooling
-- user-management tooling
-- image build/update helpers
-
-Start with:
+Production is deployed from `production_setup/`, not the root development Compose file:
 
 ```bash
-cd /home/runner/work/qlicker2/qlicker2/production_setup
+cd production_setup
 ./setup.sh
 docker compose up -d
 ```
 
-For the full guide, see [`production_setup/README.md`](production_setup/README.md).
+Before using a real database, read the [production deployment guide](production_setup/README.md), verify backups and restore on a non-production copy, and review the [legacy database reference](meteorjs_migration/LEGACY_DB.md) when upgrading an installation created by the Meteor app.
 
-## Migrating from a legacy Meteor deployment
-
-Qlicker is designed to run against the existing MongoDB data model used by the Meteor app.
-
-### Development migration helpers
-
-```bash
-./scripts/init-from-legacy.sh
-./scripts/init-from-legacy-docker.sh
-```
-
-### Production migration helper
-
-```bash
-cd /home/runner/work/qlicker2/qlicker2/production_setup
-./init-from-legacy.sh
-```
-
-Use the sanitize flow only when you are ready to move legacy public S3 image references to Fastify's `/uploads/<key>` path. The remaining live migration item is the final production move to private S3 buckets.
-
-See:
-
-- [`meteorjs_migration/LEGACY_DB.md`](meteorjs_migration/LEGACY_DB.md)
-- [`production_setup/README.md`](production_setup/README.md#initializing-from-legacy-database)
-- [`production_setup/README.md`](production_setup/README.md#s3-private-bucket-migration)
-
-## Backups and restore
-
-Production backup tooling lives in [`production_setup/`](production_setup/):
-
-```bash
-cd /home/runner/work/qlicker2/qlicker2/production_setup
-./backup.sh
-./restore.sh
-```
-
-The deployment also supports scheduled backups via the backup manager and the Admin **Backup** tab. See [`production_setup/README.md`](production_setup/README.md#backups).
+The canonical release label is the single line in `VERSION`. Setup and image tooling should source that value instead of duplicating a version in prose.
 
 ## Load testing
 
-The load-testing suite exercises realistic live-session and chat traffic with k6:
+The k6 suite models a professor driving an interactive session while student clients authenticate, join, keep WebSockets open, respond, and use chat:
 
 ```bash
-cd /home/runner/work/qlicker2/qlicker2/load-testing
+cd load-testing
 ./setup.sh
 ./run.sh --prepare
 ./run.sh
 ./run.sh --restore
+./run.sh --clean
 ```
 
-See [`load-testing/README.md`](load-testing/README.md) for the full workflow and tuning options.
+Always restore rate limits after a test. Full options and metrics are documented in [load-testing/README.md](load-testing/README.md).
 
-## Documentation
+## License
 
-- User and developer docs: [`docs/`](docs/)
-- Production deployment guide: [`production_setup/README.md`](production_setup/README.md)
-- Coding conventions for future work: [`CODING_STANDARDS.md`](CODING_STANDARDS.md)
-- Migration archive and remaining items: [`meteorjs_migration/`](meteorjs_migration/)
+Qlicker is licensed under the [GNU Affero General Public License v3.0](LICENSE).

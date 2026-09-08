@@ -55,15 +55,15 @@ choose_token_value() {
 }
 
 # --------------------------------------------------
-# Check Node.js >= 20
+# Check Node.js >= 22.13
 # --------------------------------------------------
+NODE_REQUIRED_VERSION="22.13.0"
 if command -v node &>/dev/null; then
   NODE_VERSION=$(node -v | sed 's/v//')
-  NODE_MAJOR=$(echo "$NODE_VERSION" | cut -d. -f1)
-  if [ "$NODE_MAJOR" -ge 20 ]; then
+  if [ "$(printf '%s\n' "$NODE_REQUIRED_VERSION" "$NODE_VERSION" | sort -V | head -n 1)" = "$NODE_REQUIRED_VERSION" ]; then
     echo "[OK] Node.js $NODE_VERSION"
   else
-    ERRORS+=("Node.js >= 20 required (found $NODE_VERSION)")
+    ERRORS+=("Node.js >= $NODE_REQUIRED_VERSION required (found $NODE_VERSION)")
   fi
 else
   ERRORS+=("Node.js not found")
@@ -115,9 +115,9 @@ if [ ${#ERRORS[@]} -gt 0 ]; then
       echo "Updating package list..."
       sudo apt-get update -qq
 
-      if ! command -v node &>/dev/null || [ "$NODE_MAJOR" -lt 20 ]; then
-        echo "Installing Node.js 20..."
-        curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+      if ! command -v node &>/dev/null || [ "$(printf '%s\n' "$NODE_REQUIRED_VERSION" "$NODE_VERSION" | sort -V | head -n 1)" != "$NODE_REQUIRED_VERSION" ]; then
+        echo "Installing Node.js 22..."
+        curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
         sudo apt-get install -y nodejs
       fi
 
