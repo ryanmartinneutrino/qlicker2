@@ -40,6 +40,7 @@ export async function authenticate(request, reply) {
     // Authorization roles come from the database, not the token payload, so
     // demotions/role removals take effect immediately instead of at token expiry.
     request.user = buildRequestUser(user);
+    request.server.recordAuthenticatedActivity?.(request.user);
   } catch (err) {
     reply.code(401).send({ error: 'Unauthorized', message: 'Invalid or missing token' });
   }
@@ -60,6 +61,7 @@ export async function authenticateAccessTokenOrRefreshCookie(request, reply) {
       return;
     }
     request.user = buildRequestUser(user);
+    request.server.recordAuthenticatedActivity?.(request.user);
     return;
   } catch {
     // Fall back to the same-origin refresh cookie for asset requests such as <img>.
@@ -112,6 +114,7 @@ export async function authenticateAccessTokenOrRefreshCookie(request, reply) {
   }
 
   request.user = buildRequestUser(user);
+  request.server.recordAuthenticatedActivity?.(request.user);
 }
 
 export function requireRole(roles) {

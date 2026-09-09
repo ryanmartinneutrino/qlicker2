@@ -333,7 +333,55 @@
       "course": "Curso",
       "activeUsers": "Usuarios activos",
       "enrollment": "Matrícula",
-      "noCourses": "No hay cursos disponibles."
+      "noCourses": "No hay cursos disponibles.",
+      "monitorFailedLoad": "No se pudieron cargar los datos de supervisión del sistema",
+      "systemMonitoring": "Supervisión del sistema",
+      "systemMonitoringDescription": "Historial de baja frecuencia de CPU, memoria, red y usuarios activos del host, conservado durante 7 días.",
+      "historyRange": "Intervalo del historial de supervisión",
+      "range6Hours": "6 horas",
+      "range24Hours": "24 horas",
+      "range7Days": "7 días",
+      "monitorStatus": {
+        "healthy": "Recopilando",
+        "stale": "Desactualizado",
+        "unavailable": "Sin configurar"
+      },
+      "monitorUnavailableHelp": "No hay muestras del sistema disponibles. Inicie el servicio system-monitor y compruebe su conexión con MongoDB.",
+      "monitorStaleHelp": "La muestra más reciente está desactualizada. Revise los eventos de system-monitor y el estado del contenedor.",
+      "cpu": "CPU",
+      "memory": "Memoria",
+      "loadAndCores": "Carga de 1 minuto {{load}} en {{cores}} núcleos",
+      "hostMemory": "Memoria del host en uso",
+      "activeNow": "Actividad reciente",
+      "activeNowHelp": "Autenticados durante los últimos {{minutes}} minutos",
+      "network": "Red",
+      "receivedSent": "Recibido / enviado en la interfaz supervisada",
+      "lastSample": "Última muestra: {{time}} · intervalo de recopilación: {{seconds}} segundos",
+      "resourceHistory": "Historial de CPU y memoria",
+      "resourceHistoryHelp": "Utilización media en cada intervalo de tiempo mostrado.",
+      "activityHistory": "Historial de usuarios activos",
+      "activityHistoryHelp": "Usuarios únicos que hicieron una solicitud autenticada dentro de los {{minutes}} minutos de cada muestra. Las líneas de funciones pueden solaparse.",
+      "networkHistory": "Historial de tráfico de red",
+      "networkHistoryHelp": "Rendimiento medio entrante y saliente en la interfaz de ruta predeterminada del host.",
+      "noMonitorHistory": "No hay historial de supervisión disponible para este intervalo.",
+      "students": "Estudiantes",
+      "professors": "Profesores",
+      "received": "Recibido",
+      "sent": "Enviado",
+      "peakPeriods": "Periodos de máxima actividad",
+      "peakPeriodsHelp": "Los cinco intervalos mostrados con más actividad, ordenados primero por usuarios activos y después por uso de CPU.",
+      "time": "Hora",
+      "monitorEvents": "Eventos del monitor",
+      "monitorEventsHelp": "Eventos recientes del ciclo de vida y errores del recopilador. Los registros sin procesar de los servicios Docker siguen disponibles mediante docker compose logs; se evita intencionadamente exponer el socket de Docker a la aplicación.",
+      "level": "Nivel",
+      "event": "Evento",
+      "collector": "Recopilador",
+      "noMonitorEvents": "No se registraron eventos del monitor en los últimos 7 días.",
+      "eventLevel": {
+        "info": "Información",
+        "warning": "Advertencia",
+        "error": "Error"
+      }
     },
     "settings": {
       "restrictDomain": "Restringir dominio de correo electrónico",
@@ -2088,6 +2136,18 @@
             "Use Gestionar notificaciones en la pestaña Usuarios para publicar avisos de inicio de sesión válidos para todo el sistema que cada usuario vea en la barra de la aplicación hasta que expiren o se descarten."
           ],
           "warning": "Los cambios de rol y las aprobaciones de inicio de sesión SSO surten efecto de inmediato, así que confirme la solicitud antes de guardar."
+        },
+        {
+          "title": "Supervisar la carga del servidor y las horas de mayor actividad",
+          "subtitle": "Abra Estadísticas de uso para comparar CPU, memoria, red y usuarios activos.",
+          "bullets": [
+            "Seleccione 6 horas, 24 horas o 7 días. Actualizar obtiene nuevas muestras; la página no consulta continuamente.",
+            "CPU y memoria corresponden a todo el host Linux. La red muestra bytes recibidos/enviados por segundo en las interfaces seleccionadas, incluido el tráfico de otras aplicaciones.",
+            "Un usuario reciente realizó una solicitud autenticada a la API en los últimos 15 minutos de forma predeterminada. No cuenta todos los navegadores conectados; los usuarios inactivos caducan y los roles pueden solaparse.",
+            "El historial comienza al instalar system-monitor y se conserva siete días. Los gráficos promedian recursos en intervalos de 1, 5 o 30 minutos y muestran el máximo de usuarios observado.",
+            "Compare los períodos de mayor actividad con los gráficos. Revise la hora de la muestra y los eventos del monitor ante datos antiguos, errores o recuperación. Los operadores pueden consultar los registros completos de Docker."
+          ],
+          "note": "La captura del navegador muestra datos de ejemplo; investigue incidentes con su propio historial."
         }
       ]
     },

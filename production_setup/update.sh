@@ -115,6 +115,10 @@ info "Restarting services..."
 docker compose -f "$COMPOSE_FILE" up -d --no-deps server
 info "Server replicas restarted."
 
+# The collector shares the server image but runs independently of API replicas.
+docker compose -f "$COMPOSE_FILE" up -d --no-deps system-monitor
+info "System monitor restarted."
+
 # Restart client
 docker compose -f "$COMPOSE_FILE" up -d --no-deps client
 info "Client restarted."

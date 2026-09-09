@@ -236,6 +236,7 @@ function getScreenshotPresets(screenshot, t, context = {}) {
   const supplementalImages = {
     admin: {
       3: '/manuals/admin-users.png',
+      4: '/manuals/admin-system-monitoring.png',
     },
     professor: {
       1: '/manuals/professor-groups.png',

@@ -42,6 +42,12 @@ Fastify schemas supply parameters, request bodies, response shapes, tags, and be
 
 Permission checks vary by operation. A global professor role and course instructor membership are not interchangeable; API tests should cover unauthenticated, wrong-role, and non-member access.
 
+## Admin system-monitoring query
+
+`GET /api/v1/users/admin/system-monitoring?range=24h` requires an authenticated administrator. `range` accepts `6h`, `24h` (default), or `7d`; invalid values return 400. The response includes `status` (`healthy`, `stale`, `unavailable`), `latest`, downsampled `history`, up to five `peakPeriods`, up to 50 seven-day collector `events`, `generatedAt`, `retentionDays`, and `bucketSeconds` (60, 300, or 1800).
+
+Missing measurements are `null`. Resource history fields are bucket averages; activity fields are bucket maxima. The endpoint caches each range for 30 seconds per API process, coalesces concurrent reads, and caps database queries at 20,161 samples and two seconds. This is a single-host collector contract; see [metric definitions](user-manual/admin.md#understand-the-measurements). There is no metric-ingestion or arbitrary-log-reading HTTP endpoint: the collector writes directly to MongoDB.
+
 ## WebSocket connection
 
 The browser connects to:

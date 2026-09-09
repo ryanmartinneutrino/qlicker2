@@ -118,7 +118,7 @@ Regenerate browser illustrations with synthetic E2E data:
 
 ```bash
 cd client
-REDIS_URL= QCLICKER_CAPTURE_MANUALS=1 npx playwright test e2e/manual-screenshots.spec.js --project=chromium
+REDIS_URL= QCLICKER_CAPTURE_MANUALS=1 npx playwright test e2e/manual-screenshots.spec.js e2e/admin-system-monitoring.spec.js --project=chromium
 ```
 
 The test is skipped without the opt-in variable and writes identical images to the Markdown and in-app asset directories.

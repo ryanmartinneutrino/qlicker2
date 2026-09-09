@@ -333,7 +333,55 @@
       "course": "Course",
       "activeUsers": "Active users",
       "enrollment": "Enrollment",
-      "noCourses": "No courses are available."
+      "noCourses": "No courses are available.",
+      "monitorFailedLoad": "Failed to load system monitoring data",
+      "systemMonitoring": "System monitoring",
+      "systemMonitoringDescription": "Low-frequency host CPU, memory, network, and active-user history retained for 7 days.",
+      "historyRange": "Monitoring history range",
+      "range6Hours": "6 hours",
+      "range24Hours": "24 hours",
+      "range7Days": "7 days",
+      "monitorStatus": {
+        "healthy": "Collecting",
+        "stale": "Stale",
+        "unavailable": "Not configured"
+      },
+      "monitorUnavailableHelp": "No system samples are available. Start the system-monitor service and verify its MongoDB connection.",
+      "monitorStaleHelp": "The latest sample is stale. Check the system-monitor events and container status.",
+      "cpu": "CPU",
+      "memory": "Memory",
+      "loadAndCores": "1-minute load {{load}} across {{cores}} cores",
+      "hostMemory": "Host memory in use",
+      "activeNow": "Recently active",
+      "activeNowHelp": "Authenticated in the past {{minutes}} minutes",
+      "network": "Network",
+      "receivedSent": "Received / sent on the monitored interface",
+      "lastSample": "Last sample: {{time}} · collection interval: {{seconds}} seconds",
+      "resourceHistory": "CPU and memory history",
+      "resourceHistoryHelp": "Average utilization in each displayed time bucket.",
+      "activityHistory": "Active-user history",
+      "activityHistoryHelp": "Unique users making an authenticated request within {{minutes}} minutes of each sample. Role lines can overlap.",
+      "networkHistory": "Network traffic history",
+      "networkHistoryHelp": "Average inbound and outbound throughput on the host default-route interface.",
+      "noMonitorHistory": "No monitoring history is available for this range.",
+      "students": "Students",
+      "professors": "Professors",
+      "received": "Received",
+      "sent": "Sent",
+      "peakPeriods": "Peak periods",
+      "peakPeriodsHelp": "The five busiest displayed buckets, ranked first by active users and then by CPU usage.",
+      "time": "Time",
+      "monitorEvents": "Monitor events",
+      "monitorEventsHelp": "Recent collector lifecycle and error events. Raw Docker service logs remain available through docker compose logs; exposing the Docker socket to the app is intentionally avoided.",
+      "level": "Level",
+      "event": "Event",
+      "collector": "Collector",
+      "noMonitorEvents": "No monitor events were recorded in the past 7 days.",
+      "eventLevel": {
+        "info": "Info",
+        "warning": "Warning",
+        "error": "Error"
+      }
     },
     "settings": {
       "restrictDomain": "Restrict email domain",
@@ -2135,6 +2183,18 @@
             "Use Manage notifications in the Users tab to post system-wide login notices that every user sees in the app bar until they expire or are dismissed."
           ],
           "warning": "Role changes and SSO login approvals take effect immediately, so confirm the request before saving."
+        },
+        {
+          "title": "Monitor host load and busy teaching periods",
+          "subtitle": "Open Usage Statistics and compare CPU, memory, network, and recent-user history.",
+          "bullets": [
+            "Select 6 hours, 24 hours, or 7 days. Use Refresh to fetch new samples; the page does not continuously poll.",
+            "CPU and memory cover the entire Linux host. Network shows received/sent bytes per second on the selected host interfaces. Other applications on the host contribute to these values.",
+            "Recently active means a unique user made an authenticated API request in the preceding 15 minutes by default. It does not count every signed-in browser. Idle users age out and role counts can overlap.",
+            "History starts when the system-monitor service is installed and expires after seven days. Charts average resource measurements in 1-, 5-, or 30-minute buckets and show the maximum sampled user count.",
+            "Compare Peak periods with the charts. Check the latest sample time and Monitor events for stale data, errors, or recovery. Full Docker service logs remain available to deployment operators."
+          ],
+          "note": "Example data shown in a real browser capture; use your own history to investigate incidents."
         }
       ]
     },

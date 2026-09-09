@@ -333,7 +333,55 @@
       "course": "Kurs",
       "activeUsers": "Aktive Benutzer",
       "enrollment": "Einschreibungen",
-      "noCourses": "Keine Kurse verfügbar."
+      "noCourses": "Keine Kurse verfügbar.",
+      "monitorFailedLoad": "Systemüberwachungsdaten konnten nicht geladen werden",
+      "systemMonitoring": "Systemüberwachung",
+      "systemMonitoringDescription": "Ressourcenschonender Verlauf von Host-CPU, Arbeitsspeicher, Netzwerk und aktiven Benutzern für 7 Tage.",
+      "historyRange": "Zeitraum der Überwachung",
+      "range6Hours": "6 Stunden",
+      "range24Hours": "24 Stunden",
+      "range7Days": "7 Tage",
+      "monitorStatus": {
+        "healthy": "Erfassung aktiv",
+        "stale": "Veraltet",
+        "unavailable": "Nicht konfiguriert"
+      },
+      "monitorUnavailableHelp": "Es sind keine Systemmesswerte verfügbar. Starten Sie den Dienst system-monitor und prüfen Sie seine MongoDB-Verbindung.",
+      "monitorStaleHelp": "Der letzte Messwert ist veraltet. Prüfen Sie die Ereignisse des Systemmonitors und den Containerstatus.",
+      "cpu": "CPU",
+      "memory": "Arbeitsspeicher",
+      "loadAndCores": "1-Minuten-Last {{load}} auf {{cores}} Kernen",
+      "hostMemory": "Belegter Host-Arbeitsspeicher",
+      "activeNow": "Kürzlich aktiv",
+      "activeNowHelp": "In den letzten {{minutes}} Minuten authentifiziert",
+      "network": "Netzwerk",
+      "receivedSent": "Empfangen / gesendet über die überwachte Schnittstelle",
+      "lastSample": "Letzter Messwert: {{time}} · Erfassungsintervall: {{seconds}} Sekunden",
+      "resourceHistory": "CPU- und Arbeitsspeicherverlauf",
+      "resourceHistoryHelp": "Durchschnittliche Auslastung in jedem angezeigten Zeitabschnitt.",
+      "activityHistory": "Verlauf aktiver Benutzer",
+      "activityHistoryHelp": "Eindeutige Benutzer mit einer authentifizierten Anfrage innerhalb von {{minutes}} Minuten um jeden Messwert. Rollenlinien können sich überschneiden.",
+      "networkHistory": "Verlauf des Netzwerkverkehrs",
+      "networkHistoryHelp": "Durchschnittlicher ein- und ausgehender Durchsatz an der Standardrouten-Schnittstelle des Hosts.",
+      "noMonitorHistory": "Für diesen Zeitraum ist kein Überwachungsverlauf verfügbar.",
+      "students": "Studierende",
+      "professors": "Lehrende",
+      "received": "Empfangen",
+      "sent": "Gesendet",
+      "peakPeriods": "Spitzenzeiten",
+      "peakPeriodsHelp": "Die fünf stärksten angezeigten Zeitabschnitte, zuerst nach aktiven Benutzern und dann nach CPU-Auslastung sortiert.",
+      "time": "Zeit",
+      "monitorEvents": "Monitorereignisse",
+      "monitorEventsHelp": "Letzte Lebenszyklus- und Fehlerereignisse des Kollektors. Rohe Docker-Dienstprotokolle bleiben über docker compose logs verfügbar; der Docker-Socket wird absichtlich nicht für die App freigegeben.",
+      "level": "Stufe",
+      "event": "Ereignis",
+      "collector": "Kollektor",
+      "noMonitorEvents": "In den letzten 7 Tagen wurden keine Monitorereignisse aufgezeichnet.",
+      "eventLevel": {
+        "info": "Info",
+        "warning": "Warnung",
+        "error": "Fehler"
+      }
     },
     "settings": {
       "restrictDomain": "E-Mail-Domain einschränken",
@@ -2088,6 +2136,18 @@
             "Verwenden Sie „Benachrichtigungen verwalten“ im Tab „Benutzer“, um systemweite Anmeldehinweise zu veröffentlichen, die jeder Benutzer in der App-Leiste sieht, bis sie ablaufen oder geschlossen werden."
           ],
           "warning": "Rollenänderungen und SSO-Anmeldegenehmigungen werden sofort wirksam. Bestätigen Sie die Anfrage daher vor dem Speichern."
+        },
+        {
+          "title": "Hostauslastung und Hauptnutzungszeiten überwachen",
+          "subtitle": "Öffnen Sie die Nutzungsstatistik und vergleichen Sie CPU, Speicher, Netzwerk und aktive Benutzer.",
+          "bullets": [
+            "Wählen Sie 6 Stunden, 24 Stunden oder 7 Tage. Aktualisieren lädt neue Messwerte; die Seite fragt nicht laufend ab.",
+            "CPU und Speicher beziehen sich auf den gesamten Linux-Host. Das Netzwerk zeigt empfangene/gesendete Bytes pro Sekunde an den ausgewählten Schnittstellen, einschließlich anderer Anwendungen.",
+            "Als kürzlich aktiv gilt ein Benutzer mit einer authentifizierten API-Anfrage innerhalb der letzten 15 Minuten. Angemeldete, untätige Benutzer können herausfallen; Rollen können sich überschneiden.",
+            "Der Verlauf beginnt mit der Installation von system-monitor und wird sieben Tage aufbewahrt. Diagramme mitteln Ressourcenwerte in 1-, 5- oder 30-Minuten-Intervallen und zeigen die höchste gemessene Benutzerzahl.",
+            "Vergleichen Sie Spitzenzeiten und Diagramme. Prüfen Sie Messzeit und Monitorereignisse bei veralteten Daten, Fehlern oder Wiederherstellung. Vollständige Docker-Protokolle sind für Betreiber verfügbar."
+          ],
+          "note": "Die Browseraufnahme zeigt Beispieldaten. Verwenden Sie für Untersuchungen Ihren eigenen Verlauf."
         }
       ]
     },

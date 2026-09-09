@@ -44,5 +44,5 @@ Files under `meteorjs_migration/` that are explicitly marked historical describe
 - Check UI labels, settings, and role permissions against the current client before documenting them.
 - Keep route documentation grounded in Fastify schemas and the generated OpenAPI output.
 - Update both user manuals and the localized in-app manual when visible behavior changes.
-- Capture manual images from the real Chromium app with the opt-in Playwright workflow in `client/e2e/manual-screenshots.spec.js`.
+- Capture manual images from the real Chromium app with the opt-in Playwright workflows in `client/e2e/manual-screenshots.spec.js` and `client/e2e/admin-system-monitoring.spec.js` (the monitoring illustration uses example data in the isolated test database).
 - Store identical screenshot copies in `docs/assets/manuals/` and `client/public/manuals/`; inspect them for personal or secret data before committing.

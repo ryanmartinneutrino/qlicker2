@@ -73,7 +73,7 @@ docker compose up -d
 docker compose logs -f server client
 ```
 
-The development stack contains MongoDB, Redis, the API, and the client. Stop it with `docker compose down`; named volumes retain development data unless explicitly removed.
+The development stack contains MongoDB, Redis, the API, the client, and a resource-limited Linux host monitor. Admins can view seven days of CPU, memory, network, and recent-user history under **Usage Statistics**. See [monitoring setup and metric definitions](production_setup/README.md#in-app-system-monitoring). Stop the stack with `docker compose down`; named volumes retain development data unless explicitly removed.
 
 ### Local addresses
 

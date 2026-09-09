@@ -333,7 +333,55 @@
       "course": "课程",
       "activeUsers": "活跃用户",
       "enrollment": "注册人数",
-      "noCourses": "暂无课程。"
+      "noCourses": "暂无课程。",
+      "monitorFailedLoad": "无法加载系统监控数据",
+      "systemMonitoring": "系统监控",
+      "systemMonitoringDescription": "以低频率记录主机 CPU、内存、网络和活跃用户历史，并保留 7 天。",
+      "historyRange": "监控历史范围",
+      "range6Hours": "6 小时",
+      "range24Hours": "24 小时",
+      "range7Days": "7 天",
+      "monitorStatus": {
+        "healthy": "正在采集",
+        "stale": "数据过期",
+        "unavailable": "未配置"
+      },
+      "monitorUnavailableHelp": "没有可用的系统样本。请启动 system-monitor 服务并检查其 MongoDB 连接。",
+      "monitorStaleHelp": "最新样本已过期。请检查 system-monitor 事件和容器状态。",
+      "cpu": "CPU",
+      "memory": "内存",
+      "loadAndCores": "{{cores}} 个核心的一分钟负载为 {{load}}",
+      "hostMemory": "已用主机内存",
+      "activeNow": "最近活跃",
+      "activeNowHelp": "过去 {{minutes}} 分钟内已认证",
+      "network": "网络",
+      "receivedSent": "监控接口上的接收／发送速率",
+      "lastSample": "最新样本：{{time}} · 采集间隔：{{seconds}} 秒",
+      "resourceHistory": "CPU 和内存历史",
+      "resourceHistoryHelp": "每个显示时间段内的平均利用率。",
+      "activityHistory": "活跃用户历史",
+      "activityHistoryHelp": "在每个样本前后 {{minutes}} 分钟内发出认证请求的唯一用户。角色曲线可能重叠。",
+      "networkHistory": "网络流量历史",
+      "networkHistoryHelp": "主机默认路由接口上的平均入站和出站吞吐量。",
+      "noMonitorHistory": "此范围没有可用的监控历史。",
+      "students": "学生",
+      "professors": "教授",
+      "received": "接收",
+      "sent": "发送",
+      "peakPeriods": "高峰时段",
+      "peakPeriodsHelp": "显示的五个最繁忙时间段，先按活跃用户数排序，再按 CPU 使用率排序。",
+      "time": "时间",
+      "monitorEvents": "监控事件",
+      "monitorEventsHelp": "最近的采集器生命周期和错误事件。原始 Docker 服务日志仍可通过 docker compose logs 查看；系统特意不向应用公开 Docker 套接字。",
+      "level": "级别",
+      "event": "事件",
+      "collector": "采集器",
+      "noMonitorEvents": "过去 7 天没有记录监控事件。",
+      "eventLevel": {
+        "info": "信息",
+        "warning": "警告",
+        "error": "错误"
+      }
     },
     "settings": {
       "restrictDomain": "限制电子邮箱域名",
@@ -2088,6 +2136,18 @@
             "使用“用户”选项卡中的“管理通知”功能，发布系统范围的登录通知，所有用户都会在应用栏中看到，直到通知过期或被关闭。"
           ],
           "warning": "角色更改和 SSO 登录批准会立即生效，因此保存前请务必确认请求内容。"
+        },
+        {
+          "title": "监控主机负载与使用高峰",
+          "subtitle": "打开使用统计，对比 CPU、内存、网络和活跃用户历史。",
+          "bullets": [
+            "选择 6 小时、24 小时或 7 天。点击刷新获取新样本；页面不会持续轮询。",
+            "CPU 和内存代表整个 Linux 主机。网络显示所选主机接口每秒接收和发送的字节数，也包括其他应用的流量。",
+            "最近活跃默认指在过去 15 分钟内发出过已认证 API 请求的唯一用户，并非所有已登录浏览器的数量。空闲用户会逐渐退出统计，多种角色可能重叠。",
+            "历史从安装 system-monitor 后开始，保留七天。图表按 1、5 或 30 分钟分组显示资源平均值和采样用户数的最大值。",
+            "将高峰时段与图表对照。数据过时、出错或恢复时，检查样本时间和监控事件。运维人员仍可查看完整 Docker 日志。"
+          ],
+          "note": "浏览器截图使用示例数据；调查实际问题时请查看您自己的历史记录。"
         }
       ]
     },

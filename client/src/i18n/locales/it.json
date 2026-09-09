@@ -333,7 +333,55 @@
       "course": "Corso",
       "activeUsers": "Utenti attivi",
       "enrollment": "Iscritti",
-      "noCourses": "Nessun corso disponibile."
+      "noCourses": "Nessun corso disponibile.",
+      "monitorFailedLoad": "Impossibile caricare i dati di monitoraggio del sistema",
+      "systemMonitoring": "Monitoraggio del sistema",
+      "systemMonitoringDescription": "Cronologia a bassa frequenza di CPU, memoria, rete e utenti attivi dell’host, conservata per 7 giorni.",
+      "historyRange": "Intervallo della cronologia di monitoraggio",
+      "range6Hours": "6 ore",
+      "range24Hours": "24 ore",
+      "range7Days": "7 giorni",
+      "monitorStatus": {
+        "healthy": "Raccolta attiva",
+        "stale": "Obsoleto",
+        "unavailable": "Non configurato"
+      },
+      "monitorUnavailableHelp": "Non sono disponibili campioni di sistema. Avviare il servizio system-monitor e verificarne la connessione a MongoDB.",
+      "monitorStaleHelp": "Il campione più recente è obsoleto. Controllare gli eventi di system-monitor e lo stato del contenitore.",
+      "cpu": "CPU",
+      "memory": "Memoria",
+      "loadAndCores": "Carico di 1 minuto {{load}} su {{cores}} core",
+      "hostMemory": "Memoria host in uso",
+      "activeNow": "Attivi di recente",
+      "activeNowHelp": "Autenticati negli ultimi {{minutes}} minuti",
+      "network": "Rete",
+      "receivedSent": "Ricevuti / inviati sull’interfaccia monitorata",
+      "lastSample": "Ultimo campione: {{time}} · intervallo di raccolta: {{seconds}} secondi",
+      "resourceHistory": "Cronologia di CPU e memoria",
+      "resourceHistoryHelp": "Utilizzo medio in ogni intervallo di tempo visualizzato.",
+      "activityHistory": "Cronologia degli utenti attivi",
+      "activityHistoryHelp": "Utenti unici che hanno effettuato una richiesta autenticata entro {{minutes}} minuti da ciascun campione. Le linee dei ruoli possono sovrapporsi.",
+      "networkHistory": "Cronologia del traffico di rete",
+      "networkHistoryHelp": "Velocità media in entrata e in uscita sull’interfaccia di route predefinita dell’host.",
+      "noMonitorHistory": "Nessuna cronologia di monitoraggio disponibile per questo intervallo.",
+      "students": "Studenti",
+      "professors": "Professori",
+      "received": "Ricevuti",
+      "sent": "Inviati",
+      "peakPeriods": "Periodi di picco",
+      "peakPeriodsHelp": "I cinque intervalli visualizzati più intensi, ordinati prima per utenti attivi e poi per utilizzo della CPU.",
+      "time": "Ora",
+      "monitorEvents": "Eventi del monitor",
+      "monitorEventsHelp": "Eventi recenti del ciclo di vita e degli errori del raccoglitore. I log grezzi dei servizi Docker restano disponibili tramite docker compose logs; l’esposizione del socket Docker all’app viene evitata intenzionalmente.",
+      "level": "Livello",
+      "event": "Evento",
+      "collector": "Raccoglitore",
+      "noMonitorEvents": "Nessun evento del monitor registrato negli ultimi 7 giorni.",
+      "eventLevel": {
+        "info": "Informazione",
+        "warning": "Avviso",
+        "error": "Errore"
+      }
     },
     "settings": {
       "restrictDomain": "Limita il dominio email",
@@ -2088,6 +2136,18 @@
             "Usa Gestisci notifiche nella scheda Utenti per pubblicare avvisi di accesso a livello di sistema che ogni utente vedrà nella barra dell'applicazione finché non scadono o non vengono chiusi."
           ],
           "warning": "I cambi di ruolo e le approvazioni di accesso SSO hanno effetto immediato, quindi conferma la richiesta prima di salvare."
+        },
+        {
+          "title": "Monitorare il carico del sistema e le ore di punta",
+          "subtitle": "Apri Statistiche di utilizzo per confrontare CPU, memoria, rete e utenti attivi.",
+          "bullets": [
+            "Scegli 6 ore, 24 ore o 7 giorni. Aggiorna carica nuovi campioni; la pagina non interroga continuamente il server.",
+            "CPU e memoria riguardano tutto il sistema Linux. La rete mostra byte ricevuti/inviati al secondo sulle interfacce selezionate, comprese le altre applicazioni.",
+            "Un utente recentemente attivo ha effettuato una richiesta API autenticata negli ultimi 15 minuti per impostazione predefinita. Non conta tutti i browser connessi; gli utenti inattivi scadono e i ruoli possono sovrapporsi.",
+            "La cronologia inizia con l’installazione di system-monitor e dura sette giorni. I grafici mostrano medie delle risorse in intervalli di 1, 5 o 30 minuti e il massimo numero di utenti rilevato.",
+            "Confronta i periodi di punta con i grafici. Controlla l’ora del campione e gli eventi del monitor per dati obsoleti, errori e ripristini. Gli operatori possono consultare i log Docker completi."
+          ],
+          "note": "La schermata del browser mostra dati di esempio; usa la tua cronologia per analizzare gli incidenti."
         }
       ]
     },

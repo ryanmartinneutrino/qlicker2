@@ -333,7 +333,47 @@
       "course": "Ship",
       "activeUsers": "Active hands",
       "enrollment": "Crew enrolled",
-      "noCourses": "No ships be available."
+      "noCourses": "No ships be available.",
+      "monitorFailedLoad": "Couldn't fetch th' system watch tallies",
+      "systemMonitoring": "Ship's system watch",
+      "systemMonitoringDescription": "CPU, memory, network, and active crew tallies sampled gently and kept fer 7 days.",
+      "historyRange": "System watch history span",
+      "range6Hours": "6 hours aboard",
+      "range24Hours": "24 hours aboard",
+      "range7Days": "7 days aboard",
+      "monitorStatus": { "healthy": "Keepin' watch", "stale": "Old tidings", "unavailable": "Watch not rigged" },
+      "monitorUnavailableHelp": "Nary a system sample. Start th' system-monitor service and check its MongoDB link.",
+      "monitorStaleHelp": "Th' latest sample be old. Check th' system-monitor events and container's condition.",
+      "cpu": "CPU engines",
+      "memory": "Memory hold",
+      "loadAndCores": "1-minute load {{load}} across {{cores}} cores aboard",
+      "hostMemory": "Host memory in use aboard",
+      "activeNow": "Recently aboard",
+      "activeNowHelp": "Authenticated in th' past {{minutes}} minutes",
+      "network": "Network riggin'",
+      "receivedSent": "Received / sent on th' watched interface",
+      "lastSample": "Last tally: {{time}} · watch interval: {{seconds}} seconds",
+      "resourceHistory": "CPU and memory logbook",
+      "resourceHistoryHelp": "Average usage in each shown time bucket, arr.",
+      "activityHistory": "Active crew logbook",
+      "activityHistoryHelp": "Unique hands makin' an authenticated request within {{minutes}} minutes of each sample. Rank lines may overlap.",
+      "networkHistory": "Network traffic logbook",
+      "networkHistoryHelp": "Average inbound and outbound traffic on th' host's default-route interface.",
+      "noMonitorHistory": "Nary a watch tally fer this span.",
+      "students": "Deckhands",
+      "professors": "Captains",
+      "received": "Taken aboard",
+      "sent": "Sent ashore",
+      "peakPeriods": "Busiest watches",
+      "peakPeriodsHelp": "Th' five busiest shown buckets, ranked by active hands then CPU usage.",
+      "time": "Ship's time",
+      "monitorEvents": "Watch events",
+      "monitorEventsHelp": "Recent watch starts, stops, and errors. Full Docker logs be available through docker compose logs; th' app has no Docker socket aboard.",
+      "level": "Severity aboard",
+      "event": "Happenin'",
+      "collector": "Lookout",
+      "noMonitorEvents": "Nary a watch event in th' past 7 days.",
+      "eventLevel": { "info": "Tidings", "warning": "Look sharp", "error": "Trouble aboard" }
     },
     "settings": {
       "restrictDomain": "Restrict missive domain",
@@ -2088,6 +2128,18 @@
             "Use Oversee bulletins in th' Hands tab to yarn system-wide login notices that every hand sees in th' app bar until they expire or be waved off."
           ],
           "warning": "Rank changes an' SSO login approvals take effect immediately, so confirm th' request afore savin'."
+        },
+        {
+          "title": "Watch th' host and busiest hours aboard",
+          "subtitle": "Open Usage Tallies to compare CPU engines, memory hold, network riggin', and active hands.",
+          "bullets": [
+            "Choose 6 hours, 24 hours, or 7 days aboard. Refresh fetches new tallies; th' page ain't askin' constantly.",
+            "CPU and memory cover th' whole Linux host. Network shows bytes taken aboard and sent ashore each second on th' selected interfaces, includin' other cargo aboard.",
+            "Recently active means a hand made an authenticated API request in th' past 15 minutes by default. Idle signed-in hands may fall off th' tally, and ranks may overlap.",
+            "Th' logbook starts when system-monitor is rigged and keeps seven days. Charts average resources over 1, 5, or 30 minutes and show th' highest sampled crew count.",
+            "Compare busiest watches with th' charts. Check sample time and watch events fer stale tidings, errors, and recovery. Operators can read th' full Docker logs."
+          ],
+          "note": "Th' browser capture shows example tallies; use yer own logbook to investigate trouble."
         }
       ]
     },

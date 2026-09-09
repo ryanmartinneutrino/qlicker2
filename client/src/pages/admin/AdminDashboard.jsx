@@ -2722,27 +2722,181 @@ function CoursesTab() {
   );
 }
 
+function formatPercent(value) {
+  if (value == null) return '—';
+  const number = Number(value);
+  return Number.isFinite(number) ? `${number.toFixed(1)}%` : '—';
+}
+
+function formatByteRate(value) {
+  if (value == null) return '—';
+  const number = Number(value);
+  if (!Number.isFinite(number)) return '—';
+  const units = ['B/s', 'KB/s', 'MB/s', 'GB/s'];
+  let scaled = Math.max(0, number);
+  let unitIndex = 0;
+  while (scaled >= 1024 && unitIndex < units.length - 1) {
+    scaled /= 1024;
+    unitIndex += 1;
+  }
+  return `${scaled.toFixed(scaled >= 100 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+}
+
+function buildChartPath(points, valueKey, dimensions) {
+  const { left, top, width, height, yMax } = dimensions;
+  if (!points.length) return '';
+  const timestamps = points.map((point) => new Date(point.timestamp).getTime());
+  const minTime = Math.min(...timestamps);
+  const maxTime = Math.max(...timestamps);
+  const timeSpan = Math.max(1, maxTime - minTime);
+  let drawing = false;
+  return points.map((point, index) => {
+    const value = point[valueKey] == null ? NaN : Number(point[valueKey]);
+    if (!Number.isFinite(value)) {
+      drawing = false;
+      return '';
+    }
+    const timestamp = timestamps[index];
+    const x = left + (((timestamp - minTime) / timeSpan) * width);
+    const y = top + height - ((Math.max(0, Math.min(yMax, value)) / yMax) * height);
+    const command = drawing ? 'L' : 'M';
+    drawing = true;
+    return `${command}${x.toFixed(2)},${y.toFixed(2)}`;
+  }).filter(Boolean).join(' ');
+}
+
+function MonitoringLineChart({
+  description,
+  emptyLabel,
+  points = [],
+  series,
+  title,
+  valueFormatter,
+  yMaximum,
+}) {
+  const chartPoints = points.filter((point) => point?.timestamp);
+  const timestamps = chartPoints.map((point) => new Date(point.timestamp).getTime());
+  const minTime = Math.min(...timestamps);
+  const maxTime = Math.max(...timestamps);
+  const allValues = chartPoints.flatMap((point) => series.map(({ key }) => point[key] == null ? NaN : Number(point[key])))
+    .filter(Number.isFinite);
+  const calculatedMaximum = Math.max(1, ...allValues);
+  const yMax = yMaximum || calculatedMaximum;
+  const dimensions = { left: 64, top: 18, width: 806, height: 190, yMax };
+  const firstTimestamp = chartPoints[0]?.timestamp;
+  const middleTimestamp = chartPoints[Math.floor(chartPoints.length / 2)]?.timestamp;
+  const lastTimestamp = chartPoints.at(-1)?.timestamp;
+  const compactTime = (value) => {
+    if (!value) return '';
+    return new Intl.DateTimeFormat(undefined, {
+      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+    }).format(new Date(value));
+  };
+
+  return (
+    <Paper variant="outlined" sx={{ p: 2, minWidth: 0 }}>
+      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{title}</Typography>
+      <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>{description}</Typography>
+      {chartPoints.length === 0 || allValues.length === 0 ? (
+        <Alert severity="info">{emptyLabel}</Alert>
+      ) : (
+        <>
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 0.5 }}>
+            {series.map((entry) => (
+              <Box key={entry.key} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Box aria-hidden="true" sx={{ width: 14, height: 3, bgcolor: entry.color, borderRadius: 1 }} />
+                <Typography variant="caption">{entry.label}</Typography>
+              </Box>
+            ))}
+          </Box>
+          <Box sx={{ width: '100%', overflowX: 'auto' }}>
+            <Box
+              component="svg"
+              viewBox="0 0 900 245"
+              role="img"
+              aria-label={`${title}. ${description}`}
+              sx={{ display: 'block', width: '100%', minWidth: 620, height: 'auto' }}
+            >
+              {[0, 0.25, 0.5, 0.75, 1].map((fraction) => {
+                const y = dimensions.top + dimensions.height - (fraction * dimensions.height);
+                return (
+                  <g key={fraction}>
+                    <line x1={dimensions.left} x2={dimensions.left + dimensions.width} y1={y} y2={y} stroke="#d9dde3" strokeWidth="1" />
+                    <text x={dimensions.left - 8} y={y + 4} textAnchor="end" fontSize="11" fill="currentColor">
+                      {valueFormatter(yMax * fraction)}
+                    </text>
+                  </g>
+                );
+              })}
+              {series.map((entry) => (
+                <path
+                  key={entry.key}
+                  d={buildChartPath(chartPoints, entry.key, dimensions)}
+                  fill="none"
+                  stroke={entry.color}
+                  strokeWidth="2.5"
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                />
+              ))}
+              {chartPoints.flatMap((point, pointIndex) => series.map((entry) => {
+                const value = point[entry.key] == null ? NaN : Number(point[entry.key]);
+                if (!Number.isFinite(value)) return null;
+                const x = dimensions.left + (((timestamps[pointIndex] - minTime) / Math.max(1, maxTime - minTime)) * dimensions.width);
+                const y = dimensions.top + dimensions.height - ((Math.max(0, Math.min(yMax, value)) / yMax) * dimensions.height);
+                return (
+                  <circle key={`${entry.key}-${point.timestamp}`} cx={x} cy={y} r="5" fill="transparent">
+                    <title>{`${entry.label}: ${valueFormatter(value)} — ${formatDisplayDateTime(point.timestamp)}`}</title>
+                  </circle>
+                );
+              }))}
+              <text x={dimensions.left} y="232" textAnchor="start" fontSize="11" fill="currentColor">{compactTime(firstTimestamp)}</text>
+              <text x={dimensions.left + (dimensions.width / 2)} y="232" textAnchor="middle" fontSize="11" fill="currentColor">{compactTime(middleTimestamp)}</text>
+              <text x={dimensions.left + dimensions.width} y="232" textAnchor="end" fontSize="11" fill="currentColor">{compactTime(lastTimestamp)}</text>
+            </Box>
+          </Box>
+        </>
+      )}
+    </Paper>
+  );
+}
+
 function UsageStatisticsTab() {
   const { t } = useTranslation();
   const [statistics, setStatistics] = useState(null);
+  const [monitoring, setMonitoring] = useState(null);
+  const [monitorRange, setMonitorRange] = useState('24h');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [monitorError, setMonitorError] = useState('');
+  const latestRequest = useRef(0);
 
   const loadStatistics = useCallback(async () => {
+    const requestId = ++latestRequest.current;
     setLoading(true);
     setError('');
-    try {
-      const { data } = await apiClient.get('/users/admin/usage-statistics');
-      setStatistics(data);
-    } catch (err) {
-      setError(err.response?.data?.message || t('admin.usageStatistics.failedLoad'));
-    } finally {
-      setLoading(false);
+    setMonitorError('');
+    const [usageResult, monitoringResult] = await Promise.allSettled([
+      apiClient.get('/users/admin/usage-statistics'),
+      apiClient.get('/users/admin/system-monitoring', { params: { range: monitorRange } }),
+    ]);
+    if (requestId !== latestRequest.current) return;
+    if (usageResult.status === 'fulfilled') {
+      setStatistics(usageResult.value.data);
+    } else {
+      setError(usageResult.reason?.response?.data?.message || t('admin.usageStatistics.failedLoad'));
     }
-  }, [t]);
+    if (monitoringResult.status === 'fulfilled') {
+      setMonitoring(monitoringResult.value.data);
+    } else {
+      setMonitorError(monitoringResult.reason?.response?.data?.message || t('admin.usageStatistics.monitorFailedLoad'));
+    }
+    setLoading(false);
+  }, [monitorRange, t]);
 
   useEffect(() => {
     loadStatistics();
+    return () => { latestRequest.current += 1; };
   }, [loadStatistics]);
 
   const loginCards = [
@@ -2843,6 +2997,209 @@ function UsageStatisticsTab() {
           </TableBody>
         </Table>
       </TableContainer>
+
+      <Box component="section" aria-label={t('admin.usageStatistics.systemMonitoring')} sx={{ mt: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2, flexWrap: 'wrap', mb: 2 }}>
+          <Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+              <Typography variant="h6">{t('admin.usageStatistics.systemMonitoring')}</Typography>
+              <Chip
+                size="small"
+                color={monitoring?.status === 'healthy' ? 'success' : monitoring?.status === 'stale' ? 'warning' : 'default'}
+                label={t(`admin.usageStatistics.monitorStatus.${monitoring?.status || 'unavailable'}`)}
+              />
+            </Box>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              {t('admin.usageStatistics.systemMonitoringDescription')}
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }} aria-label={t('admin.usageStatistics.historyRange')}>
+            {[
+              { value: '6h', label: t('admin.usageStatistics.range6Hours') },
+              { value: '24h', label: t('admin.usageStatistics.range24Hours') },
+              { value: '7d', label: t('admin.usageStatistics.range7Days') },
+            ].map((range) => (
+              <Button
+                key={range.value}
+                size="small"
+                variant={monitorRange === range.value ? 'contained' : 'outlined'}
+                aria-pressed={monitorRange === range.value}
+                onClick={() => setMonitorRange(range.value)}
+              >
+                {range.label}
+              </Button>
+            ))}
+          </Box>
+        </Box>
+
+        {monitorError ? <Alert severity="error" sx={{ mb: 2 }}>{monitorError}</Alert> : null}
+        {monitoring?.status === 'unavailable' ? (
+          <Alert severity="info" sx={{ mb: 2 }}>{t('admin.usageStatistics.monitorUnavailableHelp')}</Alert>
+        ) : null}
+        {monitoring?.status === 'stale' ? (
+          <Alert severity="warning" sx={{ mb: 2 }}>{t('admin.usageStatistics.monitorStaleHelp')}</Alert>
+        ) : null}
+
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(4, minmax(0, 1fr))' },
+            gap: 2,
+            mb: 2,
+          }}
+        >
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>{t('admin.usageStatistics.cpu')}</Typography>
+            <Typography variant="h4" component="p" sx={{ fontWeight: 700 }}>{formatPercent(monitoring?.latest?.cpu?.usagePercent)}</Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              {t('admin.usageStatistics.loadAndCores', {
+                load: monitoring?.latest?.cpu?.load1 == null ? '—' : Number(monitoring.latest.cpu.load1).toFixed(2),
+                cores: monitoring?.latest?.cpu?.cores || '—',
+              })}
+            </Typography>
+          </Paper>
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>{t('admin.usageStatistics.memory')}</Typography>
+            <Typography variant="h4" component="p" sx={{ fontWeight: 700 }}>{formatPercent(monitoring?.latest?.memory?.usedPercent)}</Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>{t('admin.usageStatistics.hostMemory')}</Typography>
+          </Paper>
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>{t('admin.usageStatistics.activeNow')}</Typography>
+            <Typography variant="h4" component="p" sx={{ fontWeight: 700 }}>
+              {monitoring?.latest?.activity?.activeUsers != null ? Number(monitoring.latest.activity.activeUsers).toLocaleString() : '—'}
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              {t('admin.usageStatistics.activeNowHelp', { minutes: monitoring?.latest?.activity?.windowMinutes || 15 })}
+            </Typography>
+          </Paper>
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>{t('admin.usageStatistics.network')}</Typography>
+            <Typography variant="h6" component="p" sx={{ fontWeight: 700 }}>
+              {formatByteRate(monitoring?.latest?.network?.receivedBytesPerSecond)} / {formatByteRate(monitoring?.latest?.network?.transmittedBytesPerSecond)}
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>{t('admin.usageStatistics.receivedSent')}</Typography>
+          </Paper>
+        </Box>
+
+        {monitoring?.latest?.timestamp ? (
+          <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mb: 2 }}>
+            {t('admin.usageStatistics.lastSample', {
+              time: formatDisplayDateTime(monitoring.latest.timestamp),
+              seconds: monitoring.latest.sampleIntervalSeconds || 60,
+            })}
+          </Typography>
+        ) : null}
+
+        <Box sx={{ display: 'grid', gap: 2 }}>
+          <MonitoringLineChart
+            title={t('admin.usageStatistics.resourceHistory')}
+            description={t('admin.usageStatistics.resourceHistoryHelp')}
+            emptyLabel={t('admin.usageStatistics.noMonitorHistory')}
+            points={monitoring?.history || []}
+            yMaximum={100}
+            valueFormatter={formatPercent}
+            series={[
+              { key: 'cpuPercent', label: t('admin.usageStatistics.cpu'), color: '#1976d2' },
+              { key: 'memoryPercent', label: t('admin.usageStatistics.memory'), color: '#d32f2f' },
+            ]}
+          />
+          <MonitoringLineChart
+            title={t('admin.usageStatistics.activityHistory')}
+            description={t('admin.usageStatistics.activityHistoryHelp', { minutes: monitoring?.latest?.activity?.windowMinutes || 15 })}
+            emptyLabel={t('admin.usageStatistics.noMonitorHistory')}
+            points={monitoring?.history || []}
+            valueFormatter={(value) => Math.round(value).toLocaleString()}
+            series={[
+              { key: 'activeUsers', label: t('admin.usageStatistics.activeUsers'), color: '#2e7d32' },
+              { key: 'activeStudents', label: t('admin.usageStatistics.students'), color: '#1976d2' },
+              { key: 'activeProfessors', label: t('admin.usageStatistics.professors'), color: '#ed6c02' },
+            ]}
+          />
+          <MonitoringLineChart
+            title={t('admin.usageStatistics.networkHistory')}
+            description={t('admin.usageStatistics.networkHistoryHelp')}
+            emptyLabel={t('admin.usageStatistics.noMonitorHistory')}
+            points={monitoring?.history || []}
+            valueFormatter={formatByteRate}
+            series={[
+              { key: 'networkReceivedBytesPerSecond', label: t('admin.usageStatistics.received'), color: '#7b1fa2' },
+              { key: 'networkTransmittedBytesPerSecond', label: t('admin.usageStatistics.sent'), color: '#00796b' },
+            ]}
+          />
+        </Box>
+
+        <Typography variant="h6" sx={{ mt: 3, mb: 0.5 }}>{t('admin.usageStatistics.peakPeriods')}</Typography>
+        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>{t('admin.usageStatistics.peakPeriodsHelp')}</Typography>
+        <TableContainer component={Paper} variant="outlined">
+          <Table size="small" aria-label={t('admin.usageStatistics.peakPeriods')}>
+            <TableHead>
+              <TableRow>
+                <TableCell>{t('admin.usageStatistics.time')}</TableCell>
+                <TableCell align="right">{t('admin.usageStatistics.activeUsers')}</TableCell>
+                <TableCell align="right">{t('admin.usageStatistics.cpu')}</TableCell>
+                <TableCell align="right">{t('admin.usageStatistics.memory')}</TableCell>
+                <TableCell align="right">{t('admin.usageStatistics.network')}</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {(monitoring?.peakPeriods || []).length === 0 ? (
+                <TableRow><TableCell colSpan={5}>{t('admin.usageStatistics.noMonitorHistory')}</TableCell></TableRow>
+              ) : monitoring.peakPeriods.map((period) => (
+                <TableRow key={period.timestamp}>
+                  <TableCell>{formatDisplayDateTime(period.timestamp)}</TableCell>
+                  <TableCell align="right">{period.activeUsers ?? '—'}</TableCell>
+                  <TableCell align="right">{formatPercent(period.cpuPercent)}</TableCell>
+                  <TableCell align="right">{formatPercent(period.memoryPercent)}</TableCell>
+                  <TableCell align="right">
+                    {formatByteRate(period.networkReceivedBytesPerSecond == null || period.networkTransmittedBytesPerSecond == null
+                      ? null : period.networkReceivedBytesPerSecond + period.networkTransmittedBytesPerSecond)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        <Typography variant="h6" sx={{ mt: 3, mb: 0.5 }}>{t('admin.usageStatistics.monitorEvents')}</Typography>
+        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>{t('admin.usageStatistics.monitorEventsHelp')}</Typography>
+        <TableContainer component={Paper} variant="outlined">
+          <Table size="small" aria-label={t('admin.usageStatistics.monitorEvents')}>
+            <TableHead>
+              <TableRow>
+                <TableCell>{t('admin.usageStatistics.time')}</TableCell>
+                <TableCell>{t('admin.usageStatistics.level')}</TableCell>
+                <TableCell>{t('admin.usageStatistics.event')}</TableCell>
+                <TableCell>{t('admin.usageStatistics.collector')}</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {(monitoring?.events || []).length === 0 ? (
+                <TableRow><TableCell colSpan={4}>{t('admin.usageStatistics.noMonitorEvents')}</TableCell></TableRow>
+              ) : monitoring.events.map((event, index) => (
+                <TableRow key={`${event.timestamp}-${event.code}-${index}`}>
+                  <TableCell>{formatDisplayDateTime(event.timestamp)}</TableCell>
+                  <TableCell>
+                    <Chip
+                      size="small"
+                      label={t(`admin.usageStatistics.eventLevel.${event.level}`)}
+                      color={event.level === 'error' ? 'error' : event.level === 'warning' ? 'warning' : 'default'}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    {event.message}
+                    {event.details?.error ? (
+                      <Typography variant="caption" component="div" sx={{ overflowWrap: 'anywhere' }}>
+                        {event.details.error}
+                      </Typography>
+                    ) : null}
+                  </TableCell>
+                  <TableCell>{event.collectorId}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Box>
     </Box>
   );
 }

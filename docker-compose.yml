@@ -51,6 +51,46 @@ services:
       - redis
     restart: unless-stopped
 
+  # One Linux-host collector per deployment, independent of API replicas.
+  system-monitor:
+    build:
+      context: ./server
+      args:
+        APP_VERSION: ${APP_VERSION:-latest}
+    command: ["node", "--max-old-space-size=64", "src/systemMonitor.js"]
+    environment:
+      - MONGO_URI=mongodb://mongo:${MONGO_PORT:?Set MONGO_PORT in .env}/qlicker
+      - REDIS_URL=redis://redis:${REDIS_PORT:-6379}
+      - SYSTEM_MONITOR_PROC_PATH=/host/proc
+      - SYSTEM_MONITOR_COLLECTOR_ID=host
+      - SYSTEM_MONITOR_SAMPLE_INTERVAL_SECONDS=${SYSTEM_MONITOR_SAMPLE_INTERVAL_SECONDS:-60}
+      - SYSTEM_MONITOR_ACTIVE_WINDOW_MINUTES=${SYSTEM_MONITOR_ACTIVE_WINDOW_MINUTES:-15}
+      - SYSTEM_MONITOR_NETWORK_INTERFACES=${SYSTEM_MONITOR_NETWORK_INTERFACES:-}
+    volumes:
+      - /proc/stat:/host/proc/stat:ro
+      - /proc/meminfo:/host/proc/meminfo:ro
+      - /proc/loadavg:/host/proc/loadavg:ro
+      # PID 1 selects the host network namespace; /proc/net follows the reader.
+      - /proc/1/net/dev:/host/proc/net/dev:ro
+      - /proc/1/net/route:/host/proc/net/route:ro
+    user: node
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    cpus: 0.10
+    mem_limit: 128m
+    memswap_limit: 128m
+    pids_limit: 32
+    logging:
+      driver: local
+      options:
+        max-size: "5m"
+        max-file: "2"
+    depends_on:
+      - mongo
+      - redis
+    restart: unless-stopped
+
   client:
     build:
       context: ./client

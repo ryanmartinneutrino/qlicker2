@@ -204,7 +204,34 @@ If SSO is wrong, it can prevent access for many users at once, so make changes d
 
 ## Usage statistics
 
-Use **Usage Statistics** to compare active users over the past hour, 24 hours, and 7 days and to see the five most active courses. This view is operational context, not an academic analytics report.
+Open **Admin → Usage Statistics**. The first cards count unique accounts by their recorded last login over the past hour, 24 hours, and 7 days; the course table ranks enrolled members with recent logins. These are login summaries, not a count of currently connected browsers.
+
+### Investigate busy teaching periods
+
+1. Scroll to **System monitoring** and select **6 hours**, **24 hours**, or **7 days**.
+2. Compare **CPU and memory history** with **Active-user history** at the same time. The **Peak periods** table lists the five busiest displayed periods, ranked by active users and then CPU.
+3. Compare inbound and outbound **Network traffic history** with those peaks. A busy classroom may have high user activity without high host utilization; sustained high resource use at quiet times warrants an operational investigation.
+4. Check the last sample timestamp. Use **Refresh** for current data; the page does not continuously poll. Results can be cached for 30 seconds.
+5. If samples are **Stale**, review **Monitor events** for collection failures, recovery, and Redis availability. A missing history means the collector has not supplied data for that range. Ask the operator to check the service if no event explains the gap.
+
+![Admin system monitoring charts and activity history](../assets/manuals/admin-system-monitoring.png)
+
+*The illustration is a Chromium capture using example monitoring data; it does not describe the load on your installation.*
+
+### Understand the measurements
+
+| Measurement | Interpretation |
+| --- | --- |
+| CPU | Percentage busy across all host CPU cores, averaged between samples. The load value is Linux's one-minute load average, not a percentage. |
+| Memory | Host RAM in use: total minus available memory. Reclaimable cache is included in available memory. |
+| Network | Average received/sent bytes per second on the host's default-route interface(s), or interfaces selected by the operator. Includes traffic from other applications on that host. |
+| Recently active | Unique authenticated users making an API request during the preceding 15 minutes by default. Multiple tabs/replicas deduplicate by user. Idle signed-in users and browsers only receiving WebSocket updates can age out; logout does not immediately remove recent activity. |
+| Role lines | Students and professors with recent requests. Users with multiple roles can appear in multiple lines; total users remain deduplicated. |
+| History | Seven days, starting when the collector is installed. Default sampling is once per minute. Display buckets are 1 minute, 5 minutes, or 30 minutes for the three ranges. Resource values are averages; active-user values are the maximum sample count in each bucket. Very brief spikes can be missed. |
+
+Host metrics cover the machine running Docker, including MongoDB, Redis, Qlicker, and other workloads. On Docker Desktop this is the Linux VM. They are not per-container measurements. Missing measurements are shown as gaps or dashes; unavailable Redis activity is not reported as zero users.
+
+**Monitor events** provides the latest 50 collector events from the past seven days, with collection error details. Full API, database, proxy, and operating-system logs are not imported into this page; operators can use the [deployment log commands](../../production_setup/README.md#monitoring--logs). The collector has no Docker-control access.
 
 - Use trends to decide whether a reported incident is isolated or site-wide.
 - Expect values to depend on the app's recorded activity windows; do not interpret them as attendance or grades.

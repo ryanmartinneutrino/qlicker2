@@ -69,6 +69,10 @@ Important backend areas:
 - `server/test/` contains route and service tests.
 - `server/scripts/` contains E2E, migration, and data-maintenance entry points.
 
+### Host monitoring
+
+`server/src/systemMonitor.js` is a separate, resource-limited collector process. It reads Linux host counters once per minute and writes seven-day aggregate history and collector events to MongoDB. Authentication publishes throttled, non-awaited recent-user heartbeats to Redis; no host sampling or monitoring database writes run in request handlers. The admin-only `/users/admin/system-monitoring` endpoint reads bounded history and caches downsampled responses for 30 seconds. The client fetches on tab entry, range selection, or manual refresh. See [deployment and metric limits](../../production_setup/README.md#in-app-system-monitoring).
+
 ## Role-oriented page model
 
 The current app is intentionally role-oriented:
