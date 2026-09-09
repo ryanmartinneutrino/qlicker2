@@ -22,6 +22,14 @@ Use the repository scripts when possible:
 ./scripts/qlicker.sh start
 ```
 
+On Linux, this also starts the system monitor with the root `.env` Mongo/Redis and monitoring settings. Use `./scripts/qlicker.sh status`, `stop`, or `restart` to manage the complete native stack. The collector writes `.data/system-monitor.log`; `SYSTEM_MONITOR_LOG_PATH` overrides that location. Its PID is tracked both in `.qlicker.pids` and `.data/system-monitor.pid` so stopping still finds the collector if the main PID file is lost. A collector failure leaves the app available and appears as stopped in status; restart the stack after correcting the problem. Set `SYSTEM_MONITOR_ENABLED=false` to opt out.
+
+The collector runs with a 64 MiB V8 old-space limit and lower CPU scheduling priority (`nice 10` when available). These are not Docker's hard total-memory/CPU limits; use a native supervisor/cgroup for equivalent hard limits. Native controller lifecycle regressions use isolated fixture processes and ports:
+
+```bash
+node --test scripts/test/qlicker-native.test.mjs
+```
+
 Or run the two app halves manually:
 
 ```bash

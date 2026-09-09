@@ -865,13 +865,17 @@ Apply configuration changes with `docker compose up -d system-monitor`. History 
 
 On hosts with VPNs, bonded links, or multiple default routes, select the intended physical interface(s) explicitly with `SYSTEM_MONITOR_NETWORK_INTERFACES`. Summing a tunnel and its underlying interface can count the same traffic twice. The latest sample's `network.interfaces` field in the admin API identifies the measured interfaces.
 
-For native Linux development, run the same collector under a process supervisor with `MONGO_URI` and optionally `REDIS_URL` set to the application's database/services:
+For native Linux development, `./scripts/qlicker.sh start` automatically starts the same collector, reads the root `.env`, and manages it with `status`, `stop`, and `restart`. Shutdown stops the collector before Redis/MongoDB so it can persist its final event. The helper prevents duplicate collector starts, recognizes its own orphaned collector if the main PID file is lost, and skips stale PIDs that belong to unrelated processes. Collector failure does not prevent the app from running.
+
+Native helper options are `SYSTEM_MONITOR_ENABLED=false` to opt out and `SYSTEM_MONITOR_LOG_PATH` to override `.data/system-monitor.log`. It uses a 64 MiB V8 old-space limit and lower scheduling priority (`nice 10` where available), not Docker's hard CPU/total-memory limits. Logs over 5 MiB rotate to a single `.1` file on startup; use logrotate for long-running native installations.
+
+When starting the app manually instead of through `qlicker.sh`, run the collector separately with `MONGO_URI` and optionally `REDIS_URL` set to the application's database/services:
 
 ```bash
 npm run monitor --prefix server
 ```
 
-It defaults to `/proc`; `SYSTEM_MONITOR_PROC_PATH` can override that path, and `SYSTEM_MONITOR_COLLECTOR_ID` can supply a readable host label. Export environment variables before starting it; this entry point does not automatically load `.env`. Apply equivalent resource limits through your native supervisor. The collector creates indexes only on its two new collections; no legacy-data migration is needed.
+It defaults to `/proc`; `SYSTEM_MONITOR_PROC_PATH` can override that path, and `SYSTEM_MONITOR_COLLECTOR_ID` can supply a readable host label. Export environment variables before invoking `npm run monitor` directly; that entry point does not automatically load `.env`. Apply hard resource limits through your native supervisor if required. The collector creates indexes only on its two new collections; no legacy-data migration is needed.
 
 ### Log access boundaries
 

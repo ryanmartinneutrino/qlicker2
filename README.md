@@ -63,7 +63,7 @@ From the repository root:
 ./scripts/qlicker.sh status
 ```
 
-The guided setup creates local configuration, installs the client/server dependencies, and checks MongoDB and Redis. The service helper starts both application processes and manages their PID/log files.
+The guided setup creates local configuration, installs the client/server dependencies, and checks MongoDB and Redis. On Linux, the service helper also starts the system monitor automatically using the same `.env` configuration. `status`, `stop`, and `restart` manage it with the app; the monitor stops before Redis/MongoDB. Its log is `.data/system-monitor.log`. Set `SYSTEM_MONITOR_ENABLED=false` to opt out of native monitoring. Other operating systems skip the Linux collector.
 
 ### Docker development
 
