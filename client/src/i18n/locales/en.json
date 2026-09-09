@@ -2285,6 +2285,20 @@
           ]
         },
         {
+          "title": "Use join codes for attendance and admission",
+          "subtitle": "Control entry to a live interactive session, then handle late arrivals individually.",
+          "bullets": [
+            "The course enrollment code joins the course; the six-digit session join code admits an already-enrolled student to one live session. For attendance-controlled entry, enable Require Passcode before students join.",
+            "Launch does not open admission automatically. In the live Controls, enable Join Period and use Open presentation window to show the current code in class. Students open the live session and enter that code.",
+            "Set Refresh (sec) between 5 and 120; keep the professor's live controls open for automatic rotation. Refresh join code replaces the code immediately. Students not yet admitted must enter the current code.",
+            "After check-in, turn off Join Period but leave Require Passcode enabled. Without the passcode requirement, enrolled students can join a running session without a code.",
+            "For a late arrival, open Students, expand Waiting to join, filter by name or email, and select Admit beside the verified student. They must be enrolled. Manual admission works while the session is running even with Join Period closed.",
+            "Waiting to join lists enrolled students who have not joined, not necessarily people online or requesting admission.",
+            "Admission persists for that session, whether by code or by an instructor. Students can leave, refresh, lose connection, and rejoin the running session with the same account without another code—even after rotation or closing Join Period. Enabling passcodes later does not remove earlier admissions; a different session requires its own admission."
+          ],
+          "warning": "Use an in-class code and a short check-in window to support attendance enforcement. A shared code or joined count does not prove physical presence or continued attendance; also review participation and apply your institution's policy."
+        },
+        {
           "title": "Review results, grade consistently, and communicate feedback",
           "subtitle": "After students participate, Qlicker gives you several ways to inspect outcomes and respond.",
           "bullets": [
@@ -2400,14 +2414,18 @@
           }
         },
         {
-          "title": "Use the question library to build practice sessions",
-          "subtitle": "Library access depends on what your instructor has made visible to students.",
+          "title": "Create your own practice sessions",
+          "subtitle": "Build a named study set from library questions or questions you write yourself.",
           "bullets": [
-            "If your course does not allow access to practice questions, the library and practice-session tabs stay hidden until the instructor enables them.",
-            "Search the question library for accessible material on the topic you want to revisit.",
-            "Create practice sessions from library questions so you can rehearse at your own pace and then review the results right away.",
-            "If a question contains math, images, or a worked solution, keep those visible while practicing so you can learn from the full example."
-          ]
+            "Your instructor must enable access to practice questions. If the Question Library and Practice Sessions tabs are missing, ask your instructor; your own private library questions can also be used.",
+            "Open the course, choose Practice Sessions, then New practice session. Enter a required name, such as “Cell biology — revision for Quiz 2”, and optionally select Session tags.",
+            "Choose Add question → Copy from Question Library. Search or filter, select questions, and choose Add selected questions to practice session. For a mixed set, filter first, enter Random count, and choose Randomly add … questions from the list.",
+            "Use Add question above, below, or between questions to insert more. Remove excludes a question from the set without deleting the original library question.",
+            "To write your own question, choose Add question → Create New, select a type, and complete the prompt, answer options or expected answer, and solution. Wait for the save confirmation before closing the question editor. Use Edit to revise questions you own.",
+            "Choose Save and start practice to save the session and open its review. Try each question yourself before selecting Show Solution. This personal self-study workflow is separate from submitting an instructor's graded quiz.",
+            "Return to Practice Sessions to reopen your set, use Edit to rename it or change its questions, or Delete and confirm to remove it. If saving fails, check the error and required name before leaving the editor."
+          ],
+          "note": "Questions save separately from the session: cancelling the session editor does not undo question edits already saved. Start with a small topic-focused set, then create a mixed set using random selection."
         },
         {
           "title": "Use course chat and session chat for different kinds of questions",

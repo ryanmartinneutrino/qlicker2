@@ -2238,6 +2238,20 @@
           ]
         },
         {
+          "title": "Beitrittscodes für Anwesenheit und Zulassung verwenden",
+          "subtitle": "Steuern Sie den Zugang zu einer interaktiven Live-Sitzung und lassen Sie Nachzügler einzeln zu.",
+          "bullets": [
+            "Der Kurseinschreibecode dient zur Kursanmeldung; der sechsstellige Sitzungscode lässt bereits eingeschriebene Studierende zu einer Live-Sitzung zu. Aktivieren Sie für die Anwesenheitskontrolle vor dem Beitritt Zugangscode erforderlich.",
+            "Das Starten öffnet die Zulassung nicht automatisch. Aktivieren Sie in der Live-Steuerung die Beitrittsphase und zeigen Sie den aktuellen Code im Präsentationsfenster im Raum. Studierende öffnen die Live-Sitzung und geben den Code ein.",
+            "Stellen Sie das Aktualisierungsintervall auf 5 bis 120 Sekunden ein und lassen Sie die Live-Steuerung für den automatischen Wechsel geöffnet. Sie können den Code sofort aktualisieren. Noch nicht zugelassene Studierende benötigen den aktuellen Code.",
+            "Schließen Sie nach dem Einchecken die Beitrittsphase, lassen Sie Zugangscode erforderlich jedoch aktiviert. Ohne diese Anforderung können eingeschriebene Studierende einer laufenden Sitzung ohne Code beitreten.",
+            "Öffnen Sie für Nachzügler Studierende, klappen Sie Warten auf Beitritt auf, filtern Sie nach Name oder E-Mail und wählen Sie bei der überprüften Person Zulassen. Sie muss eingeschrieben sein. Die manuelle Zulassung funktioniert auch bei geschlossener Beitrittsphase, solange die Sitzung läuft.",
+            "Warten auf Beitritt zeigt eingeschriebene Personen, die noch nicht beigetreten sind; sie sind nicht unbedingt online oder warten aktiv auf eine Zulassung.",
+            "Die Zulassung gilt für diese Sitzung, ob per Code oder durch den Dozenten. Nach Verlassen, Neuladen oder Verbindungsabbruch ist der erneute Beitritt mit demselben Konto ohne neuen Code möglich, auch nach Codewechsel oder Schließen der Beitrittsphase. Eine später aktivierte Codepflicht hebt bestehende Zulassungen nicht auf; eine andere Sitzung benötigt eine eigene Zulassung."
+          ],
+          "warning": "Ein im Raum gezeigter Code und ein kurzes Eincheckfenster unterstützen die Anwesenheitskontrolle. Ein weitergegebener Code oder die Beitrittszahl beweist weder körperliche noch dauerhafte Anwesenheit. Prüfen Sie auch die Beteiligung und beachten Sie die Regeln Ihrer Einrichtung."
+        },
+        {
           "title": "Ergebnisse überprüfen, einheitlich benoten und Feedback kommunizieren",
           "subtitle": "Nachdem Studierende teilgenommen haben, bietet Ihnen Qlicker mehrere Möglichkeiten, Ergebnisse zu prüfen und darauf zu reagieren.",
           "bullets": [
@@ -2353,14 +2367,18 @@
           }
         },
         {
-          "title": "Die Fragenbibliothek nutzen, um Übungssitzungen zu erstellen",
-          "subtitle": "Der Bibliothekszugang hängt davon ab, was Ihr Dozent für Studierende sichtbar gemacht hat.",
+          "title": "Eigene Übungssitzungen erstellen",
+          "subtitle": "Stellen Sie ein benanntes Lernset aus Bibliotheksfragen oder eigenen Fragen zusammen.",
           "bullets": [
-            "Wenn Ihr Kurs keinen Zugang zu Übungsfragen erlaubt, bleiben die Bibliotheks- und Übungssitzungs-Tabs verborgen, bis der Dozent sie aktiviert.",
-            "Durchsuchen Sie die Fragenbibliothek nach zugänglichem Material zum Thema, das Sie wiederholen möchten.",
-            "Erstellen Sie Übungssitzungen aus Bibliotheksfragen, damit Sie in Ihrem eigenen Tempo üben und die Ergebnisse sofort überprüfen können.",
-            "Wenn eine Frage Mathematik, Bilder oder eine ausgearbeitete Lösung enthält, lassen Sie diese beim Üben sichtbar, damit Sie vom vollständigen Beispiel lernen können."
-          ]
+            "Der Dozent muss den Zugang zu Übungsfragen aktivieren. Fehlen die Tabs für Fragenbibliothek und Übungssitzungen, fragen Sie nach. Auch Ihre eigenen privaten Bibliotheksfragen können verwendet werden.",
+            "Öffnen Sie im Kurs die Übungssitzungen und erstellen Sie eine neue Übungssitzung. Geben Sie einen Namen ein, etwa „Zellbiologie — Wiederholung für Quiz 2“, und wählen Sie bei Bedarf Sitzungstags.",
+            "Wählen Sie Frage hinzufügen → Aus der Fragenbibliothek kopieren. Suchen oder filtern Sie, markieren Sie Fragen und fügen Sie die ausgewählten Fragen zur Übungssitzung hinzu. Für eine Zufallsauswahl filtern Sie zuerst, geben die gewünschte Anzahl ein und wählen die zufällige Übernahme aus der Liste.",
+            "Über Frage hinzufügen oberhalb, unterhalb oder zwischen Fragen fügen Sie weitere Inhalte ein. Entfernen nimmt eine Frage aus dem Set, ohne das Original in der Bibliothek zu löschen.",
+            "Für eine eigene Frage wählen Sie Frage hinzufügen → Neu erstellen, dann Typ, Fragetext, Antwortoptionen oder erwartete Antwort und Lösung. Warten Sie vor dem Schließen des Frageneditors auf die Speicherbestätigung. Eigene Fragen können Sie bearbeiten.",
+            "Speichern Sie die Sitzung und starten Sie die Übung, um die Übersicht zu öffnen. Versuchen Sie jede Frage selbst zu lösen, bevor Sie die Lösung anzeigen. Diese persönliche Übung ist keine Abgabe eines benoteten Quiz des Dozenten.",
+            "Über Übungssitzungen öffnen Sie Ihr Set erneut. Mit Bearbeiten ändern Sie Namen oder Fragen; mit Löschen und Bestätigung entfernen Sie es. Bei Speicherfehlern prüfen Sie Meldung und Pflichtnamen, bevor Sie den Editor verlassen."
+          ],
+          "note": "Fragen werden getrennt von der Sitzung gespeichert: Ein Abbruch des Sitzungseditors macht gespeicherte Fragenänderungen nicht rückgängig. Beginnen Sie mit einem kleinen thematischen Set und erstellen Sie danach ein gemischtes Zufallsset."
         },
         {
           "title": "Kurschat und Sitzungschat für unterschiedliche Fragen verwenden",

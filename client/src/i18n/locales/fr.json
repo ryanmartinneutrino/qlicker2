@@ -2238,6 +2238,20 @@
           ]
         },
         {
+          "title": "Utiliser les codes d'accès pour les présences et l'admission",
+          "subtitle": "Contrôlez l'entrée dans une séance interactive en direct, puis admettez individuellement les retardataires.",
+          "bullets": [
+            "Le code d'inscription au cours sert à rejoindre le cours ; le code de séance à six chiffres admet un étudiant déjà inscrit dans une séance en direct. Pour contrôler les présences, activez Exiger un code d'accès avant l'arrivée des étudiants.",
+            "Lancer la séance n'ouvre pas automatiquement l'admission. Dans les contrôles en direct, activez Période d'inscription et ouvrez la fenêtre de présentation pour montrer le code actuel en classe. Les étudiants ouvrent la séance et saisissent ce code.",
+            "Réglez l'actualisation entre 5 et 120 secondes et gardez les contrôles du professeur ouverts pour la rotation automatique. Vous pouvez renouveler le code immédiatement. Les étudiants non encore admis doivent utiliser le code actuel.",
+            "Après le pointage, désactivez Période d'inscription, mais laissez Exiger un code d'accès activé. Sans cette exigence, les étudiants inscrits peuvent rejoindre une séance en cours sans code.",
+            "Pour un retardataire, ouvrez Étudiants, développez En attente de rejoindre, filtrez par nom ou courriel et choisissez Admettre pour l'étudiant dont vous avez vérifié l'identité. Il doit être inscrit au cours. L'admission manuelle fonctionne pendant la séance même lorsque la période d'inscription est fermée.",
+            "En attente de rejoindre liste les étudiants inscrits qui n'ont pas rejoint la séance ; ils ne sont pas nécessairement connectés ni en train de demander l'admission.",
+            "L'admission reste valable pour cette séance, qu'elle soit obtenue par code ou par l'enseignant. Un étudiant peut quitter la page, la recharger ou perdre sa connexion, puis revenir avec le même compte sans nouveau code, même après sa rotation ou la fermeture des admissions. Activer le code plus tard ne révoque pas les admissions précédentes ; une autre séance exige sa propre admission."
+          ],
+          "warning": "Un code affiché en classe et une courte période de pointage facilitent le contrôle des présences. Un code partagé ou un nombre d'admis ne prouve ni la présence physique ni l'assiduité durant toute la séance. Consultez aussi la participation et appliquez les règles de votre établissement."
+        },
+        {
           "title": "Réviser les résultats, corriger de façon cohérente et communiquer la rétroaction",
           "subtitle": "Après la participation des étudiants, Qlicker offre plusieurs façons d'inspecter les résultats et d'agir.",
           "bullets": [
@@ -2353,14 +2367,18 @@
           }
         },
         {
-          "title": "Utiliser la bibliothèque de questions pour créer des séances de pratique",
-          "subtitle": "L'accès à la bibliothèque dépend de ce que votre enseignant a rendu visible aux étudiants.",
+          "title": "Créer vos propres séances de pratique",
+          "subtitle": "Composez un ensemble de révision nommé à partir de la bibliothèque ou de vos propres questions.",
           "bullets": [
-            "Si votre cours ne permet pas l'accès aux questions de pratique, les onglets de bibliothèque et de séances de pratique restent cachés jusqu'à ce que l'enseignant les active.",
-            "Recherchez dans la bibliothèque le matériel accessible sur le sujet que vous voulez retravailler.",
-            "Créez des séances de pratique à partir des questions de bibliothèque afin de vous exercer à votre rythme et de revoir immédiatement les résultats.",
-            "Si une question contient des maths, des images ou une solution travaillée, laissez ces éléments visibles pendant la pratique pour apprendre à partir de l'exemple complet."
-          ]
+            "Votre enseignant doit activer l'accès aux questions de pratique. Si les onglets Bibliothèque de questions et Séances de pratique sont absents, demandez-lui cet accès. Vous pouvez aussi utiliser vos propres questions privées de la bibliothèque.",
+            "Dans le cours, ouvrez Séances de pratique, puis créez une nouvelle séance. Saisissez un nom obligatoire, par exemple « Biologie cellulaire — révision du quiz 2 », et ajoutez éventuellement des étiquettes de séance.",
+            "Choisissez Ajouter une question → Copier depuis la bibliothèque de questions. Recherchez ou filtrez, sélectionnez les questions et ajoutez-les à la séance de pratique. Pour un ensemble aléatoire, filtrez d'abord, indiquez le nombre souhaité et choisissez l'ajout aléatoire depuis la liste.",
+            "Utilisez Ajouter une question au-dessus, au-dessous ou entre les questions pour insérer du contenu. Retirer enlève une question de l'ensemble sans supprimer l'original de la bibliothèque.",
+            "Pour écrire votre question, choisissez Ajouter une question → Créer, puis renseignez le type, l'énoncé, les choix ou la réponse attendue et la solution. Attendez la confirmation d'enregistrement avant de fermer l'éditeur de question. Vous pouvez modifier les questions qui vous appartiennent.",
+            "Enregistrez et démarrez la pratique pour sauvegarder la séance et ouvrir sa révision. Essayez chaque question avant d'afficher la solution. Ce travail personnel est distinct de la remise d'un quiz noté par l'enseignant.",
+            "Revenez à Séances de pratique pour rouvrir votre ensemble, modifier son nom ou ses questions, ou le supprimer avec confirmation. En cas d'échec d'enregistrement, vérifiez le message et le nom obligatoire avant de quitter l'éditeur."
+          ],
+          "note": "Les questions sont enregistrées séparément : annuler l'éditeur de séance n'annule pas les modifications de questions déjà sauvegardées. Commencez par un petit ensemble thématique, puis créez un ensemble mixte avec la sélection aléatoire."
         },
         {
           "title": "Utiliser les clavardages du cours et de la séance pour des questions différentes",

@@ -2230,6 +2230,20 @@
           ]
         },
         {
+          "title": "Use boardin' codes fer attendance an' admission",
+          "subtitle": "Control boardin' to a live interactive voyage, then admit late crew one by one.",
+          "bullets": [
+            "Th' course enrollment code joins th' ship's course; th' six-digit voyage code admits enrolled crew to one live voyage. Fer attendance-controlled boardin', enable Require Secret code before crew join.",
+            "Launchin' won't open boardin' by itself. In th' live controls, enable Board Spell an' open th' presentation window to show th' current code in class. Crew open th' live voyage an' enter that code.",
+            "Set refresh between 5 an' 120 seconds; keep th' officer's live controls open fer automatic rotation. Refresh th' code to replace it straightaway. Crew not yet aboard must use th' current code.",
+            "After check-in, close Board Spell but keep Require Secret code enabled. Without that requirement, enrolled crew can board a runnin' voyage without a code.",
+            "Fer late crew, open th' students panel, expand Waitin' to board, filter by name or email, an' choose Admit beside th' verified crewmate. They must be enrolled. Manual admission works while th' voyage runs even with Board Spell closed.",
+            "Waitin' to board lists enrolled crew who haven't joined, not necessarily folk online or askin' to board.",
+            "Admission lasts fer that voyage, by code or officer alike. Crew can leave, refresh, lose connection, an' rejoin with th' same account without another code—even after rotation or closin' Board Spell. Requirin' codes later won't undo earlier admissions; another voyage needs its own admission."
+          ],
+          "warning": "An in-class code an' short boardin' window help enforce attendance. A shared code or joined count ain't proof o' physical presence or stayin' aboard; check participation too an' follow yer institution's rules."
+        },
+        {
           "title": "Recap results, ledger consistently, an' communicate holler",
           "subtitle": "After crew take part, Qlicker gives ye several ways to inspect outcomes an' reply.",
           "bullets": [
@@ -2345,14 +2359,18 @@
           }
         },
         {
-          "title": "Use th' riddle chest to build drill voyages",
-          "subtitle": "Chest access depends on what yer officer has made in plain sight to crew.",
+          "title": "Chart yer own drill voyages",
+          "subtitle": "Name a study voyage with riddle-chest questions or riddles ye write yerself.",
           "bullets": [
-            "If yer ship doesn't allow access to drill riddles, th' chest an' drill-voyage tabs stay stowed away until th' officer enables 'em.",
-            "Hunt th' riddle chest fer accessible material on th' topic ye want to revisit.",
-            "Chart drill voyages from chest riddles so ye can rehearse at yer own pace an' then recap th' results right away.",
-            "If a riddle has math, images, or a worked solution, keep those in plain sight while practicin' so ye can learn from th' full example."
-          ]
+            "Yer officer must enable drill-riddle access. If th' riddle chest an' drill-voyage tabs be missing, ask yer officer. Yer own private chest riddles can sail too.",
+            "Open yer ship's course, choose drill voyages, then chart a new one. Give it a required name, like “Cell biology — drill fer Quiz 2”, an' add voyage tags if ye wish.",
+            "Choose Add riddle → Copy from th' riddle chest. Search or filter, select riddles, an' add th' selected riddles to yer drill voyage. Fer a random haul, filter first, enter th' count, then choose random riddles from th' list.",
+            "Use Add riddle above, below, or between riddles to insert more. Remove takes a riddle out o' this voyage without sinking th' original in th' chest.",
+            "To write yer own, choose Add riddle → Create New, pick a type, an' fill in th' prompt, choices or expected answer, an' solution. Wait fer th' saved signal before closin' th' riddle editor. Ye can edit riddles ye own.",
+            "Save an' start practice to stow th' voyage an' open its recap. Try each riddle before showin' its solution. This be personal drill, separate from handin' in an officer's graded quiz.",
+            "Return to drill voyages to reopen yer set, edit its name or riddles, or delete it with confirmation. If savin' fails, check th' error an' required name before leavin' th' editor."
+          ],
+          "note": "Riddles save apart from th' voyage: cancellin' th' voyage editor won't undo riddle edits already stowed. Start with a small topic haul, then chart a mixed voyage with random selection."
         },
         {
           "title": "Use course parley an' voyage parley fer different questions",

@@ -4,8 +4,8 @@ These manuals are organized around real tasks rather than screen inventories. Be
 
 | Role | Manual | Common tasks |
 | --- | --- | --- |
-| Student | [Student manual](student.md) | Join a course, participate live, take a quiz, review work, use course/session chat and AI study help, practice, and check grades |
-| Professor or TA | [Professor manual](professor.md) | Build a course, manage people/groups, author content, teach live, run chat, configure and use AI, assess, grade, and reuse material |
+| Student | [Student manual](student.md) | Join a course, participate live, take a quiz, review work, use course/session chat and AI study help, create practice sessions, and check grades |
+| Professor or TA | [Professor manual](professor.md) | Build a course, manage people/groups, author content, teach live, control admission with join codes, run chat, configure and use AI, assess, grade, and reuse material |
 | Administrator | [Admin manual](admin.md) | Configure the service, support accounts/courses, monitor use, and protect recoverability |
 | Professor/student | [Grading guide](grading.md) | Understand score calculation, reviewability, manual overrides, feedback, and visibility |
 
@@ -15,6 +15,8 @@ These manuals are organized around real tasks rather than screen inventories. Be
 - Read **What students see** or **What instructors see** notes before changing visibility.
 - Use scenario and troubleshooting sections when the normal procedure does not match what is on screen.
 - Labels are written as they appear in the English interface. Other locales follow the same page structure.
+
+For personal study, see [Create your own practice sessions](student.md#8-create-your-own-practice-sessions). For live-class check-in, see [Join codes and attendance](professor.md#use-a-join-code-to-control-attendance), [Manual admission](professor.md#manually-admit-a-student-or-handle-a-late-arrival), and [Leaving and rejoining](professor.md#leaving-and-rejoining-does-not-require-another-code).
 
 ## In-app manual
 

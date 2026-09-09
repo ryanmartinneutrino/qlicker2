@@ -23,8 +23,8 @@ const repoRoot = path.resolve(currentDir, '../..');
 const docsOutputDir = path.join(repoRoot, 'docs/assets/manuals');
 const publicOutputDir = path.join(repoRoot, 'client/public/manuals');
 
-async function capture(page, filename) {
-  await page.setViewportSize({ width: 1440, height: 1000 });
+async function capture(page, filename, height = 1000) {
+  await page.setViewportSize({ width: 1440, height });
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(250);
   const docsPath = path.join(docsOutputDir, filename);
@@ -380,11 +380,97 @@ test('capture current user-manual screenshots', async ({ browser, request }) => 
   await studentPage.goto(`/student/course/${course._id}/session/${completedQuiz._id}/review`);
   await expect(studentPage.getByText(/Which structure controls what enters and leaves the cell/i)).toBeVisible();
   await capture(studentPage, 'student-review.png');
-  await studentPage.goto(`/student/course/${course._id}/practice-sessions/new`);
-  await expect(studentPage.getByRole('heading', { name: /^New practice session$/i })).toBeVisible();
-  await capture(studentPage, 'student-practice-session.png');
-
   await adminContext.close();
   await professorContext.close();
   await studentContext.close();
+});
+
+test('capture practice creation and session admission', async ({ browser, request }) => {
+  test.skip(process.env.QCLICKER_CAPTURE_MANUALS !== '1', 'Run with QCLICKER_CAPTURE_MANUALS=1.');
+  test.setTimeout(180_000);
+  await fs.mkdir(docsOutputDir, { recursive: true });
+  await fs.mkdir(publicOutputDir, { recursive: true });
+
+  const { admin, professor, student } = await seedUsers(request);
+  const course = await createCourseViaApi(request, admin.token, {
+    name: 'Introduction to Biology', deptCode: 'BIOL', courseNumber: '101',
+    section: '01', semester: 'Fall 2026',
+  });
+  await addInstructorToCourseViaApi(request, admin.token, course._id, professor.user._id);
+  await enrollStudentViaApi(request, student.token, course.enrollmentCode);
+  const settings = await apiJson(request, 'PATCH', `/courses/${course._id}`, {
+    token: admin.token,
+    payload: { allowStudentQuestions: true, tags: [{ value: 'Cell biology', label: 'Cell biology' }] },
+  });
+  expect(settings.response.status(), JSON.stringify(settings.body)).toBe(200);
+  const question = await createQuestionViaApi(request, student.token, {
+    courseId: course._id,
+    content: '<p>Which organelle produces most of a cell\'s ATP?</p>',
+    plainText: "Which organelle produces most of a cell's ATP?",
+    solution: '<p>The mitochondrion produces most ATP during cellular respiration.</p>',
+    solution_plainText: 'The mitochondrion produces most ATP during cellular respiration.',
+    options: [
+      { answer: 'Nucleus', correct: false },
+      { answer: 'Mitochondrion', correct: true },
+      { answer: 'Golgi apparatus', correct: false },
+      { answer: 'Lysosome', correct: false },
+    ],
+  });
+
+  const studentContext = await browser.newContext();
+  const studentPage = await studentContext.newPage();
+  studentPage.setDefaultTimeout(15_000);
+  studentPage.setDefaultNavigationTimeout(60_000);
+  await loginViaUi(studentPage, student.email, student.password, /\/student$/);
+  await studentPage.goto(`/student/course/${course._id}`);
+  await studentPage.getByRole('tab', { name: /^Practice Sessions/i }).click();
+  await studentPage.getByRole('button', { name: /^New practice session$/i }).click();
+  await studentPage.getByRole('textbox', { name: 'Practice session name' }).fill('Cell biology — revision for Quiz 2');
+  await studentPage.getByRole('button', { name: /^Add question$/i }).click();
+  await studentPage.getByRole('button', { name: /^Copy from Question Library$/i }).click();
+  await expect(studentPage.getByText(question.plainText, { exact: true })).toBeVisible();
+  await studentPage.getByRole('spinbutton', { name: 'Random count' }).fill('1');
+  await studentPage.getByRole('button', { name: /^Randomly add 1 questions from the list$/i }).click();
+  await expect(studentPage.getByRole('dialog')).toHaveCount(0);
+  await expect(studentPage.getByText(question.plainText, { exact: true })).toBeVisible();
+  await capture(studentPage, 'student-practice-session.png', 1100);
+  await studentPage.getByRole('button', { name: /^Save and start practice$/i }).click();
+  await expect(studentPage).toHaveURL(/\/review\?returnTab=2$/);
+  await studentPage.getByRole('button', { name: /^Show Solution$/i }).click();
+  await expect(studentPage.getByText(question.solution_plainText, { exact: true })).toBeVisible();
+
+  const session = await createSessionViaApi(request, admin.token, course._id, {
+    name: 'Cell Structure Check-in', status: 'visible',
+  });
+  await patchSessionViaApi(request, professor.token, session._id, { joinCodeEnabled: true });
+  const started = await apiJson(request, 'POST', `/sessions/${session._id}/start`, { token: professor.token });
+  expect(started.response.status(), JSON.stringify(started.body)).toBe(200);
+  const professorContext = await browser.newContext();
+  const professorPage = await professorContext.newPage();
+  professorPage.setDefaultTimeout(15_000);
+  professorPage.setDefaultNavigationTimeout(60_000);
+  await loginViaUi(professorPage, professor.email, professor.password, /\/prof$/);
+  await professorPage.goto(`/prof/course/${course._id}/session/${session._id}/live`);
+  await expect(professorPage.getByRole('switch', { name: 'Require Passcode' })).toBeChecked();
+  await expect(professorPage.getByRole('switch', { name: 'Join Period' })).not.toBeChecked();
+  await professorPage.getByRole('switch', { name: 'Join Period' }).click();
+  await expect(professorPage.getByRole('switch', { name: 'Join Period' })).toBeChecked();
+  await expect(professorPage.getByLabel(/Current join code: \d{6}/)).toBeVisible();
+  await capture(professorPage, 'professor-join-code.png');
+  await professorPage.getByRole('switch', { name: 'Join Period' }).click();
+  await expect(professorPage.getByRole('switch', { name: 'Join Period' })).not.toBeChecked();
+  await professorPage.getByRole('tab', { name: /Show students panel/i }).click();
+  const waiting = professorPage.getByRole('button', { name: /Waiting to join/i });
+  if (await waiting.getAttribute('aria-expanded') === 'false') await waiting.click();
+  await expect(professorPage.getByRole('button', { name: /^Admit$/ })).toBeVisible();
+  await capture(professorPage, 'professor-session-admission.png');
+  await professorPage.getByRole('button', { name: /^Admit$/ }).click();
+  await expect(professorPage.getByText('Students in Session (1)', { exact: true })).toBeVisible();
+  const rejoined = await apiJson(request, 'POST', `/sessions/${session._id}/join`, {
+    token: student.token, payload: {},
+  });
+  expect(rejoined.response.status(), JSON.stringify(rejoined.body)).toBe(200);
+  expect(rejoined.body.alreadyJoined).toBe(true);
+  await studentContext.close();
+  await professorContext.close();
 });

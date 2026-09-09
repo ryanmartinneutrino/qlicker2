@@ -2238,6 +2238,20 @@
           ]
         },
         {
+          "title": "Usa i codici di accesso per presenze e ammissione",
+          "subtitle": "Controlla l'ingresso in una sessione interattiva dal vivo e ammetti singolarmente chi arriva in ritardo.",
+          "bullets": [
+            "Il codice di iscrizione serve per entrare nel corso; il codice di sessione a sei cifre ammette uno studente già iscritto a una singola sessione dal vivo. Per controllare le presenze, attiva Richiedi codice di accesso prima degli ingressi.",
+            "L'avvio non apre automaticamente l'ammissione. Nei controlli dal vivo attiva Periodo di partecipazione e apri la finestra di presentazione per mostrare il codice attuale in aula. Gli studenti aprono la sessione e inseriscono quel codice.",
+            "Imposta l'aggiornamento tra 5 e 120 secondi e tieni aperti i controlli del docente per la rotazione automatica. Puoi aggiornare subito il codice. Chi non è ancora ammesso deve usare il codice attuale.",
+            "Dopo la registrazione delle presenze, disattiva Periodo di partecipazione ma lascia attivo Richiedi codice di accesso. Senza tale requisito, gli iscritti possono entrare in una sessione in corso senza codice.",
+            "Per un ritardatario, apri Studenti, espandi In attesa di entrare, filtra per nome o email e scegli Ammetti accanto allo studente verificato. Deve essere iscritto al corso. L'ammissione manuale funziona durante la sessione anche quando il periodo di partecipazione è chiuso.",
+            "In attesa di entrare elenca gli iscritti che non sono ancora entrati; non significa che siano online o stiano richiedendo l'ammissione.",
+            "L'ammissione vale per quella sessione, sia tramite codice sia tramite docente. Gli studenti possono uscire, ricaricare o perdere la connessione e rientrare con lo stesso account senza un nuovo codice, anche dopo la rotazione o la chiusura degli ingressi. Attivare il codice in seguito non revoca le ammissioni precedenti; un'altra sessione richiede una propria ammissione."
+          ],
+          "warning": "Un codice mostrato in aula e una breve finestra di registrazione aiutano a controllare le presenze. Un codice condiviso o il numero degli ammessi non dimostra presenza fisica o permanenza; controlla anche la partecipazione e segui le regole dell'istituzione."
+        },
+        {
           "title": "Rivedi i risultati, valuta in modo coerente e comunica il feedback",
           "subtitle": "Dopo la partecipazione degli studenti, Qlicker ti offre diversi modi per esaminare i risultati e reagire.",
           "bullets": [
@@ -2353,14 +2367,18 @@
           }
         },
         {
-          "title": "Usa la libreria delle domande per creare sessioni di pratica",
-          "subtitle": "L'accesso alla libreria dipende da cosa il tuo docente ha reso visibile agli studenti.",
+          "title": "Crea le tue sessioni di pratica",
+          "subtitle": "Prepara un insieme di studio con un nome usando domande della libreria o domande scritte da te.",
           "bullets": [
-            "Se il tuo corso non consente l'accesso alle domande di pratica, le schede di libreria e sessioni di pratica restano nascoste finché il docente non le attiva.",
-            "Cerca nella libreria delle domande il materiale accessibile sull'argomento che vuoi ripassare.",
-            "Crea sessioni di pratica a partire dalle domande della libreria così puoi esercitarti al tuo ritmo e poi rivedere subito i risultati.",
-            "Se una domanda contiene formule, immagini o una soluzione svolta, mantienile visibili durante la pratica per imparare dall'esempio completo."
-          ]
+            "Il docente deve abilitare l'accesso alle domande di pratica. Se mancano le schede della libreria e delle sessioni di pratica, chiedi al docente. Puoi usare anche le tue domande private della libreria.",
+            "Apri il corso, scegli Sessioni di pratica e crea una nuova sessione. Inserisci un nome obbligatorio, per esempio «Biologia cellulare — ripasso per il quiz 2», ed eventualmente i tag della sessione.",
+            "Scegli Aggiungi domanda → Copia dalla libreria delle domande. Cerca o filtra, seleziona le domande e aggiungile alla sessione di pratica. Per una selezione casuale, filtra prima, indica il numero desiderato e scegli l'aggiunta casuale dall'elenco.",
+            "Usa Aggiungi domanda sopra, sotto o tra le domande per inserire altri contenuti. Rimuovi esclude una domanda dall'insieme senza eliminare l'originale dalla libreria.",
+            "Per scrivere una domanda, scegli Aggiungi domanda → Crea nuova, imposta il tipo e completa testo, opzioni o risposta attesa e soluzione. Attendi la conferma del salvataggio prima di chiudere l'editor della domanda. Puoi modificare le domande di tua proprietà.",
+            "Salva e avvia la pratica per salvare la sessione e aprirne la revisione. Prova a rispondere prima di mostrare la soluzione. Questo studio personale è distinto dalla consegna di un quiz valutato dal docente.",
+            "Torna a Sessioni di pratica per riaprire l'insieme, modificarne nome o domande oppure eliminarlo con conferma. Se il salvataggio fallisce, controlla l'errore e il nome obbligatorio prima di uscire dall'editor."
+          ],
+          "note": "Le domande si salvano separatamente: annullare l'editor della sessione non annulla le modifiche alle domande già salvate. Inizia con un piccolo insieme tematico, poi creane uno misto con la selezione casuale."
         },
         {
           "title": "Usa la chat del corso e quella della sessione per domande diverse",
