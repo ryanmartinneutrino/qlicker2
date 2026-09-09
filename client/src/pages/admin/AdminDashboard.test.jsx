@@ -214,8 +214,8 @@ describe('AdminDashboard', () => {
       latest: {
         timestamp: '2026-09-08T16:00:00.000Z', sampleIntervalSeconds: 60,
         cpu: { usagePercent: 42, cores: 4, load1: 1.2 },
-        memory: { usedPercent: 65 },
-        network: { receivedBytesPerSecond: 1024, transmittedBytesPerSecond: 2048 },
+        memory: { usedPercent: 65, usedBytes: 5.2 * 1024 ** 3, totalBytes: 8 * 1024 ** 3, availableBytes: 2.8 * 1024 ** 3 },
+        network: { interfaces: ['wlp4s0'], receivedBytesPerSecond: 1024, transmittedBytesPerSecond: 2048 },
         activity: { activeUsers: 25, windowMinutes: 15 },
       },
       history: [0, 1].map((index) => ({
@@ -428,6 +428,10 @@ describe('AdminDashboard', () => {
     expect(screen.getByRole('img', { name: /^Active-user history/ })).toBeInTheDocument();
     expect(screen.getByRole('img', { name: /^Network traffic history/ })).toBeInTheDocument();
     expect(screen.getByText('42.0%')).toBeInTheDocument();
+    expect(screen.getByText(/not Qlicker alone/i)).toBeInTheDocument();
+    expect(screen.getByText(/5.2 GiB.*8.0 GiB.*2.8 GiB/)).toBeInTheDocument();
+    expect(screen.getByText('1.0 KiB/s / 2.0 KiB/s')).toBeInTheDocument();
+    expect(screen.getByText('Interfaces: wlp4s0')).toBeInTheDocument();
     expect(screen.getByText('System monitor started')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '7 days', exact: true }));
     await waitFor(() => expect(apiClientMock.get).toHaveBeenCalledWith(
@@ -443,6 +447,21 @@ describe('AdminDashboard', () => {
     expect(screen.getByText(/No system samples are available/)).toBeInTheDocument();
     expect(screen.queryByText('0.0%')).not.toBeInTheDocument();
     expect(screen.queryByRole('img', { name: 'CPU and memory history' })).not.toBeInTheDocument();
+  });
+
+  it.each(['en', 'de', 'es', 'fr', 'it', 'pir', 'ru', 'zh'])('renders Usage Statistics without raw translation keys in %s', async (locale) => {
+    await i18n.changeLanguage(locale);
+    const { unmount } = renderDashboard();
+    try {
+      fireEvent.click(await screen.findByRole('tab', { name: i18n.t('admin.tabs.usageStatistics'), exact: true }));
+      expect(await screen.findByText('42.0%')).toBeInTheDocument();
+      const section = screen.getByRole('region', { name: i18n.t('admin.usageStatistics.systemMonitoring'), exact: true });
+      expect(section.innerHTML).not.toMatch(/admin\.usageStatistics\./);
+      expect(section.textContent).not.toContain('{{');
+    } finally {
+      unmount();
+      await i18n.changeLanguage('en');
+    }
   });
 
   it('requests a manual backup and shows 12-hour backup controls when the app uses 12-hour time', async () => {

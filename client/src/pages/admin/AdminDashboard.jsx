@@ -2728,18 +2728,22 @@ function formatPercent(value) {
   return Number.isFinite(number) ? `${number.toFixed(1)}%` : '—';
 }
 
-function formatByteRate(value) {
+function formatBytes(value, rate = false) {
   if (value == null) return '—';
   const number = Number(value);
   if (!Number.isFinite(number)) return '—';
-  const units = ['B/s', 'KB/s', 'MB/s', 'GB/s'];
+  const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB'];
   let scaled = Math.max(0, number);
   let unitIndex = 0;
   while (scaled >= 1024 && unitIndex < units.length - 1) {
     scaled /= 1024;
     unitIndex += 1;
   }
-  return `${scaled.toFixed(scaled >= 100 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+  return `${scaled.toFixed(scaled >= 100 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}${rate ? '/s' : ''}`;
+}
+
+function formatByteRate(value) {
+  return formatBytes(value, true);
 }
 
 function buildChartPath(points, valueKey, dimensions) {
@@ -3033,6 +3037,7 @@ function UsageStatisticsTab() {
         </Box>
 
         {monitorError ? <Alert severity="error" sx={{ mb: 2 }}>{monitorError}</Alert> : null}
+        <Alert severity="info" sx={{ mb: 2 }}>{t('admin.usageStatistics.hostScopeHelp')}</Alert>
         {monitoring?.status === 'unavailable' ? (
           <Alert severity="info" sx={{ mb: 2 }}>{t('admin.usageStatistics.monitorUnavailableHelp')}</Alert>
         ) : null}
@@ -3057,11 +3062,21 @@ function UsageStatisticsTab() {
                 cores: monitoring?.latest?.cpu?.cores || '—',
               })}
             </Typography>
+            <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
+              {t('admin.usageStatistics.cpuHelp')}
+            </Typography>
           </Paper>
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>{t('admin.usageStatistics.memory')}</Typography>
             <Typography variant="h4" component="p" sx={{ fontWeight: 700 }}>{formatPercent(monitoring?.latest?.memory?.usedPercent)}</Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>{t('admin.usageStatistics.hostMemory')}</Typography>
+            <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
+              {t('admin.usageStatistics.memoryAmounts', {
+                used: formatBytes(monitoring?.latest?.memory?.usedBytes),
+                total: formatBytes(monitoring?.latest?.memory?.totalBytes),
+                available: formatBytes(monitoring?.latest?.memory?.availableBytes),
+              })}
+            </Typography>
           </Paper>
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>{t('admin.usageStatistics.activeNow')}</Typography>
@@ -3078,6 +3093,11 @@ function UsageStatisticsTab() {
               {formatByteRate(monitoring?.latest?.network?.receivedBytesPerSecond)} / {formatByteRate(monitoring?.latest?.network?.transmittedBytesPerSecond)}
             </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary' }}>{t('admin.usageStatistics.receivedSent')}</Typography>
+            <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', overflowWrap: 'anywhere' }}>
+              {t('admin.usageStatistics.monitoredInterfaces', {
+                interfaces: monitoring?.latest?.network?.interfaces?.join(', ') || '—',
+              })}
+            </Typography>
           </Paper>
         </Box>
 

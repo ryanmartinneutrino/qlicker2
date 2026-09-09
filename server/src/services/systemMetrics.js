@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { performance } from 'node:perf_hooks';
 import { getActiveUserRedisKey } from './userActivity.js';
 
 export const SYSTEM_METRIC_RANGES = Object.freeze({
@@ -10,8 +11,13 @@ export const SYSTEM_METRIC_RANGES = Object.freeze({
 
 const NETWORK_ROLE_KEYS = ['all', 'student', 'professor', 'admin'];
 const VIRTUAL_INTERFACE_PREFIXES = [
-  'lo', 'docker', 'veth', 'br-', 'virbr', 'vmnet', 'vboxnet', 'zt', 'tailscale',
+  'lo', 'docker', 'veth', 'br-', 'virbr', 'lxcbr', 'vmnet', 'vboxnet', 'zt', 'tailscale',
+  'tun', 'tap', 'wg', 'ppp',
 ];
+
+function isVirtualInterface(name) {
+  return VIRTUAL_INTERFACE_PREFIXES.some((prefix) => name.startsWith(prefix));
+}
 
 function finiteOrNull(value) {
   if (value === null || value === undefined || value === '') return null;
@@ -94,15 +100,23 @@ export function parseLoadavg(raw = '') {
 }
 
 export function parseDefaultRouteInterfaces(raw = '') {
-  const interfaces = [];
+  const routes = [];
   String(raw).split(/\r?\n/).slice(1).forEach((line) => {
     const columns = line.trim().split(/\s+/);
-    if (columns.length >= 4 && columns[1] === '00000000') {
+    if (columns.length >= 8 && columns[1] === '00000000' && columns[7] === '00000000') {
       const flags = Number.parseInt(columns[3], 16);
-      if ((flags & 0x1) === 0x1 && columns[0]) interfaces.push(columns[0]);
+      if ((flags & 0x1) === 0x1 && (flags & 0x200) === 0 && columns[0]) {
+        routes.push({ name: columns[0], metric: Number(columns[6]) || 0 });
+      }
     }
   });
-  return [...new Set(interfaces)];
+  // VPN and uplink counters often describe the same packets at different layers.
+  // Prefer the host uplinks, even if a tunnel has a lower routing metric.
+  const uplinks = routes.filter(({ name }) => !isVirtualInterface(name));
+  const selected = uplinks.length > 0
+    ? uplinks
+    : routes.sort((a, b) => a.metric - b.metric || a.name.localeCompare(b.name)).slice(0, 1);
+  return [...new Set(selected.map(({ name }) => name))].sort();
 }
 
 export function parseNetworkDev(raw = '', requestedInterfaces = []) {
@@ -116,14 +130,18 @@ export function parseNetworkDev(raw = '', requestedInterfaces = []) {
     counters.set(name, { receivedBytes: values[0], transmittedBytes: values[8] });
   });
 
-  const configured = requestedInterfaces.map((entry) => String(entry).trim()).filter(Boolean);
+  const configured = [...new Set(requestedInterfaces.map((entry) => String(entry).trim()).filter(Boolean))];
   let interfaces = configured.filter((name) => counters.has(name));
-  if (interfaces.length === 0) {
-    interfaces = [...counters.keys()].filter((name) => (
-      !VIRTUAL_INTERFACE_PREFIXES.some((prefix) => name === prefix || name.startsWith(prefix))
-    ));
+  if (configured.length === 0) {
+    interfaces = [...counters.keys()].filter((name) => !isVirtualInterface(name));
+    if (interfaces.length === 0 && counters.has('lo')) interfaces = ['lo'];
   }
-  if (interfaces.length === 0 && counters.has('lo')) interfaces = ['lo'];
+  // Never silently replace an explicitly requested, missing interface with all
+  // host traffic. Treat a partially missing selection as unavailable too.
+  if (interfaces.length === 0 || (configured.length > 0 && interfaces.length !== configured.length)) {
+    return { interfaces: [], receivedBytes: null, transmittedBytes: null };
+  }
+  interfaces.sort();
 
   return interfaces.reduce((summary, name) => {
     const counter = counters.get(name);
@@ -148,6 +166,7 @@ export async function readSystemSnapshot({ procRoot = '/proc', networkInterfaces
 
   return {
     measuredAtMs: Date.now(),
+    monotonicAtMs: performance.now(),
     cpuCounters: parseCpuStat(cpuRaw),
     memory: parseMeminfo(memoryRaw),
     load: parseLoadavg(loadRaw),
@@ -168,8 +187,11 @@ export function buildSystemMetricSample(previous, current, {
   sampleIntervalSeconds = 60,
 } = {}) {
   const timestamp = new Date(current.measuredAtMs);
+  const monotonicTiming = Number.isFinite(previous?.monotonicAtMs) && Number.isFinite(current.monotonicAtMs);
   const elapsedSeconds = previous
-    ? (current.measuredAtMs - previous.measuredAtMs) / 1000
+    ? (monotonicTiming
+      ? current.monotonicAtMs - previous.monotonicAtMs
+      : current.measuredAtMs - previous.measuredAtMs) / 1000
     : null;
   const sameInterfaces = previous?.network?.interfaces?.join(',') === current.network.interfaces.join(',');
   return {

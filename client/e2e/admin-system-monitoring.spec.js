@@ -23,7 +23,9 @@ test('admin can correlate host load and user activity on desktop and mobile', as
         timestamp: new Date(now - (359 - index) * 60_000),
         expiresAt: new Date(now + 7 * 86_400_000), collectorId: 'teaching-host', sampleIntervalSeconds: 60,
         cpu: { usagePercent: 12 + peak * 66, cores: 4, load1: 0.6 + peak * 2.4 },
-        memory: { usedPercent: 35 + peak * 26 },
+        memory: { usedPercent: 35 + peak * 26, totalBytes: 8 * 1024 ** 3,
+          usedBytes: ((35 + peak * 26) / 100) * 8 * 1024 ** 3,
+          availableBytes: ((65 - peak * 26) / 100) * 8 * 1024 ** 3 },
         network: { interfaces: ['eth0'], receivedBytesPerSecond: 25_000 + peak * 800_000,
           transmittedBytesPerSecond: 60_000 + peak * 2_200_000 },
         activity: { activeUsers: users, activeStudents: users - 5, activeProfessors: 4,
@@ -43,6 +45,8 @@ test('admin can correlate host load and user activity on desktop and mobile', as
   await loginViaUi(page, admin.email, admin.password, /\/admin$/);
   await page.getByRole('tab', { name: 'Usage Statistics' }).click();
   await expect(page.getByText('Collecting', { exact: true })).toBeVisible();
+  await expect(page.getByText(/not Qlicker alone/)).toBeVisible();
+  await expect(page.getByText('Interfaces: eth0', { exact: true })).toBeVisible();
   await expect(page.getByRole('img', { name: /^CPU and memory history/ })).toBeVisible();
   await expect(page.getByRole('table', { name: 'Peak periods' }).getByRole('row')).toHaveCount(6);
   await expect(page.getByText('System monitor started')).toBeVisible();

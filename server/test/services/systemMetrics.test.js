@@ -13,6 +13,84 @@ import {
 } from '../../src/services/systemMetrics.js';
 
 describe('system metrics collection', () => {
+  it('uses available host RAM rather than treating all cached RAM as used', () => {
+    const memory = parseMeminfo([
+      'MemTotal: 67108864 kB', 'MemFree: 8388608 kB',
+      'MemAvailable: 25165824 kB', 'Buffers: 1048576 kB', 'Cached: 20971520 kB',
+    ].join('\n'));
+    expect(memory.totalBytes).toBe(64 * 1024 ** 3);
+    expect(memory.availableBytes).toBe(24 * 1024 ** 3);
+    expect(memory.usedBytes).toBe(40 * 1024 ** 3);
+    expect(memory.usedPercent).toBe(62.5);
+  });
+
+  it('normalizes CPU across all cores and excludes idle and iowait', () => {
+    const before = parseCpuStat('cpu 100 0 0 1000 50 0 0 0 25 0');
+    // One fully busy core among 16; guest counters are already included in user.
+    const after = parseCpuStat('cpu 200 0 0 2400 150 0 0 0 125 0');
+    expect(calculateCpuUsage(before, after)).toBe(6.25);
+  });
+
+  it('does not add VPN traffic to the uplink carrying the same packets', () => {
+    const routes = [
+      'Iface Destination Gateway Flags RefCnt Use Metric Mask MTU Window IRTT',
+      'tun0 00000000 0100620A 0003 0 0 50 00000000 0 0 0',
+      'wlp4s0 00000000 0101A8C0 0003 0 0 600 00000000 0 0 0',
+      'wlp4s0 00000000 0101A8C0 0003 0 0 601 00000000 0 0 0',
+      'eth1 00000000 00000000 0001 0 0 10 00000080 0 0 0',
+      'eth2 00000000 00000000 0000 0 0 10 00000000 0 0 0',
+      'eth3 00000000 00000000 0201 0 0 10 00000000 0 0 0',
+    ].join('\n');
+    expect(parseDefaultRouteInterfaces(routes)).toEqual(['wlp4s0']);
+    const dev = [
+      'header', 'header',
+      'tun0: 900 0 0 0 0 0 0 0 1800 0 0 0 0 0 0 0',
+      'wlp4s0: 1000 0 0 0 0 0 0 0 2000 0 0 0 0 0 0 0',
+    ].join('\n');
+    expect(parseNetworkDev(dev, parseDefaultRouteInterfaces(routes))).toEqual({
+      interfaces: ['wlp4s0'], receivedBytes: 1000, transmittedBytes: 2000,
+    });
+    // Explicit tunnel selection is still supported.
+    expect(parseNetworkDev(dev, ['tun0', 'tun0']).receivedBytes).toBe(900);
+    expect(parseNetworkDev(dev, ['missing'])).toEqual({
+      interfaces: [], receivedBytes: null, transmittedBytes: null,
+    });
+    expect(parseNetworkDev(dev, ['wlp4s0', 'missing']).receivedBytes).toBeNull();
+    expect(parseNetworkDev(dev).interfaces).toEqual(['wlp4s0']);
+  });
+
+  it('selects only one tunnel if no non-tunnel default route exists', () => {
+    expect(parseDefaultRouteInterfaces([
+      'Iface Destination Gateway Flags RefCnt Use Metric Mask MTU Window IRTT',
+      'tun0 00000000 0100620A 0003 0 0 50 00000000 0 0 0',
+      'wg0 00000000 00000000 0001 0 0 20 00000000 0 0 0',
+    ].join('\n'))).toEqual(['wg0']);
+  });
+
+  it('uses monotonic elapsed time for network rates and leaves resets or interface changes as gaps', () => {
+    const previous = {
+      measuredAtMs: 100_000, monotonicAtMs: 1000,
+      network: { interfaces: ['eth0'], receivedBytes: 1000, transmittedBytes: 2000 },
+    };
+    const current = {
+      // A backwards wall-clock adjustment must not inflate or erase the rate.
+      measuredAtMs: 90_000, monotonicAtMs: 11_000,
+      network: { interfaces: ['eth0'], receivedBytes: 3000, transmittedBytes: 7000 },
+    };
+    expect(buildSystemMetricSample(previous, current).network).toMatchObject({
+      receivedBytesPerSecond: 200, transmittedBytesPerSecond: 500,
+    });
+    expect(buildSystemMetricSample(previous, {
+      ...current, network: { ...current.network, receivedBytes: 100 },
+    }).network.receivedBytesPerSecond).toBeNull();
+    expect(buildSystemMetricSample(previous, {
+      ...current, network: { ...current.network, interfaces: ['eth1'] },
+    }).network.receivedBytesPerSecond).toBeNull();
+    expect(buildSystemMetricSample(previous, {
+      ...current, network: { interfaces: [], receivedBytes: null, transmittedBytes: null },
+    }).network.receivedBytesPerSecond).toBeNull();
+  });
+
   it('does not turn missing activity into zero or bridge collection outages', () => {
     const history = aggregateSystemMetricSamples([
       { timestamp: '2026-09-08T15:00:00Z', cpu: { usagePercent: 50 }, activity: { activeUsers: null } },

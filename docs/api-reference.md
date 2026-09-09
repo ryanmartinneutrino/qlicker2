@@ -48,6 +48,8 @@ Permission checks vary by operation. A global professor role and course instruct
 
 Missing measurements are `null`. Resource history fields are bucket averages; activity fields are bucket maxima. The endpoint caches each range for 30 seconds per API process, coalesces concurrent reads, and caps database queries at 20,161 samples and two seconds. This is a single-host collector contract; see [metric definitions](user-manual/admin.md#understand-the-measurements). There is no metric-ingestion or arbitrary-log-reading HTTP endpoint: the collector writes directly to MongoDB.
 
+`latest.memory` includes `usedBytes`, `totalBytes`, `availableBytes`, and `usedPercent` for the whole host. `latest.network.interfaces` identifies the selected measurement interfaces; rate fields are bytes per second, not bits. Automatic selection prefers non-tunnel default routes to avoid counting a VPN and its uplink together. A missing explicitly selected interface reports unavailable network counters/rates rather than substituting other interfaces. The sample timestamp uses wall-clock time, while new collector snapshots use monotonic elapsed time to calculate rates.
+
 ## WebSocket connection
 
 The browser connects to:
