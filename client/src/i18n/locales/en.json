@@ -319,6 +319,9 @@
       "ai": "AI"
     },
     "usageStatistics": {
+      "chartInspectHelp": "Hover or tap to inspect the nearest time bucket. Focus the chart and use Left/Right, Home/End; Escape dismisses the readout.",
+      "chartBucket": "Time bucket: {{time}}",
+      "chartNoReading": "No reading",
       "title": "Usage Statistics",
       "description": "Recent sign-in activity and course engagement across Qlicker.",
       "loading": "Loading usage statistics",
@@ -333,7 +336,59 @@
       "course": "Course",
       "activeUsers": "Active users",
       "enrollment": "Enrollment",
-      "noCourses": "No courses are available."
+      "noCourses": "No courses are available.",
+      "monitorFailedLoad": "Failed to load system monitoring data",
+      "systemMonitoring": "System monitoring",
+      "systemMonitoringDescription": "Low-frequency host CPU, memory, network, and active-user history retained for 7 days.",
+      "historyRange": "Monitoring history range",
+      "range6Hours": "6 hours",
+      "range24Hours": "24 hours",
+      "range7Days": "7 days",
+      "monitorStatus": {
+        "healthy": "Collecting",
+        "stale": "Stale",
+        "unavailable": "Not configured"
+      },
+      "monitorUnavailableHelp": "No system samples are available. Start the system-monitor service and verify its MongoDB connection.",
+      "monitorStaleHelp": "The latest sample is stale. Check the system-monitor events and container status.",
+      "cpu": "CPU",
+      "memory": "Memory",
+      "loadAndCores": "1-minute load {{load}} across {{cores}} cores",
+      "hostMemory": "Total RAM minus available RAM, allowing for reclaimable cache",
+      "hostScopeHelp": "These measurements cover the entire Linux host, not Qlicker alone. Other applications, containers, and the operating system contribute. On Docker Desktop, the host is the Linux VM.",
+      "cpuHelp": "100% means all CPU cores are busy; this is not a per-process percentage.",
+      "memoryAmounts": "{{used}} used of {{total}} · {{available}} available",
+      "monitoredInterfaces": "Interfaces: {{interfaces}}",
+      "activeNow": "Recently active",
+      "activeNowHelp": "Authenticated in the past {{minutes}} minutes",
+      "network": "Network",
+      "receivedSent": "Received / sent on the monitored interface",
+      "lastSample": "Last sample: {{time}} · collection interval: {{seconds}} seconds",
+      "resourceHistory": "CPU and memory history",
+      "resourceHistoryHelp": "Average utilization in each displayed time bucket.",
+      "activityHistory": "Active-user history",
+      "activityHistoryHelp": "Unique users making an authenticated request within {{minutes}} minutes of each sample. Role lines can overlap.",
+      "networkHistory": "Network traffic history",
+      "networkHistoryHelp": "Whole-host received/sent bytes per second on the selected interfaces, not Qlicker-only traffic or link utilization. The vertical axis scales to the displayed traffic.",
+      "noMonitorHistory": "No monitoring history is available for this range.",
+      "students": "Students",
+      "professors": "Professors",
+      "received": "Received",
+      "sent": "Sent",
+      "peakPeriods": "Peak periods",
+      "peakPeriodsHelp": "The five busiest displayed buckets, ranked first by active users and then by CPU usage.",
+      "time": "Time",
+      "monitorEvents": "Monitor events",
+      "monitorEventsHelp": "Recent collector lifecycle and error events. Raw Docker service logs remain available through docker compose logs; exposing the Docker socket to the app is intentionally avoided.",
+      "level": "Level",
+      "event": "Event",
+      "collector": "Collector",
+      "noMonitorEvents": "No monitor events were recorded in the past 7 days.",
+      "eventLevel": {
+        "info": "Info",
+        "warning": "Warning",
+        "error": "Error"
+      }
     },
     "settings": {
       "restrictDomain": "Restrict email domain",
@@ -2135,6 +2190,18 @@
             "Use Manage notifications in the Users tab to post system-wide login notices that every user sees in the app bar until they expire or are dismissed."
           ],
           "warning": "Role changes and SSO login approvals take effect immediately, so confirm the request before saving."
+        },
+        {
+          "title": "Monitor host load and busy teaching periods",
+          "subtitle": "Open Usage Statistics and compare CPU, memory, network, and recent-user history.",
+          "bullets": [
+            "Select 6 hours, 24 hours, or 7 days. Use Refresh to fetch new samples; the page does not continuously poll. Hover or tap a history chart to inspect the nearest time bucket and each curve's value. Focus the chart and use Left/Right or Home/End; Escape dismisses the readout. Missing values are marked No reading, never interpolated.",
+            "CPU and memory cover the entire Linux host. Network shows received/sent bytes per second on the selected host interfaces. Other applications on the host contribute to these values.",
+            "Recently active means a unique user made an authenticated API request in the preceding 15 minutes by default. It does not count every signed-in browser. Idle users age out and role counts can overlap. The memory card shows used, total, and available RAM. Automatic network selection prefers non-tunnel default-route interfaces to avoid counting both VPN and uplink traffic. Check the displayed interface names; network rates use KiB/s or MiB/s, not bits per second.",
+            "History starts when the system-monitor service is installed and expires after seven days. Charts average resource measurements in 1-, 5-, or 30-minute buckets and show the maximum sampled user count.",
+            "Compare Peak periods with the charts. Check the latest sample time and Monitor events for stale data, errors, or recovery. Full Docker service logs remain available to deployment operators."
+          ],
+          "note": "Example data shown in a real browser capture; use your own history to investigate incidents."
         }
       ]
     },
@@ -2223,6 +2290,20 @@
             "If a session depends on passcodes, groups, or visible statistics, confirm those settings before students begin joining.",
             "Session lists keep search, filters, and pagination inside Search sessions. While an interactive session is live, opening its card joins the live controls directly; live quiz cards still open the editor."
           ]
+        },
+        {
+          "title": "Use join codes for attendance and admission",
+          "subtitle": "Control entry to a live interactive session, then handle late arrivals individually.",
+          "bullets": [
+            "The course enrollment code joins the course; the six-digit session join code admits an already-enrolled student to one live session. For attendance-controlled entry, enable Require Passcode before students join.",
+            "Launch does not open admission automatically. In the live Controls, enable Join Period and use Open presentation window to show the current code in class. Students open the live session and enter that code.",
+            "Set Refresh (sec) between 5 and 120; keep the professor's live controls open for automatic rotation. Refresh join code replaces the code immediately. Students not yet admitted must enter the current code.",
+            "After check-in, turn off Join Period but leave Require Passcode enabled. Without the passcode requirement, enrolled students can join a running session without a code.",
+            "For a late arrival, open Students, expand Waiting to join, filter by name or email, and select Admit beside the verified student. They must be enrolled. Manual admission works while the session is running even with Join Period closed.",
+            "Waiting to join lists enrolled students who have not joined, not necessarily people online or requesting admission.",
+            "Admission persists for that session, whether by code or by an instructor. Students can leave, refresh, lose connection, and rejoin the running session with the same account without another code—even after rotation or closing Join Period. Enabling passcodes later does not remove earlier admissions; a different session requires its own admission."
+          ],
+          "warning": "Use an in-class code and a short check-in window to support attendance enforcement. A shared code or joined count does not prove physical presence or continued attendance; also review participation and apply your institution's policy."
         },
         {
           "title": "Review results, grade consistently, and communicate feedback",
@@ -2340,14 +2421,18 @@
           }
         },
         {
-          "title": "Use the question library to build practice sessions",
-          "subtitle": "Library access depends on what your instructor has made visible to students.",
+          "title": "Create your own practice sessions",
+          "subtitle": "Build a named study set from library questions or questions you write yourself.",
           "bullets": [
-            "If your course does not allow access to practice questions, the library and practice-session tabs stay hidden until the instructor enables them.",
-            "Search the question library for accessible material on the topic you want to revisit.",
-            "Create practice sessions from library questions so you can rehearse at your own pace and then review the results right away.",
-            "If a question contains math, images, or a worked solution, keep those visible while practicing so you can learn from the full example."
-          ]
+            "Your instructor must enable access to practice questions. If the Question Library and Practice Sessions tabs are missing, ask your instructor; your own private library questions can also be used.",
+            "Open the course, choose Practice Sessions, then New practice session. Enter a required name, such as “Cell biology — revision for Quiz 2”, and optionally select Session tags.",
+            "Choose Add question → Copy from Question Library. Search or filter, select questions, and choose Add selected questions to practice session. For a mixed set, filter first, enter Random count, and choose Randomly add … questions from the list.",
+            "Use Add question above, below, or between questions to insert more. Remove excludes a question from the set without deleting the original library question.",
+            "To write your own question, choose Add question → Create New, select a type, and complete the prompt, answer options or expected answer, and solution. Wait for the save confirmation before closing the question editor. Use Edit to revise questions you own.",
+            "Choose Save and start practice to save the session and open its review. Try each question yourself before selecting Show Solution. This personal self-study workflow is separate from submitting an instructor's graded quiz.",
+            "Return to Practice Sessions to reopen your set, use Edit to rename it or change its questions, or Delete and confirm to remove it. If saving fails, check the error and required name before leaving the editor."
+          ],
+          "note": "Questions save separately from the session: cancelling the session editor does not undo question edits already saved. Start with a small topic-focused set, then create a mixed set using random selection."
         },
         {
           "title": "Use course chat and session chat for different kinds of questions",

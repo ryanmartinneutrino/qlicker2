@@ -2,6 +2,8 @@ import sharp from 'sharp';
 import User from '../models/User.js';
 import Course from '../models/Course.js';
 import Image from '../models/Image.js';
+import SystemMetricSample from '../models/SystemMetricSample.js';
+import SystemMonitorEvent from '../models/SystemMonitorEvent.js';
 import { generateMeteorId } from '../utils/meteorId.js';
 import { emailRegex } from '../utils/email.js';
 import { escapeForRegex } from '../utils/regex.js';
@@ -16,6 +18,10 @@ import { isSafeProfileImageUrl, isPrivateHostname } from '../utils/url.js';
 import { getLastLoginAudit } from '../utils/sessionAudit.js';
 import { getUserAccessFlags } from '../utils/userAccess.js';
 import { getOrCreateSettingsDocument } from '../utils/settingsSingleton.js';
+import {
+  buildSystemMonitoringResponse,
+  SYSTEM_METRIC_RANGES,
+} from '../services/systemMetrics.js';
 
 async function getAuthSettings() {
   return getOrCreateSettingsDocument({
@@ -702,6 +708,71 @@ export default async function userRoutes(app) {
         activeCourseWindowDays: 7,
         topCourses,
       };
+    }
+  );
+
+  // GET /admin/system-monitoring - Seven-day host metrics and monitor events.
+  const monitoringCache = new Map();
+  app.get(
+    '/admin/system-monitoring',
+    {
+      preHandler: requireRole(['admin']),
+      schema: {
+        description: 'Admin-only host metrics, active-user counts, and collector events retained for seven days.',
+        querystring: {
+          type: 'object',
+          properties: {
+            range: { type: 'string', enum: Object.keys(SYSTEM_METRIC_RANGES), default: '24h' },
+          },
+          additionalProperties: false,
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              status: { type: 'string', enum: ['healthy', 'stale', 'unavailable'] },
+              range: { type: 'string' },
+              generatedAt: { type: 'string', format: 'date-time' },
+              retentionDays: { type: 'integer' },
+              bucketSeconds: { type: 'integer' },
+              activeUserDefinition: { type: 'string' },
+              latest: { type: ['object', 'null'], additionalProperties: true },
+              history: { type: 'array', items: { type: 'object', additionalProperties: true } },
+              peakPeriods: { type: 'array', items: { type: 'object', additionalProperties: true } },
+              events: { type: 'array', items: { type: 'object', additionalProperties: true } },
+            },
+          },
+        },
+      },
+    },
+    async (request) => {
+      const range = request.query?.range || '24h';
+      const now = new Date();
+      const cached = monitoringCache.get(range);
+      if (cached && now.getTime() - cached.createdAt < 30_000) return cached.promise;
+      const rangeConfig = SYSTEM_METRIC_RANGES[range] || SYSTEM_METRIC_RANGES['24h'];
+      const cutoff = new Date(now.getTime() - rangeConfig.durationMs);
+      const promise = Promise.all([
+        SystemMetricSample.find({ timestamp: { $gte: cutoff, $lte: now } })
+          .sort({ timestamp: -1 })
+          .limit(20_161)
+          .maxTimeMS(2_000)
+          .select('-_id -__v -expiresAt')
+          .lean(),
+        SystemMonitorEvent.find({ timestamp: { $gte: new Date(now.getTime() - SYSTEM_METRIC_RANGES['7d'].durationMs) } })
+          .sort({ timestamp: -1 })
+          .limit(50)
+          .maxTimeMS(2_000)
+          .select('-_id -__v -expiresAt')
+          .lean(),
+      ]).then(([samples, events]) => buildSystemMonitoringResponse({ samples, events, range, now }));
+      monitoringCache.set(range, { createdAt: now.getTime(), promise });
+      try {
+        return await promise;
+      } catch (error) {
+        monitoringCache.delete(range);
+        throw error;
+      }
     }
   );
 

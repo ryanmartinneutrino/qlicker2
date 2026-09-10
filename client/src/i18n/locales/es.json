@@ -319,6 +319,9 @@
       "ai": "AI"
     },
     "usageStatistics": {
+      "chartInspectHelp": "Pase el puntero o toque para consultar el intervalo más cercano. Con el gráfico enfocado, use Izquierda/Derecha, Inicio/Fin; Escape cierra la lectura.",
+      "chartBucket": "Intervalo: {{time}}",
+      "chartNoReading": "Sin lectura",
       "title": "Estadísticas de uso",
       "description": "Actividad reciente de inicio de sesión y participación en cursos de Qlicker.",
       "loading": "Cargando estadísticas de uso",
@@ -333,7 +336,59 @@
       "course": "Curso",
       "activeUsers": "Usuarios activos",
       "enrollment": "Matrícula",
-      "noCourses": "No hay cursos disponibles."
+      "noCourses": "No hay cursos disponibles.",
+      "monitorFailedLoad": "No se pudieron cargar los datos de supervisión del sistema",
+      "systemMonitoring": "Supervisión del sistema",
+      "systemMonitoringDescription": "Historial de baja frecuencia de CPU, memoria, red y usuarios activos del host, conservado durante 7 días.",
+      "historyRange": "Intervalo del historial de supervisión",
+      "range6Hours": "6 horas",
+      "range24Hours": "24 horas",
+      "range7Days": "7 días",
+      "monitorStatus": {
+        "healthy": "Recopilando",
+        "stale": "Desactualizado",
+        "unavailable": "Sin configurar"
+      },
+      "monitorUnavailableHelp": "No hay muestras del sistema disponibles. Inicie el servicio system-monitor y compruebe su conexión con MongoDB.",
+      "monitorStaleHelp": "La muestra más reciente está desactualizada. Revise los eventos de system-monitor y el estado del contenedor.",
+      "cpu": "CPU",
+      "memory": "Memoria",
+      "loadAndCores": "Carga de 1 minuto {{load}} en {{cores}} núcleos",
+      "hostMemory": "RAM total menos RAM disponible, teniendo en cuenta la caché recuperable",
+      "hostScopeHelp": "Estas mediciones abarcan todo el host Linux, no solo Qlicker. Incluyen otras aplicaciones, contenedores y el sistema operativo. En Docker Desktop, el host es la máquina virtual Linux.",
+      "cpuHelp": "100 % significa que todos los núcleos están ocupados; no es un porcentaje por proceso.",
+      "memoryAmounts": "{{used}} usados de {{total}} · {{available}} disponibles",
+      "monitoredInterfaces": "Interfaces: {{interfaces}}",
+      "activeNow": "Actividad reciente",
+      "activeNowHelp": "Autenticados durante los últimos {{minutes}} minutos",
+      "network": "Red",
+      "receivedSent": "Recibido / enviado en la interfaz supervisada",
+      "lastSample": "Última muestra: {{time}} · intervalo de recopilación: {{seconds}} segundos",
+      "resourceHistory": "Historial de CPU y memoria",
+      "resourceHistoryHelp": "Utilización media en cada intervalo de tiempo mostrado.",
+      "activityHistory": "Historial de usuarios activos",
+      "activityHistoryHelp": "Usuarios únicos que hicieron una solicitud autenticada dentro de los {{minutes}} minutos de cada muestra. Las líneas de funciones pueden solaparse.",
+      "networkHistory": "Historial de tráfico de red",
+      "networkHistoryHelp": "Bytes recibidos/enviados por segundo de todo el host en las interfaces seleccionadas, no solo tráfico de Qlicker ni utilización del enlace. El eje vertical se ajusta al tráfico mostrado.",
+      "noMonitorHistory": "No hay historial de supervisión disponible para este intervalo.",
+      "students": "Estudiantes",
+      "professors": "Profesores",
+      "received": "Recibido",
+      "sent": "Enviado",
+      "peakPeriods": "Periodos de máxima actividad",
+      "peakPeriodsHelp": "Los cinco intervalos mostrados con más actividad, ordenados primero por usuarios activos y después por uso de CPU.",
+      "time": "Hora",
+      "monitorEvents": "Eventos del monitor",
+      "monitorEventsHelp": "Eventos recientes del ciclo de vida y errores del recopilador. Los registros sin procesar de los servicios Docker siguen disponibles mediante docker compose logs; se evita intencionadamente exponer el socket de Docker a la aplicación.",
+      "level": "Nivel",
+      "event": "Evento",
+      "collector": "Recopilador",
+      "noMonitorEvents": "No se registraron eventos del monitor en los últimos 7 días.",
+      "eventLevel": {
+        "info": "Información",
+        "warning": "Advertencia",
+        "error": "Error"
+      }
     },
     "settings": {
       "restrictDomain": "Restringir dominio de correo electrónico",
@@ -2088,6 +2143,18 @@
             "Use Gestionar notificaciones en la pestaña Usuarios para publicar avisos de inicio de sesión válidos para todo el sistema que cada usuario vea en la barra de la aplicación hasta que expiren o se descarten."
           ],
           "warning": "Los cambios de rol y las aprobaciones de inicio de sesión SSO surten efecto de inmediato, así que confirme la solicitud antes de guardar."
+        },
+        {
+          "title": "Supervisar la carga del servidor y las horas de mayor actividad",
+          "subtitle": "Abra Estadísticas de uso para comparar CPU, memoria, red y usuarios activos.",
+          "bullets": [
+            "Seleccione 6 horas, 24 horas o 7 días. Actualizar obtiene nuevas muestras; la página no consulta continuamente. Pase el puntero o toque un gráfico para consultar el intervalo más cercano y el valor de cada curva. Con el gráfico enfocado, use Izquierda/Derecha o Inicio/Fin; Escape cierra la lectura. Los valores ausentes se indican como Sin lectura y no se interpolan.",
+            "CPU y memoria corresponden a todo el host Linux. La red muestra bytes recibidos/enviados por segundo en las interfaces seleccionadas, incluido el tráfico de otras aplicaciones.",
+            "Un usuario reciente realizó una solicitud autenticada a la API en los últimos 15 minutos de forma predeterminada. No cuenta todos los navegadores conectados; los usuarios inactivos caducan y los roles pueden solaparse. La tarjeta de memoria muestra la RAM usada, total y disponible. La selección automática prefiere interfaces de ruta predeterminada sin túnel para no contar dos veces el tráfico VPN y del enlace físico. Compruebe las interfaces indicadas; las tasas usan KiB/s o MiB/s, no bits por segundo.",
+            "El historial comienza al instalar system-monitor y se conserva siete días. Los gráficos promedian recursos en intervalos de 1, 5 o 30 minutos y muestran el máximo de usuarios observado.",
+            "Compare los períodos de mayor actividad con los gráficos. Revise la hora de la muestra y los eventos del monitor ante datos antiguos, errores o recuperación. Los operadores pueden consultar los registros completos de Docker."
+          ],
+          "note": "La captura del navegador muestra datos de ejemplo; investigue incidentes con su propio historial."
         }
       ]
     },
@@ -2176,6 +2243,20 @@
             "Si una sesión depende de códigos de acceso, grupos o estadísticas visibles, confirme esos ajustes antes de que los estudiantes empiecen a unirse.",
             "Las listas de sesiones mantienen la búsqueda, los filtros y la paginación dentro de Buscar sesiones. Mientras una sesión interactiva está en vivo, abrir su tarjeta se une directamente a los controles en vivo; las tarjetas de cuestionario en vivo aún abren el editor."
           ]
+        },
+        {
+          "title": "Use códigos de ingreso para controlar la asistencia y la admisión",
+          "subtitle": "Controle la entrada a una sesión interactiva en vivo y admita individualmente a quienes lleguen tarde.",
+          "bullets": [
+            "El código de inscripción permite unirse al curso; el código de sesión de seis dígitos admite a un estudiante ya inscrito a una sesión en vivo. Para controlar la asistencia, active Requerir código de acceso antes de que entren.",
+            "Iniciar la sesión no abre automáticamente la admisión. En los controles en vivo, active Período de ingreso y abra la ventana de presentación para mostrar el código actual en el aula. Los estudiantes abren la sesión e introducen ese código.",
+            "Ajuste la actualización entre 5 y 120 segundos y mantenga abiertos los controles del profesor para la rotación automática. Puede actualizar el código inmediatamente. Quienes aún no hayan sido admitidos deben usar el código actual.",
+            "Tras el registro de asistencia, desactive Período de ingreso, pero mantenga Requerir código de acceso activado. Sin ese requisito, los estudiantes inscritos pueden entrar en una sesión en curso sin código.",
+            "Para una llegada tardía, abra Estudiantes, despliegue Esperando para entrar, filtre por nombre o correo y seleccione Admitir junto al estudiante verificado. Debe estar inscrito. La admisión manual funciona durante la sesión incluso con el período de ingreso cerrado.",
+            "Esperando para entrar muestra estudiantes inscritos que aún no han entrado; no necesariamente están conectados ni solicitando admisión.",
+            "La admisión se conserva para esa sesión, tanto por código como por autorización del instructor. Los estudiantes pueden salir, recargar o perder la conexión y volver con la misma cuenta sin otro código, incluso tras cambiarlo o cerrar el período de ingreso. Activar el requisito después no revoca admisiones anteriores; otra sesión requiere su propia admisión."
+          ],
+          "warning": "Un código mostrado en el aula y un breve período de registro ayudan a controlar la asistencia. Un código compartido o el número de admitidos no demuestra presencia física ni permanencia; revise también la participación y aplique la política de su institución."
         },
         {
           "title": "Revise los resultados, califique de forma consistente y comunique retroalimentación",
@@ -2293,14 +2374,18 @@
           }
         },
         {
-          "title": "Use la biblioteca de preguntas para crear sesiones de práctica",
-          "subtitle": "El acceso a la biblioteca depende de lo que su instructor haya hecho visible para los estudiantes.",
+          "title": "Cree sus propias sesiones de práctica",
+          "subtitle": "Prepare un conjunto de estudio con nombre usando preguntas de la biblioteca o preguntas propias.",
           "bullets": [
-            "Si su curso no permite el acceso a preguntas de práctica, las pestañas de biblioteca y de sesión de práctica permanecen ocultas hasta que el instructor las habilite.",
-            "Busque en la biblioteca de preguntas material accesible sobre el tema que desea repasar.",
-            "Cree sesiones de práctica a partir de preguntas de la biblioteca para poder ensayar a su propio ritmo y luego revisar los resultados de inmediato.",
-            "Si una pregunta contiene matemáticas, imágenes o una solución resuelta, manténgalas visibles mientras practica para poder aprender del ejemplo completo."
-          ]
+            "Su instructor debe habilitar el acceso a preguntas de práctica. Si faltan las pestañas de biblioteca y sesiones de práctica, consulte al instructor. También puede usar sus propias preguntas privadas de la biblioteca.",
+            "Abra el curso, elija Sesiones de práctica y cree una nueva sesión de práctica. Introduzca un nombre obligatorio, como «Biología celular — repaso para el cuestionario 2», y etiquetas de sesión opcionales.",
+            "Elija Añadir pregunta → Copiar de la biblioteca de preguntas. Busque o filtre, seleccione preguntas y añádalas a la sesión de práctica. Para una selección aleatoria, filtre primero, indique la cantidad y elija añadir preguntas aleatoriamente de la lista.",
+            "Use Añadir pregunta encima, debajo o entre preguntas para insertar más contenido. Quitar excluye una pregunta del conjunto sin borrar el original de la biblioteca.",
+            "Para escribir una pregunta propia, elija Añadir pregunta → Crear nueva, seleccione el tipo y complete el enunciado, las opciones o respuesta esperada y la solución. Espere la confirmación de guardado antes de cerrar el editor de preguntas. Puede editar las preguntas que le pertenecen.",
+            "Elija guardar e iniciar la práctica para guardar la sesión y abrir su revisión. Intente resolver cada pregunta antes de mostrar la solución. Este estudio personal es independiente de la entrega de un cuestionario calificado del instructor.",
+            "Vuelva a Sesiones de práctica para abrir su conjunto, editar su nombre o preguntas, o eliminarlo y confirmar. Si falla el guardado, revise el error y el nombre obligatorio antes de salir del editor."
+          ],
+          "note": "Las preguntas se guardan por separado: cancelar el editor de sesión no deshace los cambios de preguntas ya guardados. Empiece con un conjunto pequeño de un tema y cree después otro mixto con selección aleatoria."
         },
         {
           "title": "Use el chat del curso y el de la sesión para preguntas diferentes",

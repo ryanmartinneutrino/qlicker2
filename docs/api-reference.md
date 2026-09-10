@@ -42,6 +42,14 @@ Fastify schemas supply parameters, request bodies, response shapes, tags, and be
 
 Permission checks vary by operation. A global professor role and course instructor membership are not interchangeable; API tests should cover unauthenticated, wrong-role, and non-member access.
 
+## Admin system-monitoring query
+
+`GET /api/v1/users/admin/system-monitoring?range=24h` requires an authenticated administrator. `range` accepts `6h`, `24h` (default), or `7d`; invalid values return 400. The response includes `status` (`healthy`, `stale`, `unavailable`), `latest`, downsampled `history`, up to five `peakPeriods`, up to 50 seven-day collector `events`, `generatedAt`, `retentionDays`, and `bucketSeconds` (60, 300, or 1800).
+
+Missing measurements are `null`. Resource history fields are bucket averages; activity fields are bucket maxima. The endpoint caches each range for 30 seconds per API process, coalesces concurrent reads, and caps database queries at 20,161 samples and two seconds. This is a single-host collector contract; see [metric definitions](user-manual/admin.md#understand-the-measurements). There is no metric-ingestion or arbitrary-log-reading HTTP endpoint: the collector writes directly to MongoDB.
+
+`latest.memory` includes `usedBytes`, `totalBytes`, `availableBytes`, and `usedPercent` for the whole host. `latest.network.interfaces` identifies the selected measurement interfaces; rate fields are bytes per second, not bits. Automatic selection prefers non-tunnel default routes to avoid counting a VPN and its uplink together. A missing explicitly selected interface reports unavailable network counters/rates rather than substituting other interfaces. The sample timestamp uses wall-clock time, while new collector snapshots use monotonic elapsed time to calculate rates.
+
 ## WebSocket connection
 
 The browser connects to:

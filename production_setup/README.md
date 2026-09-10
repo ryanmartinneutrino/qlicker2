@@ -837,6 +837,54 @@ The bundled Nginx config intentionally does **not** place a blanket rate limit o
 
 ## Monitoring & Logs
 
+### In-app system monitoring
+
+Open **Admin → Usage Statistics → System monitoring** for host CPU, RAM, inbound/outbound network rates, recent-user counts, peak periods, and collector events. See the [admin manual](../docs/user-manual/admin.md#usage-statistics) for metric definitions and investigation scenarios.
+
+The bundled `system-monitor` service uses the same image as the API and runs **once per Linux Docker host**, independently of `SERVER_REPLICAS`. Deploy a server image containing `src/systemMonitor.js` and the updated Compose file together:
+
+```bash
+docker compose pull server system-monitor client
+docker compose up -d server system-monitor client
+docker compose logs --tail=50 system-monitor
+```
+
+No process outside Docker is required. Five individually mounted, read-only host `/proc` files provide CPU, memory, load, network counters, and default-route selection. Network mounts explicitly use `/proc/1/net/dev` and `/proc/1/net/route` on the host: plain `/proc/net` can resolve to the collector's network namespace. No Docker socket, shared host PID namespace, or privileged container is used. On Docker Desktop the metrics describe its Linux VM, not macOS/Windows. Restricted/rootless runtimes that refuse these mounts require a native Linux collector instead. This is a single-host dashboard: do not scale the collector or point collectors from different hosts at the same database.
+
+The collector sleeps between samples (60 seconds by default), has a Mongo pool of two connections, and inserts one compact aggregate sample per cycle. At the default interval, seven days is about 10,080 documents; TTL indexes expire samples/events after seven days, with a periodic cleanup fallback. It never queries users, responses, or grades. Active-user tracking adds a non-awaited Redis heartbeat at most once per user per minute per API replica; pending writes and local tracking memory are bounded, and writes are dropped while Redis is unavailable. Counts deduplicate across replicas and tabs. Redis eviction/restarts can temporarily undercount active users until fresh requests arrive.
+
+Compose caps the collector at **0.10 CPU**, **128 MiB RAM** with no extra swap, and 32 processes/threads. The root filesystem is read-only and the process runs as the unprivileged `node` user with all capabilities dropped. Its Docker logs rotate at two 5 MB files. Admin history reads are indexed, bounded, downsampled, and cached for 30 seconds; charts load on demand without background polling. These limits bound added work, but every monitoring system consumes some CPU, memory, and database I/O. Check the impact under your deployment's classroom load.
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `SYSTEM_MONITOR_SAMPLE_INTERVAL_SECONDS` | `60` | Collection interval, clamped to 30–300 seconds. Short bursts between samples may be missed. |
+| `SYSTEM_MONITOR_ACTIVE_WINDOW_MINUTES` | `15` | Recent authenticated-request window, clamped to 5–120 minutes. This is not an exact signed-in-session count. |
+| `SYSTEM_MONITOR_NETWORK_INTERFACES` | empty | Comma-separated host interfaces. Empty prefers non-tunnel default-route interfaces; if only tunnel defaults exist, selects the lowest-metric one. Without default routes, falls back to non-virtual interfaces (or loopback on a loopback-only host). Choose explicit names for unusual routing. |
+
+Apply configuration changes with `docker compose up -d system-monitor`. History persists through restarts in MongoDB. A Redis failure omits activity counts while host metrics continue; the collector reconnects automatically. Collection failure/recovery events appear in the app when MongoDB is reachable. If MongoDB itself is unavailable, errors can only be written to container logs. An absent collector produces a missing/stale indication; it does not prevent teaching or quiz submission. Stop collection with `docker compose stop system-monitor`.
+
+On hosts with VPNs, automatic selection avoids adding tunnel counters to the uplink carrying those packets. For custom-named tunnels, bonded links, or unusual routing, select the intended non-overlapping interface(s) explicitly with `SYSTEM_MONITOR_NETWORK_INTERFACES`. Explicit selections are deduplicated; if any requested interface is missing, network values are unavailable rather than silently switching to other traffic. Selecting both a tunnel and its underlying interface explicitly can still double-count traffic. The admin card displays the latest sample's `network.interfaces`, and rates use binary byte units (KiB/s, MiB/s), not bits or link-utilization percentages. Rates use monotonic elapsed time so wall-clock adjustments do not inflate them.
+
+Memory is whole-host `MemTotal - MemAvailable`, not Qlicker-only memory or simply `MemTotal - MemFree`; the UI shows the absolute amounts as well as the percentage. CPU is normalized across all host cores and excludes idle/I/O-wait time. Native desktop applications and unrelated containers also contribute to host usage. Sampling remains once per minute by default with no new process scanning or polling.
+
+After updating collector code or interface configuration, restart the collector (`docker compose up -d --force-recreate system-monitor` for Docker, or `./scripts/qlicker.sh restart` for the native stack). Check the next sample's timestamp and interface names. Historical samples are retained unchanged until their seven-day expiry; old network samples collected by summing a VPN and uplink cannot be corrected from aggregate counters alone.
+
+For native Linux development, `./scripts/qlicker.sh start` automatically starts the same collector, reads the root `.env`, and manages it with `status`, `stop`, and `restart`. Shutdown stops the collector before Redis/MongoDB so it can persist its final event. The helper prevents duplicate collector starts, recognizes its own orphaned collector if the main PID file is lost, and skips stale PIDs that belong to unrelated processes. Collector failure does not prevent the app from running.
+
+Native helper options are `SYSTEM_MONITOR_ENABLED=false` to opt out and `SYSTEM_MONITOR_LOG_PATH` to override `.data/system-monitor.log`. It uses a 64 MiB V8 old-space limit and lower scheduling priority (`nice 10` where available), not Docker's hard CPU/total-memory limits. Logs over 5 MiB rotate to a single `.1` file on startup; use logrotate for long-running native installations.
+
+When starting the app manually instead of through `qlicker.sh`, run the collector separately with `MONGO_URI` and optionally `REDIS_URL` set to the application's database/services:
+
+```bash
+npm run monitor --prefix server
+```
+
+It defaults to `/proc`; `SYSTEM_MONITOR_PROC_PATH` can override that path, and `SYSTEM_MONITOR_COLLECTOR_ID` can supply a readable host label. Export environment variables before invoking `npm run monitor` directly; that entry point does not automatically load `.env`. Apply hard resource limits through your native supervisor if required. The collector creates indexes only on its two new collections; no legacy-data migration is needed.
+
+### Log access boundaries
+
+The in-app **Monitor events** table contains collector lifecycle, collection errors, and activity-tracking availability events, retained seven days and limited to the latest 50. Full Docker, API, MongoDB, and host logs remain accessible through the operator commands below. Importing arbitrary service logs or exposing Docker-control access is outside this collector's scope. Do not mount `/var/run/docker.sock` into Qlicker to provide log access.
+
 ### View Logs
 
 ```bash
@@ -847,6 +895,7 @@ docker compose logs -f
 docker compose logs -f server
 docker compose logs -f nginx
 docker compose logs -f mongo
+docker compose logs -f system-monitor
 ```
 
 ### Health Check

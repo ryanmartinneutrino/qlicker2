@@ -26,6 +26,9 @@ fi
 REDIS_PORT=${REDIS_PORT:-6379}
 REDIS_PID_PATH=${REDIS_PID_PATH:-.data/redis-$REDIS_PORT.pid}
 REDIS_LOG_PATH=${REDIS_LOG_PATH:-.data/redis-$REDIS_PORT.log}
+SYSTEM_MONITOR_ENABLED=${SYSTEM_MONITOR_ENABLED:-true}
+SYSTEM_MONITOR_LOG_PATH=${SYSTEM_MONITOR_LOG_PATH:-.data/system-monitor.log}
+MONITOR_PID_FILE="$PROJECT_ROOT/.data/system-monitor.pid"
 
 resolve_path() {
   local input_path="$1"
@@ -175,17 +178,49 @@ ensure_port_free() {
   return 0
 }
 
+is_running_pid() {
+  local pid="$1"
+  [[ "$pid" =~ ^[0-9]+$ ]] && [ "$pid" -gt 1 ] || return 1
+  kill -0 "$pid" 2>/dev/null || return 1
+  # Orphaned children may remain zombies until their parent reaps them.
+  [[ "$(ps -p "$pid" -o stat= 2>/dev/null)" != *Z* ]]
+}
+
+is_qlicker_monitor_pid() {
+  local pid="$1" cmd
+  is_running_pid "$pid" || return 1
+  [ "$(pid_cwd "$pid")" = "$PROJECT_ROOT/server" ] || return 1
+  cmd="$(pid_command "$pid")"
+  [[ "$cmd" =~ (^|/)node[[:space:]] ]] && [[ " $cmd " == *" src/systemMonitor.js "* ]]
+}
+
+stop_qlicker_monitor() {
+  local pid="${1:-}"
+  if [ -z "$pid" ] && [ -f "$MONITOR_PID_FILE" ]; then
+    read -r pid < "$MONITOR_PID_FILE" || true
+  fi
+  if ! is_qlicker_monitor_pid "$pid"; then
+    # A stale PID must never authorize killing a different process.
+    if [ -z "${1:-}" ]; then rm -f "$MONITOR_PID_FILE"; fi
+    return 1
+  fi
+  kill_pid_gracefully "$pid" 100
+  rm -f "$MONITOR_PID_FILE"
+  echo "  [OK] Stopped system-monitor (PID: $pid)"
+}
+
 kill_pid_gracefully() {
   local pid="$1"
-  if ! kill -0 "$pid" 2>/dev/null; then
+  local attempts="${2:-20}"
+  if ! is_running_pid "$pid"; then
     return 0
   fi
 
   kill "$pid" 2>/dev/null || true
 
   local i
-  for i in {1..20}; do
-    if ! kill -0 "$pid" 2>/dev/null; then
+  for ((i = 0; i < attempts; i++)); do
+    if ! is_running_pid "$pid"; then
       return 0
     fi
     sleep 0.1
@@ -195,8 +230,10 @@ kill_pid_gracefully() {
 }
 
 cleanup_started_pids() {
-  local pid_entry pid
-  for pid_entry in "$@"; do
+  local entries=("$@") pid_entry pid i
+  # Stop dependants before their databases, including on startup rollback.
+  for ((i = ${#entries[@]} - 1; i >= 0; i--)); do
+    pid_entry="${entries[$i]}"
     pid="${pid_entry#*:}"
     kill_pid_gracefully "$pid"
   done
@@ -272,6 +309,10 @@ stop_orphan_qlicker_redis() {
 stop_orphaned_services() {
   local found=false
 
+  if stop_qlicker_monitor; then
+    found=true
+  fi
+
   if stop_orphan_on_port "$API_PORT" "$PROJECT_ROOT/server" "server"; then
     found=true
   fi
@@ -291,19 +332,72 @@ stop_orphaned_services() {
 }
 
 has_running_pids_from_file() {
-  local line pid
+  local line pid name
   if [ ! -f "$PID_FILE" ]; then
     return 1
   fi
 
   while IFS= read -r line; do
     pid="${line#*:}"
-    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+    name="${line%%:*}"
+    if [ "$name" = "system-monitor" ]; then
+      if is_qlicker_monitor_pid "$pid"; then return 0; fi
+    elif is_running_pid "$pid"; then
       return 0
     fi
   done < "$PID_FILE"
 
   return 1
+}
+
+start_system_monitor() {
+  if [ "$SYSTEM_MONITOR_ENABLED" = "false" ]; then
+    echo "  [SKIP] System monitor disabled by SYSTEM_MONITOR_ENABLED=false"
+    return 0
+  fi
+  if [ "$(uname -s)" != "Linux" ]; then
+    echo "  [SKIP] System monitoring requires Linux host counters"
+    return 0
+  fi
+
+  local monitor_log monitor_pid
+  monitor_log="$(resolve_path "$SYSTEM_MONITOR_LOG_PATH")"
+  if ! mkdir -p "$(dirname "$monitor_log")" "$(dirname "$MONITOR_PID_FILE")"; then
+    echo "  [WARN] Cannot create system-monitor log/PID directory; app services remain available."
+    return 0
+  fi
+  # Bound previous-run logs. In-process collection errors are infrequent and
+  # throttled; long-running native deployments should also configure logrotate.
+  if [ -f "$monitor_log" ] && [ "$(wc -c < "$monitor_log")" -gt 5242880 ]; then
+    if ! mv -f "$monitor_log" "$monitor_log.1"; then
+      echo "  [WARN] Cannot rotate system-monitor log; app services remain available."
+      return 0
+    fi
+  fi
+  echo "  Starting system monitor (log: $monitor_log)..."
+  (
+    cd "$PROJECT_ROOT/server"
+    export MONGO_URI="${MONGO_URI:-mongodb://localhost:$MONGO_PORT/qlicker}"
+    export REDIS_URL
+    if command -v nice &>/dev/null; then
+      exec nohup nice -n 10 node --max-old-space-size=64 src/systemMonitor.js
+    else
+      exec nohup node --max-old-space-size=64 src/systemMonitor.js
+    fi
+  ) >> "$monitor_log" 2>&1 < /dev/null &
+  monitor_pid=$!
+  PIDS+=("system-monitor:$monitor_pid")
+  if ! printf '%s\n' "$monitor_pid" > "$MONITOR_PID_FILE"; then
+    kill_pid_gracefully "$monitor_pid"
+    echo "  [WARN] Cannot record system-monitor PID; collector stopped. App services remain available."
+    return 0
+  fi
+  sleep 0.25
+  if is_qlicker_monitor_pid "$monitor_pid"; then
+    echo "  [OK] System monitor started (PID: $monitor_pid)"
+  else
+    echo "  [WARN] System monitor exited; check $monitor_log. App services remain available."
+  fi
 }
 
 start() {
@@ -313,6 +407,14 @@ start() {
       exit 1
     fi
     echo "Found stale PID file at $PID_FILE. Continuing startup."
+  fi
+  if [ -f "$MONITOR_PID_FILE" ]; then
+    local existing_monitor_pid
+    read -r existing_monitor_pid < "$MONITOR_PID_FILE" || true
+    if is_qlicker_monitor_pid "$existing_monitor_pid"; then
+      echo "A Qlicker system monitor is already running. Run './scripts/qlicker.sh stop' first."
+      exit 1
+    fi
   fi
 
   echo "Starting Qlicker..."
@@ -412,6 +514,9 @@ start() {
     exit 1
   fi
 
+  # Start monitoring after the app is ready. Failure must not block teaching.
+  start_system_monitor
+
   # Write PID file
   printf "%s\n" "${PIDS[@]}" > "$PID_FILE"
 
@@ -428,23 +533,36 @@ stop() {
   if [ ! -f "$PID_FILE" ]; then
     if stop_orphaned_services; then
       echo "Qlicker stopped."
-      exit 0
+      return 0
     fi
     echo "No PID file found. Qlicker may not be running."
-    exit 0
+    return 0
   fi
 
   echo "Stopping Qlicker..."
-  while IFS= read -r line; do
-    NAME=$(echo "$line" | cut -d: -f1)
-    PID=$(echo "$line" | cut -d: -f2)
-    if kill -0 "$PID" 2>/dev/null; then
+  local entries=() line i NAME PID
+  while IFS= read -r line; do entries+=("$line"); done < "$PID_FILE"
+  # Also stop a collector omitted from an older/partial main PID file before
+  # shutting down any database it needs for its final event.
+  for line in "${entries[@]}"; do
+    if [ "${line%%:*}" = "system-monitor" ]; then
+      stop_qlicker_monitor "${line#*:}" || echo "  [SKIP] system-monitor (PID: ${line#*:}) not running or no longer owned by Qlicker"
+    fi
+  done
+  stop_qlicker_monitor || true
+  for ((i = ${#entries[@]} - 1; i >= 0; i--)); do
+    line="${entries[$i]}"
+    NAME="${line%%:*}"
+    PID="${line#*:}"
+    if [ "$NAME" = "system-monitor" ]; then
+      continue
+    elif is_running_pid "$PID"; then
       kill_pid_gracefully "$PID"
       echo "  [OK] Stopped $NAME (PID: $PID)"
     else
       echo "  [SKIP] $NAME (PID: $PID) not running"
     fi
-  done < "$PID_FILE"
+  done
 
   stop_orphaned_services || true
 
@@ -473,6 +591,14 @@ run_e2e() {
 
 status() {
   if [ ! -f "$PID_FILE" ]; then
+    local monitor_pid
+    if [ -f "$MONITOR_PID_FILE" ]; then
+      read -r monitor_pid < "$MONITOR_PID_FILE" || true
+      if is_qlicker_monitor_pid "$monitor_pid"; then
+        echo "  [RUNNING] Orphan system-monitor (PID: $monitor_pid); use './scripts/qlicker.sh stop'."
+        return 0
+      fi
+    fi
     echo "Qlicker is not running (no PID file found)."
     exit 0
   fi
@@ -482,13 +608,27 @@ status() {
   while IFS= read -r line; do
     NAME=$(echo "$line" | cut -d: -f1)
     PID=$(echo "$line" | cut -d: -f2)
-    if kill -0 "$PID" 2>/dev/null; then
+    if { [ "$NAME" = "system-monitor" ] && is_qlicker_monitor_pid "$PID"; } ||
+      { [ "$NAME" != "system-monitor" ] && is_running_pid "$PID"; }; then
       echo "  [RUNNING] $NAME (PID: $PID)"
     else
       echo "  [STOPPED] $NAME (PID: $PID)"
       ALL_RUNNING=false
     fi
   done < "$PID_FILE"
+
+  if ! grep -q '^system-monitor:' "$PID_FILE"; then
+    local monitor_pid=''
+    if [ -f "$MONITOR_PID_FILE" ]; then read -r monitor_pid < "$MONITOR_PID_FILE" || true; fi
+    if is_qlicker_monitor_pid "$monitor_pid"; then
+      echo "  [RUNNING] system-monitor (PID: $monitor_pid; recovered from its separate PID file)"
+    elif [ "$SYSTEM_MONITOR_ENABLED" = "false" ]; then
+      echo "  [DISABLED] system-monitor (SYSTEM_MONITOR_ENABLED=false)"
+    elif [ "$(uname -s)" = "Linux" ]; then
+      echo "  [STOPPED] system-monitor is not tracked; restart Qlicker to start it."
+      ALL_RUNNING=false
+    fi
+  fi
 
   if $ALL_RUNNING; then
     echo ""

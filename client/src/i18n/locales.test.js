@@ -7,6 +7,8 @@ import itLocale from './locales/it.json';
 import pirLocale from './locales/pir.json';
 import ruLocale from './locales/ru.json';
 import zhLocale from './locales/zh.json';
+import adminDashboardSource from '../pages/admin/AdminDashboard.jsx?raw';
+import monitoringChartSource from '../components/common/MonitoringLineChart.jsx?raw';
 
 const LOCALES = {
   de: deLocale,
@@ -34,6 +36,26 @@ function flattenKeys(value, prefix = '') {
 }
 
 describe('locale files', () => {
+  it('translates every Usage Statistics label, including dynamic statuses, without missing interpolation values', () => {
+    const keys = [...new Set([
+      ...[...(adminDashboardSource + monitoringChartSource).matchAll(/t\(['"](admin\.usageStatistics\.[^'"]+)['"]/g)].map((match) => match[1]),
+      ...['healthy', 'stale', 'unavailable'].map((status) => `admin.usageStatistics.monitorStatus.${status}`),
+      ...['info', 'warning', 'error'].map((level) => `admin.usageStatistics.eventLevel.${level}`),
+    ])];
+    const variables = (text) => [...text.matchAll(/\{\{(\w+)\}\}/g)].map((match) => match[1]).sort();
+    for (const key of keys) {
+      const english = getNestedValue(enLocale, key);
+      expect(english, key).toBeTypeOf('string');
+      for (const [locale, messages] of Object.entries(LOCALES)) {
+        const translated = getNestedValue(messages, key);
+        expect(translated, `${locale}: ${key}`).toBeTypeOf('string');
+        expect(translated.trim(), `${locale}: ${key}`).not.toBe('');
+        expect(translated, `${locale}: ${key}`).not.toBe(key);
+        expect(variables(translated), `${locale}: ${key}`).toEqual(variables(english));
+      }
+    }
+  });
+
   it('keeps translation structures aligned across all supported locales', () => {
     const sections = [
       'questionLibrary',

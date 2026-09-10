@@ -35,6 +35,7 @@ import aiRoutes, { aiMediaRoutes } from './routes/ai.js';
 import { transformApiDocs } from './utils/apiDocs.js';
 import { guessImageContentTypeFromKey, normalizeRequestedStorageKey } from './utils/storageUrls.js';
 import { ensureSettingsSingleton } from './utils/settingsSingleton.js';
+import { registerUserActivityTracking } from './services/userActivity.js';
 
 export async function buildApp(opts = {}) {
   // Resolve config early so proxy trust can be applied at construction time.
@@ -164,6 +165,11 @@ export async function buildApp(opts = {}) {
   if (!opts.skipRedis) {
     await app.register(redisPlugin);
   }
+
+  // Record at most one Redis heartbeat per authenticated user per minute.
+  // The system-monitor sidecar uses these timestamps for a low-cost active-user
+  // count without adding database writes to normal classroom requests.
+  registerUserActivityTracking(app);
 
   // WebSocket plugin (skip in test if opts.skipWs)
   if (!opts.skipWs) {

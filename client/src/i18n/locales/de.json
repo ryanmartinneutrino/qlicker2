@@ -319,6 +319,9 @@
       "ai": "AI"
     },
     "usageStatistics": {
+      "chartInspectHelp": "Bewegen Sie den Zeiger über das Diagramm oder tippen Sie darauf, um das nächste Zeitintervall zu prüfen. Bei fokussiertem Diagramm: Links/Rechts, Pos1/Ende; Esc schließt die Anzeige.",
+      "chartBucket": "Zeitintervall: {{time}}",
+      "chartNoReading": "Kein Messwert",
       "title": "Nutzungsstatistiken",
       "description": "Aktuelle Anmeldeaktivität und Kursbeteiligung in Qlicker.",
       "loading": "Nutzungsstatistiken werden geladen",
@@ -333,7 +336,59 @@
       "course": "Kurs",
       "activeUsers": "Aktive Benutzer",
       "enrollment": "Einschreibungen",
-      "noCourses": "Keine Kurse verfügbar."
+      "noCourses": "Keine Kurse verfügbar.",
+      "monitorFailedLoad": "Systemüberwachungsdaten konnten nicht geladen werden",
+      "systemMonitoring": "Systemüberwachung",
+      "systemMonitoringDescription": "Ressourcenschonender Verlauf von Host-CPU, Arbeitsspeicher, Netzwerk und aktiven Benutzern für 7 Tage.",
+      "historyRange": "Zeitraum der Überwachung",
+      "range6Hours": "6 Stunden",
+      "range24Hours": "24 Stunden",
+      "range7Days": "7 Tage",
+      "monitorStatus": {
+        "healthy": "Erfassung aktiv",
+        "stale": "Veraltet",
+        "unavailable": "Nicht konfiguriert"
+      },
+      "monitorUnavailableHelp": "Es sind keine Systemmesswerte verfügbar. Starten Sie den Dienst system-monitor und prüfen Sie seine MongoDB-Verbindung.",
+      "monitorStaleHelp": "Der letzte Messwert ist veraltet. Prüfen Sie die Ereignisse des Systemmonitors und den Containerstatus.",
+      "cpu": "CPU",
+      "memory": "Arbeitsspeicher",
+      "loadAndCores": "1-Minuten-Last {{load}} auf {{cores}} Kernen",
+      "hostMemory": "Gesamter RAM abzüglich verfügbarem RAM, unter Berücksichtigung rückgewinnbarer Caches",
+      "hostScopeHelp": "Diese Messwerte gelten für den gesamten Linux-Host, nicht nur für Qlicker. Andere Anwendungen, Container und das Betriebssystem tragen dazu bei. Bei Docker Desktop ist der Host die Linux-VM.",
+      "cpuHelp": "100 % bedeutet, dass alle CPU-Kerne ausgelastet sind; dies ist kein Prozesswert.",
+      "memoryAmounts": "{{used}} von {{total}} belegt · {{available}} verfügbar",
+      "monitoredInterfaces": "Schnittstellen: {{interfaces}}",
+      "activeNow": "Kürzlich aktiv",
+      "activeNowHelp": "In den letzten {{minutes}} Minuten authentifiziert",
+      "network": "Netzwerk",
+      "receivedSent": "Empfangen / gesendet über die überwachte Schnittstelle",
+      "lastSample": "Letzter Messwert: {{time}} · Erfassungsintervall: {{seconds}} Sekunden",
+      "resourceHistory": "CPU- und Arbeitsspeicherverlauf",
+      "resourceHistoryHelp": "Durchschnittliche Auslastung in jedem angezeigten Zeitabschnitt.",
+      "activityHistory": "Verlauf aktiver Benutzer",
+      "activityHistoryHelp": "Eindeutige Benutzer mit einer authentifizierten Anfrage innerhalb von {{minutes}} Minuten um jeden Messwert. Rollenlinien können sich überschneiden.",
+      "networkHistory": "Verlauf des Netzwerkverkehrs",
+      "networkHistoryHelp": "Empfangene/gesendete Bytes pro Sekunde des gesamten Hosts auf den gewählten Schnittstellen, nicht nur Qlicker-Daten oder die Leitungsauslastung. Die vertikale Achse passt sich dem angezeigten Datenverkehr an.",
+      "noMonitorHistory": "Für diesen Zeitraum ist kein Überwachungsverlauf verfügbar.",
+      "students": "Studierende",
+      "professors": "Lehrende",
+      "received": "Empfangen",
+      "sent": "Gesendet",
+      "peakPeriods": "Spitzenzeiten",
+      "peakPeriodsHelp": "Die fünf stärksten angezeigten Zeitabschnitte, zuerst nach aktiven Benutzern und dann nach CPU-Auslastung sortiert.",
+      "time": "Zeit",
+      "monitorEvents": "Monitorereignisse",
+      "monitorEventsHelp": "Letzte Lebenszyklus- und Fehlerereignisse des Kollektors. Rohe Docker-Dienstprotokolle bleiben über docker compose logs verfügbar; der Docker-Socket wird absichtlich nicht für die App freigegeben.",
+      "level": "Stufe",
+      "event": "Ereignis",
+      "collector": "Kollektor",
+      "noMonitorEvents": "In den letzten 7 Tagen wurden keine Monitorereignisse aufgezeichnet.",
+      "eventLevel": {
+        "info": "Info",
+        "warning": "Warnung",
+        "error": "Fehler"
+      }
     },
     "settings": {
       "restrictDomain": "E-Mail-Domain einschränken",
@@ -2088,6 +2143,18 @@
             "Verwenden Sie „Benachrichtigungen verwalten“ im Tab „Benutzer“, um systemweite Anmeldehinweise zu veröffentlichen, die jeder Benutzer in der App-Leiste sieht, bis sie ablaufen oder geschlossen werden."
           ],
           "warning": "Rollenänderungen und SSO-Anmeldegenehmigungen werden sofort wirksam. Bestätigen Sie die Anfrage daher vor dem Speichern."
+        },
+        {
+          "title": "Hostauslastung und Hauptnutzungszeiten überwachen",
+          "subtitle": "Öffnen Sie die Nutzungsstatistik und vergleichen Sie CPU, Speicher, Netzwerk und aktive Benutzer.",
+          "bullets": [
+            "Wählen Sie 6 Stunden, 24 Stunden oder 7 Tage. Aktualisieren lädt neue Messwerte; die Seite fragt nicht laufend ab. Bewegen Sie den Zeiger über ein Verlaufsdiagramm oder tippen Sie darauf, um das nächste Zeitintervall und die Kurvenwerte zu prüfen. Bei fokussiertem Diagramm dienen Links/Rechts und Pos1/Ende zur Navigation; Esc schließt die Anzeige. Fehlende Werte werden als Kein Messwert angezeigt, nicht interpoliert.",
+            "CPU und Speicher beziehen sich auf den gesamten Linux-Host. Das Netzwerk zeigt empfangene/gesendete Bytes pro Sekunde an den ausgewählten Schnittstellen, einschließlich anderer Anwendungen.",
+            "Als kürzlich aktiv gilt ein Benutzer mit einer authentifizierten API-Anfrage innerhalb der letzten 15 Minuten. Angemeldete, untätige Benutzer können herausfallen; Rollen können sich überschneiden. Die Speicherkarte zeigt belegten, gesamten und verfügbaren RAM. Die automatische Netzwerkauswahl bevorzugt Standardrouten ohne Tunnel, damit VPN- und Uplink-Verkehr nicht doppelt zählen. Prüfen Sie die angezeigten Schnittstellen; Raten werden in KiB/s oder MiB/s angegeben, nicht in Bit pro Sekunde.",
+            "Der Verlauf beginnt mit der Installation von system-monitor und wird sieben Tage aufbewahrt. Diagramme mitteln Ressourcenwerte in 1-, 5- oder 30-Minuten-Intervallen und zeigen die höchste gemessene Benutzerzahl.",
+            "Vergleichen Sie Spitzenzeiten und Diagramme. Prüfen Sie Messzeit und Monitorereignisse bei veralteten Daten, Fehlern oder Wiederherstellung. Vollständige Docker-Protokolle sind für Betreiber verfügbar."
+          ],
+          "note": "Die Browseraufnahme zeigt Beispieldaten. Verwenden Sie für Untersuchungen Ihren eigenen Verlauf."
         }
       ]
     },
@@ -2176,6 +2243,20 @@
             "Wenn eine Sitzung von Passcodes, Gruppen oder sichtbaren Statistiken abhängt, bestätigen Sie diese Einstellungen, bevor Studierende beitreten.",
             "Sitzungslisten halten Suche, Filter und Seitennavigation in „Sitzungen suchen“. Während eine interaktive Sitzung live ist, öffnet das Anklicken ihrer Karte direkt die Live-Steuerung; Live-Quiz-Karten öffnen weiterhin den Editor."
           ]
+        },
+        {
+          "title": "Beitrittscodes für Anwesenheit und Zulassung verwenden",
+          "subtitle": "Steuern Sie den Zugang zu einer interaktiven Live-Sitzung und lassen Sie Nachzügler einzeln zu.",
+          "bullets": [
+            "Der Kurseinschreibecode dient zur Kursanmeldung; der sechsstellige Sitzungscode lässt bereits eingeschriebene Studierende zu einer Live-Sitzung zu. Aktivieren Sie für die Anwesenheitskontrolle vor dem Beitritt Zugangscode erforderlich.",
+            "Das Starten öffnet die Zulassung nicht automatisch. Aktivieren Sie in der Live-Steuerung die Beitrittsphase und zeigen Sie den aktuellen Code im Präsentationsfenster im Raum. Studierende öffnen die Live-Sitzung und geben den Code ein.",
+            "Stellen Sie das Aktualisierungsintervall auf 5 bis 120 Sekunden ein und lassen Sie die Live-Steuerung für den automatischen Wechsel geöffnet. Sie können den Code sofort aktualisieren. Noch nicht zugelassene Studierende benötigen den aktuellen Code.",
+            "Schließen Sie nach dem Einchecken die Beitrittsphase, lassen Sie Zugangscode erforderlich jedoch aktiviert. Ohne diese Anforderung können eingeschriebene Studierende einer laufenden Sitzung ohne Code beitreten.",
+            "Öffnen Sie für Nachzügler Studierende, klappen Sie Warten auf Beitritt auf, filtern Sie nach Name oder E-Mail und wählen Sie bei der überprüften Person Zulassen. Sie muss eingeschrieben sein. Die manuelle Zulassung funktioniert auch bei geschlossener Beitrittsphase, solange die Sitzung läuft.",
+            "Warten auf Beitritt zeigt eingeschriebene Personen, die noch nicht beigetreten sind; sie sind nicht unbedingt online oder warten aktiv auf eine Zulassung.",
+            "Die Zulassung gilt für diese Sitzung, ob per Code oder durch den Dozenten. Nach Verlassen, Neuladen oder Verbindungsabbruch ist der erneute Beitritt mit demselben Konto ohne neuen Code möglich, auch nach Codewechsel oder Schließen der Beitrittsphase. Eine später aktivierte Codepflicht hebt bestehende Zulassungen nicht auf; eine andere Sitzung benötigt eine eigene Zulassung."
+          ],
+          "warning": "Ein im Raum gezeigter Code und ein kurzes Eincheckfenster unterstützen die Anwesenheitskontrolle. Ein weitergegebener Code oder die Beitrittszahl beweist weder körperliche noch dauerhafte Anwesenheit. Prüfen Sie auch die Beteiligung und beachten Sie die Regeln Ihrer Einrichtung."
         },
         {
           "title": "Ergebnisse überprüfen, einheitlich benoten und Feedback kommunizieren",
@@ -2293,14 +2374,18 @@
           }
         },
         {
-          "title": "Die Fragenbibliothek nutzen, um Übungssitzungen zu erstellen",
-          "subtitle": "Der Bibliothekszugang hängt davon ab, was Ihr Dozent für Studierende sichtbar gemacht hat.",
+          "title": "Eigene Übungssitzungen erstellen",
+          "subtitle": "Stellen Sie ein benanntes Lernset aus Bibliotheksfragen oder eigenen Fragen zusammen.",
           "bullets": [
-            "Wenn Ihr Kurs keinen Zugang zu Übungsfragen erlaubt, bleiben die Bibliotheks- und Übungssitzungs-Tabs verborgen, bis der Dozent sie aktiviert.",
-            "Durchsuchen Sie die Fragenbibliothek nach zugänglichem Material zum Thema, das Sie wiederholen möchten.",
-            "Erstellen Sie Übungssitzungen aus Bibliotheksfragen, damit Sie in Ihrem eigenen Tempo üben und die Ergebnisse sofort überprüfen können.",
-            "Wenn eine Frage Mathematik, Bilder oder eine ausgearbeitete Lösung enthält, lassen Sie diese beim Üben sichtbar, damit Sie vom vollständigen Beispiel lernen können."
-          ]
+            "Der Dozent muss den Zugang zu Übungsfragen aktivieren. Fehlen die Tabs für Fragenbibliothek und Übungssitzungen, fragen Sie nach. Auch Ihre eigenen privaten Bibliotheksfragen können verwendet werden.",
+            "Öffnen Sie im Kurs die Übungssitzungen und erstellen Sie eine neue Übungssitzung. Geben Sie einen Namen ein, etwa „Zellbiologie — Wiederholung für Quiz 2“, und wählen Sie bei Bedarf Sitzungstags.",
+            "Wählen Sie Frage hinzufügen → Aus der Fragenbibliothek kopieren. Suchen oder filtern Sie, markieren Sie Fragen und fügen Sie die ausgewählten Fragen zur Übungssitzung hinzu. Für eine Zufallsauswahl filtern Sie zuerst, geben die gewünschte Anzahl ein und wählen die zufällige Übernahme aus der Liste.",
+            "Über Frage hinzufügen oberhalb, unterhalb oder zwischen Fragen fügen Sie weitere Inhalte ein. Entfernen nimmt eine Frage aus dem Set, ohne das Original in der Bibliothek zu löschen.",
+            "Für eine eigene Frage wählen Sie Frage hinzufügen → Neu erstellen, dann Typ, Fragetext, Antwortoptionen oder erwartete Antwort und Lösung. Warten Sie vor dem Schließen des Frageneditors auf die Speicherbestätigung. Eigene Fragen können Sie bearbeiten.",
+            "Speichern Sie die Sitzung und starten Sie die Übung, um die Übersicht zu öffnen. Versuchen Sie jede Frage selbst zu lösen, bevor Sie die Lösung anzeigen. Diese persönliche Übung ist keine Abgabe eines benoteten Quiz des Dozenten.",
+            "Über Übungssitzungen öffnen Sie Ihr Set erneut. Mit Bearbeiten ändern Sie Namen oder Fragen; mit Löschen und Bestätigung entfernen Sie es. Bei Speicherfehlern prüfen Sie Meldung und Pflichtnamen, bevor Sie den Editor verlassen."
+          ],
+          "note": "Fragen werden getrennt von der Sitzung gespeichert: Ein Abbruch des Sitzungseditors macht gespeicherte Fragenänderungen nicht rückgängig. Beginnen Sie mit einem kleinen thematischen Set und erstellen Sie danach ein gemischtes Zufallsset."
         },
         {
           "title": "Kurschat und Sitzungschat für unterschiedliche Fragen verwenden",

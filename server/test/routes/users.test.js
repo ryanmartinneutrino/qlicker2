@@ -4,6 +4,8 @@ import mongoose from 'mongoose';
 import Course from '../../src/models/Course.js';
 import Settings from '../../src/models/Settings.js';
 import User from '../../src/models/User.js';
+import SystemMetricSample from '../../src/models/SystemMetricSample.js';
+import SystemMonitorEvent from '../../src/models/SystemMonitorEvent.js';
 import { generateMeteorId } from '../../src/utils/meteorId.js';
 import { createApp, createTestUser, getAuthToken, authenticatedRequest, csrfHeaders } from '../helpers.js';
 
@@ -633,6 +635,85 @@ describe('Admin user management', () => {
       token: studentToken,
     });
     expect(forbiddenRes.statusCode).toBe(403);
+  });
+
+  it('returns downsampled system history and monitor events to administrators only', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const admin = await createTestUser({ email: 'admin-system-monitor@example.com', roles: ['admin'] });
+    const student = await createTestUser({ email: 'student-system-monitor@example.com', roles: ['student'] });
+    const now = Date.now();
+    const expiresAt = new Date(now + (7 * 24 * 60 * 60 * 1000));
+    await SystemMetricSample.create([
+      {
+        timestamp: new Date(now - (2 * 60 * 1000)),
+        expiresAt,
+        collectorId: 'monitor-1',
+        sampleIntervalSeconds: 60,
+        cpu: { usagePercent: 25, cores: 4, load1: 0.5 },
+        memory: { usedBytes: 400, availableBytes: 600, totalBytes: 1000, usedPercent: 40 },
+        network: { interfaces: ['eth0'], receivedBytesPerSecond: 100, transmittedBytesPerSecond: 50 },
+        activity: { source: 'redis', windowMinutes: 15, activeUsers: 4, activeStudents: 3, activeProfessors: 1, activeAdmins: 1 },
+      },
+      {
+        timestamp: new Date(now - (60 * 1000)),
+        expiresAt,
+        collectorId: 'monitor-1',
+        sampleIntervalSeconds: 60,
+        cpu: { usagePercent: 75, cores: 4, load1: 2 },
+        memory: { usedBytes: 700, availableBytes: 300, totalBytes: 1000, usedPercent: 70 },
+        network: { interfaces: ['eth0'], receivedBytesPerSecond: 500, transmittedBytesPerSecond: 250 },
+        activity: { source: 'redis', windowMinutes: 15, activeUsers: 18, activeStudents: 15, activeProfessors: 3, activeAdmins: 1 },
+      },
+    ]);
+    await SystemMonitorEvent.create({
+      timestamp: new Date(now - 30_000),
+      expiresAt,
+      collectorId: 'monitor-1',
+      level: 'info',
+      code: 'collector_started',
+      message: 'System monitor started',
+    });
+
+    const token = await getAuthToken(app, admin);
+    const response = await authenticatedRequest(
+      app,
+      'GET',
+      '/api/v1/users/admin/system-monitoring?range=6h',
+      { token }
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual(expect.objectContaining({
+      status: 'healthy',
+      range: '6h',
+      retentionDays: 7,
+      bucketSeconds: 60,
+    }));
+    expect(response.json().latest).toEqual(expect.objectContaining({
+      collectorId: 'monitor-1',
+      activity: expect.objectContaining({ activeUsers: 18 }),
+    }));
+    expect(response.json().history).toHaveLength(2);
+    expect(response.json().peakPeriods[0].activeUsers).toBe(18);
+    expect(response.json().events[0]).toEqual(expect.objectContaining({ code: 'collector_started' }));
+
+    const unauthenticated = await authenticatedRequest(app, 'GET', '/api/v1/users/admin/system-monitoring');
+    expect(unauthenticated.statusCode).toBe(401);
+    const invalid = await authenticatedRequest(app, 'GET', '/api/v1/users/admin/system-monitoring?range=30d', { token });
+    expect(invalid.statusCode).toBe(400);
+    const professor = await createTestUser({ email: 'prof-monitor@example.com', roles: ['professor'] });
+    const professorToken = await getAuthToken(app, professor);
+    const professorResult = await authenticatedRequest(app, 'GET', '/api/v1/users/admin/system-monitoring?range=6h', { token: professorToken });
+    expect(professorResult.statusCode).toBe(403);
+
+    const studentToken = await getAuthToken(app, student);
+    const forbidden = await authenticatedRequest(
+      app,
+      'GET',
+      '/api/v1/users/admin/system-monitoring?range=24h',
+      { token: studentToken }
+    );
+    expect(forbidden.statusCode).toBe(403);
   });
 
   it('lists users by most recent last login by default and supports explicit sort fields', async (ctx) => {

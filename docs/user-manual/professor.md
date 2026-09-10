@@ -14,6 +14,9 @@ If this is your first visit, read [Getting started](getting-started.md) first.
 6. [Create an interactive session](#6-create-an-interactive-session)
 7. [Configure and deliver a quiz](#7-configure-and-deliver-a-quiz)
 8. [Run an interactive class](#8-run-an-interactive-class)
+   - [Join codes and attendance](#use-a-join-code-to-control-attendance)
+   - [Manual admission and late arrivals](#manually-admit-a-student-or-handle-a-late-arrival)
+   - [Leaving and rejoining](#leaving-and-rejoining-does-not-require-another-code)
 9. [Use course chat and session chat](#9-use-course-chat-and-session-chat)
 10. [Use AI for teaching and course management](#10-use-ai-for-teaching-and-course-management)
 11. [Use course video](#11-use-course-video)
@@ -236,15 +239,46 @@ Select **Launch** on an interactive session. The professor control view is separ
 ### Recommended sequence
 
 1. Open the optional presentation window on the classroom display.
-2. Enable the join period. If a rotating join code is required, display it and wait for students.
+2. For attendance-controlled entry, enable **Require Passcode**, then **Join Period**, and display the current code in the classroom.
 3. Admit waiting students manually when appropriate.
-4. Close the join period when enrollment is stable.
+4. Close **Join Period** after check-in; keep **Require Passcode** enabled to prevent new students from entering without your approval.
 5. Select the intended page and turn on **Visible**.
 6. Open the response attempt; watch joined/responded counts.
 7. Close responses before discussing results.
 8. Show statistics and/or the correct answer when pedagogically useful.
 9. Start another attempt or move to the next page.
 10. Select **End Session** and confirm when class is finished.
+
+### Use a join code to control attendance
+
+The course **enrollment code** enrolls a student in your course. The interactive session's six-digit **join code** admits an already-enrolled student to that particular live session. These are different codes with different purposes.
+
+1. Enable **Require Passcode** before students start joining. Without it, enrolled students can enter a running session without a code; closing a join period alone does not restrict entry.
+2. **Launch** the session. Launching does not automatically open admission. In the live **Controls**, turn on **Join Period** when you are ready for students to check in.
+3. Use **Open presentation window** to display the current code in the room. Students open the live session from their course and enter that six-digit code.
+4. Set **Refresh (sec)** to a value from 5 to 120 seconds. Keep the professor's live controls open for automatic rotation. **Refresh join code** replaces the code immediately; students who have not yet joined must use the currently displayed code.
+5. After your attendance check-in window, turn off **Join Period**, leaving **Require Passcode** on. New students can no longer enter by code, but you can still admit an individual student manually.
+
+![Live session with passcode requirement, open join period, current six-digit code, and refresh controls](../assets/manuals/professor-join-code.png)
+
+Use this workflow for attendance-controlled interactive sessions: show the code in class, allow a short check-in window, and handle exceptions individually. A code can be shared, so admission is not proof of physical presence or continued attendance. Check response participation and follow your institution's attendance policy when recording attendance marks.
+
+### Manually admit a student or handle a late arrival
+
+1. While the session is running with **Require Passcode** enabled, open **Students** in the professor's live view.
+2. Expand **Waiting to join** and filter by first name, last name, or email.
+3. Verify the student's identity and select **Admit** next to that student. They must already be enrolled in the course.
+4. The student is added to the session without entering a code. Manual admission works even when **Join Period** is closed, so you need not reopen admission for the whole class.
+
+![Professor Students panel with waiting students, name or email filter, and Admit button](../assets/manuals/professor-session-admission.png)
+
+**Waiting to join** lists enrolled students who have not joined; it is not evidence that they are currently online or actively requesting admission. If a student is missing, check their course enrollment and your filter.
+
+### Leaving and rejoining does not require another code
+
+Once a student has joined by code or been manually admitted, their admission is retained for that session. Leaving the page, refreshing, or losing a connection does not remove it: they can reopen the running session using the same account without another code, even after you rotate the code or close **Join Period**. Enabling a passcode later also does not remove students who already joined.
+
+For example, admit a verified late arrival individually after closing check-in. If that student's Wi-Fi drops later, they can reconnect without asking you to admit them again. A separate session has its own admission; admission to today's session does not admit them to the next class.
 
 ### What each audience sees
 

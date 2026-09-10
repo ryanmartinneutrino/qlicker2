@@ -63,7 +63,7 @@ From the repository root:
 ./scripts/qlicker.sh status
 ```
 
-The guided setup creates local configuration, installs the client/server dependencies, and checks MongoDB and Redis. The service helper starts both application processes and manages their PID/log files.
+The guided setup creates local configuration, installs the client/server dependencies, and checks MongoDB and Redis. On Linux, the service helper also starts the system monitor automatically using the same `.env` configuration. `status`, `stop`, and `restart` manage it with the app; the monitor stops before Redis/MongoDB. Its log is `.data/system-monitor.log`. Set `SYSTEM_MONITOR_ENABLED=false` to opt out of native monitoring. Other operating systems skip the Linux collector.
 
 ### Docker development
 
@@ -73,7 +73,7 @@ docker compose up -d
 docker compose logs -f server client
 ```
 
-The development stack contains MongoDB, Redis, the API, and the client. Stop it with `docker compose down`; named volumes retain development data unless explicitly removed.
+The development stack contains MongoDB, Redis, the API, the client, and a resource-limited Linux host monitor. Admins can view seven days of CPU, memory, network, and recent-user history under **Usage Statistics**. See [monitoring setup and metric definitions](production_setup/README.md#in-app-system-monitoring). Stop the stack with `docker compose down`; named volumes retain development data unless explicitly removed.
 
 ### Local addresses
 

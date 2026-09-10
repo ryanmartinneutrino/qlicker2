@@ -319,6 +319,9 @@
       "ai": "AI"
     },
     "usageStatistics": {
+      "chartInspectHelp": "Survolez ou touchez pour consulter l’intervalle le plus proche. Placez le focus sur le graphique et utilisez Gauche/Droite, Début/Fin ; Échap ferme l’affichage.",
+      "chartBucket": "Intervalle : {{time}}",
+      "chartNoReading": "Aucune mesure",
       "title": "Statistiques d’utilisation",
       "description": "Activité de connexion récente et participation aux cours dans Qlicker.",
       "loading": "Chargement des statistiques d’utilisation",
@@ -333,7 +336,59 @@
       "course": "Cours",
       "activeUsers": "Utilisateurs actifs",
       "enrollment": "Inscriptions",
-      "noCourses": "Aucun cours disponible."
+      "noCourses": "Aucun cours disponible.",
+      "monitorFailedLoad": "Impossible de charger les données de surveillance du système",
+      "systemMonitoring": "Surveillance du système",
+      "systemMonitoringDescription": "Historique à faible fréquence du processeur, de la mémoire, du réseau et des utilisateurs actifs de l’hôte, conservé pendant 7 jours.",
+      "historyRange": "Plage de l’historique de surveillance",
+      "range6Hours": "6 heures",
+      "range24Hours": "24 heures",
+      "range7Days": "7 jours",
+      "monitorStatus": {
+        "healthy": "Collecte active",
+        "stale": "Périmé",
+        "unavailable": "Non configuré"
+      },
+      "monitorUnavailableHelp": "Aucune mesure système n’est disponible. Démarrez le service system-monitor et vérifiez sa connexion MongoDB.",
+      "monitorStaleHelp": "La dernière mesure est périmée. Consultez les événements du moniteur système et l’état du conteneur.",
+      "cpu": "Processeur",
+      "memory": "Mémoire",
+      "loadAndCores": "Charge sur 1 minute {{load}} pour {{cores}} cœurs",
+      "hostMemory": "RAM totale moins RAM disponible, en tenant compte du cache récupérable",
+      "hostScopeHelp": "Ces mesures couvrent tout l'hôte Linux, pas seulement Qlicker. Elles incluent les autres applications, les conteneurs et le système d'exploitation. Avec Docker Desktop, l'hôte est la machine virtuelle Linux.",
+      "cpuHelp": "100 % signifie que tous les cœurs sont occupés ; ce n'est pas un pourcentage par processus.",
+      "memoryAmounts": "{{used}} utilisés sur {{total}} · {{available}} disponibles",
+      "monitoredInterfaces": "Interfaces : {{interfaces}}",
+      "activeNow": "Récemment actifs",
+      "activeNowHelp": "Authentifiés au cours des {{minutes}} dernières minutes",
+      "network": "Réseau",
+      "receivedSent": "Reçu / envoyé sur l’interface surveillée",
+      "lastSample": "Dernière mesure : {{time}} · intervalle de collecte : {{seconds}} secondes",
+      "resourceHistory": "Historique du processeur et de la mémoire",
+      "resourceHistoryHelp": "Utilisation moyenne dans chaque intervalle de temps affiché.",
+      "activityHistory": "Historique des utilisateurs actifs",
+      "activityHistoryHelp": "Utilisateurs uniques ayant effectué une requête authentifiée dans les {{minutes}} minutes autour de chaque mesure. Les courbes de rôles peuvent se chevaucher.",
+      "networkHistory": "Historique du trafic réseau",
+      "networkHistoryHelp": "Octets reçus/envoyés par seconde pour tout l'hôte sur les interfaces choisies, et non uniquement Qlicker ni le taux d'utilisation du lien. L'axe vertical s'adapte au trafic affiché.",
+      "noMonitorHistory": "Aucun historique de surveillance n’est disponible pour cette période.",
+      "students": "Étudiants",
+      "professors": "Professeurs",
+      "received": "Reçu",
+      "sent": "Envoyé",
+      "peakPeriods": "Périodes de pointe",
+      "peakPeriodsHelp": "Les cinq intervalles affichés les plus chargés, classés d’abord par utilisateurs actifs puis par utilisation du processeur.",
+      "time": "Heure",
+      "monitorEvents": "Événements du moniteur",
+      "monitorEventsHelp": "Événements récents du cycle de vie et erreurs du collecteur. Les journaux bruts des services Docker restent disponibles avec docker compose logs ; l’exposition du socket Docker à l’application est volontairement évitée.",
+      "level": "Niveau",
+      "event": "Événement",
+      "collector": "Collecteur",
+      "noMonitorEvents": "Aucun événement du moniteur n’a été enregistré au cours des 7 derniers jours.",
+      "eventLevel": {
+        "info": "Information",
+        "warning": "Avertissement",
+        "error": "Erreur"
+      }
     },
     "settings": {
       "restrictDomain": "Restreindre le domaine e-mail",
@@ -2088,6 +2143,18 @@
             "Utilisez Gérer les notifications dans l’onglet Utilisateurs pour publier des avis de connexion à l’échelle du système que tous les utilisateurs verront dans la barre d’application jusqu’à leur expiration ou leur rejet."
           ],
           "warning": "Les changements de rôle et les approbations de connexion SSO prennent effet immédiatement; confirmez donc la demande avant l'enregistrement."
+        },
+        {
+          "title": "Surveiller la charge du serveur et les périodes de pointe",
+          "subtitle": "Ouvrez les statistiques d’utilisation pour comparer processeur, mémoire, réseau et utilisateurs actifs.",
+          "bullets": [
+            "Choisissez 6 heures, 24 heures ou 7 jours. Actualiser charge de nouvelles mesures; la page n’interroge pas le serveur en continu. Survolez ou touchez un graphique pour consulter l’intervalle le plus proche et la valeur de chaque courbe. Avec le focus sur le graphique, utilisez Gauche/Droite ou Début/Fin ; Échap ferme l’affichage. Les valeurs absentes sont indiquées par Aucune mesure, sans interpolation.",
+            "Le processeur et la mémoire concernent tout l’hôte Linux. Le réseau indique les octets reçus/envoyés par seconde sur les interfaces choisies, y compris les autres applications.",
+            "Un utilisateur récemment actif a effectué une requête API authentifiée dans les 15 dernières minutes par défaut. Ce n’est pas un compte exact des navigateurs connectés; les utilisateurs inactifs expirent et les rôles peuvent se chevaucher. La carte mémoire affiche la RAM utilisée, totale et disponible. La sélection réseau automatique privilégie les interfaces de route par défaut hors tunnel pour éviter de compter à la fois le trafic VPN et celui du lien physique. Vérifiez les interfaces affichées ; les débits sont en KiB/s ou MiB/s, pas en bits par seconde.",
+            "L’historique commence à l’installation de system-monitor et dure sept jours. Les graphiques présentent les ressources moyennes sur 1, 5 ou 30 minutes et le nombre maximal d’utilisateurs observé.",
+            "Comparez les périodes de pointe aux graphiques. Vérifiez l’heure de la mesure et les événements du moniteur pour les données anciennes, erreurs et reprises. Les opérateurs disposent des journaux Docker complets."
+          ],
+          "note": "La capture du navigateur contient des données d’exemple; utilisez votre propre historique pour les incidents."
         }
       ]
     },
@@ -2176,6 +2243,20 @@
             "Si une séance dépend des codes d'accès, des groupes ou des statistiques visibles, confirmez ces réglages avant que les étudiants commencent à se joindre.",
             "Les listes de séances gardent la recherche, les filtres et la pagination dans Rechercher des séances. Lorsqu'une séance interactive est en direct, l'ouverture de sa carte rejoint directement les contrôles en direct; les cartes de quiz en direct ouvrent encore l'éditeur."
           ]
+        },
+        {
+          "title": "Utiliser les codes d'accès pour les présences et l'admission",
+          "subtitle": "Contrôlez l'entrée dans une séance interactive en direct, puis admettez individuellement les retardataires.",
+          "bullets": [
+            "Le code d'inscription au cours sert à rejoindre le cours ; le code de séance à six chiffres admet un étudiant déjà inscrit dans une séance en direct. Pour contrôler les présences, activez Exiger un code d'accès avant l'arrivée des étudiants.",
+            "Lancer la séance n'ouvre pas automatiquement l'admission. Dans les contrôles en direct, activez Période d'inscription et ouvrez la fenêtre de présentation pour montrer le code actuel en classe. Les étudiants ouvrent la séance et saisissent ce code.",
+            "Réglez l'actualisation entre 5 et 120 secondes et gardez les contrôles du professeur ouverts pour la rotation automatique. Vous pouvez renouveler le code immédiatement. Les étudiants non encore admis doivent utiliser le code actuel.",
+            "Après le pointage, désactivez Période d'inscription, mais laissez Exiger un code d'accès activé. Sans cette exigence, les étudiants inscrits peuvent rejoindre une séance en cours sans code.",
+            "Pour un retardataire, ouvrez Étudiants, développez En attente de rejoindre, filtrez par nom ou courriel et choisissez Admettre pour l'étudiant dont vous avez vérifié l'identité. Il doit être inscrit au cours. L'admission manuelle fonctionne pendant la séance même lorsque la période d'inscription est fermée.",
+            "En attente de rejoindre liste les étudiants inscrits qui n'ont pas rejoint la séance ; ils ne sont pas nécessairement connectés ni en train de demander l'admission.",
+            "L'admission reste valable pour cette séance, qu'elle soit obtenue par code ou par l'enseignant. Un étudiant peut quitter la page, la recharger ou perdre sa connexion, puis revenir avec le même compte sans nouveau code, même après sa rotation ou la fermeture des admissions. Activer le code plus tard ne révoque pas les admissions précédentes ; une autre séance exige sa propre admission."
+          ],
+          "warning": "Un code affiché en classe et une courte période de pointage facilitent le contrôle des présences. Un code partagé ou un nombre d'admis ne prouve ni la présence physique ni l'assiduité durant toute la séance. Consultez aussi la participation et appliquez les règles de votre établissement."
         },
         {
           "title": "Réviser les résultats, corriger de façon cohérente et communiquer la rétroaction",
@@ -2293,14 +2374,18 @@
           }
         },
         {
-          "title": "Utiliser la bibliothèque de questions pour créer des séances de pratique",
-          "subtitle": "L'accès à la bibliothèque dépend de ce que votre enseignant a rendu visible aux étudiants.",
+          "title": "Créer vos propres séances de pratique",
+          "subtitle": "Composez un ensemble de révision nommé à partir de la bibliothèque ou de vos propres questions.",
           "bullets": [
-            "Si votre cours ne permet pas l'accès aux questions de pratique, les onglets de bibliothèque et de séances de pratique restent cachés jusqu'à ce que l'enseignant les active.",
-            "Recherchez dans la bibliothèque le matériel accessible sur le sujet que vous voulez retravailler.",
-            "Créez des séances de pratique à partir des questions de bibliothèque afin de vous exercer à votre rythme et de revoir immédiatement les résultats.",
-            "Si une question contient des maths, des images ou une solution travaillée, laissez ces éléments visibles pendant la pratique pour apprendre à partir de l'exemple complet."
-          ]
+            "Votre enseignant doit activer l'accès aux questions de pratique. Si les onglets Bibliothèque de questions et Séances de pratique sont absents, demandez-lui cet accès. Vous pouvez aussi utiliser vos propres questions privées de la bibliothèque.",
+            "Dans le cours, ouvrez Séances de pratique, puis créez une nouvelle séance. Saisissez un nom obligatoire, par exemple « Biologie cellulaire — révision du quiz 2 », et ajoutez éventuellement des étiquettes de séance.",
+            "Choisissez Ajouter une question → Copier depuis la bibliothèque de questions. Recherchez ou filtrez, sélectionnez les questions et ajoutez-les à la séance de pratique. Pour un ensemble aléatoire, filtrez d'abord, indiquez le nombre souhaité et choisissez l'ajout aléatoire depuis la liste.",
+            "Utilisez Ajouter une question au-dessus, au-dessous ou entre les questions pour insérer du contenu. Retirer enlève une question de l'ensemble sans supprimer l'original de la bibliothèque.",
+            "Pour écrire votre question, choisissez Ajouter une question → Créer, puis renseignez le type, l'énoncé, les choix ou la réponse attendue et la solution. Attendez la confirmation d'enregistrement avant de fermer l'éditeur de question. Vous pouvez modifier les questions qui vous appartiennent.",
+            "Enregistrez et démarrez la pratique pour sauvegarder la séance et ouvrir sa révision. Essayez chaque question avant d'afficher la solution. Ce travail personnel est distinct de la remise d'un quiz noté par l'enseignant.",
+            "Revenez à Séances de pratique pour rouvrir votre ensemble, modifier son nom ou ses questions, ou le supprimer avec confirmation. En cas d'échec d'enregistrement, vérifiez le message et le nom obligatoire avant de quitter l'éditeur."
+          ],
+          "note": "Les questions sont enregistrées séparément : annuler l'éditeur de séance n'annule pas les modifications de questions déjà sauvegardées. Commencez par un petit ensemble thématique, puis créez un ensemble mixte avec la sélection aléatoire."
         },
         {
           "title": "Utiliser les clavardages du cours et de la séance pour des questions différentes",

@@ -4,6 +4,12 @@ Qlicker stores its persistent application state in MongoDB through Mongoose mode
 
 ## Primary models
 
+### Operational monitoring collections
+
+`SystemMetricSample` (`systemMetricSamples`) stores timestamp, collector ID, sample interval, host CPU/load, memory, network counters/rates, and aggregate recent-user counts by role. `SystemMonitorEvent` (`systemMonitorEvents`) stores timestamp, collector ID, severity, event code/message, and diagnostic details. Both are new independent collections with ObjectId identifiers and no legacy-document references or changes. Each has a timestamp query index and an `expiresAt` TTL index with `expireAfterSeconds: 0`. The collector creates these indexes explicitly because application connections disable automatic index creation.
+
+Retention is seven days, subject to MongoDB TTL scheduling, with periodic cleanup as a fallback. Default sampling produces roughly 10,080 records per week. MongoDB samples contain counts, not user IDs. Redis sorted sets under `qlicker:activity:*` temporarily contain user IDs and last authenticated-request timestamps; the collector removes entries outside the activity window, and the keys expire after eight idle days if collection stops. These operational records are not attendance or grading data. Normal full-database backups may include them.
+
 ### User
 
 Represents students, professors, and admins.

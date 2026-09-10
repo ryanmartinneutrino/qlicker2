@@ -319,6 +319,9 @@
       "ai": "AI"
     },
     "usageStatistics": {
+      "chartInspectHelp": "Hover or tap to inspect th' nearest time bucket. Focus th' chart and use Left/Right, Home/End; Escape stows th' readout.",
+      "chartBucket": "Watch bucket: {{time}}",
+      "chartNoReading": "No tally",
       "title": "Usage Tallies",
       "description": "Recent boardin' activity and voyage engagement across Qlicker.",
       "loading": "Loadin' usage tallies",
@@ -333,7 +336,51 @@
       "course": "Ship",
       "activeUsers": "Active hands",
       "enrollment": "Crew enrolled",
-      "noCourses": "No ships be available."
+      "noCourses": "No ships be available.",
+      "monitorFailedLoad": "Couldn't fetch th' system watch tallies",
+      "systemMonitoring": "Ship's system watch",
+      "systemMonitoringDescription": "CPU, memory, network, and active crew tallies sampled gently and kept fer 7 days.",
+      "historyRange": "System watch history span",
+      "range6Hours": "6 hours aboard",
+      "range24Hours": "24 hours aboard",
+      "range7Days": "7 days aboard",
+      "monitorStatus": { "healthy": "Keepin' watch", "stale": "Old tidings", "unavailable": "Watch not rigged" },
+      "monitorUnavailableHelp": "Nary a system sample. Start th' system-monitor service and check its MongoDB link.",
+      "monitorStaleHelp": "Th' latest sample be old. Check th' system-monitor events and container's condition.",
+      "cpu": "CPU engines",
+      "memory": "Memory hold",
+      "loadAndCores": "1-minute load {{load}} across {{cores}} cores aboard",
+      "hostMemory": "All RAM minus available RAM, allowin' fer reclaimable cache",
+      "hostScopeHelp": "These tallies cover th' whole Linux ship, not Qlicker alone. Other apps, containers, an' th' operating system all count. On Docker Desktop, th' ship be th' Linux VM.",
+      "cpuHelp": "100% means all CPU cores be busy; this ain't a tally fer one process.",
+      "memoryAmounts": "{{used}} used o' {{total}} · {{available}} available",
+      "monitoredInterfaces": "Interfaces: {{interfaces}}",
+      "activeNow": "Recently aboard",
+      "activeNowHelp": "Authenticated in th' past {{minutes}} minutes",
+      "network": "Network riggin'",
+      "receivedSent": "Received / sent on th' watched interface",
+      "lastSample": "Last tally: {{time}} · watch interval: {{seconds}} seconds",
+      "resourceHistory": "CPU and memory logbook",
+      "resourceHistoryHelp": "Average usage in each shown time bucket, arr.",
+      "activityHistory": "Active crew logbook",
+      "activityHistoryHelp": "Unique hands makin' an authenticated request within {{minutes}} minutes of each sample. Rank lines may overlap.",
+      "networkHistory": "Network traffic logbook",
+      "networkHistoryHelp": "Whole-ship bytes received/sent each second on th' selected interfaces, not just Qlicker cargo or link fullness. Th' vertical scale follows th' traffic shown.",
+      "noMonitorHistory": "Nary a watch tally fer this span.",
+      "students": "Deckhands",
+      "professors": "Captains",
+      "received": "Taken aboard",
+      "sent": "Sent ashore",
+      "peakPeriods": "Busiest watches",
+      "peakPeriodsHelp": "Th' five busiest shown buckets, ranked by active hands then CPU usage.",
+      "time": "Ship's time",
+      "monitorEvents": "Watch events",
+      "monitorEventsHelp": "Recent watch starts, stops, and errors. Full Docker logs be available through docker compose logs; th' app has no Docker socket aboard.",
+      "level": "Severity aboard",
+      "event": "Happenin'",
+      "collector": "Lookout",
+      "noMonitorEvents": "Nary a watch event in th' past 7 days.",
+      "eventLevel": { "info": "Tidings", "warning": "Look sharp", "error": "Trouble aboard" }
     },
     "settings": {
       "restrictDomain": "Restrict missive domain",
@@ -2088,6 +2135,18 @@
             "Use Oversee bulletins in th' Hands tab to yarn system-wide login notices that every hand sees in th' app bar until they expire or be waved off."
           ],
           "warning": "Rank changes an' SSO login approvals take effect immediately, so confirm th' request afore savin'."
+        },
+        {
+          "title": "Watch th' host and busiest hours aboard",
+          "subtitle": "Open Usage Tallies to compare CPU engines, memory hold, network riggin', and active hands.",
+          "bullets": [
+            "Choose 6 hours, 24 hours, or 7 days aboard. Refresh fetches new tallies; th' page ain't askin' constantly. Hover or tap a history chart to inspect th' nearest time bucket an' each curve's tally. Focus th' chart and use Left/Right or Home/End; Escape stows th' readout. Missing values say No tally, never guessed between points.",
+            "CPU and memory cover th' whole Linux host. Network shows bytes taken aboard and sent ashore each second on th' selected interfaces, includin' other cargo aboard.",
+            "Recently active means a hand made an authenticated API request in th' past 15 minutes by default. Idle signed-in hands may fall off th' tally, and ranks may overlap. Th' memory card shows used, total, an' available RAM. Automatic network selection favors non-tunnel default-route interfaces so VPN an' uplink cargo ain't counted twice. Check th' interface names; rates be KiB/s or MiB/s, not bits each second.",
+            "Th' logbook starts when system-monitor is rigged and keeps seven days. Charts average resources over 1, 5, or 30 minutes and show th' highest sampled crew count.",
+            "Compare busiest watches with th' charts. Check sample time and watch events fer stale tidings, errors, and recovery. Operators can read th' full Docker logs."
+          ],
+          "note": "Th' browser capture shows example tallies; use yer own logbook to investigate trouble."
         }
       ]
     },
@@ -2176,6 +2235,20 @@
             "If a voyage depends on secret codes, watches, or in plain sight statistics, confirm those rigging afore crew begin joinin'.",
             "Voyage lists keep hunt, filters, an' pagination inside Hunt voyages. While an interactive voyage be underway, openin' its card joins th' underway controls directly; underway reckoning cards still open th' editor."
           ]
+        },
+        {
+          "title": "Use boardin' codes fer attendance an' admission",
+          "subtitle": "Control boardin' to a live interactive voyage, then admit late crew one by one.",
+          "bullets": [
+            "Th' course enrollment code joins th' ship's course; th' six-digit voyage code admits enrolled crew to one live voyage. Fer attendance-controlled boardin', enable Require Secret code before crew join.",
+            "Launchin' won't open boardin' by itself. In th' live controls, enable Board Spell an' open th' presentation window to show th' current code in class. Crew open th' live voyage an' enter that code.",
+            "Set refresh between 5 an' 120 seconds; keep th' officer's live controls open fer automatic rotation. Refresh th' code to replace it straightaway. Crew not yet aboard must use th' current code.",
+            "After check-in, close Board Spell but keep Require Secret code enabled. Without that requirement, enrolled crew can board a runnin' voyage without a code.",
+            "Fer late crew, open th' students panel, expand Waitin' to board, filter by name or email, an' choose Admit beside th' verified crewmate. They must be enrolled. Manual admission works while th' voyage runs even with Board Spell closed.",
+            "Waitin' to board lists enrolled crew who haven't joined, not necessarily folk online or askin' to board.",
+            "Admission lasts fer that voyage, by code or officer alike. Crew can leave, refresh, lose connection, an' rejoin with th' same account without another code—even after rotation or closin' Board Spell. Requirin' codes later won't undo earlier admissions; another voyage needs its own admission."
+          ],
+          "warning": "An in-class code an' short boardin' window help enforce attendance. A shared code or joined count ain't proof o' physical presence or stayin' aboard; check participation too an' follow yer institution's rules."
         },
         {
           "title": "Recap results, ledger consistently, an' communicate holler",
@@ -2293,14 +2366,18 @@
           }
         },
         {
-          "title": "Use th' riddle chest to build drill voyages",
-          "subtitle": "Chest access depends on what yer officer has made in plain sight to crew.",
+          "title": "Chart yer own drill voyages",
+          "subtitle": "Name a study voyage with riddle-chest questions or riddles ye write yerself.",
           "bullets": [
-            "If yer ship doesn't allow access to drill riddles, th' chest an' drill-voyage tabs stay stowed away until th' officer enables 'em.",
-            "Hunt th' riddle chest fer accessible material on th' topic ye want to revisit.",
-            "Chart drill voyages from chest riddles so ye can rehearse at yer own pace an' then recap th' results right away.",
-            "If a riddle has math, images, or a worked solution, keep those in plain sight while practicin' so ye can learn from th' full example."
-          ]
+            "Yer officer must enable drill-riddle access. If th' riddle chest an' drill-voyage tabs be missing, ask yer officer. Yer own private chest riddles can sail too.",
+            "Open yer ship's course, choose drill voyages, then chart a new one. Give it a required name, like “Cell biology — drill fer Quiz 2”, an' add voyage tags if ye wish.",
+            "Choose Add riddle → Copy from th' riddle chest. Search or filter, select riddles, an' add th' selected riddles to yer drill voyage. Fer a random haul, filter first, enter th' count, then choose random riddles from th' list.",
+            "Use Add riddle above, below, or between riddles to insert more. Remove takes a riddle out o' this voyage without sinking th' original in th' chest.",
+            "To write yer own, choose Add riddle → Create New, pick a type, an' fill in th' prompt, choices or expected answer, an' solution. Wait fer th' saved signal before closin' th' riddle editor. Ye can edit riddles ye own.",
+            "Save an' start practice to stow th' voyage an' open its recap. Try each riddle before showin' its solution. This be personal drill, separate from handin' in an officer's graded quiz.",
+            "Return to drill voyages to reopen yer set, edit its name or riddles, or delete it with confirmation. If savin' fails, check th' error an' required name before leavin' th' editor."
+          ],
+          "note": "Riddles save apart from th' voyage: cancellin' th' voyage editor won't undo riddle edits already stowed. Start with a small topic haul, then chart a mixed voyage with random selection."
         },
         {
           "title": "Use course parley an' voyage parley fer different questions",

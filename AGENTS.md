@@ -118,7 +118,7 @@ Manual screenshots are real Chromium captures. Regenerate them after material UI
 
 ```bash
 cd client
-REDIS_URL= QCLICKER_CAPTURE_MANUALS=1 npx playwright test e2e/manual-screenshots.spec.js --project=chromium
+REDIS_URL= QCLICKER_CAPTURE_MANUALS=1 npx playwright test e2e/manual-screenshots.spec.js e2e/admin-system-monitoring.spec.js --project=chromium
 ```
 
 The capture writes matching files to `docs/assets/manuals/` and `client/public/manuals/`. Inspect the images before committing them. Do not hand-edit one copy independently.

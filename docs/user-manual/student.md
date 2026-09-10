@@ -13,7 +13,7 @@ If this is your first visit, read [Getting started](getting-started.md) first.
 5. [Take and submit a quiz](#5-take-and-submit-a-quiz)
 6. [Review completed work](#6-review-completed-work)
 7. [Read grades and feedback](#7-read-grades-and-feedback)
-8. [Use the question library and practice sessions](#8-use-the-question-library-and-practice-sessions)
+8. [Create your own practice sessions](#8-create-your-own-practice-sessions)
 9. [Use course chat and session chat](#9-use-course-chat-and-session-chat)
 10. [Use student AI Chat](#10-use-student-ai-chat)
 11. [Use video, notifications, and profile tools](#11-use-video-notifications-and-profile-tools)
@@ -191,26 +191,50 @@ Open the corresponding review page to understand a grade. If you believe somethi
 
 See [Grading guide](grading.md) for the shared rules.
 
-## 8. Use the question library and practice sessions
+## 8. Create your own practice sessions
 
-These tools appear only when the instructor enables practice-question access.
+A practice session is a personal study set you build for a course. You choose the questions and work through them at your own pace. Creating one does not submit an answer to an instructor's quiz or live session.
 
-### Find practice material
+### Before you start
 
-Open **Question Library**, then search/filter by topic or type. You only see material that has been made available to students. Library visibility does not mean that every future assessment question is visible.
+Open the course and look for **Practice Sessions** and **Question Library**. Both require the instructor to enable practice-question access. If the tabs are missing, ask the instructor; changing browsers will not enable them. The library contains questions available to your account, including your own private questions. It does not expose hidden assessment material.
 
-### Create a practice session
+### Name your study set
 
-1. Open **Practice Sessions**.
+1. On the course page, open **Practice Sessions**.
 2. Select **New practice session**.
-3. Enter a clear name for the topic you are studying.
-4. Search the available library.
-5. Add the questions you want and arrange the set.
-6. Save/start the session, answer at your pace, then review.
+3. Enter a **Practice session name**, such as “Cell biology — revision for Quiz 2”. A name is required.
+4. Optionally select **Session tags** from the course's topic list to describe the material you want to study.
 
-![New practice-session editor with available questions and selected-question area](../assets/manuals/student-practice-session.png)
+### Add questions from the library
 
-You can edit or delete your own practice sessions from the course page. Repeat a practice set after reviewing feedback, but vary the questions so you learn the concept rather than the order.
+1. Select **Add question**, then **Copy from Question Library**.
+2. Search or filter the library for the topic or question type you need.
+3. Select the questions you want, then choose **Add selected questions to practice session**. The dialog closes and the selected questions appear in the editor.
+4. To build a varied set instead, enter a **Random count** and choose **Randomly add … questions from the list**. Filter the list first to keep the random selection on topic.
+5. Use **Add question** above, below, or between existing questions to choose where more material is inserted. **Remove** takes a question out of the selected set; it does not delete the original library question.
+
+![Named student practice session with a selected biology question and save controls](../assets/manuals/student-practice-session.png)
+
+*Example: select questions about cell biology, check the prompts in the editor, then save the set before starting your revision.*
+
+### Write a question of your own
+
+1. Select **Add question → Create New**.
+2. Choose the question type and write the prompt. For an answerable question, fill in the options or expected answer appropriate to that type; include a solution when it will help you study later.
+3. Choose topic tags if useful, wait for the editor's save confirmation, and close the question editor. The new question is added to your practice set.
+4. Use the pencil/**Edit** control to revise questions you own. Questions are saved separately from the practice session, so cancelling the session editor does not undo question edits already saved.
+
+For example, after reviewing an incorrect numerical answer, create a related question with different numbers and a worked solution. Try solving it on paper before revealing that solution.
+
+### Save, study, and return later
+
+1. Select **Save and start practice**. This saves the name, tags, and selected question list, then opens the practice review page. Selecting questions alone does not save the session.
+2. Work through the questions. Attempt each answer yourself before using **Show Solution** when available. This is a self-study review workflow; it is separate from submitting a graded quiz.
+3. Return to the course's **Practice Sessions** tab to reopen your saved set. Use its pencil/**Edit** control to rename it or change its questions, then select **Save and start practice** again.
+4. To remove a set you no longer need, select its **Delete** control and confirm. Check the session name before confirming.
+
+If saving fails, remain on the editor and read the error message. Check that the name is filled in and that the course still allows practice. If no library questions match, clear filters, create your own question, or ask the instructor what material is available. For exam revision, start with a small topic-focused set, then make a second mixed set using random selection.
 
 ## 9. Use course chat and session chat
 

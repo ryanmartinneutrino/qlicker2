@@ -9,6 +9,7 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
+    "monitor": "node src/systemMonitor.js",
     "dev": "node --watch src/server.js",
     "test": "vitest run",
     "migrate:question-types": "node scripts/migrate-question-types.js",

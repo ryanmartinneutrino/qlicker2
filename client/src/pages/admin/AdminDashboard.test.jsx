@@ -49,6 +49,7 @@ let usersState;
 let userDetailsState;
 let coursesState;
 let usageStatisticsState;
+let systemMonitoringState;
 
 function buildUser(overrides = {}) {
   const user = {
@@ -208,6 +209,26 @@ describe('AdminDashboard', () => {
       ],
     };
 
+    systemMonitoringState = {
+      status: 'healthy',
+      latest: {
+        timestamp: '2026-09-08T16:00:00.000Z', sampleIntervalSeconds: 60,
+        cpu: { usagePercent: 42, cores: 4, load1: 1.2 },
+        memory: { usedPercent: 65, usedBytes: 5.2 * 1024 ** 3, totalBytes: 8 * 1024 ** 3, availableBytes: 2.8 * 1024 ** 3 },
+        network: { interfaces: ['wlp4s0'], receivedBytesPerSecond: 1024, transmittedBytesPerSecond: 2048 },
+        activity: { activeUsers: 25, windowMinutes: 15 },
+      },
+      history: [0, 1].map((index) => ({
+        timestamp: `2026-09-08T15:0${index}:00.000Z`,
+        cpuPercent: 40 + index, memoryPercent: 65, activeUsers: 25,
+        activeStudents: 20, activeProfessors: 5,
+        networkReceivedBytesPerSecond: 1024, networkTransmittedBytesPerSecond: 2048,
+      })),
+      peakPeriods: [],
+      events: [{ timestamp: '2026-09-08T16:00:00.000Z', code: 'collector_started',
+        level: 'info', message: 'System monitor started', collectorId: 'host' }],
+    };
+
     apiClientMock.get.mockImplementation((url, config = {}) => {
       if (url === '/settings') {
         return Promise.resolve({ data: settingsState });
@@ -249,6 +270,10 @@ describe('AdminDashboard', () => {
 
       if (url === '/users/admin/usage-statistics') {
         return Promise.resolve({ data: usageStatisticsState });
+      }
+
+      if (url === '/users/admin/system-monitoring') {
+        return Promise.resolve({ data: systemMonitoringState });
       }
 
       if (url.startsWith('/users/')) {
@@ -399,6 +424,44 @@ describe('AdminDashboard', () => {
     expect(within(courseRow).getByText('14')).toBeInTheDocument();
     expect(within(courseRow).getByText('36')).toBeInTheDocument();
     expect(apiClientMock.get).toHaveBeenCalledWith('/users/admin/usage-statistics');
+    expect(screen.getByRole('img', { name: /^CPU and memory history/ })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /^Active-user history/ })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /^Network traffic history/ })).toBeInTheDocument();
+    expect(screen.getByText('42.0%')).toBeInTheDocument();
+    expect(screen.getByText(/not Qlicker alone/i)).toBeInTheDocument();
+    expect(screen.getByText(/5.2 GiB.*8.0 GiB.*2.8 GiB/)).toBeInTheDocument();
+    expect(screen.getByText('1.0 KiB/s / 2.0 KiB/s')).toBeInTheDocument();
+    expect(screen.getByText('Interfaces: wlp4s0')).toBeInTheDocument();
+    expect(screen.getByText('System monitor started')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '7 days', exact: true }));
+    await waitFor(() => expect(apiClientMock.get).toHaveBeenCalledWith(
+      '/users/admin/system-monitoring', { params: { range: '7d' } }
+    ));
+  });
+
+  it('keeps login statistics usable when monitoring is unavailable', async () => {
+    systemMonitoringState = { status: 'unavailable', latest: null, history: [], peakPeriods: [], events: [] };
+    renderDashboard();
+    fireEvent.click(await screen.findByRole('tab', { name: /Usage Statistics/i }));
+    expect(await screen.findByText('48')).toBeInTheDocument();
+    expect(screen.getByText(/No system samples are available/)).toBeInTheDocument();
+    expect(screen.queryByText('0.0%')).not.toBeInTheDocument();
+    expect(screen.queryByRole('img', { name: 'CPU and memory history' })).not.toBeInTheDocument();
+  });
+
+  it.each(['en', 'de', 'es', 'fr', 'it', 'pir', 'ru', 'zh'])('renders Usage Statistics without raw translation keys in %s', async (locale) => {
+    await i18n.changeLanguage(locale);
+    const { unmount } = renderDashboard();
+    try {
+      fireEvent.click(await screen.findByRole('tab', { name: i18n.t('admin.tabs.usageStatistics'), exact: true }));
+      expect(await screen.findByText('42.0%')).toBeInTheDocument();
+      const section = screen.getByRole('region', { name: i18n.t('admin.usageStatistics.systemMonitoring'), exact: true });
+      expect(section.innerHTML).not.toMatch(/admin\.usageStatistics\./);
+      expect(section.textContent).not.toContain('{{');
+    } finally {
+      unmount();
+      await i18n.changeLanguage('en');
+    }
   });
 
   it('requests a manual backup and shows 12-hour backup controls when the app uses 12-hour time', async () => {

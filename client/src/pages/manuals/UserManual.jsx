@@ -236,17 +236,22 @@ function getScreenshotPresets(screenshot, t, context = {}) {
   const supplementalImages = {
     admin: {
       3: '/manuals/admin-users.png',
+      4: '/manuals/admin-system-monitoring.png',
     },
     professor: {
       1: '/manuals/professor-groups.png',
       4: '/manuals/professor-question-library.png',
       5: '/manuals/professor-live-session.png',
-      6: '/manuals/professor-grades.png',
-      7: [
+      6: [
+        { imageSrc: '/manuals/professor-join-code.png', titleKey: 'professor.liveSession.joinPeriod' },
+        { imageSrc: '/manuals/professor-session-admission.png', titleKey: 'professor.liveSession.admitStudent' },
+      ],
+      7: '/manuals/professor-grades.png',
+      8: [
         { imageSrc: '/manuals/professor-course-chat.png', titleKey: 'courseChat.title' },
         { imageSrc: '/manuals/professor-session-chat.png', titleKey: 'sessionChat.chat' },
       ],
-      8: [
+      9: [
         { imageSrc: '/manuals/professor-ai-settings.png', titleKey: 'professor.course.aiSettings' },
         { imageSrc: '/manuals/professor-ai-chat.png', titleKey: 'ai.chat.title' },
       ],

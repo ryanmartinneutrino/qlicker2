@@ -68,7 +68,8 @@ describe('UserManual', () => {
     expect(screen.getByRole('img', { name: /student course page preview/i })).toHaveAttribute('src', '/manuals/student-course.png');
     expect(screen.getByRole('img', { name: /review and practice preview/i })).toHaveAttribute('src', '/manuals/student-review.png');
     expect(screen.getByRole('img', { name: /join live sessions and understand how quizzes differ/i })).toHaveAttribute('src', '/manuals/student-live-session.png');
-    expect(screen.getByRole('img', { name: /use the question library to build practice sessions/i })).toHaveAttribute('src', '/manuals/student-practice-session.png');
+    expect(screen.getByRole('img', { name: /create your own practice sessions/i })).toHaveAttribute('src', '/manuals/student-practice-session.png');
+    expect(screen.getByText(/choose Save and start practice to save the session/i)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /use course chat and session chat for different kinds of questions/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /use student AI Chat safely and effectively/i })).toBeInTheDocument();
     expect(screen.getByRole('img', { name: /course chat/i })).toHaveAttribute('src', '/manuals/student-course-chat.png');
@@ -109,6 +110,10 @@ describe('UserManual', () => {
     expect(screen.getByRole('img', { name: /set up groups before you need them in class/i })).toHaveAttribute('src', '/manuals/professor-groups.png');
     expect(screen.getByRole('img', { name: /use the library, import\/export, and copy tools to prepare efficiently/i })).toHaveAttribute('src', '/manuals/professor-question-library.png');
     expect(screen.getByRole('img', { name: /run interactive sessions and quizzes intentionally/i })).toHaveAttribute('src', '/manuals/professor-live-session.png');
+    expect(screen.getByRole('heading', { name: /use join codes for attendance and admission/i })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /^Join Period$/i })).toHaveAttribute('src', '/manuals/professor-join-code.png');
+    expect(screen.getByRole('img', { name: /^Admit$/i })).toHaveAttribute('src', '/manuals/professor-session-admission.png');
+    expect(screen.getByText(/Admission persists for that session/i)).toBeInTheDocument();
     expect(screen.getByRole('img', { name: /review results, grade consistently, and communicate feedback/i })).toHaveAttribute('src', '/manuals/professor-grades.png');
     expect(screen.getByRole('heading', { name: /use course chat and session chat deliberately/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /use AI for course preparation, analysis, grading, and student support/i })).toBeInTheDocument();

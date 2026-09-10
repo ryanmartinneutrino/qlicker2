@@ -204,7 +204,41 @@ If SSO is wrong, it can prevent access for many users at once, so make changes d
 
 ## Usage statistics
 
-Use **Usage Statistics** to compare active users over the past hour, 24 hours, and 7 days and to see the five most active courses. This view is operational context, not an academic analytics report.
+Open **Admin → Usage Statistics**. The first cards count unique accounts by their recorded last login over the past hour, 24 hours, and 7 days; the course table ranks enrolled members with recent logins. These are login summaries, not a count of currently connected browsers.
+
+### Investigate busy teaching periods
+
+1. Scroll to **System monitoring** and select **6 hours**, **24 hours**, or **7 days**.
+2. Compare **CPU and memory history** with **Active-user history** at the same time. The **Peak periods** table lists the five busiest displayed periods, ranked by active users and then CPU.
+3. Compare inbound and outbound **Network traffic history** with those peaks. A busy classroom may have high user activity without high host utilization; sustained high resource use at quiet times warrants an operational investigation.
+
+   Hover over a chart to see the nearest time bucket's timestamp and each curve's value, including units. A dashed vertical guide and dots identify the selected coordinates. These are recorded bucket values, not interpolated measurements; **No reading** means data is missing. You can also tap the chart, or focus it with Tab and use Left/Right to move between buckets and Home/End for the first/last bucket. Escape dismisses the readout.
+
+4. Check the last sample timestamp. Use **Refresh** for current data; the page does not continuously poll. Results can be cached for 30 seconds.
+5. If samples are **Stale**, review **Monitor events** for collection failures, recovery, and Redis availability. A missing history means the collector has not supplied data for that range. Ask the operator to check the service if no event explains the gap.
+
+![Admin system monitoring charts and activity history](../assets/manuals/admin-system-monitoring.png)
+
+*The illustration is a Chromium capture using example monitoring data; it does not describe the load on your installation.*
+
+### Understand the measurements
+
+| Measurement | Interpretation |
+| --- | --- |
+| CPU | Percentage busy across all host CPU cores, averaged between samples. The load value is Linux's one-minute load average, not a percentage. |
+| Memory | `(MemTotal − MemAvailable) / MemTotal × 100`, for the whole host. The card also shows used, total, and available RAM. Linux estimates available RAM allowing for reclaimable cache; this is not simply total minus free RAM or Qlicker's process memory. |
+| Network | Average received/sent bytes per second on the displayed interfaces, including other applications' traffic. Automatic selection prefers non-tunnel default-route interfaces, avoiding VPN/uplink double counting. KiB/s means 1,024 bytes per second; MiB/s means 1,048,576 bytes per second. The chart scales to observed traffic, not link capacity. |
+| Recently active | Unique authenticated users making an API request during the preceding 15 minutes by default. Multiple tabs/replicas deduplicate by user. Idle signed-in users and browsers only receiving WebSocket updates can age out; logout does not immediately remove recent activity. |
+| Role lines | Students and professors with recent requests. Users with multiple roles can appear in multiple lines; total users remain deduplicated. |
+| History | Seven days, starting when the collector is installed. Default sampling is once per minute. Display buckets are 1 minute, 5 minutes, or 30 minutes for the three ranges. Resource values are averages; active-user values are the maximum sample count in each bucket. Very brief spikes can be missed. |
+
+Host metrics cover the native Linux machine or the machine running Docker, including MongoDB, Redis, Qlicker, and other workloads. On Docker Desktop this is the Linux VM. They are not per-process or per-container measurements. A desktop using 40 GiB out of 64 GiB can legitimately show 62.5% even when Qlicker is quiet. CPU is normalized over all cores: one fully busy core on a 16-core machine contributes about 6.25%. See the [Linux counter definitions](https://docs.kernel.org/filesystems/proc.html) for the underlying measurements.
+
+To investigate a high reading, compare the sample timestamp with host tools such as `free`, `top`, and your network monitor. Compare **available** RAM, not just the `used` column of `free`, whose definition varies by version. CPU/network cards average the sampling interval (normally 60 seconds), so a one-second desktop monitor can show different values. Check the displayed network interfaces: selecting both a VPN and its underlying Wi-Fi/Ethernet interface explicitly can still count the same packets twice. Ask the operator to select only the intended interface if automatic selection does not match the host's routing.
+
+Missing measurements are shown as gaps or dashes; unavailable Redis activity is not reported as zero users. After a collector fix or interface change, older history is not rewritten and expires after seven days; use the latest sample to check the change.
+
+**Monitor events** provides the latest 50 collector events from the past seven days, with collection error details. Full API, database, proxy, and operating-system logs are not imported into this page; operators can use the [deployment log commands](../../production_setup/README.md#monitoring--logs). The collector has no Docker-control access.
 
 - Use trends to decide whether a reported incident is isolated or site-wide.
 - Expect values to depend on the app's recorded activity windows; do not interpret them as attendance or grades.

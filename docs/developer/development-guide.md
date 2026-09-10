@@ -22,6 +22,14 @@ Use the repository scripts when possible:
 ./scripts/qlicker.sh start
 ```
 
+On Linux, this also starts the system monitor with the root `.env` Mongo/Redis and monitoring settings. Use `./scripts/qlicker.sh status`, `stop`, or `restart` to manage the complete native stack. The collector writes `.data/system-monitor.log`; `SYSTEM_MONITOR_LOG_PATH` overrides that location. Its PID is tracked both in `.qlicker.pids` and `.data/system-monitor.pid` so stopping still finds the collector if the main PID file is lost. A collector failure leaves the app available and appears as stopped in status; restart the stack after correcting the problem. Set `SYSTEM_MONITOR_ENABLED=false` to opt out.
+
+The collector runs with a 64 MiB V8 old-space limit and lower CPU scheduling priority (`nice 10` when available). These are not Docker's hard total-memory/CPU limits; use a native supervisor/cgroup for equivalent hard limits. Native controller lifecycle regressions use isolated fixture processes and ports:
+
+```bash
+node --test scripts/test/qlicker-native.test.mjs
+```
+
 Or run the two app halves manually:
 
 ```bash
@@ -118,7 +126,7 @@ Regenerate browser illustrations with synthetic E2E data:
 
 ```bash
 cd client
-REDIS_URL= QCLICKER_CAPTURE_MANUALS=1 npx playwright test e2e/manual-screenshots.spec.js --project=chromium
+REDIS_URL= QCLICKER_CAPTURE_MANUALS=1 npx playwright test e2e/manual-screenshots.spec.js e2e/admin-system-monitoring.spec.js --project=chromium
 ```
 
 The test is skipped without the opt-in variable and writes identical images to the Markdown and in-app asset directories.
