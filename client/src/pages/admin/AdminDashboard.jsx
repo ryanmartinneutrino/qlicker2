@@ -34,6 +34,7 @@ import {
 } from '../../utils/imageUpload';
 import AutoSaveStatus from '../../components/common/AutoSaveStatus';
 import ResponsiveTabsNavigation from '../../components/common/ResponsiveTabsNavigation';
+import MonitoringLineChart from '../../components/common/MonitoringLineChart';
 import SessionListCard from '../../components/common/SessionListCard';
 import ManageNotificationsDialog from '../../components/notifications/ManageNotificationsDialog';
 import AiBackendManager from '../../components/ai/AiBackendManager';
@@ -2744,125 +2745,6 @@ function formatBytes(value, rate = false) {
 
 function formatByteRate(value) {
   return formatBytes(value, true);
-}
-
-function buildChartPath(points, valueKey, dimensions) {
-  const { left, top, width, height, yMax } = dimensions;
-  if (!points.length) return '';
-  const timestamps = points.map((point) => new Date(point.timestamp).getTime());
-  const minTime = Math.min(...timestamps);
-  const maxTime = Math.max(...timestamps);
-  const timeSpan = Math.max(1, maxTime - minTime);
-  let drawing = false;
-  return points.map((point, index) => {
-    const value = point[valueKey] == null ? NaN : Number(point[valueKey]);
-    if (!Number.isFinite(value)) {
-      drawing = false;
-      return '';
-    }
-    const timestamp = timestamps[index];
-    const x = left + (((timestamp - minTime) / timeSpan) * width);
-    const y = top + height - ((Math.max(0, Math.min(yMax, value)) / yMax) * height);
-    const command = drawing ? 'L' : 'M';
-    drawing = true;
-    return `${command}${x.toFixed(2)},${y.toFixed(2)}`;
-  }).filter(Boolean).join(' ');
-}
-
-function MonitoringLineChart({
-  description,
-  emptyLabel,
-  points = [],
-  series,
-  title,
-  valueFormatter,
-  yMaximum,
-}) {
-  const chartPoints = points.filter((point) => point?.timestamp);
-  const timestamps = chartPoints.map((point) => new Date(point.timestamp).getTime());
-  const minTime = Math.min(...timestamps);
-  const maxTime = Math.max(...timestamps);
-  const allValues = chartPoints.flatMap((point) => series.map(({ key }) => point[key] == null ? NaN : Number(point[key])))
-    .filter(Number.isFinite);
-  const calculatedMaximum = Math.max(1, ...allValues);
-  const yMax = yMaximum || calculatedMaximum;
-  const dimensions = { left: 64, top: 18, width: 806, height: 190, yMax };
-  const firstTimestamp = chartPoints[0]?.timestamp;
-  const middleTimestamp = chartPoints[Math.floor(chartPoints.length / 2)]?.timestamp;
-  const lastTimestamp = chartPoints.at(-1)?.timestamp;
-  const compactTime = (value) => {
-    if (!value) return '';
-    return new Intl.DateTimeFormat(undefined, {
-      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
-    }).format(new Date(value));
-  };
-
-  return (
-    <Paper variant="outlined" sx={{ p: 2, minWidth: 0 }}>
-      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{title}</Typography>
-      <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>{description}</Typography>
-      {chartPoints.length === 0 || allValues.length === 0 ? (
-        <Alert severity="info">{emptyLabel}</Alert>
-      ) : (
-        <>
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 0.5 }}>
-            {series.map((entry) => (
-              <Box key={entry.key} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Box aria-hidden="true" sx={{ width: 14, height: 3, bgcolor: entry.color, borderRadius: 1 }} />
-                <Typography variant="caption">{entry.label}</Typography>
-              </Box>
-            ))}
-          </Box>
-          <Box sx={{ width: '100%', overflowX: 'auto' }}>
-            <Box
-              component="svg"
-              viewBox="0 0 900 245"
-              role="img"
-              aria-label={`${title}. ${description}`}
-              sx={{ display: 'block', width: '100%', minWidth: 620, height: 'auto' }}
-            >
-              {[0, 0.25, 0.5, 0.75, 1].map((fraction) => {
-                const y = dimensions.top + dimensions.height - (fraction * dimensions.height);
-                return (
-                  <g key={fraction}>
-                    <line x1={dimensions.left} x2={dimensions.left + dimensions.width} y1={y} y2={y} stroke="#d9dde3" strokeWidth="1" />
-                    <text x={dimensions.left - 8} y={y + 4} textAnchor="end" fontSize="11" fill="currentColor">
-                      {valueFormatter(yMax * fraction)}
-                    </text>
-                  </g>
-                );
-              })}
-              {series.map((entry) => (
-                <path
-                  key={entry.key}
-                  d={buildChartPath(chartPoints, entry.key, dimensions)}
-                  fill="none"
-                  stroke={entry.color}
-                  strokeWidth="2.5"
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                />
-              ))}
-              {chartPoints.flatMap((point, pointIndex) => series.map((entry) => {
-                const value = point[entry.key] == null ? NaN : Number(point[entry.key]);
-                if (!Number.isFinite(value)) return null;
-                const x = dimensions.left + (((timestamps[pointIndex] - minTime) / Math.max(1, maxTime - minTime)) * dimensions.width);
-                const y = dimensions.top + dimensions.height - ((Math.max(0, Math.min(yMax, value)) / yMax) * dimensions.height);
-                return (
-                  <circle key={`${entry.key}-${point.timestamp}`} cx={x} cy={y} r="5" fill="transparent">
-                    <title>{`${entry.label}: ${valueFormatter(value)} — ${formatDisplayDateTime(point.timestamp)}`}</title>
-                  </circle>
-                );
-              }))}
-              <text x={dimensions.left} y="232" textAnchor="start" fontSize="11" fill="currentColor">{compactTime(firstTimestamp)}</text>
-              <text x={dimensions.left + (dimensions.width / 2)} y="232" textAnchor="middle" fontSize="11" fill="currentColor">{compactTime(middleTimestamp)}</text>
-              <text x={dimensions.left + dimensions.width} y="232" textAnchor="end" fontSize="11" fill="currentColor">{compactTime(lastTimestamp)}</text>
-            </Box>
-          </Box>
-        </>
-      )}
-    </Paper>
-  );
 }
 
 function UsageStatisticsTab() {

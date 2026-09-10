@@ -211,6 +211,9 @@ Open **Admin → Usage Statistics**. The first cards count unique accounts by th
 1. Scroll to **System monitoring** and select **6 hours**, **24 hours**, or **7 days**.
 2. Compare **CPU and memory history** with **Active-user history** at the same time. The **Peak periods** table lists the five busiest displayed periods, ranked by active users and then CPU.
 3. Compare inbound and outbound **Network traffic history** with those peaks. A busy classroom may have high user activity without high host utilization; sustained high resource use at quiet times warrants an operational investigation.
+
+   Hover over a chart to see the nearest time bucket's timestamp and each curve's value, including units. A dashed vertical guide and dots identify the selected coordinates. These are recorded bucket values, not interpolated measurements; **No reading** means data is missing. You can also tap the chart, or focus it with Tab and use Left/Right to move between buckets and Home/End for the first/last bucket. Escape dismisses the readout.
+
 4. Check the last sample timestamp. Use **Refresh** for current data; the page does not continuously poll. Results can be cached for 30 seconds.
 5. If samples are **Stale**, review **Monitor events** for collection failures, recovery, and Redis availability. A missing history means the collector has not supplied data for that range. Ask the operator to check the service if no event explains the gap.
 

@@ -319,6 +319,9 @@
       "ai": "AI"
     },
     "usageStatistics": {
+      "chartInspectHelp": "Hover or tap to inspect th' nearest time bucket. Focus th' chart and use Left/Right, Home/End; Escape stows th' readout.",
+      "chartBucket": "Watch bucket: {{time}}",
+      "chartNoReading": "No tally",
       "title": "Usage Tallies",
       "description": "Recent boardin' activity and voyage engagement across Qlicker.",
       "loading": "Loadin' usage tallies",
@@ -2137,7 +2140,7 @@
           "title": "Watch th' host and busiest hours aboard",
           "subtitle": "Open Usage Tallies to compare CPU engines, memory hold, network riggin', and active hands.",
           "bullets": [
-            "Choose 6 hours, 24 hours, or 7 days aboard. Refresh fetches new tallies; th' page ain't askin' constantly.",
+            "Choose 6 hours, 24 hours, or 7 days aboard. Refresh fetches new tallies; th' page ain't askin' constantly. Hover or tap a history chart to inspect th' nearest time bucket an' each curve's tally. Focus th' chart and use Left/Right or Home/End; Escape stows th' readout. Missing values say No tally, never guessed between points.",
             "CPU and memory cover th' whole Linux host. Network shows bytes taken aboard and sent ashore each second on th' selected interfaces, includin' other cargo aboard.",
             "Recently active means a hand made an authenticated API request in th' past 15 minutes by default. Idle signed-in hands may fall off th' tally, and ranks may overlap. Th' memory card shows used, total, an' available RAM. Automatic network selection favors non-tunnel default-route interfaces so VPN an' uplink cargo ain't counted twice. Check th' interface names; rates be KiB/s or MiB/s, not bits each second.",
             "Th' logbook starts when system-monitor is rigged and keeps seven days. Charts average resources over 1, 5, or 30 minutes and show th' highest sampled crew count.",

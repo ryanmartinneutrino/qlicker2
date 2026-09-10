@@ -319,6 +319,9 @@
       "ai": "AI"
     },
     "usageStatistics": {
+      "chartInspectHelp": "Passa il puntatore o tocca per esaminare l’intervallo più vicino. Con il grafico selezionato, usa Sinistra/Destra, Home/Fine; Esc chiude la lettura.",
+      "chartBucket": "Intervallo: {{time}}",
+      "chartNoReading": "Nessuna misura",
       "title": "Statistiche di utilizzo",
       "description": "Attività di accesso recente e partecipazione ai corsi in Qlicker.",
       "loading": "Caricamento delle statistiche di utilizzo",
@@ -2145,7 +2148,7 @@
           "title": "Monitorare il carico del sistema e le ore di punta",
           "subtitle": "Apri Statistiche di utilizzo per confrontare CPU, memoria, rete e utenti attivi.",
           "bullets": [
-            "Scegli 6 ore, 24 ore o 7 giorni. Aggiorna carica nuovi campioni; la pagina non interroga continuamente il server.",
+            "Scegli 6 ore, 24 ore o 7 giorni. Aggiorna carica nuovi campioni; la pagina non interroga continuamente il server. Passa il puntatore o tocca un grafico per esaminare l’intervallo più vicino e il valore di ogni curva. Con il grafico selezionato, usa Sinistra/Destra o Home/Fine; Esc chiude la lettura. I valori mancanti sono indicati come Nessuna misura, senza interpolazione.",
             "CPU e memoria riguardano tutto il sistema Linux. La rete mostra byte ricevuti/inviati al secondo sulle interfacce selezionate, comprese le altre applicazioni.",
             "Un utente recentemente attivo ha effettuato una richiesta API autenticata negli ultimi 15 minuti per impostazione predefinita. Non conta tutti i browser connessi; gli utenti inattivi scadono e i ruoli possono sovrapporsi. La scheda memoria mostra la RAM utilizzata, totale e disponibile. La selezione automatica della rete preferisce le interfacce della rotta predefinita senza tunnel, per non contare due volte il traffico VPN e del collegamento fisico. Controlla le interfacce indicate; i valori sono in KiB/s o MiB/s, non in bit al secondo.",
             "La cronologia inizia con l’installazione di system-monitor e dura sette giorni. I grafici mostrano medie delle risorse in intervalli di 1, 5 o 30 minuti e il massimo numero di utenti rilevato.",

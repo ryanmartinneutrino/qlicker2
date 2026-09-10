@@ -319,6 +319,9 @@
       "ai": "AI"
     },
     "usageStatistics": {
+      "chartInspectHelp": "Pase el puntero o toque para consultar el intervalo más cercano. Con el gráfico enfocado, use Izquierda/Derecha, Inicio/Fin; Escape cierra la lectura.",
+      "chartBucket": "Intervalo: {{time}}",
+      "chartNoReading": "Sin lectura",
       "title": "Estadísticas de uso",
       "description": "Actividad reciente de inicio de sesión y participación en cursos de Qlicker.",
       "loading": "Cargando estadísticas de uso",
@@ -2145,7 +2148,7 @@
           "title": "Supervisar la carga del servidor y las horas de mayor actividad",
           "subtitle": "Abra Estadísticas de uso para comparar CPU, memoria, red y usuarios activos.",
           "bullets": [
-            "Seleccione 6 horas, 24 horas o 7 días. Actualizar obtiene nuevas muestras; la página no consulta continuamente.",
+            "Seleccione 6 horas, 24 horas o 7 días. Actualizar obtiene nuevas muestras; la página no consulta continuamente. Pase el puntero o toque un gráfico para consultar el intervalo más cercano y el valor de cada curva. Con el gráfico enfocado, use Izquierda/Derecha o Inicio/Fin; Escape cierra la lectura. Los valores ausentes se indican como Sin lectura y no se interpolan.",
             "CPU y memoria corresponden a todo el host Linux. La red muestra bytes recibidos/enviados por segundo en las interfaces seleccionadas, incluido el tráfico de otras aplicaciones.",
             "Un usuario reciente realizó una solicitud autenticada a la API en los últimos 15 minutos de forma predeterminada. No cuenta todos los navegadores conectados; los usuarios inactivos caducan y los roles pueden solaparse. La tarjeta de memoria muestra la RAM usada, total y disponible. La selección automática prefiere interfaces de ruta predeterminada sin túnel para no contar dos veces el tráfico VPN y del enlace físico. Compruebe las interfaces indicadas; las tasas usan KiB/s o MiB/s, no bits por segundo.",
             "El historial comienza al instalar system-monitor y se conserva siete días. Los gráficos promedian recursos en intervalos de 1, 5 o 30 minutos y muestran el máximo de usuarios observado.",

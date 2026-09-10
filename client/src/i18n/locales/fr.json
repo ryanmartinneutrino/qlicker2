@@ -319,6 +319,9 @@
       "ai": "AI"
     },
     "usageStatistics": {
+      "chartInspectHelp": "Survolez ou touchez pour consulter l’intervalle le plus proche. Placez le focus sur le graphique et utilisez Gauche/Droite, Début/Fin ; Échap ferme l’affichage.",
+      "chartBucket": "Intervalle : {{time}}",
+      "chartNoReading": "Aucune mesure",
       "title": "Statistiques d’utilisation",
       "description": "Activité de connexion récente et participation aux cours dans Qlicker.",
       "loading": "Chargement des statistiques d’utilisation",
@@ -2145,7 +2148,7 @@
           "title": "Surveiller la charge du serveur et les périodes de pointe",
           "subtitle": "Ouvrez les statistiques d’utilisation pour comparer processeur, mémoire, réseau et utilisateurs actifs.",
           "bullets": [
-            "Choisissez 6 heures, 24 heures ou 7 jours. Actualiser charge de nouvelles mesures; la page n’interroge pas le serveur en continu.",
+            "Choisissez 6 heures, 24 heures ou 7 jours. Actualiser charge de nouvelles mesures; la page n’interroge pas le serveur en continu. Survolez ou touchez un graphique pour consulter l’intervalle le plus proche et la valeur de chaque courbe. Avec le focus sur le graphique, utilisez Gauche/Droite ou Début/Fin ; Échap ferme l’affichage. Les valeurs absentes sont indiquées par Aucune mesure, sans interpolation.",
             "Le processeur et la mémoire concernent tout l’hôte Linux. Le réseau indique les octets reçus/envoyés par seconde sur les interfaces choisies, y compris les autres applications.",
             "Un utilisateur récemment actif a effectué une requête API authentifiée dans les 15 dernières minutes par défaut. Ce n’est pas un compte exact des navigateurs connectés; les utilisateurs inactifs expirent et les rôles peuvent se chevaucher. La carte mémoire affiche la RAM utilisée, totale et disponible. La sélection réseau automatique privilégie les interfaces de route par défaut hors tunnel pour éviter de compter à la fois le trafic VPN et celui du lien physique. Vérifiez les interfaces affichées ; les débits sont en KiB/s ou MiB/s, pas en bits par seconde.",
             "L’historique commence à l’installation de system-monitor et dure sept jours. Les graphiques présentent les ressources moyennes sur 1, 5 ou 30 minutes et le nombre maximal d’utilisateurs observé.",

@@ -319,6 +319,9 @@
       "ai": "AI"
     },
     "usageStatistics": {
+      "chartInspectHelp": "Hover or tap to inspect the nearest time bucket. Focus the chart and use Left/Right, Home/End; Escape dismisses the readout.",
+      "chartBucket": "Time bucket: {{time}}",
+      "chartNoReading": "No reading",
       "title": "Usage Statistics",
       "description": "Recent sign-in activity and course engagement across Qlicker.",
       "loading": "Loading usage statistics",
@@ -2192,7 +2195,7 @@
           "title": "Monitor host load and busy teaching periods",
           "subtitle": "Open Usage Statistics and compare CPU, memory, network, and recent-user history.",
           "bullets": [
-            "Select 6 hours, 24 hours, or 7 days. Use Refresh to fetch new samples; the page does not continuously poll.",
+            "Select 6 hours, 24 hours, or 7 days. Use Refresh to fetch new samples; the page does not continuously poll. Hover or tap a history chart to inspect the nearest time bucket and each curve's value. Focus the chart and use Left/Right or Home/End; Escape dismisses the readout. Missing values are marked No reading, never interpolated.",
             "CPU and memory cover the entire Linux host. Network shows received/sent bytes per second on the selected host interfaces. Other applications on the host contribute to these values.",
             "Recently active means a unique user made an authenticated API request in the preceding 15 minutes by default. It does not count every signed-in browser. Idle users age out and role counts can overlap. The memory card shows used, total, and available RAM. Automatic network selection prefers non-tunnel default-route interfaces to avoid counting both VPN and uplink traffic. Check the displayed interface names; network rates use KiB/s or MiB/s, not bits per second.",
             "History starts when the system-monitor service is installed and expires after seven days. Charts average resource measurements in 1-, 5-, or 30-minute buckets and show the maximum sampled user count.",

@@ -319,6 +319,9 @@
       "ai": "AI"
     },
     "usageStatistics": {
+      "chartInspectHelp": "Bewegen Sie den Zeiger über das Diagramm oder tippen Sie darauf, um das nächste Zeitintervall zu prüfen. Bei fokussiertem Diagramm: Links/Rechts, Pos1/Ende; Esc schließt die Anzeige.",
+      "chartBucket": "Zeitintervall: {{time}}",
+      "chartNoReading": "Kein Messwert",
       "title": "Nutzungsstatistiken",
       "description": "Aktuelle Anmeldeaktivität und Kursbeteiligung in Qlicker.",
       "loading": "Nutzungsstatistiken werden geladen",
@@ -2145,7 +2148,7 @@
           "title": "Hostauslastung und Hauptnutzungszeiten überwachen",
           "subtitle": "Öffnen Sie die Nutzungsstatistik und vergleichen Sie CPU, Speicher, Netzwerk und aktive Benutzer.",
           "bullets": [
-            "Wählen Sie 6 Stunden, 24 Stunden oder 7 Tage. Aktualisieren lädt neue Messwerte; die Seite fragt nicht laufend ab.",
+            "Wählen Sie 6 Stunden, 24 Stunden oder 7 Tage. Aktualisieren lädt neue Messwerte; die Seite fragt nicht laufend ab. Bewegen Sie den Zeiger über ein Verlaufsdiagramm oder tippen Sie darauf, um das nächste Zeitintervall und die Kurvenwerte zu prüfen. Bei fokussiertem Diagramm dienen Links/Rechts und Pos1/Ende zur Navigation; Esc schließt die Anzeige. Fehlende Werte werden als Kein Messwert angezeigt, nicht interpoliert.",
             "CPU und Speicher beziehen sich auf den gesamten Linux-Host. Das Netzwerk zeigt empfangene/gesendete Bytes pro Sekunde an den ausgewählten Schnittstellen, einschließlich anderer Anwendungen.",
             "Als kürzlich aktiv gilt ein Benutzer mit einer authentifizierten API-Anfrage innerhalb der letzten 15 Minuten. Angemeldete, untätige Benutzer können herausfallen; Rollen können sich überschneiden. Die Speicherkarte zeigt belegten, gesamten und verfügbaren RAM. Die automatische Netzwerkauswahl bevorzugt Standardrouten ohne Tunnel, damit VPN- und Uplink-Verkehr nicht doppelt zählen. Prüfen Sie die angezeigten Schnittstellen; Raten werden in KiB/s oder MiB/s angegeben, nicht in Bit pro Sekunde.",
             "Der Verlauf beginnt mit der Installation von system-monitor und wird sieben Tage aufbewahrt. Diagramme mitteln Ressourcenwerte in 1-, 5- oder 30-Minuten-Intervallen und zeigen die höchste gemessene Benutzerzahl.",

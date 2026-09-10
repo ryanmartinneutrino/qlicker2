@@ -8,6 +8,7 @@ import pirLocale from './locales/pir.json';
 import ruLocale from './locales/ru.json';
 import zhLocale from './locales/zh.json';
 import adminDashboardSource from '../pages/admin/AdminDashboard.jsx?raw';
+import monitoringChartSource from '../components/common/MonitoringLineChart.jsx?raw';
 
 const LOCALES = {
   de: deLocale,
@@ -37,7 +38,7 @@ function flattenKeys(value, prefix = '') {
 describe('locale files', () => {
   it('translates every Usage Statistics label, including dynamic statuses, without missing interpolation values', () => {
     const keys = [...new Set([
-      ...[...adminDashboardSource.matchAll(/t\(['"](admin\.usageStatistics\.[^'"]+)['"]/g)].map((match) => match[1]),
+      ...[...(adminDashboardSource + monitoringChartSource).matchAll(/t\(['"](admin\.usageStatistics\.[^'"]+)['"]/g)].map((match) => match[1]),
       ...['healthy', 'stale', 'unavailable'].map((status) => `admin.usageStatistics.monitorStatus.${status}`),
       ...['info', 'warning', 'error'].map((level) => `admin.usageStatistics.eventLevel.${level}`),
     ])];

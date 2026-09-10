@@ -9,6 +9,8 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../
 const require = createRequire(path.join(repoRoot, 'server/package.json'));
 const { MongoClient } = require('mongodb');
 
+test.use({ hasTouch: true });
+
 test('admin can correlate host load and user activity on desktop and mobile', async ({ page, request }) => {
   const { admin } = await seedUsers(request);
   const { mongoUri } = await readE2eState();
@@ -52,6 +54,23 @@ test('admin can correlate host load and user activity on desktop and mobile', as
   await expect(page.getByText('System monitor started')).toBeVisible();
   await page.getByRole('button', { name: '7 days', exact: true }).click();
   await expect(page.getByRole('button', { name: '7 days', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  const resourceChart = page.getByRole('img', { name: /^CPU and memory history/ });
+  for (const name of [/^CPU and memory history/, /^Active-user history/, /^Network traffic history/]) {
+    const chart = page.getByRole('img', { name });
+    await chart.scrollIntoViewIfNeeded();
+    const bounds = await chart.boundingBox();
+    await chart.hover({ position: { x: bounds.width * 0.5, y: bounds.height * 0.45 } });
+    await expect(page.getByRole('status').filter({ hasText: 'Time bucket:' })).toHaveCount(1);
+    await page.keyboard.press('Escape');
+    await expect(page.getByText(/^Time bucket:/)).toHaveCount(0);
+  }
+  await resourceChart.focus();
+  await page.keyboard.press('Home');
+  const firstReadout = await page.getByRole('status').filter({ hasText: 'Time bucket:' }).textContent();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('status').filter({ hasText: 'Time bucket:' })).not.toHaveText(firstReadout);
+  await expect(page.getByRole('status').filter({ hasText: 'Time bucket:' })).toContainText('CPU:');
+  await expect(page.getByRole('status').filter({ hasText: 'Time bucket:' })).toContainText('Memory:');
   await expectNoCriticalAccessibilityViolations(page);
 
   if (process.env.QCLICKER_CAPTURE_MANUALS === '1') {
@@ -61,6 +80,10 @@ test('admin can correlate host load and user activity on desktop and mobile', as
   }
 
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.keyboard.press('Escape');
+  await resourceChart.scrollIntoViewIfNeeded();
+  await resourceChart.tap({ position: { x: 200, y: 80 } });
+  await expect(page.getByRole('status').filter({ hasText: 'Time bucket:' })).toBeVisible();
   await expect(page.getByRole('button', { name: '6 hours', exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await expectNoCriticalAccessibilityViolations(page);
