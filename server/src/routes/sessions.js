@@ -2230,27 +2230,21 @@ async function buildResponseAddedStatsDelta(question, attemptNumber, responseCou
   if (!responseStats) return null;
 
   if (responseStats.type === 'shortAnswer') {
-    const answers = sortResponseEntriesNewestFirst(responseStats.answers || []);
     return {
       type: 'shortAnswer',
-      answers: answers.map((item) => ({
-        answer: item?.answer,
-        answerWysiwyg: item?.answerWysiwyg || '',
-        createdAt: item?.createdAt || null,
-        updatedAt: item?.updatedAt || null,
-      })),
       total: Number(responseStats.total || 0),
     };
   }
 
   if (responseStats.type === 'numerical') {
     return {
-      ...responseStats,
-      answers: sortResponseEntriesNewestFirst(responseStats.answers || []).map((item) => ({
-        answer: item?.answer,
-        createdAt: item?.createdAt || null,
-        updatedAt: item?.updatedAt || null,
-      })),
+      type: 'numerical',
+      mean: responseStats.mean,
+      stdev: responseStats.stdev,
+      median: responseStats.median,
+      min: responseStats.min,
+      max: responseStats.max,
+      total: Number(responseStats.total || 0),
     };
   }
 

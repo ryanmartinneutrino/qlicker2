@@ -3577,7 +3577,7 @@ describe('Live session websocket delta events', () => {
     }
   });
 
-  it('includes complete short-answer stats in response-added deltas', async (ctx) => {
+  it('sends compact short-answer stats with the new response in response-added deltas', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
     const { prof, profToken, course, student, studentToken } = await setupCourseWithStudent();
     const sessRes = await createSessionInCourse(profToken, course._id);
@@ -3616,24 +3616,19 @@ describe('Live session websocket delta events', () => {
     expect(instructorResponseCall).toBeDefined();
 
     const [, , payload] = instructorResponseCall;
-    expect(payload.responseStats).toEqual(expect.objectContaining({
+    expect(payload.responseStats).toEqual({
       type: 'shortAnswer',
       total: 1,
-      answers: [
-        expect.objectContaining({
-          answer: 'Delta answer',
-          answerWysiwyg: '<p>Delta answer</p>',
-        }),
-      ],
-    }));
-    expect(payload.responseStats.answers[0]).not.toHaveProperty('studentUserId');
+    });
+    expect(payload.responseStats).not.toHaveProperty('answers');
     expect(payload.response).toEqual(expect.objectContaining({
       answer: 'Delta answer',
+      answerWysiwyg: '<p>Delta answer</p>',
       studentName: expect.any(String),
     }));
   });
 
-  it('includes complete instructor numerical stats while respecting the student response-list setting', async (ctx) => {
+  it('sends compact numerical stats while respecting the student response-list setting', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
     const { prof, profToken, course, student, studentToken } = await setupCourseWithStudent();
     const sessRes = await createSessionInCourse(profToken, course._id);
@@ -3675,19 +3670,15 @@ describe('Live session websocket delta events', () => {
     expect(payload.responseStats).toEqual(expect.objectContaining({
       type: 'numerical',
       total: 1,
-      values: [7.5],
-      answers: [
-        expect.objectContaining({
-          answer: '7.5',
-        }),
-      ],
       mean: 7.5,
       stdev: 0,
       median: 7.5,
       min: 7.5,
       max: 7.5,
     }));
-    expect(payload.responseStats.answers[0]).not.toHaveProperty('studentUserId');
+    expect(payload.responseStats).not.toHaveProperty('values');
+    expect(payload.responseStats).not.toHaveProperty('answers');
+    expect(payload.response).toEqual(expect.objectContaining({ answer: '7.5' }));
 
     const studentResponseCall = wsSendToUsersSpy.mock.calls.find(([userIds, event]) => (
       event === 'session:response-added' && userIds.includes(String(student._id))
@@ -3696,8 +3687,9 @@ describe('Live session websocket delta events', () => {
     expect(studentResponseCall[2].responseStats).toEqual(expect.objectContaining({
       type: 'numerical',
       total: 1,
-      answers: [],
     }));
+    expect(studentResponseCall[2].responseStats).not.toHaveProperty('values');
+    expect(studentResponseCall[2].responseStats).not.toHaveProperty('answers');
     expect(studentResponseCall[2]).not.toHaveProperty('response');
   });
 

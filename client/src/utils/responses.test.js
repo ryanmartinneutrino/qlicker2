@@ -3,6 +3,55 @@ import { describe, expect, it } from 'vitest';
 import { applyLiveResponseAddedDelta } from './responses';
 
 describe('applyLiveResponseAddedDelta', () => {
+  it('merges a compact numerical delta into the accumulated response list', () => {
+    const previousResponse = {
+      _id: 'response-1',
+      answer: '5',
+      createdAt: '2026-04-01T23:59:00.000Z',
+      updatedAt: '2026-04-01T23:59:00.000Z',
+    };
+    const nextResponse = {
+      _id: 'response-2',
+      answer: '7.5',
+      createdAt: '2026-04-02T00:00:00.000Z',
+      updatedAt: '2026-04-02T00:00:00.000Z',
+    };
+    const prev = {
+      currentQuestion: { _id: 'question-1' },
+      currentAttempt: { number: 1 },
+      responseCount: 1,
+      session: { joinedCount: 2 },
+      allResponses: [previousResponse],
+      responseStats: {
+        type: 'numerical',
+        total: 1,
+        answers: [previousResponse],
+        mean: 5,
+      },
+    };
+
+    const next = applyLiveResponseAddedDelta(prev, {
+      questionId: 'question-1',
+      attempt: 1,
+      responseCount: 2,
+      joinedCount: 2,
+      response: nextResponse,
+      responseStats: {
+        type: 'numerical',
+        total: 2,
+        mean: 6.25,
+        stdev: 1.25,
+        median: 7.5,
+        min: 5,
+        max: 7.5,
+      },
+    });
+
+    expect(next.allResponses.map(({ _id }) => _id)).toEqual(['response-2', 'response-1']);
+    expect(next.responseStats.answers.map(({ _id }) => _id)).toEqual(['response-2', 'response-1']);
+    expect(next.responseStats).toMatchObject({ total: 2, mean: 6.25, max: 7.5 });
+  });
+
   it('keeps the full short-answer stats payload when it is included in the delta', () => {
     const createdAt = '2026-04-02T00:00:00.000Z';
     const prev = {
