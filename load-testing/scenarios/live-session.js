@@ -21,6 +21,7 @@ import { check, group, sleep } from 'k6';
 import { Counter, Rate, Trend } from 'k6/metrics';
 import { SharedArray } from 'k6/data';
 import exec from 'k6/execution';
+import { connectionFailureDetails } from './connection-diagnostics.js';
 
 function parsePositiveInt(value, fallback) {
   const parsed = Number.parseInt(value, 10);
@@ -96,6 +97,10 @@ const responseQuestionCount = (Array.isArray(state.questions) ? state.questions 
 const expectedResponseCount = students.length * responseQuestionCount;
 
 const loginDuration = new Trend('login_duration', true);
+const loginBlockedDuration = new Trend('login_blocked_duration', true);
+const loginConnectingDuration = new Trend('login_connecting_duration', true);
+const loginTlsHandshakingDuration = new Trend('login_tls_handshaking_duration', true);
+const loginWaitingDuration = new Trend('login_waiting_duration', true);
 const joinDuration = new Trend('join_duration', true);
 const respondDuration = new Trend('respond_duration', true);
 const liveRefreshDuration = new Trend('live_refresh_duration', true);
@@ -114,6 +119,7 @@ const professorObserverLoopLag = new Trend('professor_observer_loop_lag', true);
 
 const wsConnections = new Counter('ws_connections');
 const wsErrors = new Counter('ws_errors');
+const wsHandshakeFailures = new Counter('ws_handshake_failures');
 const responseAddedRefreshes = new Counter('response_added_refreshes');
 const professorResponseEvents = new Counter('professor_response_events');
 const professorDriverCompletions = new Counter('professor_driver_completions');
@@ -146,6 +152,7 @@ const chatActionSuccess = new Rate('chat_action_success');
 const thresholds = {
   http_req_failed: ['rate==0'],
   ws_errors: ['count==0'],
+  ws_handshake_failures: ['count==0'],
   'login_success{role:student}': ['rate==1'],
   'login_success{role:professor}': ['rate==1'],
   join_success: ['rate==1'],
@@ -239,12 +246,22 @@ function apiHeaders(token) {
   return headers;
 }
 
-function login(email, password) {
-  return http.post(
+function login(email, password, role) {
+  const response = http.post(
     `${API}/auth/login`,
     JSON.stringify({ email, password }),
     { headers: apiHeaders(), tags: { name: 'login' } },
   );
+  const details = connectionFailureDetails(response, role);
+  const tags = metricTags(role);
+  loginBlockedDuration.add(details.timings.blocked, tags);
+  loginConnectingDuration.add(details.timings.connecting, tags);
+  loginTlsHandshakingDuration.add(details.timings.tlsHandshaking, tags);
+  loginWaitingDuration.add(details.timings.waiting, tags);
+  if (response.status !== 200) {
+    console.warn(`Login failed: ${JSON.stringify(details)}`);
+  }
+  return response;
 }
 
 function jsonRequest(method, path, token, payload, tagName) {
@@ -1167,7 +1184,7 @@ export function professorFlow() {
 
   group('professor_login', () => {
     const start = Date.now();
-    const res = login(state.professor.email, state.password);
+    const res = login(state.professor.email, state.password, role);
     loginDuration.add(Date.now() - start, metricTags(role));
     const ok = res.status === 200;
     loginSuccess.add(ok, metricTags(role));
@@ -1344,7 +1361,7 @@ export function professorViewerFlow() {
 
   group('professor_viewer_login', () => {
     const start = Date.now();
-    const res = login(state.professor.email, state.password);
+    const res = login(state.professor.email, state.password, role);
     loginDuration.add(Date.now() - start, metricTags(role));
     const ok = res.status === 200;
     loginSuccess.add(ok, metricTags(role));
@@ -1557,6 +1574,8 @@ export function professorViewerFlow() {
 
   check(response, { 'professor viewer ws connected': (res) => res && res.status === 101 });
   if (!response || response.status !== 101) {
+    wsHandshakeFailures.add(1, metricTags(role));
+    console.warn(`WebSocket handshake failed: ${JSON.stringify(connectionFailureDetails(response, role))}`);
     wsConnectSuccess.add(false, metricTags(role));
     return;
   }
@@ -1593,7 +1612,7 @@ export function studentFlow() {
 
   group('student_login', () => {
     const start = Date.now();
-    const res = login(student.email, state.password);
+    const res = login(student.email, state.password, role);
     loginDuration.add(Date.now() - start, metricTags(role));
     const ok = res.status === 200;
     loginSuccess.add(ok, metricTags(role));
@@ -2039,6 +2058,8 @@ export function studentFlow() {
 
     check(response, { 'ws connected': (res) => res && res.status === 101 });
     if (!response || response.status !== 101) {
+      wsHandshakeFailures.add(1, metricTags(role));
+      console.warn(`WebSocket handshake failed: ${JSON.stringify(connectionFailureDetails(response, role))}`);
       wsConnectSuccess.add(false, metricTags(role));
       sessionCompletion.add(false);
       return;
