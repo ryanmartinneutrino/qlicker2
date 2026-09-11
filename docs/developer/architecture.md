@@ -69,6 +69,13 @@ Important backend areas:
 - `server/test/` contains route and service tests.
 - `server/scripts/` contains E2E, migration, and data-maintenance entry points.
 
+Live-session response notifications are incremental. Option-based questions
+send their small distribution aggregate; short-answer and numerical questions
+send the single new response with compact totals or numerical summary fields.
+Clients merge the new response into their current snapshot. This keeps a wave
+of submissions linear in payload size instead of resending the accumulated
+answer list after every response.
+
 ### Host monitoring
 
 `server/src/systemMonitor.js` is a separate, resource-limited collector process. It reads Linux host counters once per minute and writes seven-day aggregate history and collector events to MongoDB. Authentication publishes throttled, non-awaited recent-user heartbeats to Redis; no host sampling or monitoring database writes run in request handlers. The admin-only `/users/admin/system-monitoring` endpoint reads bounded history and caches downsampled responses for 30 seconds. The client fetches on tab entry, range selection, or manual refresh. See [deployment and metric limits](../../production_setup/README.md#in-app-system-monitoring).

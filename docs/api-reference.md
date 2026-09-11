@@ -79,6 +79,12 @@ Server messages have an event name and data payload. Important event families in
 
 Clients should patch local state when the delta is sufficient and perform a targeted refresh for legacy/incomplete payloads. Do not respond to a high-frequency event with an unconditional full-session refetch.
 
+`session:response-added` carries the single submitted response when the viewer
+may see it. Multiple-choice statistics include the small option distribution;
+short-answer and numerical statistics include updated totals or summary fields
+without repeating the accumulated answer/value arrays. Clients append the new
+response to their existing snapshot.
+
 Redis publishes user-targeted/broadcast events between API replicas. Without Redis, WebSockets work only within a single server process.
 
 ## Adding or changing an endpoint

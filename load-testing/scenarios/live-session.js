@@ -619,11 +619,18 @@ function getResponseMergeKey(response = {}) {
 }
 
 function sortResponsesNewestFirst(responses = []) {
-  return [...responses].sort((a, b) => {
-    const timestampDiff = getTimestampMs(b?.updatedAt || b?.createdAt) - getTimestampMs(a?.updatedAt || a?.createdAt);
-    if (timestampDiff !== 0) return timestampDiff;
-    return String(b?._id || '').localeCompare(String(a?._id || ''));
-  });
+  return responses
+    .map((response) => ({
+      response,
+      timestamp: getTimestampMs(response?.updatedAt || response?.createdAt),
+      id: String(response?._id || ''),
+    }))
+    .sort((a, b) => {
+      const timestampDiff = b.timestamp - a.timestamp;
+      if (timestampDiff !== 0) return timestampDiff;
+      return b.id.localeCompare(a.id);
+    })
+    .map(({ response }) => response);
 }
 
 function mergeResponsesNewestFirst(existingResponses = [], incomingResponses = []) {

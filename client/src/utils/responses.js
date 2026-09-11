@@ -33,11 +33,18 @@ export function getLatestResponse(responses = []) {
 
 export function sortResponsesNewestFirst(responses = []) {
   if (!Array.isArray(responses) || responses.length === 0) return [];
-  return [...responses].sort((a, b) => {
-    const timestampDiff = getResponseTimestampMs(b) - getResponseTimestampMs(a);
-    if (timestampDiff !== 0) return timestampDiff;
-    return String(b?._id || '').localeCompare(String(a?._id || ''));
-  });
+  return responses
+    .map((response) => ({
+      response,
+      timestamp: getResponseTimestampMs(response),
+      id: String(response?._id || ''),
+    }))
+    .sort((a, b) => {
+      const timestampDiff = b.timestamp - a.timestamp;
+      if (timestampDiff !== 0) return timestampDiff;
+      return b.id.localeCompare(a.id);
+    })
+    .map(({ response }) => response);
 }
 
 function getResponseMergeKey(response = {}) {
