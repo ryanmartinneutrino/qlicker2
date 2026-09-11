@@ -71,7 +71,7 @@ Important backend areas:
 
 ### Host monitoring
 
-`server/src/systemMonitor.js` is a separate, resource-limited collector process. It reads Linux host counters once per minute and writes seven-day aggregate history and collector events to MongoDB. Authentication publishes throttled, non-awaited recent-user heartbeats to Redis; no host sampling or monitoring database writes run in request handlers. The admin-only `/users/admin/system-monitoring` endpoint reads bounded history and caches downsampled responses for 30 seconds. The client fetches on tab entry, range selection, or manual refresh. See [deployment and metric limits](../../production_setup/README.md#in-app-system-monitoring).
+`server/src/systemMonitor.js` is a separate, resource-limited collector process. It reads Linux host counters once per minute and writes seven-day aggregate history and collector events to MongoDB. Authentication queues throttled recent-user heartbeats and coalesces concurrent users into batched Redis commands; no host sampling or monitoring database writes run in request handlers. The admin-only `/users/admin/system-monitoring` endpoint reads bounded history and caches downsampled responses for 30 seconds. The client fetches on tab entry, range selection, or manual refresh. See [deployment and metric limits](../../production_setup/README.md#in-app-system-monitoring).
 
 ## Role-oriented page model
 

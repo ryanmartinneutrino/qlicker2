@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { getActiveUserRedisKey, registerUserActivityTracking } from '../../src/services/userActivity.js';
 
 describe('user activity tracking', () => {
-  it('publishes throttled per-role heartbeats without awaiting Redis', async () => {
+  it('publishes throttled per-role heartbeats without blocking requests', async () => {
     const pipeline = {
       zadd: vi.fn(() => pipeline),
       expire: vi.fn(() => pipeline),
@@ -16,10 +16,15 @@ describe('user activity tracking', () => {
       addHook: vi.fn((name, hook) => { if (name === 'onClose') closeHooks.push(hook); }),
     };
     let nowMs = 1_000_000;
-    registerUserActivityTracking(app, { now: () => nowMs, publishThrottleMs: 60_000 });
+    const tracker = registerUserActivityTracking(app, {
+      now: () => nowMs,
+      publishThrottleMs: 60_000,
+      flushIntervalMs: 1_000,
+    });
 
     app.recordAuthenticatedActivity({ userId: 'user-1', roles: ['student', 'student'] });
     app.recordAuthenticatedActivity({ userId: 'user-1', roles: ['student'] });
+    await tracker.flushPendingActivity();
 
     expect(pipeline.zadd).toHaveBeenCalledTimes(2);
     expect(pipeline.zadd).toHaveBeenCalledWith(getActiveUserRedisKey('all'), nowMs, 'user-1');
@@ -28,6 +33,7 @@ describe('user activity tracking', () => {
 
     nowMs += 60_000;
     app.recordAuthenticatedActivity({ userId: 'user-1', roles: ['student'] });
+    await tracker.flushPendingActivity();
     expect(pipeline.exec).toHaveBeenCalledTimes(2);
 
     await closeHooks[0]();
@@ -44,7 +50,32 @@ describe('user activity tracking', () => {
     expect(() => app.recordAuthenticatedActivity({ userId: 'user-1', roles: ['student'] })).not.toThrow();
   });
 
-  it('drops monitoring heartbeats while Redis reconnects and resumes on recovery', () => {
+  it('coalesces a student login wave into one Redis pipeline', async () => {
+    const pipeline = {
+      zadd: vi.fn(() => pipeline),
+      expire: vi.fn(() => pipeline),
+      exec: vi.fn().mockResolvedValue([]),
+    };
+    const app = {
+      redis: { status: 'ready', pipeline: () => pipeline },
+      log: { debug: vi.fn() },
+      decorate: (name, value) => { app[name] = value; },
+      addHook: vi.fn(),
+    };
+    const tracker = registerUserActivityTracking(app, { now: () => 123_456, flushIntervalMs: 1_000 });
+
+    for (let index = 0; index < 500; index += 1) {
+      app.recordAuthenticatedActivity({ userId: `student-${index}`, roles: ['student'] });
+    }
+    await tracker.flushPendingActivity();
+
+    expect(pipeline.exec).toHaveBeenCalledOnce();
+    expect(pipeline.zadd).toHaveBeenCalledTimes(2);
+    expect(pipeline.zadd.mock.calls[0]).toHaveLength(1001);
+    expect(pipeline.zadd.mock.calls[1]).toHaveLength(1001);
+  });
+
+  it('drops monitoring heartbeats while Redis reconnects and resumes on recovery', async () => {
     const pipeline = { zadd: vi.fn(), expire: vi.fn(), exec: vi.fn().mockResolvedValue([]) };
     const app = {
       redis: { status: 'reconnecting', pipeline: () => pipeline },
@@ -52,11 +83,13 @@ describe('user activity tracking', () => {
       decorate: (name, value) => { app[name] = value; },
       addHook: vi.fn(),
     };
-    registerUserActivityTracking(app);
+    const tracker = registerUserActivityTracking(app, { flushIntervalMs: 1_000 });
     app.recordAuthenticatedActivity({ userId: 'user-1' });
+    await tracker.flushPendingActivity();
     expect(pipeline.exec).not.toHaveBeenCalled();
     app.redis.status = 'ready';
     app.recordAuthenticatedActivity({ userId: 'user-1' });
+    await tracker.flushPendingActivity();
     expect(pipeline.exec).toHaveBeenCalledOnce();
   });
 });
