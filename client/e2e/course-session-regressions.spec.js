@@ -102,7 +102,7 @@ test('an ended quiz stays ended for the professor while its extension student ca
     await studentPage.goto(`/student/course/${course._id}?tab=1`);
     await studentPage.getByRole('button', { name: /Ended with extension/i }).first().click();
     await expect(studentPage.getByText('Extension question', { exact: true })).toBeVisible();
-    await studentPage.getByRole('radio', { name: /B\s*4/ }).check();
+    await studentPage.getByRole('radio').nth(1).check();
     await studentPage.getByRole('button', { name: /Submit quiz/i }).click();
     await expect(studentPage.getByText(/Quiz submitted/i).first()).toBeVisible();
   } finally {
