@@ -2132,7 +2132,7 @@
             "Recap ships an' hand details to confirm th' right crew member, TA, an' officer memberships, term labels, activity state, an' boarding readiness afore troubleshootin' a professor workflow.",
             "Crew member-only hands who teach a ship appear as TAs in th' admin UI, but that's spyglass-only wordin' rather than a new stored rank.",
             "Admins can open th' professor an' crew member manuals directly from th' manual switcher on these pages, which be handy when reproducin' a reported issue from another rank's doubloon o' view.",
-            "Use Oversee bulletins in th' Hands tab to yarn system-wide login notices that every hand sees in th' app bar until they expire or be waved off."
+            "Open Hands → Oversee bulletins. Scrawl Headline an' Word at th' top, pick all hands, crew, or officers under Send to whom, set th' dates, then Yarn bulletin an' Aye, Confirm. Bulletins in yer avatar menu be a read-only inbox, not where ye write; no missive be sent."
           ],
           "warning": "Rank changes an' SSO login approvals take effect immediately, so confirm th' request afore savin'."
         },
@@ -2168,7 +2168,7 @@
             "Use ship rigging to oversee th' title, boarding rules, reckoning time display, afloat state, an' whether crew may access drill riddles, th' ship riddle chest, an' drill voyages.",
             "Add ship topics early so yer own riddles stay organized an' crew can hunt th' chest material ye make in plain sight to 'em when drill-riddle access be hoisted.",
             "Each ship has an boarding or board code that crew enter from their quarterdeck to board that specific ship. Share th' current code with yer class an' amend it in ship rigging if ye need to stop an old code from bein' reused.",
-            "Use Oversee bulletins in th' Crew or Officers tabs to proclaim Qlicker login notices fer everyone in th' ship without sendin' missive."
+            "Open th' ship's Crew or Officers tab → Oversee bulletins. Scrawl Headline an' Word at th' top; pick everyone in this ship fer crew an' officers together, or target either group. Set th' dates, then Yarn bulletin an' Aye, Confirm. Bulletins in yer avatar menu be a read-only inbox; no missive be sent."
           ],
           "note": "If ye teach similar ships each term, use th' same namin' convention so copied material stays easy to spot.",
           "screenshot": {

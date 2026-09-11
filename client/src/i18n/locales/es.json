@@ -2140,7 +2140,7 @@
             "Revise los cursos y los detalles de los usuarios para confirmar las membresías correctas de estudiante, TA e instructor, las etiquetas de período, el estado de actividad y la disposición de inscripción antes de solucionar un flujo de trabajo del profesor.",
             "Los usuarios exclusivos de estudiante que enseñan un curso aparecen como TA en la interfaz de administración, pero eso es solo una cuestión de presentación y no un nuevo rol almacenado.",
             "Los administradores pueden abrir los manuales del profesor y del estudiante directamente desde el selector de manuales en estas páginas, lo cual es útil al reproducir un problema reportado desde el punto de vista de otro rol.",
-            "Use Gestionar notificaciones en la pestaña Usuarios para publicar avisos de inicio de sesión válidos para todo el sistema que cada usuario vea en la barra de la aplicación hasta que expiren o se descarten."
+            "Abra Usuarios → Gestionar notificaciones. Escriba el Título y el Mensaje en la parte superior, elija todos los usuarios, estudiantes o profesores como destinatarios y configure las fechas. Publique la notificación y confirme. Notificaciones en el menú del avatar es solo una bandeja de entrada, no el editor; no se envían correos electrónicos."
           ],
           "warning": "Los cambios de rol y las aprobaciones de inicio de sesión SSO surten efecto de inmediato, así que confirme la solicitud antes de guardar."
         },
@@ -2176,7 +2176,7 @@
             "Use la configuración del curso para gestionar el título, las reglas de inscripción, la visualización de la hora del cuestionario, el estado activo y si los estudiantes pueden acceder a las preguntas de práctica, a la biblioteca de preguntas del curso y a las sesiones de práctica.",
             "Agregue los temas del curso desde el principio para que sus propias preguntas se mantengan organizadas y los estudiantes puedan buscar el material de la biblioteca que usted haga visible cuando el acceso a preguntas de práctica esté habilitado.",
             "Cada curso tiene un código de inscripción o de acceso que los estudiantes introducen desde su panel para unirse a ese curso específico. Comparta el código actual con su clase y actualícelo en la configuración del curso si necesita evitar que se reutilice un código anterior.",
-            "Use Gestionar notificaciones en las pestañas Estudiantes o Instructores para publicar avisos de inicio de sesión de Qlicker para todos en el curso sin enviar correo electrónico."
+            "Abra Estudiantes o Instructores del curso → Gestionar notificaciones. Escriba el Título y el Mensaje arriba. Elija todos los participantes del curso para incluir estudiantes e instructores, o solo uno de los grupos. Configure las fechas, publique y confirme. Notificaciones en el menú del avatar es solo una bandeja de entrada; no se envían correos electrónicos."
           ],
           "note": "Si enseña cursos similares cada período, use la misma convención de nombres para que el material copiado siga siendo fácil de identificar.",
           "screenshot": {

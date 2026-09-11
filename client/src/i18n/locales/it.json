@@ -2140,7 +2140,7 @@
             "Rivedi corsi e dettagli utente per confermare le corrette appartenenze come studente, TA e docente, le etichette del semestre, lo stato di attività e la prontezza delle iscrizioni prima di risolvere un problema nel flusso di un docente.",
             "Gli utenti solo studente che insegnano un corso compaiono come TA nell'interfaccia amministratore, ma si tratta solo di una dicitura di presentazione, non di un nuovo ruolo memorizzato.",
             "Gli amministratori possono aprire direttamente le guide per docenti e studenti dal selettore di guide presente in queste pagine, il che è utile per riprodurre un problema segnalato dal punto di vista di un altro ruolo.",
-            "Usa Gestisci notifiche nella scheda Utenti per pubblicare avvisi di accesso a livello di sistema che ogni utente vedrà nella barra dell'applicazione finché non scadono o non vengono chiusi."
+            "Apri Utenti → Gestisci notifiche. Inserisci Titolo e Messaggio in alto, scegli tutti gli utenti, gli studenti o i docenti come destinatari e imposta le date. Pubblica la notifica e conferma. Notifiche nel menu dell’avatar è solo la casella di posta, non il modulo di composizione; non vengono inviate email."
           ],
           "warning": "I cambi di ruolo e le approvazioni di accesso SSO hanno effetto immediato, quindi conferma la richiesta prima di salvare."
         },
@@ -2176,7 +2176,7 @@
             "Usa le impostazioni del corso per gestire il titolo, le regole di iscrizione, la visualizzazione dell'orario dei quiz, lo stato attivo e se gli studenti possono accedere alle domande di pratica, alla libreria delle domande del corso e alle sessioni di pratica.",
             "Aggiungi presto gli argomenti del corso in modo che le tue domande restino organizzate e gli studenti possano cercare nel materiale che rendi loro visibile quando l'accesso alle domande di pratica è attivo.",
             "Ogni corso ha un codice di iscrizione che gli studenti inseriscono dalla loro dashboard per unirsi a quello specifico corso. Condividi il codice attuale con la tua classe e aggiornalo nelle impostazioni del corso se devi impedire che un vecchio codice venga riutilizzato.",
-            "Usa Gestisci notifiche nelle schede Studenti o Docenti per pubblicare avvisi di accesso Qlicker per tutti nel corso senza inviare email."
+            "Nel corso apri Studenti o Docenti → Gestisci notifiche. Inserisci Titolo e Messaggio in alto. Scegli tutti i partecipanti del corso per includere studenti e docenti oppure un solo gruppo. Imposta le date, pubblica e conferma. Notifiche nel menu dell’avatar è solo la casella di posta; non vengono inviate email."
           ],
           "note": "Se insegni corsi simili ogni semestre, usa la stessa convenzione di denominazione in modo che il materiale copiato resti facile da identificare.",
           "screenshot": {

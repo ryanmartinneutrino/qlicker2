@@ -109,7 +109,17 @@ Never remove the last person responsible for the course without arranging owners
 
 ### Course notices
 
-Use **Manage notifications** from the Students or Instructors area to publish notices visible in the app's notification menu. Use this for Qlicker-specific messages such as a changed quiz window or a planned outage. It does not send email.
+1. Open your course, select **Students** or **Instructors**, then select **Manage notifications**. Both buttons open the same course composer.
+2. At the top of the dialog, enter a short **Title** and write the notice in **Message**.
+3. Leave **Send to** set to **everyone in this course** to include both students and instructors. Alternatively, choose only the course's students or only its instructors (including TAs assigned as instructors).
+4. Set the start and end date/time. The default window starts now and lasts 12 hours. Select **Persist until dismissed** if recipients should keep seeing the notice after its end time until they dismiss it.
+5. Select **Post notification**, check the audience, and select **Confirm**.
+
+![Course notification composer with Title and Message fields and everyone in this course selected](../assets/manuals/professor-notifications.png)
+
+Use notices for a changed quiz window, a reminder, or a class announcement. Recipients open **Notifications** from their avatar menu to read or dismiss them; notices do not send email or open automatically. The avatar-menu dialog is a read-only inbox and has no message-entry fields.
+
+To revise or remove a notice, scroll down to **Existing notifications** in **Manage notifications**. The Title and Message fields are above that list; scroll to the top of the dialog if they are out of view.
 
 When creating a notice:
 

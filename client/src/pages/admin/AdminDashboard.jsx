@@ -1279,7 +1279,7 @@ function UsersTab({ currentUserId }) {
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
           {t('admin.users.createUser')}
         </Button>
-        <Tooltip title={t('notifications.manage.tooltip')}>
+        <Tooltip title={t('notifications.manage.tooltip')} describeChild>
           <Button variant="outlined" startIcon={<NotificationsIcon />} onClick={() => setManageNotificationsOpen(true)}>
             {t('notifications.manage.button')}
           </Button>

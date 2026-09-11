@@ -2140,7 +2140,7 @@
             "Überprüfen Sie Kurse und Benutzerdetails, um die korrekten Studierenden-, Tutoren- und Dozentenmitgliedschaften, Semesterbezeichnungen, Aktivitätsstatus und Einschreibungsbereitschaft zu bestätigen, bevor Sie einen Professoren-Ablauf beheben.",
             "Benutzer, die nur Studierende sind, aber einen Kurs unterrichten, erscheinen in der Admin-Oberfläche als Tutoren, aber das ist nur eine Darstellungsänderung und keine neue gespeicherte Rolle.",
             "Admins können die Professoren- und Studierenden-Handbücher direkt über den Handbuch-Umschalter auf diesen Seiten öffnen, was hilfreich ist, wenn ein gemeldetes Problem aus der Sicht einer anderen Rolle nachvollzogen werden soll.",
-            "Verwenden Sie „Benachrichtigungen verwalten“ im Tab „Benutzer“, um systemweite Anmeldehinweise zu veröffentlichen, die jeder Benutzer in der App-Leiste sieht, bis sie ablaufen oder geschlossen werden."
+            "Öffnen Sie Benutzer → Benachrichtigungen verwalten. Geben Sie oben Titel und Nachricht ein, wählen Sie alle Benutzer, Studierende oder Lehrende als Empfänger und legen Sie den Zeitraum fest. Veröffentlichen und bestätigen Sie die Nachricht. Benachrichtigungen im Avatar-Menü ist nur der Posteingang, nicht das Eingabeformular; es werden keine E-Mails versandt."
           ],
           "warning": "Rollenänderungen und SSO-Anmeldegenehmigungen werden sofort wirksam. Bestätigen Sie die Anfrage daher vor dem Speichern."
         },
@@ -2176,7 +2176,7 @@
             "Verwenden Sie die Kurseinstellungen, um den Titel, die Einschreibungsregeln, die Quiz-Zeitanzeige, den aktiven Status und zu verwalten, ob Studierende auf Übungsfragen, die Kurs-Fragenbibliothek und Übungssitzungen zugreifen dürfen.",
             "Fügen Sie frühzeitig Kursthemen hinzu, damit Ihre eigenen Fragen organisiert bleiben und Studierende das Bibliotheksmaterial durchsuchen können, das Sie für sie sichtbar gemacht haben, wenn der Zugang zu Übungsfragen aktiviert ist.",
             "Jeder Kurs hat einen Einschreibungs- oder Beitrittscode, den Studierende über ihr Dashboard eingeben, um dem jeweiligen Kurs beizutreten. Teilen Sie den aktuellen Code mit Ihrem Kurs und aktualisieren Sie ihn in den Kurseinstellungen, wenn Sie verhindern möchten, dass ein alter Code erneut verwendet wird.",
-            "Verwenden Sie „Benachrichtigungen verwalten“ in den Tabs „Studierende“ oder „Lehrende“, um Qlicker-Anmeldehinweise für alle Kursteilnehmer zu veröffentlichen, ohne E-Mails zu versenden."
+            "Öffnen Sie im Kurs Studierende oder Lehrende → Benachrichtigungen verwalten. Geben Sie oben Titel und Nachricht ein. Wählen Sie alle Kursteilnehmer für Studierende und Lehrende gemeinsam oder nur eine Gruppe. Legen Sie den Zeitraum fest, veröffentlichen und bestätigen Sie die Nachricht. Benachrichtigungen im Avatar-Menü ist nur der Posteingang; es werden keine E-Mails versandt."
           ],
           "note": "Wenn Sie ähnliche Kurse jedes Semester unterrichten, verwenden Sie dieselbe Namenskonvention, damit kopiertes Material leicht identifizierbar bleibt.",
           "screenshot": {

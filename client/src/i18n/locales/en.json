@@ -2187,7 +2187,7 @@
             "Review courses and user details to confirm the correct student, TA, and instructor memberships, term labels, activity state, and enrollment readiness before troubleshooting a professor workflow.",
             "Student-only users who teach a course appear as TAs in the admin UI, but that is presentation-only wording rather than a new stored role.",
             "Admins can open the professor and student manuals directly from the manual switcher on these pages, which is helpful when reproducing a reported issue from another role's point of view.",
-            "Use Manage notifications in the Users tab to post system-wide login notices that every user sees in the app bar until they expire or are dismissed."
+            "Open Users → Manage notifications, enter Title and Message at the top, choose all users, students, or profs under Send to, set the dates, then Post notification and Confirm. The avatar menu's Notifications is a read-only inbox, not the composer; notices are in-app, not email."
           ],
           "warning": "Role changes and SSO login approvals take effect immediately, so confirm the request before saving."
         },
@@ -2223,7 +2223,7 @@
             "Use course settings to manage the title, enrollment rules, quiz time display, active state, and whether students may access practice questions, the course question library, and practice sessions.",
             "Add course topics early so your own questions stay organized and students can search the library material you make visible to them when practice-question access is enabled.",
             "Each course has an enrollment or join code that students enter from their dashboard to join that specific course. Share the current code with your class and update it in course settings if you need to stop an old code from being reused.",
-            "Use Manage notifications in the Students or Instructors tabs to publish Qlicker login notices for everyone in the course without sending email."
+            "Open the course's Students or Instructors tab → Manage notifications. Enter Title and Message at the top; choose everyone in this course to include students and instructors, or target either group. Set the dates, then Post notification and Confirm. The avatar menu's Notifications is a read-only inbox; no email is sent."
           ],
           "note": "If you teach similar courses each term, use the same naming convention so copied material remains easy to identify.",
           "screenshot": {

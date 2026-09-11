@@ -2140,7 +2140,7 @@
             "Révisez les cours et les détails utilisateur pour confirmer les appartenances étudiantes, TA et enseignantes, le libellé de la session, l'état d'activité et la préparation à l'inscription avant de dépanner un flux professeur.",
             "Les utilisateurs au rôle global étudiant qui enseignent un cours apparaissent comme TA dans l'interface administrateur, mais il s'agit seulement d'un libellé d'affichage et non d'un nouveau rôle stocké.",
             "Les administrateurs peuvent ouvrir directement les guides professeur et étudiant à partir du sélecteur de guide affiché sur ces pages, ce qui aide à reproduire un problème depuis un autre point de vue.",
-            "Utilisez Gérer les notifications dans l’onglet Utilisateurs pour publier des avis de connexion à l’échelle du système que tous les utilisateurs verront dans la barre d’application jusqu’à leur expiration ou leur rejet."
+            "Ouvrez Utilisateurs → Gérer les notifications. Saisissez le Titre et le Message en haut, choisissez tous les utilisateurs, les étudiants ou les professeurs comme destinataires, puis définissez les dates. Publiez la notification et confirmez. Notifications dans le menu de l’avatar est une boîte de réception, pas le formulaire de rédaction ; aucun e-mail n’est envoyé."
           ],
           "warning": "Les changements de rôle et les approbations de connexion SSO prennent effet immédiatement; confirmez donc la demande avant l'enregistrement."
         },
@@ -2176,7 +2176,7 @@
             "Utilisez les réglages du cours pour gérer le titre, les règles d'inscription, l'affichage de l'heure des quiz, l'état actif et l'accès des étudiants aux questions de pratique, à la bibliothèque du cours et aux séances de pratique.",
             "Ajoutez tôt les sujets de cours afin que vos propres questions restent organisées et que les étudiants puissent rechercher le matériel rendu visible lorsque l'accès à la pratique est activé.",
             "Chaque cours possède un code d'inscription que les étudiants saisissent depuis leur tableau de bord pour rejoindre ce cours précis. Partagez le code actuel avec votre classe et modifiez-le dans les réglages du cours si vous devez empêcher la réutilisation d'un ancien code.",
-            "Utilisez Gérer les notifications dans les onglets Étudiants ou Instructeurs pour publier des avis de connexion Qlicker à tout le cours sans envoyer d'e-mail."
+            "Dans le cours, ouvrez Étudiants ou Instructeurs → Gérer les notifications. Saisissez le Titre et le Message en haut. Choisissez tous les membres du cours pour inclure étudiants et instructeurs, ou ciblez un seul groupe. Définissez les dates, publiez et confirmez. Notifications dans le menu de l’avatar est une boîte de réception ; aucun e-mail n’est envoyé."
           ],
           "note": "Si vous enseignez des cours semblables à chaque session, gardez une convention de nommage stable afin que le matériel copié reste facile à repérer.",
           "screenshot": {

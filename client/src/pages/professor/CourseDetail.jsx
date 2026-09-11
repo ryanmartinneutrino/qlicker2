@@ -1997,7 +1997,7 @@ export default function CourseDetail() {
           <Stack direction="row" spacing={1} useFlexGap sx={{
             flexWrap: "wrap"
           }}>
-            <Tooltip title={t('notifications.manage.tooltip')}>
+            <Tooltip title={t('notifications.manage.tooltip')} describeChild>
               <Button variant="outlined" startIcon={<NotificationsIcon />} onClick={() => setManageNotificationsOpen(true)}>
                 {t('notifications.manage.button')}
               </Button>
@@ -2047,7 +2047,7 @@ export default function CourseDetail() {
           <Stack direction="row" spacing={1} useFlexGap sx={{
             flexWrap: "wrap"
           }}>
-            <Tooltip title={t('notifications.manage.tooltip')}>
+            <Tooltip title={t('notifications.manage.tooltip')} describeChild>
               <Button variant="outlined" startIcon={<NotificationsIcon />} onClick={() => setManageNotificationsOpen(true)}>
                 {t('notifications.manage.button')}
               </Button>

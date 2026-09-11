@@ -36,3 +36,5 @@ REDIS_URL= QCLICKER_CAPTURE_MANUALS=1 npx playwright test e2e/manual-screenshots
 The opt-in capture test also copies the same files to `client/public/manuals/` for the in-app manual. Review every generated image before committing it.
 
 To refresh only selected images while exercising the same workflow, set `QCLICKER_MANUAL_IMAGES=professor-course.png,student-course.png` for the capture command. Omit it to regenerate all images.
+
+The notification composers have a separate desktop/mobile regression test. Run `REDIS_URL= QCLICKER_CAPTURE_MANUALS=1 npx playwright test e2e/notifications.spec.js --project=chromium` from `client/` to refresh `admin-notifications.png` and `professor-notifications.png` in both image directories.
