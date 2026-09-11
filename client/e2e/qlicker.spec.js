@@ -399,6 +399,22 @@ test('live session flow carries multiple student responses and visibility change
   await expect(secondStudentPage.getByText('Four is the correct answer.')).toBeVisible();
   await expect(presentationPage.getByText('Four is the correct answer.')).toBeVisible();
 
+  // The presentation window must advance its attempt identity before accepting
+  // new response deltas. Do not reload or focus it to obtain fresh statistics.
+  await professorPage.getByRole('button', { name: /^New Attempt$/i }).click();
+  await expect(professorPage.getByLabel(/^Show Stats$/i)).not.toBeChecked();
+  await professorPage.getByLabel(/^Show Stats$/i).click();
+  await expect(presentationPage.getByText('0%', { exact: true })).toHaveCount(2);
+  for (const responder of [studentPage, secondStudentPage]) {
+    await responder.getByLabel('Option B').check();
+    await responder.getByRole('button', { name: /submit response/i }).click();
+    await expect(responder.getByRole('alert').filter({ hasText: /submitted/i })).toBeVisible();
+  }
+  await expect(liveStatus).toContainText(/2 students joined\. 2 of 2 students responded\./i);
+  await expect(presentationPage.getByText('100%', { exact: true })).toHaveCount(1);
+  await expect(studentPage.getByText('100%', { exact: true })).toHaveCount(1);
+  await expect(secondStudentPage.getByText('100%', { exact: true })).toHaveCount(1);
+
   await professorPage.getByRole('button', { name: /^End session$/i }).click();
   const endSessionDialog = professorPage.getByRole('dialog', { name: /^End Session$/i });
   await endSessionDialog.getByRole('button', { name: /^End Session$/i }).click();

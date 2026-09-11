@@ -964,7 +964,7 @@
       "goLiveMessage": "Changer le statut en Direct rendra immédiatement cette séance disponible pour les étudiants.",
       "goLive": "Passer en direct",
       "extensionsTitle": "Prolongations de questionnaire",
-      "extensionsMessage": "Ajouter des étudiants qui devraient recevoir des fenêtres d'accès personnalisées.",
+      "extensionsMessage": "Ajouter des étudiants qui devraient recevoir des fenêtres d'accès personnalisées. Les prolongations individuelles fonctionnent après la fin du quiz. Les prolongations actives ou à venir bloquent la révision ; en accorder une désactive la révision existante et masque les notes publiées. À leur fin, recalculez les notes avant de publier à nouveau. Les quiz soumis ne sont pas déverrouillés.",
       "start": "Début",
       "end": "Fin",
       "noExtensions": "Aucune prolongation d'étudiant configurée.",
@@ -2172,7 +2172,7 @@
           "title": "Créer un cours et ajouter les sujets avant de grandir",
           "subtitle": "Une configuration de cours propre fait gagner du temps lorsque vous copiez ou recherchez plus tard.",
           "bullets": [
-            "La boîte de création combine une saison et une année en un seul libellé de session, que vous pouvez modifier ensuite si vous avez besoin d'un format personnalisé ou hérité.",
+            "La boîte de création combine une saison et une année en un seul libellé de session, que vous pouvez modifier ensuite si vous avez besoin d'un format personnalisé ou hérité. La recherche de sessions est ouverte par défaut et peut être repliée. Activer le chat ou l’IA conserve les Paramètres du cours ; Retour au cours retrouve l’onglet d’origine. Afficher les statistiques suit les nouvelles tentatives dans la présentation sans rechargement.",
             "Utilisez les réglages du cours pour gérer le titre, les règles d'inscription, l'affichage de l'heure des quiz, l'état actif et l'accès des étudiants aux questions de pratique, à la bibliothèque du cours et aux séances de pratique.",
             "Ajoutez tôt les sujets de cours afin que vos propres questions restent organisées et que les étudiants puissent rechercher le matériel rendu visible lorsque l'accès à la pratique est activé.",
             "Chaque cours possède un code d'inscription que les étudiants saisissent depuis leur tableau de bord pour rejoindre ce cours précis. Partagez le code actuel avec votre classe et modifiez-le dans les réglages du cours si vous devez empêcher la réutilisation d'un ancien code.",
@@ -2236,7 +2236,7 @@
           "title": "Animer les séances interactives et les quiz avec intention",
           "subtitle": "Différents types de séance conviennent à différents moments d'enseignement.",
           "bullets": [
-            "Les séances interactives servent à l'enseignement en direct : vous contrôlez la navigation, les fenêtres de réponse, les statistiques, la révélation des réponses, les essais et la fenêtre de présentation.",
+            "Les séances interactives servent à l'enseignement en direct : vous contrôlez la navigation, les fenêtres de réponse, les statistiques, la révélation des réponses, les essais et la fenêtre de présentation. Les prolongations individuelles fonctionnent après la fin du quiz. Les prolongations actives ou à venir bloquent la révision ; en accorder une désactive la révision existante et masque les notes publiées. À leur fin, recalculez les notes avant de publier à nouveau. Les quiz soumis ne sont pas déverrouillés.",
             "Pour les questions à réponse courte, la vue de contrôle professeur garde toujours la liste complète des réponses visible; un interrupteur distinct contrôle si les étudiants et la fenêtre de présentation voient cette liste partagée.",
             "Les quiz sont des fenêtres planifiées pendant lesquelles les étudiants répondent à leur rythme. Utilisez les heures de début, de fin et les prolongations pour les accommodements.",
             "Les quiz de pratique conviennent bien à l'étude personnelle ou au renforcement facultatif.",
@@ -2323,7 +2323,7 @@
           "title": "S'inscrire à un cours et apprendre les onglets du cours",
           "subtitle": "La plupart des tâches étudiantes commencent sur le tableau de bord du cours.",
           "bullets": [
-            "Entrez le code d'inscription exactement comme votre enseignant vous le donne. Si le cours est inactif, l'inscription est refusée et vous devrez réessayer après son activation.",
+            "Entrez le code d'inscription exactement comme votre enseignant vous le donne. Si le cours est inactif, l'inscription est refusée et vous devrez réessayer après son activation. La recherche de sessions est ouverte par défaut et peut être repliée.",
             "La page du cours sépare les cours interactifs, les quiz, les séances de pratique, les notes et le contenu de bibliothèque afin que vous trouviez rapidement le bon flux. Dans les cours où l'accès à la pratique est désactivé, les onglets de pratique et de bibliothèque restent cachés.",
             "Les listes de séances gardent la recherche, les filtres et la pagination dans une zone Rechercher des séances repliable afin que vous n'ouvriez les contrôles que lorsque nécessaire.",
             "Si votre établissement exige une vérification d'e-mail ou un SSO, terminez cette configuration avant de supposer que le code d'inscription est mauvais.",
@@ -2340,7 +2340,7 @@
           "title": "Rejoindre les séances en direct et comprendre la différence avec les quiz",
           "subtitle": "Les séances interactives, les quiz et les séances de pratique peuvent se ressembler, mais leur fonctionnement diffère.",
           "bullets": [
-            "Les séances interactives se déroulent généralement en direct. Un code d'accès peut être requis et l'enseignant décide quand les réponses ouvrent, ferment ou affichent des statistiques.",
+            "Les séances interactives se déroulent généralement en direct. Un code d'accès peut être requis et l'enseignant décide quand les réponses ouvrent, ferment ou affichent des statistiques. Une prolongation individuelle permet d’ouvrir, d’enregistrer et de soumettre un quiz terminé pendant votre créneau. Votre carte affiche votre échéance. Un quiz soumis reste verrouillé ; la révision attend la fin de toutes les prolongations.",
             "Les quiz ont une fenêtre de temps définie et demandent généralement de répondre à tout l'ensemble avant la remise finale. Votre travail s'enregistre pendant la navigation.",
             "Les séances de pratique servent à l'étude personnelle et peuvent sembler plus flexibles parce qu'elles sont conçues pour la répétition, non pour suivre un cours en direct.",
             "Des diapositives peuvent apparaître entre les questions. Ce sont des pages de contenu; lisez-les attentivement avant de continuer.",

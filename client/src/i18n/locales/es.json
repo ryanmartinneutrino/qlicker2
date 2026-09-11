@@ -964,7 +964,7 @@
       "goLiveMessage": "Cambiar el estado a En vivo hará que esta sesión esté disponible de inmediato para los estudiantes.",
       "goLive": "Poner en vivo",
       "extensionsTitle": "Extensiones de cuestionario",
-      "extensionsMessage": "Agregue estudiantes que deban recibir ventanas de acceso personalizadas al cuestionario.",
+      "extensionsMessage": "Agregue estudiantes que deban recibir ventanas de acceso personalizadas al cuestionario. Las extensiones individuales funcionan después de finalizar el cuestionario. Las extensiones activas o futuras bloquean la revisión; conceder una desactiva la revisión existente y oculta las notas publicadas. Al terminar, recalcule las notas antes de volver a publicar. Los cuestionarios entregados no se desbloquean.",
       "start": "Inicio",
       "end": "Fin",
       "noExtensions": "No hay extensiones de estudiante configuradas.",
@@ -2172,7 +2172,7 @@
           "title": "Cree un curso y agregue temas antes de escalar",
           "subtitle": "Una configuración de curso limpia ahorra tiempo cuando copia o busca más adelante.",
           "bullets": [
-            "El diálogo de creación de cursos combina una temporada de semestre y un año en una sola etiqueta, que puede editar más adelante si necesita un formato personalizado o antiguo.",
+            "El diálogo de creación de cursos combina una temporada de semestre y un año en una sola etiqueta, que puede editar más adelante si necesita un formato personalizado o antiguo. La búsqueda de sesiones se abre desplegada y puede contraerse. Activar el chat o la IA mantiene seleccionada Configuración del curso; Volver al curso restaura la pestaña de origen. Mostrar estadísticas sigue los nuevos intentos en la presentación sin recargar.",
             "Use la configuración del curso para gestionar el título, las reglas de inscripción, la visualización de la hora del cuestionario, el estado activo y si los estudiantes pueden acceder a las preguntas de práctica, a la biblioteca de preguntas del curso y a las sesiones de práctica.",
             "Agregue los temas del curso desde el principio para que sus propias preguntas se mantengan organizadas y los estudiantes puedan buscar el material de la biblioteca que usted haga visible cuando el acceso a preguntas de práctica esté habilitado.",
             "Cada curso tiene un código de inscripción o de acceso que los estudiantes introducen desde su panel para unirse a ese curso específico. Comparta el código actual con su clase y actualícelo en la configuración del curso si necesita evitar que se reutilice un código anterior.",
@@ -2236,7 +2236,7 @@
           "title": "Ejecute sesiones interactivas y cuestionarios de manera intencional",
           "subtitle": "Los diferentes tipos de sesión son mejores para diferentes momentos de enseñanza.",
           "bullets": [
-            "Las sesiones interactivas son para la enseñanza en vivo: usted controla la navegación, las ventanas de respuesta, las estadísticas, la revelación de respuestas, los intentos y la ventana de presentación.",
+            "Las sesiones interactivas son para la enseñanza en vivo: usted controla la navegación, las ventanas de respuesta, las estadísticas, la revelación de respuestas, los intentos y la ventana de presentación. Las extensiones individuales funcionan después de finalizar el cuestionario. Las extensiones activas o futuras bloquean la revisión; conceder una desactiva la revisión existente y oculta las notas publicadas. Al terminar, recalcule las notas antes de volver a publicar. Los cuestionarios entregados no se desbloquean.",
             "Para las preguntas de respuesta corta, la vista de control del profesor siempre mantiene visible la lista completa de respuestas; un interruptor separado controla si los estudiantes y la ventana de presentación ven esa lista compartida.",
             "Los cuestionarios son ventanas programadas donde los estudiantes responden en su propio horario. Use las horas de inicio y fin más las extensiones para los flujos de trabajo de adaptación.",
             "Los cuestionarios de práctica se sienten más como un ensayo guiado y son adecuados para el autoestudio o el refuerzo opcional.",
@@ -2323,7 +2323,7 @@
           "title": "Inscríbase en un curso y aprenda las pestañas del curso",
           "subtitle": "La mayor parte del trabajo del estudiante comienza desde el panel del curso.",
           "bullets": [
-            "Introduzca el código de inscripción exactamente como lo proporciona su instructor. Si el curso está inactivo, la inscripción se rechaza y deberá intentarlo de nuevo después de que el curso se active.",
+            "Introduzca el código de inscripción exactamente como lo proporciona su instructor. Si el curso está inactivo, la inscripción se rechaza y deberá intentarlo de nuevo después de que el curso se active. La búsqueda de sesiones se abre desplegada y puede contraerse.",
             "La página del curso separa las clases o sesiones en vivo, los cuestionarios, las sesiones de práctica, las calificaciones y el material de la biblioteca de preguntas para que pueda encontrar rápidamente el flujo de trabajo correcto. En los cursos donde el acceso a preguntas de práctica está deshabilitado, las pestañas de práctica y biblioteca permanecen ocultas.",
             "Las listas de sesiones mantienen la búsqueda, los filtros y la paginación dentro de un área plegable de Buscar sesiones para que pueda expandir los controles solo cuando los necesite.",
             "Si su institución requiere correo verificado o SSO, complete primero esa configuración antes de suponer que el código de inscripción es incorrecto.",
@@ -2340,7 +2340,7 @@
           "title": "Únase a sesiones en vivo y entienda en qué se diferencian los cuestionarios",
           "subtitle": "Las sesiones interactivas, los cuestionarios y las sesiones de práctica pueden parecer similares, pero se comportan de manera diferente.",
           "bullets": [
-            "Las sesiones interactivas normalmente ocurren en vivo. Es posible que necesite un código de acceso, y su instructor decide cuándo se abren, cierran o muestran estadísticas las respuestas.",
+            "Las sesiones interactivas normalmente ocurren en vivo. Es posible que necesite un código de acceso, y su instructor decide cuándo se abren, cierran o muestran estadísticas las respuestas. Una extensión individual permite abrir, guardar y entregar un cuestionario finalizado durante su intervalo asignado. Su tarjeta muestra su plazo. Los cuestionarios entregados siguen bloqueados; la revisión espera a que terminen todas las extensiones.",
             "Los cuestionarios tienen una ventana de tiempo definida y normalmente esperan que responda todo el conjunto antes del envío final. Su trabajo se guarda mientras se mueve entre preguntas.",
             "Las sesiones de práctica son para el autoestudio y pueden sentirse más flexibles porque están diseñadas para ayudarlo a ensayar en lugar de mantener el ritmo de una clase en vivo.",
             "Las diapositivas pueden aparecer entre preguntas. Son páginas de contenido, así que léalas con atención antes de continuar.",

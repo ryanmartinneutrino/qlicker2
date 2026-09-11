@@ -964,7 +964,7 @@
       "goLiveMessage": "Changing status to Live will immediately make this session available to students.",
       "goLive": "Go Live",
       "extensionsTitle": "Quiz Extensions",
-      "extensionsMessage": "Add students who should receive custom quiz access windows.",
+      "extensionsMessage": "Add students who should receive custom quiz access windows. Individual extensions work after a quiz is Ended. Active or upcoming extensions block review; granting one disables existing review and hides published grades. After extensions finish, recalculate grades before publishing again. Extensions do not unlock submitted quizzes.",
       "start": "Start",
       "end": "End",
       "noExtensions": "No student extensions configured.",
@@ -2219,7 +2219,7 @@
           "title": "Create a course and add topics before you scale up",
           "subtitle": "A clean course setup saves time when you copy or search later.",
           "bullets": [
-            "The course creation dialog combines a semester season and year into one label, which you can edit later if you need a custom or legacy format.",
+            "The course creation dialog combines a semester season and year into one label, which you can edit later if you need a custom or legacy format. Search sessions starts expanded and can be collapsed. Enabling chat or AI keeps Course Settings selected; Back to course restores the originating tab. Show Stats follows new attempts in the presentation window without reloading.",
             "Use course settings to manage the title, enrollment rules, quiz time display, active state, and whether students may access practice questions, the course question library, and practice sessions.",
             "Add course topics early so your own questions stay organized and students can search the library material you make visible to them when practice-question access is enabled.",
             "Each course has an enrollment or join code that students enter from their dashboard to join that specific course. Share the current code with your class and update it in course settings if you need to stop an old code from being reused.",
@@ -2283,7 +2283,7 @@
           "title": "Run interactive sessions and quizzes intentionally",
           "subtitle": "Different session types are best for different teaching moments.",
           "bullets": [
-            "Interactive sessions are for live teaching: you control navigation, response windows, statistics, answer reveals, attempts, and the presentation window.",
+            "Interactive sessions are for live teaching: you control navigation, response windows, statistics, answer reveals, attempts, and the presentation window. Individual extensions work after a quiz is Ended. Active or upcoming extensions block review; granting one disables existing review and hides published grades. After extensions finish, recalculate grades before publishing again. Extensions do not unlock submitted quizzes.",
             "For short-answer questions, the professor control view always keeps the full response list visible; a separate toggle controls whether students and the presentation window see that shared list.",
             "Quizzes are scheduled windows where students answer on their own timeline. Use start and end times plus extensions for accommodation workflows.",
             "Practice quizzes feel more like guided rehearsal and are well suited for self-study or optional reinforcement.",
@@ -2370,7 +2370,7 @@
           "title": "Enroll in a course and learn the course tabs",
           "subtitle": "Most student work begins from the course dashboard.",
           "bullets": [
-            "Enter the enrollment code exactly as your instructor provides it. If the course is inactive, enrollment is rejected and you will need to try again after the course is activated.",
+            "Enter the enrollment code exactly as your instructor provides it. If the course is inactive, enrollment is rejected and you will need to try again after the course is activated. Search sessions starts expanded and can be collapsed.",
             "The course page separates lectures or live sessions, quizzes, practice sessions, grades, and question-library material so you can find the right workflow quickly. In courses where practice-question access is disabled, the practice and library tabs stay hidden.",
             "Session lists keep search, filters, and pagination inside a collapsible Search sessions area so you can expand controls only when you need them.",
             "If your institution requires verified email or SSO, finish that setup first before assuming the enrollment code is wrong.",
@@ -2387,7 +2387,7 @@
           "title": "Join live sessions and understand how quizzes differ",
           "subtitle": "Interactive sessions, quizzes, and practice sessions may look similar, but they behave differently.",
           "bullets": [
-            "Interactive sessions usually happen live. You may need a passcode, and your instructor decides when responses open, close, or show statistics.",
+            "Interactive sessions usually happen live. You may need a passcode, and your instructor decides when responses open, close, or show statistics. An individual extension lets you open, save and submit an ended quiz during your assigned window. Your course card shows your own deadline. It does not unlock a submitted quiz; review waits until all extensions end.",
             "Quizzes have a defined time window and normally expect you to answer the whole set before final submission. Your work saves while you move between questions.",
             "Practice sessions are for self-study and can feel more flexible because they are designed to help you rehearse instead of keeping pace with a live class.",
             "Slides can appear between questions. They are content pages, so read them carefully before moving on.",

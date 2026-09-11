@@ -1184,6 +1184,7 @@ export default function SessionEditor() {
         quizStart: toDateTimeLocalString(extension.quizStart),
         quizEnd: toDateTimeLocalString(extension.quizEnd),
       })));
+      setReviewable(!!updatedSession.reviewable);
       setExtensionsOpen(false);
       setMsg({ severity: 'success', text: t('professor.sessionEditor.extensionsUpdated') });
     } catch (err) {
@@ -1576,7 +1577,7 @@ export default function SessionEditor() {
                   onChange={(e) => {
                     handleReviewableChange(e.target.checked);
                   }}
-                  disabled={savingSession}
+                  disabled={savingSession || status !== 'done' || session?.quizHasRemainingExtensions}
                 />
               )}
               label={(

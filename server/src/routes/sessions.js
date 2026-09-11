@@ -743,6 +743,7 @@ function getQuizRuntimeState(session, { userId = '', instructorView = false, now
     isUpcomingForUser: false,
     isClosedForUser: (session?.status || 'hidden') === 'done',
     quizHasActiveExtensions: false,
+    quizHasRemainingExtensions: false,
     activeExtensionsCount: 0,
     userHasActiveQuizExtension: false,
     userHasUpcomingQuizExtension: false,
@@ -793,11 +794,18 @@ function getQuizRuntimeState(session, { userId = '', instructorView = false, now
     }
   }
 
+  // Ending the class-wide quiz must not cancel individual accommodations.
+  // Instructors still see Ended; only the assigned student gets access.
+  if (session?.status === 'done' && !instructorView) {
+    if (userHasActiveQuizExtension) effectiveStatus = 'running';
+    else if (userHasUpcomingQuizExtension) effectiveStatus = 'visible';
+  }
+
   if (effectiveStatus === 'running') {
     if (session?.status === 'running') {
       defaultState.isOpenForUser = true;
     } else {
-      defaultState.isOpenForUser = baseWindowActive || userHasActiveQuizExtension;
+      defaultState.isOpenForUser = (session?.status !== 'done' && baseWindowActive) || userHasActiveQuizExtension;
     }
   }
 
@@ -805,6 +813,7 @@ function getQuizRuntimeState(session, { userId = '', instructorView = false, now
   defaultState.isUpcomingForUser = !defaultState.isOpenForUser && effectiveStatus === 'visible';
   defaultState.isClosedForUser = !defaultState.isOpenForUser && effectiveStatus === 'done';
   defaultState.quizHasActiveExtensions = quizHasActiveExtensions;
+  defaultState.quizHasRemainingExtensions = anyExtensionsRemaining;
   defaultState.activeExtensionsCount = activeExtensions.length;
   defaultState.userHasActiveQuizExtension = userHasActiveQuizExtension;
   defaultState.userHasUpcomingQuizExtension = userHasUpcomingQuizExtension;
@@ -2633,9 +2642,18 @@ function buildSessionForUser(session, user, { instructorView = false } = {}) {
     normalized.quizSubmittedByCurrentUser = submittedQuiz.includes(user?.userId);
     normalized.quizStartedByCurrentUser = joined.includes(user?.userId);
     normalized.quizHasActiveExtensions = runtime.quizHasActiveExtensions;
+    normalized.quizHasRemainingExtensions = runtime.quizHasRemainingExtensions;
     normalized.activeExtensionsCount = runtime.activeExtensionsCount;
     normalized.userHasActiveQuizExtension = runtime.userHasActiveQuizExtension;
     normalized.userHasUpcomingQuizExtension = runtime.userHasUpcomingQuizExtension;
+    if (runtime.quizHasRemainingExtensions) normalized.reviewable = false;
+    if (!instructorView && (runtime.userHasActiveQuizExtension || runtime.userHasUpcomingQuizExtension)) {
+      const extension = getNormalizedQuizExtensions(session).find((entry) => entry.userId === String(user?.userId));
+      // Student dates and course-card labels must describe their own window,
+      // not an already elapsed class-wide deadline.
+      normalized.quizStart = extension.quizStart;
+      normalized.quizEnd = extension.quizEnd;
+    }
   }
 
   normalized.hasResponses = getSessionHasResponses(normalized);
@@ -3323,6 +3341,11 @@ export default async function sessionRoutes(app) {
       const statusConditions = [
         { status: 'running' },
         {
+          status: 'done',
+          quizExtensions: { $elemMatch: { userId, quizStart: { $lte: new Date() }, quizEnd: { $gte: new Date() } } },
+          $or: [{ quiz: true }, { practiceQuiz: true }],
+        },
+        {
           status: 'visible',
           $or: [
             { quiz: true },
@@ -3354,7 +3377,7 @@ export default async function sessionRoutes(app) {
       }
 
       const sessions = await Session.find(sessionFilter)
-        .select('_id name courseId status quiz practiceQuiz quizStart quizEnd extensions submittedQuiz joined studentCreated creator questions')
+        .select('_id name courseId status quiz practiceQuiz quizStart quizEnd quizExtensions submittedQuiz joined studentCreated creator questions')
         .lean();
 
       const normalizedSessions = sessions
@@ -3842,7 +3865,7 @@ export default async function sessionRoutes(app) {
 
       // Reviewable can only be set to true when session is ended
       // Allow if session is already done or if status is being set to done in this request
-      if (!isStudentOwner && updates.reviewable === true && session.status !== 'done' && updates.status !== 'done') {
+      if (!isStudentOwner && updates.reviewable === true && (updates.status ?? session.status) !== 'done') {
         return reply.code(400).send({
           error: 'Bad Request',
           message: 'Session must be in ended state to be made reviewable',
@@ -3857,13 +3880,15 @@ export default async function sessionRoutes(app) {
         const runtime = getQuizRuntimeState(previewSession, {
           instructorView: true,
         });
-        if (isQuizLikeSession(previewSession) && runtime.quizHasActiveExtensions) {
+        if (isQuizLikeSession(previewSession) && runtime.quizHasRemainingExtensions) {
           return reply.code(400).send({
             error: 'Bad Request',
             message: 'Session cannot be made reviewable while quiz extensions are active',
           });
         }
       }
+
+      if (!isStudentOwner && updates.status && updates.status !== 'done') updates.reviewable = false;
 
       if (!isStudentOwner && updates.reviewable === true && !session.reviewable) {
         const nonAutoGradeable = await getNonAutoGradeableQuestions(session);
@@ -4040,6 +4065,7 @@ export default async function sessionRoutes(app) {
       const now = new Date();
       const updates = {
         status: 'running',
+        reviewable: false,
         date: now,
         // Join period is always explicit; starting a session does not auto-open passcode entry.
         joinCodeActive: false,
@@ -4062,6 +4088,9 @@ export default async function sessionRoutes(app) {
         { returnDocument: 'after' }
       );
 
+      if (session.reviewable) {
+        await setSessionGradesVisibility({ sessionId: session._id, visibleToStudents: false });
+      }
       notifyStatusChanged(app, course, updated?._id || request.params.id, { status: 'running' });
 
       return { session: updated.toObject() };
@@ -4094,7 +4123,7 @@ export default async function sessionRoutes(app) {
           const runtime = getQuizRuntimeState(session, {
             instructorView: true,
           });
-          if (runtime.quizHasActiveExtensions) {
+          if (runtime.quizHasRemainingExtensions) {
             return reply.code(400).send({
               error: 'Bad Request',
               message: 'Session cannot be made reviewable while quiz extensions are active',
@@ -4244,7 +4273,7 @@ export default async function sessionRoutes(app) {
         const runtime = getQuizRuntimeState(session, {
           instructorView: true,
         });
-        if (runtime.quizHasActiveExtensions) {
+        if (runtime.quizHasRemainingExtensions) {
           return reply.code(400).send({
             error: 'Bad Request',
             message: 'Session cannot be made reviewable while quiz extensions are active',
@@ -4350,16 +4379,21 @@ export default async function sessionRoutes(app) {
       const normalizedExtensions = [...normalizedExtensionsByUser.values()].sort(
         (a, b) => a.quizEnd.getTime() - b.quizEnd.getTime()
       );
+      const hasRemainingExtensions = normalizedExtensions.some((extension) => extensionHasRemainingWindow(extension, Date.now()));
 
       const updated = await Session.findByIdAndUpdate(
         request.params.id,
-        { $set: { quizExtensions: normalizedExtensions } },
+        { $set: { quizExtensions: normalizedExtensions, ...(hasRemainingExtensions ? { reviewable: false } : {}) } },
         { returnDocument: 'after' }
       );
 
+      if (hasRemainingExtensions && session.reviewable) {
+        await setSessionGradesVisibility({ sessionId: session._id, visibleToStudents: false });
+      }
+
       notifySessionMetadataChanged(app, course, updated?._id || request.params.id);
 
-      return { session: updated.toObject() };
+      return { session: buildSessionForUser(updated.toObject(), request.user, { instructorView: true }) };
     }
   );
 
@@ -7594,7 +7628,7 @@ export default async function sessionRoutes(app) {
       });
 
       return {
-        session,
+        session: buildSessionForUser(session, request.user, { instructorView: true }),
         questions: orderedQuestions,
         studentResults,
         chatPosts,

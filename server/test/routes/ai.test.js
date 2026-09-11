@@ -587,13 +587,14 @@ describe('AI course configuration and chat', () => {
     });
     const requestBody = JSON.parse(fetch.mock.calls[0][1].body);
     expect(requestBody.tools.map((tool) => tool.function.name)).toEqual([
+      'get_course_session_overview',
       'list_reviewable_sessions',
       'get_reviewable_session_questions',
       'get_my_reviewable_session_grade',
     ]);
     expect(requestBody.messages[0].content).toContain('Help students understand mechanics without inventing facts.');
-    expect(requestBody.messages[0].content).toContain('only to tools that list ended sessions currently marked reviewable');
-    expect(requestBody.messages[0].content).toContain('Never claim to access a non-reviewable session');
+    expect(requestBody.messages[0].content).toContain('list ended sessions currently marked reviewable');
+    expect(requestBody.messages[0].content).toContain("Never claim to access a draft or non-reviewable session's content");
   });
 
   it('rejects cross-course session and question IDs on grading and summaries', async (ctx) => {

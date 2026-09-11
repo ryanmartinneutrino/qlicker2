@@ -508,7 +508,7 @@ describe('GET /api/v1/courses/:courseId/sessions', () => {
     expect(persisted.json().session.status).toBe('done');
   });
 
-  it('extensions keep access open only for extension students after the base quiz window closes', async (ctx) => {
+  it.each(['visible', 'done'])('extensions keep access open only for extension students in %s quizzes', async (status, ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
     const { profToken, course, studentToken } = await setupCourseWithStudent();
     const extensionStudent = await createTestUser({
@@ -537,7 +537,7 @@ describe('GET /api/v1/courses/:courseId/sessions', () => {
 
     await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${session._id}`, {
       token: profToken,
-      payload: { status: 'visible' },
+      payload: { status },
     });
     const extensionsRes = await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${session._id}/extensions`, {
       token: profToken,
@@ -572,7 +572,7 @@ describe('GET /api/v1/courses/:courseId/sessions', () => {
     });
     expect(profRes.statusCode).toBe(200);
     const profSession = profRes.json().sessions.find((row) => row._id === session._id);
-    expect(profSession.status).toBe('running');
+    expect(profSession.status).toBe(status === 'done' ? 'done' : 'running');
     expect(profSession.quizHasActiveExtensions).toBe(true);
   });
 
@@ -2597,7 +2597,53 @@ describe('Student quiz routes', () => {
     expect(editRes.json().message).toMatch(/student practice is disabled/i);
   });
 
-  it('quiz access route allows active extension students while rejecting students outside the active window', async (ctx) => {
+  it('protects review access and honors upcoming, active, expired and revoked extensions after ending', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const { profToken, course, student, studentToken } = await setupCourseWithStudent();
+    const now = Date.now();
+    const session = (await createSessionInCourse(profToken, course._id, {
+      quiz: true, quizStart: new Date(now - 120000).toISOString(), quizEnd: new Date(now - 60000).toISOString(),
+    })).json().session;
+    await addMcQuestion({ profToken, sessionId: session._id, courseId: course._id });
+    await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${session._id}`, {
+      token: profToken, payload: { status: 'done', reviewable: true },
+    });
+    const setWindow = (start, end) => authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${session._id}/extensions`, {
+      token: profToken, payload: { extensions: [{ userId: student._id, quizStart: new Date(start).toISOString(), quizEnd: new Date(end).toISOString() }] },
+    });
+    const upcoming = await setWindow(now + 60000, now + 120000);
+    expect(upcoming.statusCode).toBe(200);
+    expect(upcoming.json().session).toMatchObject({ status: 'done', reviewable: false, quizHasRemainingExtensions: true });
+    expect(await Grade.countDocuments({ sessionId: session._id, visibleToStudents: true })).toBe(0);
+    const closed = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/quiz`, { token: studentToken });
+    expect(closed.statusCode).toBe(403);
+    expect(closed.json().message).toMatch(/not open yet/);
+    for (const [method, suffix, payload] of [
+      ['PATCH', '', { reviewable: true }], ['PATCH', '/reviewable', { reviewable: true }], ['POST', '/end', { reviewable: true }],
+    ]) {
+      const denied = await authenticatedRequest(app, method, `/api/v1/sessions/${session._id}${suffix}`, { token: profToken, payload });
+      expect(denied.statusCode).toBe(400);
+    }
+    const review = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/review`, { token: studentToken });
+    expect(review.statusCode).toBe(403);
+    await setWindow(now - 60000, now + 120000);
+    const opened = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/quiz`, { token: studentToken });
+    expect(opened.statusCode).toBe(200);
+    expect(opened.json().session.quizEnd).toBe(new Date(now + 120000).toISOString());
+    await setWindow(now - 120000, now - 60000);
+    expect((await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/quiz`, { token: studentToken })).statusCode).toBe(403);
+    await setWindow(now - 60000, now + 120000);
+    await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${session._id}/extensions`, { token: profToken, payload: { extensions: [] } });
+    expect((await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/quiz`, { token: studentToken })).statusCode).toBe(403);
+    const publish = await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${session._id}/reviewable`, { token: profToken, payload: { reviewable: true } });
+    expect(publish.statusCode).toBe(200);
+    const invalid = await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${session._id}`, { token: profToken, payload: { status: 'running', reviewable: true } });
+    expect(invalid.statusCode).toBe(400);
+    const restarted = await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/start`, { token: profToken });
+    expect(restarted.json().session.reviewable).toBe(false);
+  });
+
+  it.each(['visible', 'done'])('quiz access and submission honor extensions in %s state', async (status, ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
     const { profToken, course, studentToken } = await setupCourseWithStudent();
     const extensionStudent = await createTestUser({
@@ -2618,10 +2664,10 @@ describe('Student quiz routes', () => {
       quizEnd: new Date(now - (60 * 1000)).toISOString(),
     });
     const session = sessRes.json().session;
-    await addMcQuestion({ profToken, sessionId: session._id, courseId: course._id, content: 'Extension only' });
+    const question = await addMcQuestion({ profToken, sessionId: session._id, courseId: course._id, content: 'Extension only' });
     await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${session._id}`, {
       token: profToken,
-      payload: { status: 'visible' },
+      payload: { status },
     });
     const extensionRes = await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${session._id}/extensions`, {
       token: profToken,
@@ -2647,6 +2693,18 @@ describe('Student quiz routes', () => {
     });
     expect(openRes.statusCode).toBe(200);
     expect(openRes.json().session.status).toBe('running');
+    const saveRes = await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${session._id}/quiz-response`, {
+      token: extensionStudentToken, payload: { questionId: question._id, answer: '0' },
+    });
+    expect(saveRes.statusCode).toBe(200);
+    const submitRes = await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/submit`, {
+      token: extensionStudentToken,
+    });
+    expect(submitRes.statusCode).toBe(200);
+    const repeatRes = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/quiz`, {
+      token: extensionStudentToken,
+    });
+    expect(repeatRes.statusCode).toBe(403);
   });
 });
 

@@ -956,7 +956,7 @@
       "goLiveMessage": "Changing standing to Underway will immediately make this voyage available to crew.",
       "goLive": "Go Underway",
       "extensionsTitle": "Reckoning Extensions",
-      "extensionsMessage": "Add crew who should receive custom reckoning access windows.",
+      "extensionsMessage": "Add crew who should receive custom reckoning access windows. Individual extensions work after th’ quiz be Ended. Active or upcoming extensions bar review; grantin’ one stows existing review an’ hides published grades. Recalculate grades after extensions finish before publishin’ again. Submitted quizzes stay locked.",
       "start": "Weigh Anchor",
       "end": "End",
       "noExtensions": "Nary any crew member extensions configured.",
@@ -2164,7 +2164,7 @@
           "title": "Chart a ship an' add topics afore ye scale up",
           "subtitle": "A clean ship setup saves time when ye copy or hunt later.",
           "bullets": [
-            "Th' ship creation dialog combines a semester season an' year into one label, which ye can edit later if ye need a custom or legacy format.",
+            "Th' ship creation dialog combines a semester season an' year into one label, which ye can edit later if ye need a custom or legacy format. Search sessions starts unfurled and can be stowed. Enablin’ chat or AI keeps Course Settings selected; Back to course restores th’ tab ye sailed from. Show Stats follows new attempts in th’ presentation window without reloadin’.",
             "Use ship rigging to oversee th' title, boarding rules, reckoning time display, afloat state, an' whether crew may access drill riddles, th' ship riddle chest, an' drill voyages.",
             "Add ship topics early so yer own riddles stay organized an' crew can hunt th' chest material ye make in plain sight to 'em when drill-riddle access be hoisted.",
             "Each ship has an boarding or board code that crew enter from their quarterdeck to board that specific ship. Share th' current code with yer class an' amend it in ship rigging if ye need to stop an old code from bein' reused.",
@@ -2228,7 +2228,7 @@
           "title": "Run interactive voyages an' reckonings intentionally",
           "subtitle": "Different voyage types be best fer different teachin' moments.",
           "bullets": [
-            "Interactive voyages be fer underway teachin': ye control navigation, reply windows, statistics, answer reveals, stabs, an' th' spyglass window.",
+            "Interactive voyages be fer underway teachin': ye control navigation, reply windows, statistics, answer reveals, stabs, an' th' spyglass window. Individual extensions work after th’ quiz be Ended. Active or upcoming extensions bar review; grantin’ one stows existing review an’ hides published grades. Recalculate grades after extensions finish before publishin’ again. Submitted quizzes stay locked.",
             "Fer short-answer riddles, th' professor control view always keeps th' full reply list in plain sight; a separate flip controls whether crew an' th' spyglass window see that shared list.",
             "Reckonings be scheduled windows where crew answer on their own timeline. Use start an' end times plus extensions fer accommodation workflows.",
             "Drill reckonings feel more like guided rehearsal an' be well suited fer self-study or optional reinforcement.",
@@ -2315,7 +2315,7 @@
           "title": "Sign aboard in a ship an' learn th' ship tabs",
           "subtitle": "Most crew member work begins from th' ship quarterdeck.",
           "bullets": [
-            "Enter th' boarding code exactly as yer officer gives it. If th' ship be mothballed, boarding be rejected an' ye'll need to try again after th' ship be activated.",
+            "Enter th' boarding code exactly as yer officer gives it. If th' ship be mothballed, boarding be rejected an' ye'll need to try again after th' ship be activated. Search sessions starts unfurled and can be stowed.",
             "Th' ship page separates sermons or underway voyages, reckonings, drill voyages, ledgers, an' riddle-chest material so ye can find th' right workflow quick. In ships where drill-riddle access be struck, th' drill an' chest tabs stay stowed away.",
             "Voyage lists keep hunt, filters, an' pagination inside a collapsible Hunt voyages area so ye can expand controls only when ye need 'em.",
             "If yer institution requires vouched fer missive or SSO, finish that setup first afore assumin' th' boarding code be wrong.",
@@ -2332,7 +2332,7 @@
           "title": "Board underway voyages an' understand how reckonings differ",
           "subtitle": "Interactive voyages, reckonings, an' drill voyages may look similar, but they behave differently.",
           "bullets": [
-            "Interactive voyages usually happen underway. Ye may need a secret code, an' yer officer decides when replies open, close, or reveal statistics.",
+            "Interactive voyages usually happen underway. Ye may need a secret code, an' yer officer decides when replies open, close, or reveal statistics. An individual extension lets ye open, save an’ submit an ended quiz durin’ yer assigned window. Yer course card shows yer deadline. Submitted quizzes stay locked; review waits until all extensions end.",
             "Reckonings have a set time window an' normally expect ye to answer th' whole set afore final submission. Yer work saves while ye move between riddles.",
             "Drill voyages be fer self-study an' can feel more flexible because they're built to help ye rehearse instead o' keepin' pace with a underway class.",
             "Slides can appear between riddles. They're content pages, so read 'em carefully afore movin' on.",

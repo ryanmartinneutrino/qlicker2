@@ -584,6 +584,7 @@ export default function StudentCourseDetail() {
         <Button
           color="inherit"
           onClick={() => setSessionControlsExpanded((prev) => ({ ...prev, [listTabIndex]: !controlsExpanded }))}
+          aria-expanded={controlsExpanded}
           endIcon={controlsExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
           sx={{ px: 0, py: 0, minWidth: 0, textTransform: 'none', fontWeight: 700 }}
         >
@@ -725,7 +726,7 @@ export default function StudentCourseDetail() {
 
     const controlsVisible = totalItemCount > 0;
     const controlsDisabled = listStillHydrating;
-    const controlsExpanded = controlsVisible ? !!sessionControlsExpanded[listTabIndex] : false;
+    const controlsExpanded = controlsVisible && sessionControlsExpanded[listTabIndex] !== false;
     const searchTerm = controlsVisible ? String(sessionSearchTerms[listTabIndex] || '') : '';
     const normalizedSearchTerm = controlsDisabled ? '' : normalizeSessionSearchValue(searchTerm);
     const statusFilter = controlsVisible

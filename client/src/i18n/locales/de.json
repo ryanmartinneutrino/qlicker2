@@ -964,7 +964,7 @@
       "goLiveMessage": "Wenn Sie den Status auf Live ändern, wird diese Sitzung sofort für Studierende verfügbar.",
       "goLive": "Live gehen",
       "extensionsTitle": "Quiz-Verlängerungen",
-      "extensionsMessage": "Fügen Sie Studierende hinzu, die individuelle Quiz-Zugangszeiträume erhalten sollen.",
+      "extensionsMessage": "Fügen Sie Studierende hinzu, die individuelle Quiz-Zugangszeiträume erhalten sollen. Individuelle Verlängerungen gelten nach dem Beenden des Quiz. Aktive oder zukünftige Verlängerungen sperren die Einsicht; eine neue Verlängerung deaktiviert bestehende Einsicht und verbirgt veröffentlichte Noten. Berechnen Sie nach Ablauf die Noten vor der erneuten Veröffentlichung neu. Abgegebene Quiz werden nicht entsperrt.",
       "start": "Beginn",
       "end": "Ende",
       "noExtensions": "Keine Studierenden-Verlängerungen konfiguriert.",
@@ -2172,7 +2172,7 @@
           "title": "Einen Kurs erstellen und Themen hinzufügen, bevor Sie skalieren",
           "subtitle": "Eine saubere Kurseinrichtung spart Zeit beim späteren Kopieren oder Suchen.",
           "bullets": [
-            "Der Kurserstellungsdialog kombiniert eine Semestersaison und ein Jahr zu einer Bezeichnung, die Sie später bearbeiten können, wenn Sie ein benutzerdefiniertes oder älteres Format benötigen.",
+            "Der Kurserstellungsdialog kombiniert eine Semestersaison und ein Jahr zu einer Bezeichnung, die Sie später bearbeiten können, wenn Sie ein benutzerdefiniertes oder älteres Format benötigen. Die Sitzungssuche ist standardmäßig aufgeklappt und kann eingeklappt werden. Beim Aktivieren von Chat oder KI bleiben die Kurseinstellungen ausgewählt; Zurück zum Kurs öffnet den ursprünglichen Reiter. Statistiken anzeigen folgt neuen Versuchen im Präsentationsfenster ohne Neuladen.",
             "Verwenden Sie die Kurseinstellungen, um den Titel, die Einschreibungsregeln, die Quiz-Zeitanzeige, den aktiven Status und zu verwalten, ob Studierende auf Übungsfragen, die Kurs-Fragenbibliothek und Übungssitzungen zugreifen dürfen.",
             "Fügen Sie frühzeitig Kursthemen hinzu, damit Ihre eigenen Fragen organisiert bleiben und Studierende das Bibliotheksmaterial durchsuchen können, das Sie für sie sichtbar gemacht haben, wenn der Zugang zu Übungsfragen aktiviert ist.",
             "Jeder Kurs hat einen Einschreibungs- oder Beitrittscode, den Studierende über ihr Dashboard eingeben, um dem jeweiligen Kurs beizutreten. Teilen Sie den aktuellen Code mit Ihrem Kurs und aktualisieren Sie ihn in den Kurseinstellungen, wenn Sie verhindern möchten, dass ein alter Code erneut verwendet wird.",
@@ -2236,7 +2236,7 @@
           "title": "Interaktive Sitzungen und Quizze bewusst durchführen",
           "subtitle": "Verschiedene Sitzungstypen eignen sich am besten für verschiedene Lehrsituationen.",
           "bullets": [
-            "Interaktive Sitzungen sind für den Live-Unterricht: Sie steuern Navigation, Antwortfenster, Statistiken, Antwortaufdeckungen, Versuche und das Präsentationsfenster.",
+            "Interaktive Sitzungen sind für den Live-Unterricht: Sie steuern Navigation, Antwortfenster, Statistiken, Antwortaufdeckungen, Versuche und das Präsentationsfenster. Individuelle Verlängerungen gelten nach dem Beenden des Quiz. Aktive oder zukünftige Verlängerungen sperren die Einsicht; eine neue Verlängerung deaktiviert bestehende Einsicht und verbirgt veröffentlichte Noten. Berechnen Sie nach Ablauf die Noten vor der erneuten Veröffentlichung neu. Abgegebene Quiz werden nicht entsperrt.",
             "Bei Freitextfragen hält die Professorensteuerung die vollständige Antwortliste stets sichtbar; ein separater Schalter steuert, ob Studierende und das Präsentationsfenster diese gemeinsame Liste sehen.",
             "Quizze sind geplante Zeitfenster, in denen Studierende in ihrem eigenen Tempo antworten. Verwenden Sie Start- und Endzeiten sowie Verlängerungen für Nachteilsausgleich-Abläufe.",
             "Übungsquizze fühlen sich eher wie angeleitetes Üben an und eignen sich gut für Selbststudium oder optionale Vertiefung.",
@@ -2323,7 +2323,7 @@
           "title": "In einen Kurs einschreiben und die Kurs-Tabs kennenlernen",
           "subtitle": "Die meiste Studierendenarbeit beginnt vom Kurs-Dashboard aus.",
           "bullets": [
-            "Geben Sie den Einschreibungscode genau so ein, wie Ihr Dozent ihn bereitstellt. Wenn der Kurs inaktiv ist, wird die Einschreibung abgelehnt und Sie müssen es erneut versuchen, nachdem der Kurs aktiviert wurde.",
+            "Geben Sie den Einschreibungscode genau so ein, wie Ihr Dozent ihn bereitstellt. Wenn der Kurs inaktiv ist, wird die Einschreibung abgelehnt und Sie müssen es erneut versuchen, nachdem der Kurs aktiviert wurde. Die Sitzungssuche ist standardmäßig aufgeklappt und kann eingeklappt werden.",
             "Die Kursseite trennt Vorlesungen oder Live-Sitzungen, Quizze, Übungssitzungen, Noten und Fragenbibliothek-Material, sodass Sie den richtigen Arbeitsablauf schnell finden. In Kursen, in denen der Zugang zu Übungsfragen deaktiviert ist, bleiben die Übungs- und Bibliotheks-Tabs verborgen.",
             "Sitzungslisten halten Suche, Filter und Seitennavigation in einem ausklappbaren Bereich „Sitzungen suchen“, sodass Sie die Steuerung nur bei Bedarf erweitern können.",
             "Wenn Ihre Einrichtung eine verifizierte E-Mail-Adresse oder SSO erfordert, schließen Sie diese Einrichtung zuerst ab, bevor Sie annehmen, dass der Einschreibungscode falsch ist.",
@@ -2340,7 +2340,7 @@
           "title": "An Live-Sitzungen teilnehmen und verstehen, wie sich Quizze unterscheiden",
           "subtitle": "Interaktive Sitzungen, Quizze und Übungssitzungen sehen ähnlich aus, verhalten sich aber unterschiedlich.",
           "bullets": [
-            "Interaktive Sitzungen finden normalerweise live statt. Sie benötigen möglicherweise einen Passcode, und Ihr Dozent entscheidet, wann Antworten geöffnet, geschlossen oder Statistiken angezeigt werden.",
+            "Interaktive Sitzungen finden normalerweise live statt. Sie benötigen möglicherweise einen Passcode, und Ihr Dozent entscheidet, wann Antworten geöffnet, geschlossen oder Statistiken angezeigt werden. Eine individuelle Verlängerung erlaubt das Öffnen, Speichern und Abgeben eines beendeten Quiz im zugewiesenen Zeitfenster. Die Kurskarte zeigt Ihre Frist. Ein abgegebenes Quiz bleibt gesperrt; die Einsicht wartet bis zum Ende aller Verlängerungen.",
             "Quizze haben ein definiertes Zeitfenster und erwarten normalerweise, dass Sie den gesamten Fragensatz vor der endgültigen Abgabe beantworten. Ihre Arbeit wird gespeichert, während Sie zwischen Fragen wechseln.",
             "Übungssitzungen dienen dem Selbststudium und können sich flexibler anfühlen, da sie darauf ausgelegt sind, Ihnen beim Üben zu helfen, anstatt mit einem Live-Kurs Schritt zu halten.",
             "Folien können zwischen Fragen erscheinen. Sie sind Inhaltsseiten, lesen Sie sie daher sorgfältig, bevor Sie fortfahren.",
