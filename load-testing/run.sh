@@ -19,6 +19,7 @@ ENV_FILE="$SCRIPT_DIR/.env"
 RESULTS_DIR="$SCRIPT_DIR/results"
 STATE_DIR="$SCRIPT_DIR/state"
 K6_IMAGE="${K6_IMAGE:-grafana/k6:latest}"
+K6_NOFILE_LIMIT="${K6_NOFILE_LIMIT:-16384}"
 DEFAULT_SEED_IMAGE="qlicker-load-testing-seed:local"
 COMMON_SH="$SCRIPT_DIR/common.sh"
 
@@ -58,6 +59,11 @@ BASE_URL="${BASE_URL:-}"
 NUM_STUDENTS="${NUM_STUDENTS:-500}"
 SEED_IMAGE="${SEED_IMAGE:-$DEFAULT_SEED_IMAGE}"
 SESSION_CHAT_ENABLED="${SESSION_CHAT_ENABLED:-true}"
+
+if [[ ! "$K6_NOFILE_LIMIT" =~ ^[0-9]+$ ]] || (( K6_NOFILE_LIMIT < 1024 )); then
+  error "K6_NOFILE_LIMIT must be an integer of at least 1024."
+  exit 1
+fi
 
 if [[ -z "$STACK_DIR" && -n "$TARGET_ENV_FILE" ]]; then
   STACK_DIR="$(dirname "$TARGET_ENV_FILE")"
@@ -284,6 +290,7 @@ k6_runner() {
   done
 
   docker run --rm \
+    --ulimit "nofile=${K6_NOFILE_LIMIT}:${K6_NOFILE_LIMIT}" \
     "${network_args[@]}" \
     --add-host=host.docker.internal:host-gateway \
     -e BASE_URL="$k6_base_url" \

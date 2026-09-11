@@ -8,6 +8,7 @@
   },
   "description": "Load testing suite for Qlicker – seeds test data and runs k6 scenarios",
   "scripts": {
+    "test": "node --test test/*.test.mjs",
     "seed": "node seed.mjs",
     "clean": "node seed.mjs --clean"
   },

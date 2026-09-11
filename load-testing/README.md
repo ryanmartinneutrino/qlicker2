@@ -145,6 +145,11 @@ Timing and sync variables:
 - `STUDENT_LOGIN_SPREAD_S`: maximum login jitter applied across student VUs.
   `0` means everyone hits `/auth/login` immediately; higher values spread the
   startup wave and usually produce a more realistic class arrival pattern.
+- `K6_NOFILE_LIMIT`: file-descriptor limit applied to the k6 container
+  (default `16384`). Keep this above the combined number of long-lived
+  WebSockets and concurrent HTTP/TLS connections. The upstream k6 image
+  defaults to 1,024 descriptors, which is insufficient for the default
+  500-student scenario once sockets and requests overlap.
 
 Chat-behavior variables:
 
@@ -211,6 +216,8 @@ The scenario tracks and thresholds these key signals:
 - `chat_event_sync_success{role:professor}`
 - `login_duration{role:student}`
 - `login_duration{role:professor}`
+- `login_blocked_duration`, `login_connecting_duration`,
+  `login_tls_handshaking_duration`, and `login_waiting_duration`, tagged by role
 - `join_duration`
 - `respond_duration`
 - `professor_action_duration`
@@ -263,6 +270,8 @@ Additional counters include:
 
 - `ws_connections`
 - `ws_errors`
+- `ws_handshake_failures`: failed upgrades, including timeouts that occur before
+  the WebSocket opens and therefore may never trigger a socket error event
 - `response_added_refreshes`
 - `respond_attempts`: every `/respond` request issued by the scenario
 - `respond_successful_submissions`: every accepted response
@@ -466,6 +475,19 @@ student screen visibly caught up."
 
 Different metrics point to different bottlenecks:
 
+- A `login_duration` near 60 seconds with a much smaller `http_req_duration`
+  points to connection establishment. k6 excludes DNS, TCP connection, and TLS
+  setup from `http_req_duration`. Inspect `login_blocked_duration` (the phase
+  before sending, including connection setup), `login_connecting_duration`,
+  and `login_tls_handshaking_duration`; these overlap and must not be added
+  together. `login_waiting_duration` measures time to the first response byte.
+  See the [k6 metric definitions](https://grafana.com/docs/k6/latest/using-k6/metrics/reference/).
+  Failed logins and WebSocket handshakes also log the role, HTTP status, k6
+  error code, and available timing phases. These diagnostic records omit
+  credentials, request URLs, and raw error messages.
+- Failed WebSocket handshakes can coexist with `ws_errors=0`: that counter
+  records socket error events, whereas `ws_handshake_failures` counts failed
+  upgrades. Check both alongside `ws_connect_success`.
 - Slow `login_duration{role:student}` with healthy in-session metrics usually
   means startup authentication load is the bottleneck, not the live session
   itself. If this is the only recurring failure, check whether
@@ -487,6 +509,9 @@ Different metrics point to different bottlenecks:
 - The runners use Docker even for native dev targets. Localhost-based URLs are
   rewritten to `host.docker.internal` so the containers can reach the host
   stack.
+- The k6 runner raises its file-descriptor limit to `K6_NOFILE_LIMIT`. Without
+  this, connection attempts can time out before reaching Nginx while
+  `http_req_duration` still looks healthy because it excludes connection setup.
 - `run.sh` re-checks the target `.env` and Docker network at execution time, so
   `--clean` is less likely to use a stale Mongo hostname after the stack has
   moved or been restarted.

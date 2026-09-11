@@ -84,6 +84,8 @@ DEFAULT_RUNTIME="$(existing_val TARGET_RUNTIME)"
 DEFAULT_TARGET_ENV_FILE="$(existing_val TARGET_ENV_FILE)"
 DEFAULT_STUDENTS="$(existing_val NUM_STUDENTS)"
 : "${DEFAULT_STUDENTS:=500}"
+DEFAULT_K6_NOFILE_LIMIT="$(existing_val K6_NOFILE_LIMIT)"
+: "${DEFAULT_K6_NOFILE_LIMIT:=16384}"
 DEFAULT_SEED_IMAGE_TAG="$(existing_val SEED_IMAGE)"
 : "${DEFAULT_SEED_IMAGE_TAG:=$DEFAULT_SEED_IMAGE}"
 
@@ -231,6 +233,11 @@ BASE_URL="$RESOLVED_BASE_URL"
 
 # Number of simulated students (override with ./run.sh --students N)
 NUM_STUDENTS="$NUM_STUDENTS"
+
+# File-descriptor budget for the k6 container. WebSockets and concurrent HTTP
+# connections each consume descriptors; the image default of 1024 is too low
+# for the default 500-student classroom scenario.
+K6_NOFILE_LIMIT="$DEFAULT_K6_NOFILE_LIMIT"
 
 # Docker image tag used for the seed runner
 SEED_IMAGE="$DEFAULT_SEED_IMAGE_TAG"
