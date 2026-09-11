@@ -42,6 +42,12 @@ Fastify schemas supply parameters, request bodies, response shapes, tags, and be
 
 Permission checks vary by operation. A global professor role and course instructor membership are not interchangeable; API tests should cover unauthenticated, wrong-role, and non-member access.
 
+## Quiz extensions and review access
+
+`PATCH /api/v1/sessions/:id/extensions` assigns individual quiz windows to enrolled students, including when the stored session status is `done`. Students with an active extension receive effective status `running` and their own `quizStart`/`quizEnd` in session payloads; an upcoming extension is `visible`. The instructor still sees the ended status. Saving and submitting enforce the individual window, enrollment, and existing submission locks.
+
+Session payloads expose `quizHasActiveExtensions`, `activeExtensionsCount`, and `quizHasRemainingExtensions` (active or upcoming). Remaining extensions block review publication through generic session updates, `/reviewable`, and `/end`. Granting a remaining extension clears reviewability and student-visible grades. Expiry or removal does not automatically republish results.
+
 ## Admin system-monitoring query
 
 `GET /api/v1/users/admin/system-monitoring?range=24h` requires an authenticated administrator. `range` accepts `6h`, `24h` (default), or `7d`; invalid values return 400. The response includes `status` (`healthy`, `stale`, `unavailable`), `latest`, downsampled `history`, up to five `peakPeriods`, up to 50 seven-day collector `events`, `generatedAt`, `retentionDays`, and `bucketSeconds` (60, 300, or 1800).

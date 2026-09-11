@@ -123,7 +123,7 @@ function applyVisibilityChanged(prev, payload) {
   };
 }
 
-function applyAttemptChanged(prev, payload) {
+export function applyAttemptChanged(prev, payload) {
   if (!prev) return prev;
 
   const nextQuestionId = String(payload?.questionId || '');
@@ -131,6 +131,10 @@ function applyAttemptChanged(prev, payload) {
   if (!nextQuestionId || currentQuestionId !== nextQuestionId) {
     return prev;
   }
+
+  const previousAttemptNumber = prev.currentAttempt?.number ?? null;
+  const nextAttemptNumber = payload?.currentAttempt?.number ?? previousAttemptNumber;
+  const resetResponses = !!payload?.resetResponses || nextAttemptNumber !== previousAttemptNumber;
 
   const nextQuestion = prev.currentQuestion
     ? {
@@ -145,9 +149,14 @@ function applyAttemptChanged(prev, payload) {
 
   return {
     ...prev,
+    currentAttempt: payload?.currentAttempt ?? prev.currentAttempt,
     currentQuestion: nextQuestion,
-    responseStats: payload?.resetResponses ? null : prev.responseStats,
-    allResponses: payload?.resetResponses ? [] : prev.allResponses,
+    responseCount: resetResponses ? 0 : prev.responseCount,
+    responseStats: resetResponses
+      ? (isOptionBasedQuestionType(normalizeQuestionType(nextQuestion || {}))
+        ? { type: 'distribution', distribution: [], total: 0 } : null)
+      : prev.responseStats,
+    allResponses: resetResponses ? [] : prev.allResponses,
   };
 }
 

@@ -33,6 +33,10 @@ describe('course access', () => {
     expect(getStudentSessionReviewRestriction({ reviewable: false, status: 'done' }, student)).toBe('not-reviewable');
     expect(getStudentSessionReviewRestriction({ reviewable: true, status: 'running' }, student)).toBe('not-finished');
     expect(getStudentSessionReviewRestriction({
+      reviewable: true, status: 'done', quiz: true,
+      quizExtensions: [{ userId: 'other-student', quizEnd: new Date(Date.now() + 60000) }],
+    }, student)).toBe('not-finished');
+    expect(getStudentSessionReviewRestriction({
       studentCreated: true,
       creator: 'another-student',
       reviewable: true,
@@ -50,6 +54,7 @@ describe('course access', () => {
     expect(studentReviewableSessionQuery()).toEqual({
       reviewable: true,
       status: 'done',
+      quizExtensions: { $not: { $elemMatch: { quizEnd: { $gte: expect.any(Date) } } } },
       studentCreated: { $ne: true },
     });
     expect(studentVisibleGradeQuery('course-1', 'session-1', { userId: 'student-1' })).toEqual({

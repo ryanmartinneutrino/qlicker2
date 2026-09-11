@@ -166,13 +166,13 @@ function buildProfessorSessionSubtitle(session, t) {
   return details.join(' · ');
 }
 
-// Tab indices after Groups are allocated dynamically for chat, video, AI, settings, and questions.
-const MAX_COURSE_TAB_INDEX = 10;
+const OPTIONAL_COURSE_TABS = ['chat', 'video', 'ai-settings', 'ai-chat', 'settings', 'questions'];
 
 function parseCourseTab(value) {
+  if (OPTIONAL_COURSE_TABS.includes(value)) return value;
   const parsed = Number.parseInt(value, 10);
   if (!Number.isInteger(parsed)) return 0;
-  if (parsed < 0 || parsed > MAX_COURSE_TAB_INDEX) return 0;
+  if (parsed < 0 || parsed > 11) return 0;
   return parsed;
 }
 
@@ -302,7 +302,7 @@ export default function CourseDetail() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState(() => parseCourseTab(searchParams.get('tab')));
+  const [selectedTab, setTab] = useState(() => parseCourseTab(searchParams.get('tab')));
   const [msg, setMsg] = useState(null);
 
   // Dialogs
@@ -383,14 +383,21 @@ export default function CourseDetail() {
   const [videoEnabled, setVideoEnabled] = useState(false);
   const aiAvailable = !!aiCoursePolicy.enabled;
   const courseChatEnabled = !!course?.courseChatEnabled;
-  const chatTabIndex = courseChatEnabled ? 6 : -1;
-  const videoTabIndex = videoEnabled ? (courseChatEnabled ? 7 : 6) : -1;
-  const aiTabIndex = aiAvailable ? (courseChatEnabled ? (videoEnabled ? 8 : 7) : (videoEnabled ? 7 : 6)) : -1;
-  const aiChatTabIndex = aiAvailable && course?.aiEnabled ? aiTabIndex + 1 : -1;
-  const settingsTabIndex = aiAvailable
-    ? aiTabIndex + (course?.aiEnabled ? 2 : 1)
-    : (courseChatEnabled ? (videoEnabled ? 8 : 7) : (videoEnabled ? 7 : 6));
-  const questionLibraryTabIndex = settingsTabIndex + 1;
+  // Optional tabs have stable URL identities even when features add/remove tabs.
+  const chatTabIndex = 'chat';
+  const videoTabIndex = 'video';
+  const aiTabIndex = 'ai-settings';
+  const aiChatTabIndex = 'ai-chat';
+  const settingsTabIndex = 'settings';
+  const questionLibraryTabIndex = 'questions';
+  const legacyOptionalTabs = [
+    ...(courseChatEnabled ? [chatTabIndex] : []),
+    ...(videoEnabled ? [videoTabIndex] : []),
+    ...(aiAvailable ? [aiTabIndex, ...(course?.aiEnabled ? [aiChatTabIndex] : [])] : []),
+    settingsTabIndex, questionLibraryTabIndex,
+  ];
+  const tab = typeof selectedTab === 'number' && selectedTab >= 6
+    ? (legacyOptionalTabs[selectedTab - 6] || 0) : selectedTab;
 
   useEffect(() => {
     let mounted = true;
@@ -1109,11 +1116,8 @@ export default function CourseDetail() {
     try {
       const enabled = event.target.checked;
       await apiClient.patch(`/ai/courses/${id}/config`, { enabled });
-      // Enabling the assistant inserts the AI chat tab immediately before
-      // Settings. Preserve the semantic Settings tab in both local state and
-      // the URL rather than leaving its old numeric tab index selected.
       setCourse((current) => (current ? { ...current, aiEnabled: enabled } : current));
-      setCourseTab(aiTabIndex + (enabled ? 2 : 1));
+      setCourseTab(settingsTabIndex);
       fetchCourse();
       setSettingsAutoSaveStatus('success');
     } catch (err) {
@@ -1250,11 +1254,8 @@ export default function CourseDetail() {
     markSettingAutoSaveInProgress();
     try {
       const nextCourseChatEnabled = event.target.checked;
-      const nextSettingsTabIndex = nextCourseChatEnabled
-        ? (videoEnabled ? 8 : 7)
-        : (videoEnabled ? 7 : 6);
       await apiClient.patch(`/courses/${id}`, { courseChatEnabled: nextCourseChatEnabled });
-      setCourseTab(nextSettingsTabIndex);
+      setCourseTab(settingsTabIndex);
       setChatUnseenCount(0);
       fetchCourse();
       setSettingsAutoSaveStatus('success');
@@ -1530,7 +1531,7 @@ export default function CourseDetail() {
       ? String(sessionStatusFilters[listTabIndex] || SESSION_STATUS_FILTER_ALL)
       : SESSION_STATUS_FILTER_ALL;
     const needsGradingOnly = controlsVisible ? !!sessionNeedsGradingFilters[listTabIndex] : false;
-    const controlsExpanded = controlsVisible ? !!sessionControlsExpanded[listTabIndex] : false;
+    const controlsExpanded = controlsVisible && sessionControlsExpanded[listTabIndex] !== false;
 
     const filteredSessionItems = controlsVisible && !controlsDisabled
       ? sessionItems.filter((session) => {
@@ -1565,6 +1566,7 @@ export default function CourseDetail() {
             <Button
               color="inherit"
               onClick={() => setSessionControlsExpanded((prev) => ({ ...prev, [listTabIndex]: !controlsExpanded }))}
+              aria-expanded={controlsExpanded}
               endIcon={controlsExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
               sx={{ px: 0, py: 0, minWidth: 0, textTransform: 'none', fontWeight: 700 }}
             >
@@ -1807,7 +1809,7 @@ export default function CourseDetail() {
                             size="small"
                             checked={!!s.reviewable}
                             onChange={(event) => patchSessionFromList(s._id, { reviewable: event.target.checked })}
-                            disabled={!!sessionUpdatesInFlight[s._id] || s.status !== 'done'}
+                            disabled={!!sessionUpdatesInFlight[s._id] || s.status !== 'done' || s.quizHasRemainingExtensions}
                           />
                         )}
                         label={(
@@ -1995,7 +1997,7 @@ export default function CourseDetail() {
           <Stack direction="row" spacing={1} useFlexGap sx={{
             flexWrap: "wrap"
           }}>
-            <Tooltip title={t('notifications.manage.tooltip')}>
+            <Tooltip title={t('notifications.manage.tooltip')} describeChild>
               <Button variant="outlined" startIcon={<NotificationsIcon />} onClick={() => setManageNotificationsOpen(true)}>
                 {t('notifications.manage.button')}
               </Button>
@@ -2045,7 +2047,7 @@ export default function CourseDetail() {
           <Stack direction="row" spacing={1} useFlexGap sx={{
             flexWrap: "wrap"
           }}>
-            <Tooltip title={t('notifications.manage.tooltip')}>
+            <Tooltip title={t('notifications.manage.tooltip')} describeChild>
               <Button variant="outlined" startIcon={<NotificationsIcon />} onClick={() => setManageNotificationsOpen(true)}>
                 {t('notifications.manage.button')}
               </Button>

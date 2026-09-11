@@ -24,6 +24,8 @@ const docsOutputDir = path.join(repoRoot, 'docs/assets/manuals');
 const publicOutputDir = path.join(repoRoot, 'client/public/manuals');
 
 async function capture(page, filename, height = 1000) {
+  const selectedImages = process.env.QCLICKER_MANUAL_IMAGES?.split(',');
+  if (selectedImages && !selectedImages.includes(filename)) return;
   await page.setViewportSize({ width: 1440, height });
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(250);

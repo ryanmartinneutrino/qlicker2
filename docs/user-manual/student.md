@@ -77,7 +77,7 @@ If practice access is disabled, **Practice Sessions** and **Question Library** a
 
 Cards show status and the action currently available: join, start/continue a quiz, review, or no action yet. Quiz cards display the relevant start/end time. A live activity may also appear above the tabs as a quick-access tile.
 
-For courses with many sessions, expand **Search sessions** to search, filter by status, choose rows per page, and navigate pages. The app may load the first group of cards before background loading finishes.
+**Search sessions** starts expanded so you can search, filter by status, choose rows per page, and navigate pages. Select its heading to collapse or reopen it. The app may load the first group of cards before background loading finishes.
 
 ## 3. Join an interactive live session
 
@@ -133,6 +133,8 @@ An instructor can allow more than one attempt and weight attempts differently. T
 ## 5. Take and submit a quiz
 
 Quizzes are student-paced within a scheduled window. An instructor may give you an individual extension, so your end time can differ from the main class.
+
+An extension still works after the instructor ends the quiz for the class. Only the assigned students can enter during their individual window; your course card shows your own deadline. An upcoming extension opens at its start time. Extensions do not unlock an already-submitted normal quiz. Review remains unavailable while anyone has an active or upcoming extension.
 
 ### Before starting
 

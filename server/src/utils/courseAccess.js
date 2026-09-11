@@ -36,6 +36,10 @@ export function getStudentSessionReviewRestriction(
   if (session?.studentCreated && !ownsStudentSession) return 'unavailable';
   if (!session?.reviewable && !ownsStudentSession) return 'not-reviewable';
   if (session?.status !== 'done' && !ownsStudentSession) return 'not-finished';
+  if (!ownsStudentSession && (session?.quiz || session?.practiceQuiz)
+    && (session?.quizExtensions || []).some((extension) => (
+      new Date(extension.quizEnd || session.quizEnd).getTime() >= Date.now()
+    ))) return 'not-finished';
   return null;
 }
 
@@ -43,6 +47,7 @@ export function studentReviewableSessionQuery({ includeStudentCreated = false } 
   return {
     reviewable: true,
     status: 'done',
+    quizExtensions: { $not: { $elemMatch: { quizEnd: { $gte: new Date() } } } },
     ...(includeStudentCreated ? {} : { studentCreated: { $ne: true } }),
   };
 }

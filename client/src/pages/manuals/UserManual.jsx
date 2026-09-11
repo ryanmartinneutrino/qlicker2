@@ -210,6 +210,10 @@ function getScreenshotPresets(screenshot, t, context = {}) {
         ...base,
         imageSrc: '/manuals/professor-course.png',
         alt: screenshot.title,
+      }, {
+        imageSrc: '/manuals/professor-notifications.png',
+        title: t('notifications.manage.button'),
+        description: t('notifications.manage.formHelp'),
       }];
     case 'professorSession':
       return [{
@@ -235,7 +239,10 @@ function getScreenshotPresets(screenshot, t, context = {}) {
 
   const supplementalImages = {
     admin: {
-      3: '/manuals/admin-users.png',
+      3: [
+        { imageSrc: '/manuals/admin-users.png' },
+        { imageSrc: '/manuals/admin-notifications.png', titleKey: 'notifications.manage.button' },
+      ],
       4: '/manuals/admin-system-monitoring.png',
     },
     professor: {

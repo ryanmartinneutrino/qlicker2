@@ -964,7 +964,7 @@
       "goLiveMessage": "Cambiare lo stato in In diretta renderà immediatamente questa sessione disponibile agli studenti.",
       "goLive": "Vai in diretta",
       "extensionsTitle": "Proroghe del quiz",
-      "extensionsMessage": "Aggiungi gli studenti che dovrebbero ricevere finestre di accesso personalizzate al quiz.",
+      "extensionsMessage": "Aggiungi gli studenti che dovrebbero ricevere finestre di accesso personalizzate al quiz. Le proroghe individuali funzionano dopo la fine del quiz. Le proroghe attive o future bloccano la revisione; concederne una disattiva la revisione esistente e nasconde i voti pubblicati. Alla fine, ricalcola i voti prima di pubblicare nuovamente. I quiz consegnati non vengono sbloccati.",
       "start": "Inizio",
       "end": "Fine",
       "noExtensions": "Nessuna proroga configurata per gli studenti.",
@@ -2140,7 +2140,7 @@
             "Rivedi corsi e dettagli utente per confermare le corrette appartenenze come studente, TA e docente, le etichette del semestre, lo stato di attività e la prontezza delle iscrizioni prima di risolvere un problema nel flusso di un docente.",
             "Gli utenti solo studente che insegnano un corso compaiono come TA nell'interfaccia amministratore, ma si tratta solo di una dicitura di presentazione, non di un nuovo ruolo memorizzato.",
             "Gli amministratori possono aprire direttamente le guide per docenti e studenti dal selettore di guide presente in queste pagine, il che è utile per riprodurre un problema segnalato dal punto di vista di un altro ruolo.",
-            "Usa Gestisci notifiche nella scheda Utenti per pubblicare avvisi di accesso a livello di sistema che ogni utente vedrà nella barra dell'applicazione finché non scadono o non vengono chiusi."
+            "Apri Utenti → Gestisci notifiche. Inserisci Titolo e Messaggio in alto, scegli tutti gli utenti, gli studenti o i docenti come destinatari e imposta le date. Pubblica la notifica e conferma. Notifiche nel menu dell’avatar è solo la casella di posta, non il modulo di composizione; non vengono inviate email."
           ],
           "warning": "I cambi di ruolo e le approvazioni di accesso SSO hanno effetto immediato, quindi conferma la richiesta prima di salvare."
         },
@@ -2172,11 +2172,11 @@
           "title": "Crea un corso e aggiungi gli argomenti prima di crescere",
           "subtitle": "Una configurazione del corso pulita fa risparmiare tempo quando in seguito copi o cerchi.",
           "bullets": [
-            "La finestra di creazione del corso combina una stagione del semestre e un anno in un'unica etichetta, che puoi modificare in seguito se hai bisogno di un formato personalizzato o legacy.",
+            "La finestra di creazione del corso combina una stagione del semestre e un anno in un'unica etichetta, che puoi modificare in seguito se hai bisogno di un formato personalizzato o legacy. La ricerca delle sessioni è aperta per impostazione predefinita e può essere chiusa. Attivare chat o IA mantiene selezionate le impostazioni del corso; Torna al corso ripristina la scheda di origine. Mostra statistiche segue i nuovi tentativi nella presentazione senza ricaricare.",
             "Usa le impostazioni del corso per gestire il titolo, le regole di iscrizione, la visualizzazione dell'orario dei quiz, lo stato attivo e se gli studenti possono accedere alle domande di pratica, alla libreria delle domande del corso e alle sessioni di pratica.",
             "Aggiungi presto gli argomenti del corso in modo che le tue domande restino organizzate e gli studenti possano cercare nel materiale che rendi loro visibile quando l'accesso alle domande di pratica è attivo.",
             "Ogni corso ha un codice di iscrizione che gli studenti inseriscono dalla loro dashboard per unirsi a quello specifico corso. Condividi il codice attuale con la tua classe e aggiornalo nelle impostazioni del corso se devi impedire che un vecchio codice venga riutilizzato.",
-            "Usa Gestisci notifiche nelle schede Studenti o Docenti per pubblicare avvisi di accesso Qlicker per tutti nel corso senza inviare email."
+            "Nel corso apri Studenti o Docenti → Gestisci notifiche. Inserisci Titolo e Messaggio in alto. Scegli tutti i partecipanti del corso per includere studenti e docenti oppure un solo gruppo. Imposta le date, pubblica e conferma. Notifiche nel menu dell’avatar è solo la casella di posta; non vengono inviate email."
           ],
           "note": "Se insegni corsi simili ogni semestre, usa la stessa convenzione di denominazione in modo che il materiale copiato resti facile da identificare.",
           "screenshot": {
@@ -2236,7 +2236,7 @@
           "title": "Conduci sessioni interattive e quiz con intenzionalità",
           "subtitle": "Diversi tipi di sessione sono adatti a diversi momenti didattici.",
           "bullets": [
-            "Le sessioni interattive servono per l'insegnamento dal vivo: controlli la navigazione, le finestre di risposta, le statistiche, la rivelazione delle risposte, i tentativi e la finestra di presentazione.",
+            "Le sessioni interattive servono per l'insegnamento dal vivo: controlli la navigazione, le finestre di risposta, le statistiche, la rivelazione delle risposte, i tentativi e la finestra di presentazione. Le proroghe individuali funzionano dopo la fine del quiz. Le proroghe attive o future bloccano la revisione; concederne una disattiva la revisione esistente e nasconde i voti pubblicati. Alla fine, ricalcola i voti prima di pubblicare nuovamente. I quiz consegnati non vengono sbloccati.",
             "Per le domande a risposta breve, la vista di controllo del docente mantiene sempre visibile l'elenco completo delle risposte; un interruttore separato controlla se gli studenti e la finestra di presentazione vedono quell'elenco condiviso.",
             "I quiz sono finestre pianificate in cui gli studenti rispondono secondo i propri tempi. Usa orari di inizio e fine più le proroghe per i flussi di adattamento.",
             "I quiz di pratica sono più simili a un'esercitazione guidata e sono adatti allo studio autonomo o al rinforzo facoltativo.",
@@ -2323,7 +2323,7 @@
           "title": "Iscriviti a un corso e impara a conoscere le schede del corso",
           "subtitle": "La maggior parte del lavoro dello studente inizia dalla dashboard del corso.",
           "bullets": [
-            "Inserisci il codice di iscrizione esattamente come te lo fornisce il tuo docente. Se il corso è inattivo, l'iscrizione viene rifiutata e dovrai riprovare dopo che il corso è stato attivato.",
+            "Inserisci il codice di iscrizione esattamente come te lo fornisce il tuo docente. Se il corso è inattivo, l'iscrizione viene rifiutata e dovrai riprovare dopo che il corso è stato attivato. La ricerca delle sessioni è aperta per impostazione predefinita e può essere chiusa.",
             "La pagina del corso separa lezioni o sessioni in diretta, quiz, sessioni di pratica, voti e materiale della libreria delle domande, così puoi trovare rapidamente il flusso giusto. Nei corsi in cui l'accesso alle domande di pratica è disattivato, le schede di pratica e libreria restano nascoste.",
             "Gli elenchi delle sessioni mantengono ricerca, filtri e paginazione dentro un'area comprimibile Cerca sessioni, così puoi espandere i controlli solo quando ti servono.",
             "Se la tua istituzione richiede email verificata o SSO, completa prima questa configurazione prima di supporre che il codice di iscrizione sia sbagliato.",
@@ -2340,7 +2340,7 @@
           "title": "Partecipa alle sessioni in diretta e capisci in cosa differiscono i quiz",
           "subtitle": "Sessioni interattive, quiz e sessioni di pratica possono sembrare simili, ma si comportano in modo diverso.",
           "bullets": [
-            "Le sessioni interattive si svolgono di solito in diretta. Potrebbe servirti un codice di accesso, e il tuo docente decide quando le risposte si aprono, si chiudono o mostrano le statistiche.",
+            "Le sessioni interattive si svolgono di solito in diretta. Potrebbe servirti un codice di accesso, e il tuo docente decide quando le risposte si aprono, si chiudono o mostrano le statistiche. Una proroga individuale permette di aprire, salvare e consegnare un quiz terminato durante l’intervallo assegnato. La scheda mostra la tua scadenza. I quiz consegnati restano bloccati; la revisione attende la fine di tutte le proroghe.",
             "I quiz hanno una finestra di tempo definita e normalmente prevedono che tu risponda a tutto l'insieme prima dell'invio finale. Il tuo lavoro si salva mentre ti sposti tra le domande.",
             "Le sessioni di pratica sono per lo studio autonomo e possono sembrare più flessibili perché sono pensate per aiutarti a esercitarti invece di tenere il ritmo di una lezione dal vivo.",
             "Le diapositive possono comparire tra una domanda e l'altra. Sono pagine di contenuto, quindi leggile con attenzione prima di andare avanti.",

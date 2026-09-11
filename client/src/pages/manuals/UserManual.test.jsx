@@ -106,6 +106,8 @@ describe('UserManual', () => {
     expect(screen.getByText(/each student can belong to only one group inside a category/i)).toBeInTheDocument();
     expect(screen.getByText(/session editor preview/i)).toBeInTheDocument();
     expect(screen.getByRole('img', { name: /professor course workspace preview/i })).toHaveAttribute('src', '/manuals/professor-course.png');
+    expect(screen.getByRole('img', { name: 'Manage notifications' })).toHaveAttribute('src', '/manuals/professor-notifications.png');
+    expect(screen.getByText(/Enter Title and Message at the top/i)).toBeInTheDocument();
     expect(screen.getByRole('img', { name: /session editor preview/i })).toHaveAttribute('src', '/manuals/session-editor.png');
     expect(screen.getByRole('img', { name: /set up groups before you need them in class/i })).toHaveAttribute('src', '/manuals/professor-groups.png');
     expect(screen.getByRole('img', { name: /use the library, import\/export, and copy tools to prepare efficiently/i })).toHaveAttribute('src', '/manuals/professor-question-library.png');
@@ -139,6 +141,8 @@ describe('UserManual', () => {
     expect(screen.getByRole('img', { name: /admin dashboard overview/i })).toHaveAttribute('src', '/manuals/admin-dashboard.png');
     expect(screen.getByRole('img', { name: /storage configuration preview/i })).toHaveAttribute('src', '/manuals/admin-storage.png');
     expect(screen.getByRole('img', { name: /manage users, courses, and role-based support/i })).toHaveAttribute('src', '/manuals/admin-users.png');
+    expect(screen.getByRole('img', { name: 'Manage notifications' })).toHaveAttribute('src', '/manuals/admin-notifications.png');
+    expect(screen.getByText(/enter Title and Message at the top/i)).toBeInTheDocument();
     expect(screen.getAllByRole('link').find((link) => link.getAttribute('href') === '#manual-section-2')).toBeTruthy();
   });
 });

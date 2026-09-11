@@ -1334,7 +1334,7 @@ export default function SessionReview() {
             <Switch
               checked={!!session?.reviewable}
               onChange={(e) => handleToggleReviewable(e.target.checked)}
-              disabled={togglingReviewable}
+              disabled={togglingReviewable || session?.status !== 'done' || session?.quizHasRemainingExtensions}
               size="small"
             />
           }

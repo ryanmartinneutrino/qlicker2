@@ -27,6 +27,8 @@ People with more than one role may see additional destinations. A student who is
 
 The badge on your avatar indicates active notices. Open **Notifications** to see system-wide or course-specific announcements. Dismissing a notice removes it from your own view; it does not delete the notice for everyone else.
 
+This is a read-only inbox. To write a notice, admins use **Users → Manage notifications** ([instructions](admin.md#send-notifications)); course instructors use **Students** or **Instructors → Manage notifications** ([instructions](professor.md#course-notices)).
+
 ## Update your profile
 
 Open **Profile** from the avatar menu to change the settings your account permits:

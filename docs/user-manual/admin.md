@@ -15,6 +15,7 @@ Use this guide to configure institution-wide settings and integrations, support 
 2. [General settings](#general-settings)
 3. [Backup and recovery](#backup-and-recovery)
 4. [User and course support](#user-and-course-support)
+   - [Send notifications](#send-notifications)
 5. [Storage configuration](#storage-configuration)
 6. [SSO configuration](#sso-configuration)
 7. [Usage statistics](#usage-statistics)
@@ -122,6 +123,20 @@ Prefer disabling over deleting when support staff may need to restore the accoun
 
 The Last Login column now shows date and time, not just the day, so support staff can compare account activity against reports from a user more accurately.
 When you reset a user's local password from the user modal, Qlicker now saves a current Argon2 local password immediately and clears any pending reset token for that account.
+
+### Send notifications
+
+1. Open **Admin dashboard → Users → Manage notifications**. The **Notifications** item in your avatar menu is a read-only inbox, not the message composer.
+2. At the top of the dialog, enter a short **Title** and the notification text in **Message**.
+3. Choose **Send to**: all users, all students, or all profs. This selects a system-wide audience; for a course-only notice, use the [professor workflow](professor.md#course-notices).
+4. Set the start and end date/time. The default window starts now and lasts 12 hours. **Persist until dismissed** keeps the notice available after the end time until each recipient dismisses it.
+5. Select **Post notification**, check the audience in the confirmation, and select **Confirm**.
+
+![System notification composer with Title, Message, audience, and timing fields](../assets/manuals/admin-notifications.png)
+
+Recipients read notices through the avatar menu's **Notifications** inbox after the start time. These are in-app notices, not emails or automatic pop-up messages. Use another channel as well for maintenance that could prevent people from signing in.
+
+Scroll down to **Existing notifications** to edit or delete a notice. If you cannot find the text fields, make sure you opened **Manage notifications**, then scroll to the top of that dialog.
 
 ### Courses tab
 

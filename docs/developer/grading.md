@@ -20,6 +20,8 @@ Session reviewable integration is in:
 - Grade rows are seeded when a session reaches `status: 'done'`, even if `reviewable` is still `false`.
 - Manual mark edits and recalculation are rejected until the session is ended.
 - `reviewable` controls student visibility, not whether instructor-side grade items exist.
+- An ended quiz can still accept responses from individually authorized extension students. Its instructor status stays `done`; the student's effective status and displayed dates reflect their own access window. Recalculate after extensions finish to include responses received after the initial grade seeding.
+- Active or upcoming extensions block review publication. Granting a remaining extension clears `reviewable` and hides previously published grades; restarting a session also clears reviewability. Removing/expiring extensions does not automatically publish grades.
 
 ## Latest Attempt and Legacy Data
 

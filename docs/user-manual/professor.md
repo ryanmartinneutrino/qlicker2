@@ -81,6 +81,8 @@ Open **Course Settings** and review every item before enrollment:
 
 Settings autosave after changes. Wait for the saved state before navigating away.
 
+Enabling or disabling chat or AI keeps you on **Course Settings**. Course tab links retain their identity even when optional tabs appear; **Back to course** from a session returns to the originating activity or grades tab. **Search sessions** starts expanded on the interactive-session and quiz lists and can be collapsed by selecting its heading.
+
 ![Course Settings with enrollment code, topics, practice access, and chat controls](../assets/manuals/professor-course-settings.png)
 
 ### Rotate an enrollment code
@@ -107,7 +109,17 @@ Never remove the last person responsible for the course without arranging owners
 
 ### Course notices
 
-Use **Manage notifications** from the Students or Instructors area to publish notices visible in the app's notification menu. Use this for Qlicker-specific messages such as a changed quiz window or a planned outage. It does not send email.
+1. Open your course, select **Students** or **Instructors**, then select **Manage notifications**. Both buttons open the same course composer.
+2. At the top of the dialog, enter a short **Title** and write the notice in **Message**.
+3. Leave **Send to** set to **everyone in this course** to include both students and instructors. Alternatively, choose only the course's students or only its instructors (including TAs assigned as instructors).
+4. Set the start and end date/time. The default window starts now and lasts 12 hours. Select **Persist until dismissed** if recipients should keep seeing the notice after its end time until they dismiss it.
+5. Select **Post notification**, check the audience, and select **Confirm**.
+
+![Course notification composer with Title and Message fields and everyone in this course selected](../assets/manuals/professor-notifications.png)
+
+Use notices for a changed quiz window, a reminder, or a class announcement. Recipients open **Notifications** from their avatar menu to read or dismiss them; notices do not send email or open automatically. The avatar-menu dialog is a read-only inbox and has no message-entry fields.
+
+To revise or remove a notice, scroll down to **Existing notifications** in **Manage notifications**. The Title and Message fields are above that list; scroll to the top of the dialog if they are out of view.
 
 When creating a notice:
 
@@ -230,6 +242,12 @@ Students' answers save while they move through the quiz. The course/dashboard ca
 
 End the quiz/session, recalculate grades, complete manual grading, and enable **Reviewable** only when answers and feedback should be released. A submitted quiz is excluded from the student's live quick-access area even if the overall window remains open.
 
+### Extensions after ending a quiz
+
+Open the quiz editor and use **Manage extensions** to assign enrolled students their own start/end times. You can add an extension after setting the quiz to **Ended**; do not reopen the whole quiz. The professor's quiz card stays **Ended** and shows **Extensions Active** during an individual window. Assigned students can open, save, and submit during that window; other students cannot. An extension does not unlock an already-submitted normal quiz.
+
+Active and upcoming extensions block **Reviewable**. Granting a remaining extension switches off existing student review and grade visibility; it cannot undo answers students have already seen. After the last extension expires or is removed, recalculate grades to include late responses, complete manual marking, and explicitly enable **Reviewable**. Review never becomes available automatically.
+
 ## 8. Run an interactive class
 
 Select **Launch** on an interactive session. The professor control view is separate from the student and presentation views.
@@ -291,6 +309,8 @@ Statistics include option distributions, word clouds for suitable short answers,
 ### Multiple attempts
 
 Open a new attempt when students should answer again after discussion. Attempt weights/max attempts affect grading, so set them before class and explain the policy. Live response totals should be interpreted per current attempt.
+
+Each new attempt resets the displayed counts. **Show Stats** works in the professor, student, and presentation windows for that attempt without reloading; option statistics start at zero before responses arrive.
 
 ## 9. Use course chat and session chat
 
