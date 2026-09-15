@@ -361,7 +361,7 @@ const reorderQuestionsSchema = {
     type: 'object',
     required: ['questions'],
     properties: {
-      questions: { type: 'array', items: { type: 'string' } },
+      questions: { type: 'array', items: { type: 'string' }, uniqueItems: true },
     },
     additionalProperties: false,
   },
@@ -1912,8 +1912,11 @@ export default async function questionRoutes(app) {
       const normalizedSessionId = String(session._id);
       const normalizedCourseId = String(course._id);
 
+      // Only attach a newly created, unattached question in place. Selecting a
+      // question already in this session must create another independent copy.
       if (
-        normalizedSessionQuestionId === normalizedSessionId
+        !(session.questions || []).includes(String(question._id))
+        && normalizedSessionQuestionId === normalizedSessionId
         && String(question.courseId || '').trim() === normalizedCourseId
       ) {
         const nextQuestionIds = [...new Set([
@@ -2020,6 +2023,20 @@ export default async function questionRoutes(app) {
       }
 
       const newOrder = request.body.questions;
+      const existingIds = new Set((session.questions || []).map(String));
+      const addedIds = newOrder.filter((questionId) => !existingIds.has(questionId));
+      if (addedIds.length > 0) {
+        const ownedCount = await Question.countDocuments({
+          _id: { $in: addedIds },
+          sessionId: String(session._id),
+        });
+        if (ownedCount !== addedIds.length) {
+          return reply.code(400).send({
+            error: 'Bad Request',
+            message: 'New questions must belong to this session; copy library questions first',
+          });
+        }
+      }
 
       const updated = await Session.findByIdAndUpdate(
         session._id,

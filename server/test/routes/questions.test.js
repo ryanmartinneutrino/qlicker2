@@ -1958,6 +1958,27 @@ describe('POST /api/v1/sessions/:sessionId/questions', () => {
     expect(body.session.activities).toBeUndefined();
   });
 
+  it.each(['add', 'copy-to-session'])('copies a numerical question already in the quiz through %s', async (route) => {
+    const { profToken, course, session } = await setupCourseAndSession();
+    const created = await createQuestionAsProf(profToken, {
+      type: 4, courseId: course._id, sessionId: session._id,
+      correctNumerical: 42, toleranceNumerical: 0.1,
+    });
+    const source = created.json().question;
+    await Session.findByIdAndUpdate(session._id, { $set: { questions: [source._id] } });
+    const url = route === 'add' ? `/api/v1/sessions/${session._id}/questions` : `/api/v1/questions/${source._id}/copy-to-session`;
+    const result = await authenticatedRequest(app, 'POST', url, {
+      token: profToken, payload: route === 'add' ? { questionId: source._id } : { sessionId: session._id },
+    });
+    expect(result.statusCode).toBe(route === 'add' ? 200 : 201);
+    const copyId = result.json().copiedQuestionId || result.json().question._id;
+    expect(copyId).not.toBe(source._id);
+    expect((await Session.findById(session._id)).questions).toEqual([source._id, copyId]);
+    expect(await Question.findById(copyId).lean()).toMatchObject({ correctNumerical: 42, originalQuestion: source._id });
+    await Question.findByIdAndUpdate(copyId, { $set: { correctNumerical: 7 } });
+    expect((await Question.findById(source._id)).correctNumerical).toBe(42);
+  });
+
   it('reuses a question already created for the target session instead of copying it again', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
     const { profToken, course, session } = await setupCourseAndSession();
@@ -2211,6 +2232,25 @@ describe('PATCH /api/v1/sessions/:sessionId/questions/points', () => {
 
 // ---------- PATCH /api/v1/sessions/:sessionId/questions/order ----------
 describe('PATCH /api/v1/sessions/:sessionId/questions/order', () => {
+  it('rejects duplicate IDs without changing the session', async () => {
+    const { profToken, session } = await setupCourseAndSession();
+    const result = await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${session._id}/questions/order`, {
+      token: profToken, payload: { questions: ['same-question', 'same-question'] },
+    });
+    expect(result.statusCode).toBe(400);
+    expect((await Session.findById(session._id)).questions).toEqual([]);
+  });
+
+  it('rejects attaching a library reference through question ordering', async () => {
+    const { profToken, session } = await setupCourseAndSession();
+    const source = (await createQuestionAsProf(profToken)).json().question;
+    const result = await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${session._id}/questions/order`, {
+      token: profToken, payload: { questions: [source._id] },
+    });
+    expect(result.statusCode).toBe(400);
+    expect((await Session.findById(session._id)).questions).toEqual([]);
+  });
+
   it('instructor can reorder questions', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
     const { profToken, session } = await setupCourseAndSession();
@@ -2230,21 +2270,23 @@ describe('PATCH /api/v1/sessions/:sessionId/questions/order', () => {
       payload: { questionId: q2._id },
     });
 
-    // Reorder: q2 first, then q1
+    const { questions: copiedIds } = await Session.findById(session._id).lean();
+
+    // Reorder the session copies, not the library sources.
     const res = await authenticatedRequest(
       app,
       'PATCH',
       `/api/v1/sessions/${session._id}/questions/order`,
       {
         token: profToken,
-        payload: { questions: [q2._id, q1._id] },
+        payload: { questions: [copiedIds[1], copiedIds[0]] },
       }
     );
 
     expect(res.statusCode).toBe(200);
     const body = res.json();
-    expect(body.session.questions[0]).toBe(q2._id);
-    expect(body.session.questions[1]).toBe(q1._id);
+    expect(body.session.questions[0]).toBe(copiedIds[1]);
+    expect(body.session.questions[1]).toBe(copiedIds[0]);
   });
 
   it('non-instructor gets 403', async (ctx) => {

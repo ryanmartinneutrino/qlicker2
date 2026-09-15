@@ -2256,7 +2256,7 @@
           "bullets": [
             "Voyage recap lets ye inspect results, reply data, gradin' state, an' crew member summaries. Underway interactive voyages can be reviewed while they're still runnin', but gradin' stays locked until th' voyage ends.",
             "Ledgers reveal turnout, automatic notches, an' manual-gradin' needs. Reckon anew ledgers when scorin' rules change or when ye want automatic results rebuilt.",
-            "Th' gradin' tab stays locked until th' voyage be Docked. Endin' th' voyage seeds ledger items; makin' th' voyage recappable later only controls crew member visibility.",
+            "Arrr, the grading tab stays locked till the session be Ended. Ending creates grade entries; opening review recalculates automatic marks, keeps yer manual overrides, and shares results with the crew.",
             "Th' results tab now shows each crew member's actual voyage ledger afore turnout, an' clickin' a crew member's avatar in th' Crew tab opens th' larger dossier photo.",
             "Ledger detail dialogs now label riddle rows with both number an' type, such as Q1(MC) or Q2(SA), an' spotlight rows that still need gradin' while ignorin' adrift zero-doubloon gradin' flags.",
             "Crew get a bulletin when ye proclaim new holler, so use short, actionable remarks that tell 'em what to revisit.",

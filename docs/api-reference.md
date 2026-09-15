@@ -48,6 +48,12 @@ Permission checks vary by operation. A global professor role and course instruct
 
 Session payloads expose `quizHasActiveExtensions`, `activeExtensionsCount`, and `quizHasRemainingExtensions` (active or upcoming). Remaining extensions block review publication through generic session updates, `/reviewable`, and `/end`. Granting a remaining extension clears reviewability and student-visible grades. Expiry or removal does not automatically republish results.
 
+Publishing `reviewable: true` through `PATCH /sessions/:id`, `PATCH /sessions/:id/reviewable`, or `POST /sessions/:id/end` recalculates automatic grades, including existing grade rows, and preserves manual overrides. The grading summary reports outstanding manual grading.
+
+## Question copies and ordering
+
+`POST /questions/:id/copy-to-session` always creates a fresh question ID. `POST /sessions/:sessionId/questions` attaches a newly created question belonging to that session if it is not yet listed; otherwise it copies the source. Library insertion uses the explicit copy endpoint. Session copies and practice-question selection also create independent question documents. `PATCH /sessions/:sessionId/questions/order` rejects duplicate IDs and newly added references to questions belonging outside the session with HTTP 400.
+
 ## Admin system-monitoring query
 
 `GET /api/v1/users/admin/system-monitoring?range=24h` requires an authenticated administrator. `range` accepts `6h`, `24h` (default), or `7d`; invalid values return 400. The response includes `status` (`healthy`, `stale`, `unavailable`), `latest`, downsampled `history`, up to five `peakPeriods`, up to 50 seven-day collector `events`, `generatedAt`, `retentionDays`, and `bucketSeconds` (60, 300, or 1800).

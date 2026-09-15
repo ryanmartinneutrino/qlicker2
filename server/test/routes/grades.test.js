@@ -1628,6 +1628,50 @@ describe('Grading routes', () => {
     expect(missingSummary.skippedExistingCount).toBe(19);
   });
 
+  it.each([
+    ['POST', '/end', 'running'],
+    ['PATCH', '', 'done'],
+    ['PATCH', '/reviewable', 'done'],
+    ['PATCH', '/reviewable', 'done', 0],
+  ])('publishing via %s %s completes existing grades and preserves manual overrides (points: %s)', async (method, suffix, status, points = 2) => {
+    const { prof, profToken, course, students } = await setupCourseWithStudents({ studentCount: 3 });
+    const session = await createSessionInCourse(profToken, course._id);
+    const question = await createMcQuestion({ creatorId: prof._id, sessionId: session._id, courseId: course._id, points });
+    await Session.findByIdAndUpdate(session._id, { $set: {
+      status, questions: [question._id], joined: students.map((student) => student._id),
+      questionResponseCounts: { [question._id]: 3 },
+    } });
+    await Response.create(students.map((student) => ({
+      questionId: question._id, studentUserId: student._id, attempt: 1, answer: 'A',
+    })));
+    // An existing row is not proof that all question marks have been calculated.
+    await Grade.create({ userId: students[0]._id, courseId: course._id, sessionId: session._id, marks: [] });
+    await Grade.create({
+      userId: students[1]._id, courseId: course._id, sessionId: session._id,
+      automatic: false, value: 73,
+      marks: [{ questionId: question._id, points: 0.5, outOf: 2, automatic: false, feedback: 'Keep this mark' }],
+    });
+
+    const publish = await authenticatedRequest(app, method, `/api/v1/sessions/${session._id}${suffix}`, {
+      token: profToken, payload: { reviewable: true },
+    });
+    expect(publish.statusCode).toBe(200);
+    expect(publish.json().session.reviewable).toBe(true);
+    expect(publish.json().nonAutoGradeableWarning).toBeNull();
+    const grades = await Grade.find({ sessionId: session._id }).lean();
+    expect(grades).toHaveLength(3);
+    for (const student of [students[0], students[2]]) {
+      expect(grades.find((grade) => grade.userId === student._id)).toMatchObject({
+        points, value: points > 0 ? 100 : 0, visibleToStudents: true,
+        marks: [expect.objectContaining({ questionId: question._id, points, automatic: true })],
+      });
+    }
+    expect(grades.find((grade) => grade.userId === students[1]._id)).toMatchObject({
+      automatic: false, value: 73, visibleToStudents: true,
+      marks: [expect.objectContaining({ points: 0.5, outOf: 2, automatic: false, feedback: 'Keep this mark' })],
+    });
+  });
+
   it('seeds missing grade rows when making a session reviewable and toggles grade visibility', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
 
@@ -1672,7 +1716,7 @@ describe('Grading routes', () => {
     expect(makeReviewable.statusCode).toBe(200);
     expect(makeReviewable.json().session.reviewable).toBe(true);
     expect(makeReviewable.json().grading).toBeDefined();
-    expect(makeReviewable.json().grading.missingOnly).toBe(true);
+    expect(makeReviewable.json().grading.missingOnly).toBe(false);
     expect(makeReviewable.json().grading.createdGradeCount).toBe(2);
 
     const visibleGrades = await Grade.find({ sessionId: session._id, courseId: course._id }).lean();
@@ -1713,6 +1757,9 @@ describe('Grading routes', () => {
       },
     });
 
+    await Response.create({ questionId: question._id, studentUserId: students[0]._id, attempt: 1, answer: 'Needs a manual mark' });
+    await Grade.create({ userId: students[0]._id, courseId: course._id, sessionId: session._id, marks: [] });
+
     const makeReviewableRes = await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${session._id}/reviewable`, {
       token: profToken,
       payload: { reviewable: true },
@@ -1721,6 +1768,9 @@ describe('Grading routes', () => {
     expect(makeReviewableRes.statusCode).toBe(200);
     expect(makeReviewableRes.json().session.reviewable).toBe(true);
     expect(makeReviewableRes.json().nonAutoGradeableWarning).toBeNull();
+
+    expect(makeReviewableRes.json().grading.needsGradingMarks).toBe(1);
+    expect(makeReviewableRes.json().grading.warnings).toContain('Some questions cannot be auto-graded and still need manual grading.');
 
     const zeroedQuestion = await Question.findById(question._id).lean();
     expect(zeroedQuestion.sessionOptions.points).toBe(3);

@@ -13,7 +13,7 @@ These states are intentionally separate:
 
 - **Running/visible** controls participation.
 - **Ended** unlocks instructor grading and creates grade items.
-- **Reviewable** controls whether students can see the session/grade under the student workflow.
+- **Reviewable** recalculates automatic grades and releases the session/results to students. Manual overrides are preserved. Review any warnings about responses that still require manual grading.
 - Grade visibility can be managed while corrections or manual work are underway.
 
 An instructor can review live response data while an interactive session is running, but cannot edit/recalculate grades until it ends.

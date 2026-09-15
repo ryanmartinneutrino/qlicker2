@@ -495,6 +495,21 @@ describe('SessionEditor inline close behavior', () => {
     });
   });
 
+  it('inserts a fresh copy when the library selection is already in the session', async () => {
+    apiClientMock.post.mockResolvedValue({ data: { question: { _id: 'q1-copy' } } });
+    apiClientMock.patch.mockResolvedValue({ data: {} });
+    render(<SessionEditor />);
+    const buttons = await screen.findAllByRole('button', { name: 'professor.sessionEditor.addQuestionAtPositionAria' });
+    fireEvent.click(buttons[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'student.course.copyFromQuestionLibrary' }));
+    await screen.findByText('Mock Question Library Panel');
+    await act(async () => {
+      await questionLibraryPanelPropsMock.mock.lastCall[0].selectionAction.onSubmit(['q1']);
+    });
+    expect(apiClientMock.post).toHaveBeenCalledWith('/questions/q1/copy-to-session', { sessionId: 'session-1' });
+    expect(apiClientMock.patch).toHaveBeenCalledWith('/sessions/session-1/questions/order', { questions: ['q1-copy', 'q1'] });
+  });
+
   it('offers an Add to session action beside Cancel at the bottom of the library modal', async () => {
     submitSelectedQuestionsMock.mockResolvedValue(undefined);
 
