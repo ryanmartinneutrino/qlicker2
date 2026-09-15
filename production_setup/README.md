@@ -645,6 +645,10 @@ Use this sequence when recovering a deployment after host failure, data corrupti
 
 If you also rely on local uploaded files, restore the `uploads/` directory from the same recovery point before reopening the system to users.
 
+### Shared Question Reference Repair
+
+For quizzes with repeated question IDs or questions shared by reference with another session, follow the [question reference repair guide](../docs/developer/question-reference-repair.md). The updated server image includes the dry-run-first utility. Automatic repair is limited to hidden sessions without participation, responses, or grades; apply only after a backup and with all application writers stopped. No new environment variables are needed.
+
 ### Duplicate Grade Cleanup
 
 The backend now blocks duplicate grade identities for the same `{ userId, courseId, sessionId }`, but older databases may still contain legacy duplicates. The maintenance script lives at the repo root.

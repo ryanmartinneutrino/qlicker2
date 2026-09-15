@@ -395,3 +395,7 @@ cd scripts
 | Legacy question types (`type=5`, string types) | Rendering errors | Migration script + runtime normalization |
 | `meteor_accounts_loginServiceConfiguration` | Empty collection, no model | Ignored — not needed |
 | Legacy `services.password.reset.*` path | Differs from new `services.resetPassword` path | Not migrated; issue a fresh reset token after cutover if needed |
+
+### Shared question references
+
+Some sessions created through older copy/order workflows may contain duplicate question IDs or references to questions owned by a library or another session. Use the [question reference repair guide](../docs/developer/question-reference-repair.md) to audit and repair unused drafts. Existing responses cannot be split by question position or session automatically: their persisted key is `questionId`, not session plus position. The utility preserves legacy fields and string IDs, and never rewrites responses or grades.

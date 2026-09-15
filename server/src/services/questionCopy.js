@@ -3,7 +3,7 @@ import Session from '../models/Session.js';
 import { buildSessionResponseTracking } from '../utils/sessionResponseTracking.js';
 import { mergeSessionQuestionTags } from './sessionQuestionTags.js';
 
-function buildCopiedSessionOptions(sessionOptions, { preservePoints = false } = {}) {
+export function buildCopiedSessionOptions(sessionOptions, { preservePoints = false } = {}) {
   const sourceOptions = sessionOptions && typeof sessionOptions === 'object' ? sessionOptions : {};
   const next = {
     points: 1,
