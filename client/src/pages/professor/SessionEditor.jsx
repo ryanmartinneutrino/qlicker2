@@ -867,10 +867,8 @@ export default function SessionEditor() {
     const insertIndex = Math.max(0, Math.min(addQuestionDialog.index, questions.length));
     const copiedIds = [];
     for (const questionId of normalizedIds) {
-      const { data } = await apiClient.post(`/sessions/${sessionId}/questions`, { questionId });
-      if (data.copiedQuestionId) {
-        copiedIds.push(String(data.copiedQuestionId));
-      }
+      const { data } = await apiClient.post(`/questions/${questionId}/copy-to-session`, { sessionId });
+      copiedIds.push(String(data.question._id));
     }
 
     if (copiedIds.length > 0) {

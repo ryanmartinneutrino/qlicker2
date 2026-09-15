@@ -2264,7 +2264,7 @@
           "bullets": [
             "Die Sitzungsüberprüfung ermöglicht es Ihnen, Ergebnisse, Antwortdaten, Benotungsstatus und Studierenden-Zusammenfassungen einzusehen. Live-interaktive Sitzungen können überprüft werden, während sie noch laufen, aber die Benotung bleibt bis zum Sitzungsende gesperrt.",
             "Noten zeigen Teilnahme, automatische Bewertungen und Bedarf an manueller Benotung. Berechnen Sie Noten neu, wenn sich Bewertungsregeln ändern oder wenn Sie automatische Ergebnisse neu erstellen möchten.",
-            "Der Benotungs-Tab bleibt gesperrt, bis die Sitzung beendet ist. Das Beenden der Sitzung erzeugt Noteneinträge; die spätere Überprüfbarkeit der Sitzung steuert nur die Sichtbarkeit für Studierende.",
+            "Der Bewertungsreiter bleibt bis zum Ende der Sitzung gesperrt. Beim Beenden werden Noteneinträge erstellt; die Freigabe zur Nachbereitung berechnet automatische Noten neu, erhält manuelle Bewertungen und veröffentlicht die Ergebnisse für Studierende.",
             "Der Ergebnis-Tab zeigt jetzt die tatsächliche Sitzungsnote jedes Studierenden vor der Teilnahme, und ein Klick auf den Avatar eines Studierenden im Tab „Studierende“ öffnet das größere Profilfoto.",
             "Notendetail-Dialoge kennzeichnen Fragenzeilen jetzt mit Nummer und Typ, z. B. F1(MC) oder F2(FA), und heben Zeilen visuell hervor, die noch benotet werden müssen, während veraltete Null-Punkte-Benotungsmarkierungen ignoriert werden.",
             "Studierende erhalten eine Benachrichtigung, wenn Sie neues Feedback veröffentlichen. Verwenden Sie daher kurze, umsetzbare Kommentare, die ihnen sagen, was sie wiederholen sollten.",

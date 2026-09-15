@@ -183,6 +183,8 @@ Use the rich-text editor for equations, images, lists, links, color, and code on
 
 Keep assessment content private unless it is intended for reuse or student practice. Course-visible and Qlicker-wide visibility can expose a question outside the session where it was first authored. Student library access also depends on the course's **Allow students access to practice questions** setting.
 
+Copying a library question into a session creates an independent question with a new ID, even if that question is already in the session. Editing or answering one copy does not change another. Copying a session also creates fresh copies of its questions.
+
 ### Library bulk actions
 
 Use filters and **Select all filtered** carefully: bulk export/copy acts on the matching selection, not necessarily only the items currently visible on one page. After copying to another course or session, inspect the copied version's tags, point value, and solution.
