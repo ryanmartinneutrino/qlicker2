@@ -19,40 +19,28 @@ function getSessionSortBucket(session) {
   return 4;
 }
 
-export function getEffectiveQuizStatus(session, now = Date.now()) {
-  const status = String(session?.status || '');
-  if (!isQuizSession(session)) return status;
-  if (status === 'hidden' || status === 'done') return status;
-
-  const nowTimestamp = normalizeNowTimestamp(now);
-  if (nowTimestamp <= 0) return status;
-
-  const quizStartTimestamp = getTimestamp(session?.quizStart || session?.date || session?.createdAt);
-  const quizEndTimestamp = getTimestamp(session?.quizEnd);
-
-  if (quizEndTimestamp > 0 && nowTimestamp >= quizEndTimestamp) {
-    return 'done';
-  }
-
-  if (quizStartTimestamp > 0) {
-    if (nowTimestamp >= quizStartTimestamp) return 'running';
-    return 'visible';
-  }
-
-  return status;
-}
-
+// Predict only the proposed switch to date-controlled access. Displayed status
+// comes from the API, which also accounts for manual overrides and extensions.
 export function quizWouldBeLiveImmediately(session, now = Date.now()) {
   if (!isQuizSession(session)) return false;
-  return getEffectiveQuizStatus({
-    ...session,
-    status: 'visible',
-  }, now) === 'running';
+  const nowTimestamp = normalizeNowTimestamp(now);
+  if (nowTimestamp <= 0) return false;
+  const windows = [session, ...(session.quizExtensions || [])
+    .filter((extension) => extension.userId)
+    .map((extension) => ({
+      quizStart: extension.quizStart || session.quizStart,
+      quizEnd: extension.quizEnd || session.quizEnd,
+    }))];
+  return windows.some((window) => {
+    const start = getTimestamp(window.quizStart);
+    const end = getTimestamp(window.quizEnd);
+    return start > 0 && end > start && nowTimestamp >= start && nowTimestamp <= end;
+  });
 }
 
-export function getSessionSortTime(session, now = Date.now()) {
+export function getSessionSortTime(session) {
   const isQuiz = isQuizSession(session);
-  const status = isQuiz ? getEffectiveQuizStatus(session, now) : String(session?.status || '');
+  const status = String(session?.status || '');
 
   if (isQuiz && status === 'visible') {
     return getTimestamp(session?.quizStart || session?.date || session?.createdAt || session?.quizEnd);

@@ -2285,7 +2285,7 @@
           "bullets": [
             "Interactive sessions are for live teaching: you control navigation, response windows, statistics, answer reveals, attempts, and the presentation window. Individual extensions work after a quiz is Ended. Active or upcoming extensions block review; granting one disables existing review and hides published grades. After extensions finish, recalculate grades before publishing again. Extensions do not unlock submitted quizzes.",
             "For short-answer questions, the professor control view always keeps the full response list visible; a separate toggle controls whether students and the presentation window see that shared list.",
-            "Quizzes are scheduled windows where students answer on their own timeline. Use start and end times plus extensions for accommodation workflows.",
+            "Quizzes are scheduled windows where students answer on their own timeline. Use start and end times plus extensions for accommodation workflows. The course and editor status menus control the same setting. Choosing Live opens the quiz regardless of dates and keeps the editor open, with a link to live results. Choose date-controlled status to follow the schedule, or Ended to close general access while preserving individual extensions.",
             "Practice quizzes feel more like guided rehearsal and are well suited for self-study or optional reinforcement.",
             "If a session depends on passcodes, groups, or visible statistics, confirm those settings before students begin joining.",
             "Session lists keep search, filters, and pagination inside Search sessions. While an interactive session is live, opening its card joins the live controls directly; live quiz cards still open the editor."
@@ -2311,7 +2311,7 @@
           "bullets": [
             "Session review lets you inspect results, response data, grading state, and student summaries. Live interactive sessions can be reviewed while they are still running, but grading stays locked until the session ends.",
             "Grades show participation, automatic marks, and manual-grading needs. Recalculate grades when scoring rules change or when you want automatic results rebuilt.",
-            "The grading tab stays locked until the session is Ended. Ending the session seeds grade items; making the session reviewable later only controls student visibility.",
+            "The grading tab stays locked until the session is Ended. Ending creates grade items; making the session reviewable recalculates automatic grades, preserves manual overrides, and releases results to students.",
             "The results tab now shows each student's actual session grade before participation, and clicking a student's avatar in the Students tab opens the larger profile photo.",
             "Grade detail dialogs now label question rows with both number and type, such as Q1(MC) or Q2(SA), and visually highlight rows that still need grading while ignoring stale zero-point grading flags.",
             "Students receive a notification when you publish new feedback, so use short, actionable comments that tell them what to revisit.",

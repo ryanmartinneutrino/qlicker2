@@ -3190,7 +3190,10 @@ async function seedSessionGradesIfNeeded(session, course, { visibleToStudents = 
     sessionId: session._id,
     sessionDoc: session,
     courseDoc: course,
-    missingOnly: true,
+    // Existing rows may be incomplete or stale after edits, restarts, or extensions.
+    // Publication recalculates automatic marks while preserving manual overrides.
+    missingOnly: !session.reviewable,
+    preserveManualMarks: !!session.reviewable,
     visibleToStudents: visibleToStudents ?? session.reviewable,
   });
   return gradingResult.summary;
@@ -3915,7 +3918,7 @@ export default async function sessionRoutes(app) {
       const removingReviewable = updates.reviewable === false && session.reviewable;
       const markingDone = updates.status === 'done' && session.status !== 'done';
 
-      if (!isStudentOwner && (makingReviewable || markingDone)) {
+      if (!isStudentOwner && (updates.reviewable === true || markingDone)) {
         grading = await seedSessionGradesIfNeeded(updated, course, {
           visibleToStudents: makingReviewable ? true : updated.reviewable,
         });
@@ -3928,7 +3931,13 @@ export default async function sessionRoutes(app) {
 
       notifySessionMetadataChanged(app, course, updated?._id || request.params.id);
 
-      return { session: updated.toObject(), grading, nonAutoGradeableWarning: null };
+      // Use the same effective status and extension flags as GET and course
+      // lists, including when a PATCH enables a currently active quiz schedule.
+      return {
+        session: buildSessionForUser(updated.toObject(), request.user, { instructorView: isInstructor }),
+        grading,
+        nonAutoGradeableWarning: null,
+      };
     }
   );
 
@@ -4282,15 +4291,10 @@ export default async function sessionRoutes(app) {
       );
 
       let grading = null;
-      if (request.body.reviewable === true && !session.reviewable) {
-        const gradingResult = await recalculateSessionGrades({
-          sessionId: updated._id,
-          sessionDoc: updated,
-          courseDoc: course,
-          missingOnly: true,
+      if (request.body.reviewable === true) {
+        grading = await seedSessionGradesIfNeeded(updated, course, {
           visibleToStudents: true,
         });
-        grading = gradingResult.summary;
       } else if (request.body.reviewable === false && session.reviewable) {
         await setSessionGradesVisibility({
           sessionId: updated._id,

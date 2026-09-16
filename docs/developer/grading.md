@@ -19,8 +19,8 @@ Session reviewable integration is in:
 
 - Grade rows are seeded when a session reaches `status: 'done'`, even if `reviewable` is still `false`.
 - Manual mark edits and recalculation are rejected until the session is ended.
-- `reviewable` controls student visibility, not whether instructor-side grade items exist.
-- An ended quiz can still accept responses from individually authorized extension students. Its instructor status stays `done`; the student's effective status and displayed dates reflect their own access window. Recalculate after extensions finish to include responses received after the initial grade seeding.
+- Publishing `reviewable: true` through session updates, `/reviewable`, or `/end` recalculates automatic grades, including incomplete or stale existing rows, and synchronizes student visibility. Manual mark and overall-value overrides are preserved by the grading service. Ending without publication still seeds only missing grade rows.
+- An ended quiz can still accept responses from individually authorized extension students. Its instructor status stays `done`; the student's effective status and displayed dates reflect their own access window. Publishing reviewability after extensions finish includes responses received after the initial grade seeding.
 - Active or upcoming extensions block review publication. Granting a remaining extension clears `reviewable` and hides previously published grades; restarting a session also clears reviewability. Removing/expiring extensions does not automatically publish grades.
 
 ## Latest Attempt and Legacy Data
@@ -52,7 +52,7 @@ Where:
 
 ## Manual Override Semantics
 
-- Mark-level manual override: `mark.automatic = false`.
+- Mark-level manual override: `mark.automatic = false`. Publication preserves both its points and denominator, even if the question was subsequently excluded or assigned zero points. Explicit instructor recalculation retains the scoring-rule change behavior.
 - Grade-level manual override: `grade.automatic = false`.
 - Recalculation preserves manual values and emits conflict records in `summary.manualMarkConflicts`.
 - `POST /grades/:gradeId/marks/:questionId/set-automatic` restores mark autograding for one mark.

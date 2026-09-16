@@ -44,9 +44,17 @@ Permission checks vary by operation. A global professor role and course instruct
 
 ## Quiz extensions and review access
 
+`GET /api/v1/courses/:courseId/sessions`, `GET /api/v1/sessions/:id`, and `PATCH /api/v1/sessions/:id` return the same user-specific effective `session.status` and extension flags. PATCH accepts the stored status: `hidden` hides access, `visible` enables the quiz schedule, `running` explicitly opens access regardless of dates, and `done` closes general access while honoring individual extensions. A successful PATCH to `visible` can therefore return `running` or `done`. Clients must use the returned status rather than recalculate it from dates. See the [session lifecycle](developer/data-model.md#session-status-and-quiz-access).
+
 `PATCH /api/v1/sessions/:id/extensions` assigns individual quiz windows to enrolled students, including when the stored session status is `done`. Students with an active extension receive effective status `running` and their own `quizStart`/`quizEnd` in session payloads; an upcoming extension is `visible`. The instructor still sees the ended status. Saving and submitting enforce the individual window, enrollment, and existing submission locks.
 
 Session payloads expose `quizHasActiveExtensions`, `activeExtensionsCount`, and `quizHasRemainingExtensions` (active or upcoming). Remaining extensions block review publication through generic session updates, `/reviewable`, and `/end`. Granting a remaining extension clears reviewability and student-visible grades. Expiry or removal does not automatically republish results.
+
+Publishing `reviewable: true` through `PATCH /sessions/:id`, `PATCH /sessions/:id/reviewable`, or `POST /sessions/:id/end` recalculates automatic grades, including existing grade rows, and preserves manual overrides. The grading summary reports outstanding manual grading.
+
+## Question copies and ordering
+
+`POST /questions/:id/copy-to-session` always creates a fresh question ID. `POST /sessions/:sessionId/questions` attaches a newly created question belonging to that session if it is not yet listed; otherwise it copies the source. Library insertion uses the explicit copy endpoint. Session copies and practice-question selection also create independent question documents. `PATCH /sessions/:sessionId/questions/order` rejects duplicate IDs and newly added references to questions belonging outside the session with HTTP 400.
 
 ## Admin system-monitoring query
 

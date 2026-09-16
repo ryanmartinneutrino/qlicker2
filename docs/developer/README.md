@@ -37,3 +37,7 @@ Not every change needs every suite during iteration, but the final validation sh
 | Grading | user grading guide and `grading.md` |
 | Deployment/env/backup | `production_setup/README.md` and `.env.example` |
 | Screenshot-visible UI | opt-in `client/e2e/manual-screenshots.spec.js` capture |
+
+## Data repair
+
+See [Repairing shared question references](question-reference-repair.md) for the production Bash/Docker diagnostic, independent question copies, and interactive grading decisions for answered quizzes.

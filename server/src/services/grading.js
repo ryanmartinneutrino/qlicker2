@@ -773,6 +773,7 @@ export async function recalculateSessionGrades({
   missingOnly = false,
   visibleToStudents = null,
   zeroNonAutoGradeable = false,
+  preserveManualMarks = false,
 } = {}) {
   let session = sessionDoc
     ? (typeof sessionDoc.toObject === 'function' ? sessionDoc.toObject() : { ...sessionDoc })
@@ -980,7 +981,12 @@ export async function recalculateSessionGrades({
     let numAnsweredTotal = 0;
     let needsGrading = false;
 
-    questionMeta.forEach(({ question, questionId, outOf, isAutoGradeable: autoGradeable }) => {
+    questionMeta.forEach(({ question, questionId, outOf: calculatedOutOf, isAutoGradeable: autoGradeable }) => {
+      const existingMark = existingMarksByQuestionId.get(questionId);
+      // Publishing results must not erase manual marks when question points or
+      // low-response exclusions changed since the instructor assigned the mark.
+      const preserveManualMark = preserveManualMarks && existingMark?.automatic === false;
+      const outOf = preserveManualMark ? toFiniteNumber(existingMark.outOf, calculatedOutOf) : calculatedOutOf;
       const response = getLatestResponse([
         latestResponseByStudentQuestion.get(`${studentId}::${questionId}`),
       ].filter(Boolean));
@@ -990,7 +996,6 @@ export async function recalculateSessionGrades({
       if (participationResponse) numAnsweredTotal += 1;
       if (participationResponse && outOf > 0) numAnswered += 1;
 
-      const existingMark = existingMarksByQuestionId.get(questionId);
       const feedback = normalizeAnswerValue(existingMark?.feedback);
 
       const autoPoints = hasResponse && outOf > 0 && autoGradeable
@@ -1003,7 +1008,7 @@ export async function recalculateSessionGrades({
 
       const existingMarkIsManual = existingMark?.automatic === false;
 
-      if (outOf <= 0) {
+      if (outOf <= 0 && !preserveManualMark) {
         markPoints = 0;
         automaticMark = true;
         markNeedsGrading = false;
@@ -1032,6 +1037,7 @@ export async function recalculateSessionGrades({
       if (markNeedsGrading) needsGrading = true;
 
       marks.push({
+        ...(preserveManualMark ? existingMark : {}),
         questionId,
         responseId: participationResponse ? String(response?._id || '') : '',
         attempt: participationResponse ? toFiniteNumber(response?.attempt, 1) : 0,
@@ -1045,9 +1051,9 @@ export async function recalculateSessionGrades({
       gradePoints += markPoints;
     });
 
-    const numQuestions = questionMeta.filter((questionInfo) => questionInfo.outOf > 0).length;
+    const numQuestions = marks.filter((mark) => mark.outOf > 0).length;
     const outOf = roundToThousandths(
-      questionMeta.reduce((sum, questionInfo) => sum + toFiniteNumber(questionInfo.outOf, 0), 0)
+      marks.reduce((sum, mark) => sum + toFiniteNumber(mark.outOf, 0), 0)
     );
 
     let participation = 0;

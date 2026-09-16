@@ -31,14 +31,14 @@ describe('getSessionTimingText', () => {
     expect(text).toBe(`sessionTiming.quizEndsAt:${expectedDateTime}`);
   });
 
-  it('uses end time when status is visible but quiz window is currently live', () => {
+  it('keeps a manually opened quiz live even before its scheduled start', () => {
     const expectedDateTime = formatDisplayDateTime('2026-03-29T15:00:00.000Z');
     const text = getSessionTimingText({
       quiz: true,
-      status: 'visible',
+      status: 'running',
       quizStart: '2026-03-29T13:45:00.000Z',
       quizEnd: '2026-03-29T15:00:00.000Z',
-    }, (key, values) => `${key}:${values.dateTime}`, '2026-03-29T14:00:00.000Z');
+    }, (key, values) => `${key}:${values.dateTime}`, '2026-03-29T12:00:00.000Z');
 
     expect(text).toBe(`sessionTiming.quizEndsAt:${expectedDateTime}`);
   });
@@ -54,8 +54,8 @@ describe('getSessionTimingText', () => {
     expect(text).toBe(`sessionTiming.quizEndedAt:${expectedDateTime}`);
   });
 
-  it('uses ended copy when status is visible but quiz end has already passed', () => {
-    const expectedDateTime = formatDisplayDateTime('2026-03-29T15:00:00.000Z');
+  it('keeps an upcoming extension visible even after the base deadline', () => {
+    const expectedDateTime = formatDisplayDateTime('2026-03-29T13:45:00.000Z');
     const text = getSessionTimingText({
       quiz: true,
       status: 'visible',
@@ -63,7 +63,13 @@ describe('getSessionTimingText', () => {
       quizEnd: '2026-03-29T15:00:00.000Z',
     }, (key, values) => `${key}:${values.dateTime}`, '2026-03-29T16:00:00.000Z');
 
-    expect(text).toBe(`sessionTiming.quizEndedAt:${expectedDateTime}`);
+    expect(text).toBe(`sessionTiming.quizStartsAt:${expectedDateTime}`);
+  });
+
+  it('does not describe a manually reopened quiz as ended after the scheduled deadline', () => {
+    const quizEnd = '2026-03-29T15:00:00.000Z';
+    expect(getSessionTimingText({ quiz: true, status: 'running', quizEnd },
+      (key) => key, '2026-03-29T16:00:00.000Z')).toBe('sessionTiming.quizEndsAt');
   });
 
   it('keeps non-quiz sessions on date-only formatting', () => {

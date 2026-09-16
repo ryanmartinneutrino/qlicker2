@@ -1,5 +1,5 @@
 import { formatDisplayDate, formatDisplayDateTime } from './date';
-import { getEffectiveQuizStatus, getSessionSortTime, isQuizSession } from './studentSessions';
+import { getSessionSortTime, isQuizSession } from './studentSessions';
 
 export function getSessionTimingText(session, t, now = Date.now()) {
   const timestamp = getSessionSortTime(session, now);
@@ -10,7 +10,7 @@ export function getSessionTimingText(session, t, now = Date.now()) {
   }
 
   const dateTime = formatDisplayDateTime(timestamp);
-  const status = getEffectiveQuizStatus(session, now);
+  const status = session?.status;
 
   if (status === 'running') {
     return t('sessionTiming.quizEndsAt', {

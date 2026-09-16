@@ -645,6 +645,28 @@ Use this sequence when recovering a deployment after host failure, data corrupti
 
 If you also rely on local uploaded files, restore the `uploads/` directory from the same recovery point before reopening the system to users.
 
+### Shared Question Reference Repair
+
+Run the diagnostic from this directory; Node.js runs inside Docker, so it is not needed on the host:
+
+```bash
+./repair-question-references.sh
+```
+
+It scans all courses and lists affected sessions by course/session name, with repeated question positions and response/grade counts. Diagnosis changes no data and needs no session ID.
+
+After reviewing the list, back up the database and stop all app server replicas to use the interactive repair menu:
+
+```bash
+./backup.sh --label manual
+docker compose stop nginx server client
+./repair-question-references.sh --repair
+./repair-question-references.sh
+docker compose up -d server client nginx
+```
+
+The menu offers independent copies for unused sessions, or removal of accidental duplicate positions with a choice to keep historical grades or recalculate automatic grades while preserving manual overrides. Every change requires confirmation. Shared answer histories across sessions and ambiguous manual overrides require individual review. See the [diagnostic and repair guide](../docs/developer/question-reference-repair.md) for the full workflow, filters, and failure recovery. Use an updated server image containing the utility; no new environment variables are needed.
+
 ### Duplicate Grade Cleanup
 
 The backend now blocks duplicate grade identities for the same `{ userId, courseId, sessionId }`, but older databases may still contain legacy duplicates. The maintenance script lives at the repo root.
@@ -769,6 +791,7 @@ production_setup/
 ├── backup-manager.sh       # Scheduled-backup service loop and health reporting
 ├── backup.sh               # Create MongoDB backup
 ├── restore.sh              # Restore from backup
+├── repair-question-references.sh # Named diagnostic and interactive repair (Docker)
 ├── manage-user.sh          # User management CLI
 ├── README.md               # This file
 ├── nginx/

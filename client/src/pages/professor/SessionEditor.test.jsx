@@ -248,7 +248,7 @@ describe('SessionEditor inline close behavior', () => {
           practiceQuiz: false,
           quizStart,
           quizEnd,
-          status: 'visible',
+          status: 'running',
           tags: [],
           questions: ['q1'],
           quizExtensions: [],
@@ -270,6 +270,131 @@ describe('SessionEditor inline close behavior', () => {
       expect(apiClientMock.patch).toHaveBeenCalledWith('/sessions/session-1', { status: 'visible' });
       expect(screen.getByText('running')).toBeInTheDocument();
     });
+  });
+
+  it.each([
+    ['running', -120_000, -60_000, []],
+    ['running', 60_000, 120_000, []],
+    ['done', -120_000, -60_000, [{ quizStart: new Date(Date.now() - 60_000), quizEnd: new Date(Date.now() + 60_000) }]],
+    ['visible', -120_000, -60_000, [{ quizStart: new Date(Date.now() + 60_000), quizEnd: new Date(Date.now() + 120_000) }]],
+  ])('uses server status %s without reinterpreting quiz dates (%s, %s)', async (status, startOffset, endOffset, quizExtensions) => {
+    const originalGet = apiClientMock.get.getMockImplementation();
+    apiClientMock.get.mockImplementation(async (url) => {
+      const response = await originalGet(url);
+      if (url === '/sessions/session-1') {
+        Object.assign(response.data.session, {
+          quiz: true, status, quizExtensions,
+          quizStart: new Date(Date.now() + startOffset).toISOString(),
+          quizEnd: new Date(Date.now() + endOffset).toISOString(),
+        });
+      }
+      return response;
+    });
+    render(<SessionEditor />);
+    expect(await screen.findByText(status)).toBeInTheDocument();
+    const labels = { running: 'sessionStatus.live', done: 'sessionStatus.ended', visible: 'professor.sessionEditor.liveBasedOnDate' };
+    expect(screen.getByRole('combobox', { name: 'professor.sessionEditor.status' })).toHaveTextContent(labels[status]);
+    if (status === 'running') {
+      expect(screen.getByRole('button', { name: 'professor.sessionEditor.reviewLiveResults' })).toBeInTheDocument();
+    }
+  });
+
+  it('adopts the returned status when removing the last active scheduled extension', async () => {
+    const originalGet = apiClientMock.get.getMockImplementation();
+    let session;
+    apiClientMock.get.mockImplementation(async (url) => {
+      const response = await originalGet(url);
+      if (url === '/sessions/session-1') {
+        session = {
+          ...response.data.session, quiz: true, status: 'running',
+          quizStart: new Date(Date.now() - 120_000).toISOString(),
+          quizEnd: new Date(Date.now() - 60_000).toISOString(),
+          quizHasActiveExtensions: true, quizHasRemainingExtensions: true,
+          quizExtensions: [{
+            userId: 'student-1',
+            quizStart: new Date(Date.now() - 60_000).toISOString(),
+            quizEnd: new Date(Date.now() + 60_000).toISOString(),
+          }],
+        };
+        response.data.session = session;
+      }
+      return response;
+    });
+    apiClientMock.patch.mockImplementation(async () => ({ data: { session: {
+      ...session, status: 'done', quizExtensions: [], quizHasActiveExtensions: false, quizHasRemainingExtensions: false,
+    } } }));
+    render(<SessionEditor />);
+    fireEvent.click(await screen.findByRole('button', { name: 'professor.sessionEditor.manageExtensions' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'professor.sessionEditor.removeExtension' }));
+    fireEvent.click(screen.getByRole('button', { name: 'professor.sessionEditor.saveExtensions' }));
+    expect(await screen.findByText('done')).toBeInTheDocument();
+    expect(apiClientMock.patch).toHaveBeenCalledWith('/sessions/session-1/extensions', { extensions: [] });
+    expect(await screen.findByRole('combobox', { name: 'professor.sessionEditor.status' })).toHaveTextContent('sessionStatus.ended');
+  });
+
+  it('refreshes server status at the exact schedule boundaries while the editor stays open', async () => {
+    vi.useFakeTimers();
+    const now = new Date('2026-09-16T12:00:00.000Z').getTime();
+    vi.setSystemTime(now);
+    const originalGet = apiClientMock.get.getMockImplementation();
+    apiClientMock.get.mockImplementation(async (url) => {
+      const response = await originalGet(url);
+      if (url === '/sessions/session-1') {
+        Object.assign(response.data.session, {
+          quiz: true,
+          status: Date.now() < now + 1000 ? 'visible' : Date.now() <= now + 2000 ? 'running' : 'done',
+          quizStart: new Date(now + 1000).toISOString(),
+          quizEnd: new Date(now + 2000).toISOString(),
+        });
+      }
+      return response;
+    });
+    let view;
+    try {
+      await act(async () => { view = render(<SessionEditor />); });
+      expect(screen.getByText('visible')).toBeInTheDocument();
+      await act(async () => { await vi.advanceTimersByTimeAsync(1050); });
+      expect(screen.getByText('running')).toBeInTheDocument();
+      await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+      expect(screen.getByText('done')).toBeInTheDocument();
+    } finally {
+      view?.unmount();
+      vi.useRealTimers();
+    }
+  });
+
+  it.each([false, true])('makes a quiz live in the editor and offers results (practice: %s)', async (practiceQuiz) => {
+    const originalGet = apiClientMock.get.getMockImplementation();
+    let session;
+    apiClientMock.get.mockImplementation(async (url) => {
+      const response = await originalGet(url);
+      if (url === '/sessions/session-1') {
+        session = { ...response.data.session, quiz: true, practiceQuiz };
+        response.data.session = session;
+      }
+      return response;
+    });
+    apiClientMock.patch.mockImplementation(async (_url, updates) => ({ data: { session: { ...session, ...updates } } }));
+    render(<SessionEditor />);
+    fireEvent.mouseDown(await screen.findByRole('combobox', { name: 'professor.sessionEditor.status' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'sessionStatus.live' }));
+    const results = await screen.findByRole('button', { name: 'professor.sessionEditor.reviewLiveResults' });
+    expect(apiClientMock.patch).toHaveBeenCalledWith('/sessions/session-1', { status: 'running' });
+    expect(apiClientMock.post).not.toHaveBeenCalled();
+    expect(navigateMock).not.toHaveBeenCalled();
+    fireEvent.click(results);
+    expect(navigateMock).toHaveBeenCalledWith('/prof/course/course-1/session/session-1/review?returnTab=1');
+  });
+
+  it('still launches interactive controls after confirming Live for an interactive session', async () => {
+    apiClientMock.post.mockResolvedValue({ data: {} });
+    render(<SessionEditor />);
+    fireEvent.mouseDown(await screen.findByRole('combobox', { name: 'professor.sessionEditor.status' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'sessionStatus.live' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'professor.sessionEditor.goLive' }));
+    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/prof/course/course-1/session/session-1/live'));
+    expect(apiClientMock.post).toHaveBeenCalledWith('/sessions/session-1/start');
+    expect(apiClientMock.patch).not.toHaveBeenCalled();
   });
 
   it('creates a new session-authored question once and inserts it into the session order directly', async () => {
@@ -493,6 +618,21 @@ describe('SessionEditor inline close behavior', () => {
       expect(apiClientMock.patch).toHaveBeenCalledWith('/sessions/session-1/questions/points', { points: 0 });
       expect(screen.getByText('professor.sessionEditor.pointsChangedRegradeWarning')).toBeInTheDocument();
     });
+  });
+
+  it('inserts a fresh copy when the library selection is already in the session', async () => {
+    apiClientMock.post.mockResolvedValue({ data: { question: { _id: 'q1-copy' } } });
+    apiClientMock.patch.mockResolvedValue({ data: {} });
+    render(<SessionEditor />);
+    const buttons = await screen.findAllByRole('button', { name: 'professor.sessionEditor.addQuestionAtPositionAria' });
+    fireEvent.click(buttons[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'student.course.copyFromQuestionLibrary' }));
+    await screen.findByText('Mock Question Library Panel');
+    await act(async () => {
+      await questionLibraryPanelPropsMock.mock.lastCall[0].selectionAction.onSubmit(['q1']);
+    });
+    expect(apiClientMock.post).toHaveBeenCalledWith('/questions/q1/copy-to-session', { sessionId: 'session-1' });
+    expect(apiClientMock.patch).toHaveBeenCalledWith('/sessions/session-1/questions/order', { questions: ['q1-copy', 'q1'] });
   });
 
   it('offers an Add to session action beside Cancel at the bottom of the library modal', async () => {

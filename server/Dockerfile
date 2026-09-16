@@ -3,6 +3,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production
 COPY src/ ./src/
+COPY scripts/repair-question-references.js ./scripts/repair-question-references.js
 
 FROM node:24-alpine
 WORKDIR /app

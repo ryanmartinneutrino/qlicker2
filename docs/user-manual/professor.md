@@ -183,6 +183,8 @@ Use the rich-text editor for equations, images, lists, links, color, and code on
 
 Keep assessment content private unless it is intended for reuse or student practice. Course-visible and Qlicker-wide visibility can expose a question outside the session where it was first authored. Student library access also depends on the course's **Allow students access to practice questions** setting.
 
+Copying a library question into a session creates an independent question with a new ID, even if that question is already in the session. Editing or answering one copy does not change another. Copying a session also creates fresh copies of its questions.
+
 ### Library bulk actions
 
 Use filters and **Select all filtered** carefully: bulk export/copy acts on the matching selection, not necessarily only the items currently visible on one page. After copying to another course or session, inspect the copied version's tags, point value, and solution.
@@ -235,6 +237,8 @@ Create a session, enable quiz mode, and configure its window. A normal quiz is s
 5. Preview with a non-instructor test account if the assessment is high stakes.
 
 ### During the window
+
+The status dropdowns in the course page and session editor control the same setting. **Switch to Live/Ended based on dates** follows the quiz schedule and extensions. **Live** opens the quiz immediately, even outside the scheduled dates, and keeps it open until you change its status. **Ended** closes general access while preserving individual extensions. Setting a quiz to **Live** keeps you in the editor; choose **Review Live Session Results** to monitor responses.
 
 Students' answers save while they move through the quiz. The course/dashboard cards show the relevant start/end time. Submitted normal quizzes cannot be edited again. Avoid editing question meaning or scoring while students are actively answering.
 
