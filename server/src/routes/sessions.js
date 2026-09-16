@@ -3931,7 +3931,13 @@ export default async function sessionRoutes(app) {
 
       notifySessionMetadataChanged(app, course, updated?._id || request.params.id);
 
-      return { session: updated.toObject(), grading, nonAutoGradeableWarning: null };
+      // Use the same effective status and extension flags as GET and course
+      // lists, including when a PATCH enables a currently active quiz schedule.
+      return {
+        session: buildSessionForUser(updated.toObject(), request.user, { instructorView: isInstructor }),
+        grading,
+        nonAutoGradeableWarning: null,
+      };
     }
   );
 

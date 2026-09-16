@@ -2230,7 +2230,7 @@
           "bullets": [
             "Interactive voyages be fer underway teachin': ye control navigation, reply windows, statistics, answer reveals, stabs, an' th' spyglass window. Individual extensions work after th’ quiz be Ended. Active or upcoming extensions bar review; grantin’ one stows existing review an’ hides published grades. Recalculate grades after extensions finish before publishin’ again. Submitted quizzes stay locked.",
             "Fer short-answer riddles, th' professor control view always keeps th' full reply list in plain sight; a separate flip controls whether crew an' th' spyglass window see that shared list.",
-            "Reckonings be scheduled windows where crew answer on their own timeline. Use start an' end times plus extensions fer accommodation workflows.",
+            "Reckonings be scheduled windows where crew answer on their own timeline. Use start an' end times plus extensions fer accommodation workflows. Th’ course an’ editor status menus steer th’ same setting. Choose Underway to open th’ quiz regardless o’ dates an’ stay in th’ editor, with a link to live results. Choose date-controlled status to follow th’ schedule, or Docked to close general access while keepin’ individual extensions afloat.",
             "Drill reckonings feel more like guided rehearsal an' be well suited fer self-study or optional reinforcement.",
             "If a voyage depends on secret codes, watches, or in plain sight statistics, confirm those rigging afore crew begin joinin'.",
             "Voyage lists keep hunt, filters, an' pagination inside Hunt voyages. While an interactive voyage be underway, openin' its card joins th' underway controls directly; underway reckoning cards still open th' editor."

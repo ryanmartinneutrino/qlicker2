@@ -462,6 +462,11 @@ describe('GET /api/v1/courses/:courseId/sessions', () => {
       payload: { status: 'visible' },
     });
     expect(visibleRes.statusCode).toBe(200);
+    expect(visibleRes.json().session.status).toBe('running');
+    expect((await Session.findById(session._id).lean()).status).toBe('visible');
+
+    const editorRes = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}`, { token: profToken });
+    expect(editorRes.json().session.status).toBe(visibleRes.json().session.status);
 
     const studentListRes = await authenticatedRequest(app, 'GET', `/api/v1/courses/${course._id}/sessions`, {
       token: studentToken,
@@ -471,6 +476,38 @@ describe('GET /api/v1/courses/:courseId/sessions', () => {
     const listed = studentListRes.json().sessions.find((row) => row._id === session._id);
     expect(listed).toBeDefined();
     expect(listed.status).toBe('running');
+  });
+
+  it.each([-120, 60])('manual Live overrides quiz dates and agrees across PATCH, editor, and course lists (start offset %s minutes)', async (offset, ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const { profToken, course, studentToken } = await setupCourseWithStudent();
+    const now = Date.now();
+    const created = await createSessionInCourse(profToken, course._id, {
+      name: 'Manually opened quiz', quiz: true,
+      quizStart: new Date(now + offset * 60000).toISOString(),
+      quizEnd: new Date(now + (offset + 30) * 60000).toISOString(),
+    });
+    const session = created.json().session;
+    for (const status of ['running', 'done', 'running', 'hidden', 'visible']) {
+      const expected = status === 'visible' && offset < 0 ? 'done' : status;
+      const patch = await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${session._id}`, {
+        token: profToken, payload: { status },
+      });
+      expect(patch.statusCode).toBe(200);
+      expect(patch.json().session.status).toBe(expected);
+      for (const token of [profToken, studentToken]) {
+        const list = await authenticatedRequest(app, 'GET', `/api/v1/courses/${course._id}/sessions`, { token });
+        const listed = list.json().sessions.find((row) => row._id === session._id);
+        const detail = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}`, { token });
+        if (status === 'hidden' && token === studentToken) {
+          expect(listed).toBeUndefined();
+          expect(detail.statusCode).toBe(403);
+        } else {
+          expect(listed.status).toBe(expected);
+          expect(detail.json().session.status).toBe(expected);
+        }
+      }
+    }
   });
 
   it('scheduled visible quizzes auto-close to done once all quiz windows end', async (ctx) => {
@@ -574,6 +611,15 @@ describe('GET /api/v1/courses/:courseId/sessions', () => {
     const profSession = profRes.json().sessions.find((row) => row._id === session._id);
     expect(profSession.status).toBe(status === 'done' ? 'done' : 'running');
     expect(profSession.quizHasActiveExtensions).toBe(true);
+    const updated = await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${session._id}`, {
+      token: profToken, payload: { description: 'Keep extension status when editing' },
+    });
+    const detail = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}`, { token: profToken });
+    for (const response of [updated, detail]) {
+      expect(response.json().session.status).toBe(profSession.status);
+      expect(response.json().session.quizHasActiveExtensions).toBe(true);
+      expect(response.json().session.quizHasRemainingExtensions).toBe(true);
+    }
   });
 
   it('supports server-side pagination with page and limit params', async (ctx) => {

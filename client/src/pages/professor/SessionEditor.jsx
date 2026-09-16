@@ -29,7 +29,7 @@ import BackLinkButton from '../../components/common/BackLinkButton';
 import DateTimePreferenceField from '../../components/common/DateTimePreferenceField';
 import SessionStatusChip from '../../components/common/SessionStatusChip';
 import { buildCourseTitle } from '../../utils/courseTitle';
-import { getEffectiveQuizStatus, quizWouldBeLiveImmediately } from '../../utils/studentSessions';
+import { quizWouldBeLiveImmediately } from '../../utils/studentSessions';
 import {
   buildSessionExportFilename,
   buildPrintableSessionHtml,
@@ -275,7 +275,7 @@ export default function SessionEditor() {
       setQuizEnd(toDateTimeLocalString(s.quizEnd));
       setMsScoringMethod(s.msScoringMethod || DEFAULT_MS_SCORING_METHOD);
       setReviewable(!!s.reviewable);
-      setStatus(getEffectiveQuizStatus(s));
+      setStatus(s.status);
       setSessionDate(toDateTimeLocalString(s.date));
       setSessionTags(normalizeTagValues(s.tags || []));
       setJoinCodeEnabled(!!s.joinCodeEnabled);
@@ -338,10 +338,14 @@ export default function SessionEditor() {
   // determines whether it is upcoming, live, or ended. Refresh right at each
   // remaining boundary so an editor left open stays in sync without a reload.
   useEffect(() => {
-    if (!quiz || (session?.status !== 'visible' && status !== 'running')) return undefined;
+    if (!quiz || status === 'hidden') return undefined;
 
     const now = Date.now();
-    const upcomingBoundaries = [quizStart, quizEnd]
+    const upcomingBoundaries = [
+      session?.quizStart,
+      session?.quizEnd,
+      ...(session?.quizExtensions || []).flatMap((extension) => [extension.quizStart, extension.quizEnd]),
+    ]
       .map((value) => new Date(value || 0).getTime())
       .filter((value) => Number.isFinite(value) && value > now);
     const nextBoundary = Math.min(...upcomingBoundaries);
@@ -349,9 +353,9 @@ export default function SessionEditor() {
 
     const timer = setTimeout(() => {
       fetchSession();
-    }, Math.max(0, nextBoundary - now) + 25);
+    }, Math.min(nextBoundary - now + 25, 2_147_483_647));
     return () => clearTimeout(timer);
-  }, [fetchSession, quiz, quizEnd, quizStart, session?.status, status]);
+  }, [fetchSession, quiz, session?.quizEnd, session?.quizStart, session?.quizExtensions, status]);
 
   // While a quiz is live, poll only its response metadata. This immediately
   // applies the existing type/option locks when a student starts responding,
@@ -397,7 +401,7 @@ export default function SessionEditor() {
       const updatedSession = data.session || data;
       setSession(updatedSession);
       setReviewable(!!updatedSession.reviewable);
-      setStatus(getEffectiveQuizStatus(updatedSession));
+      setStatus(updatedSession.status);
       const warnings = data.grading?.warnings || [];
       if (warnings.length > 0) {
         setMsg({ severity: 'warning', text: warnings.join(' ') });
@@ -483,11 +487,12 @@ export default function SessionEditor() {
       practiceQuiz,
       quizStart: toIsoIfValid(quizStart),
       quizEnd: toIsoIfValid(quizEnd),
+      quizExtensions: session?.quizExtensions,
     })) {
       setConfirmScheduledQuizLiveOpen(true);
       return;
     }
-    if (nextStatus === 'running') {
+    if (nextStatus === 'running' && !quiz && !practiceQuiz) {
       setConfirmGoLiveOpen(true);
       return;
     }
@@ -1177,6 +1182,7 @@ export default function SessionEditor() {
       });
       const updatedSession = data.session || data;
       setSession(updatedSession);
+      setStatus(updatedSession.status);
       setExtensionDrafts((updatedSession.quizExtensions || []).map((extension) => ({
         userId: extension.userId,
         quizStart: toDateTimeLocalString(extension.quizStart),
@@ -1486,8 +1492,9 @@ export default function SessionEditor() {
           />
 
           <FormControl size="small" sx={{ maxWidth: quiz ? 360 : 280 }}>
-            <InputLabel>{t('professor.sessionEditor.status')}</InputLabel>
+            <InputLabel id="session-status-label">{t('professor.sessionEditor.status')}</InputLabel>
             <Select
+              labelId="session-status-label"
               label={t('professor.sessionEditor.status')}
               value={status}
               onChange={(e) => handleStatusChange(e.target.value)}

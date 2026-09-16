@@ -33,4 +33,20 @@ describe('quizWouldBeLiveImmediately', () => {
       quizEnd: '2026-08-28T17:00:00.000Z',
     }, now)).toBe(false);
   });
+
+  it('warns if an individual extension would be open on enabling the schedule', () => {
+    expect(quizWouldBeLiveImmediately({
+      quiz: true, status: 'done',
+      quizStart: '2026-08-28T13:00:00.000Z', quizEnd: '2026-08-28T14:00:00.000Z',
+      quizExtensions: [{ userId: 'student', quizStart: '2026-08-28T15:00:00.000Z', quizEnd: '2026-08-28T17:00:00.000Z' }],
+    }, now)).toBe(true);
+  });
+
+  it('requires a complete quiz window and includes its exact end boundary, like the server', () => {
+    expect(quizWouldBeLiveImmediately({ quiz: true, date: '2026-08-28T15:00:00.000Z' }, now)).toBe(false);
+    expect(quizWouldBeLiveImmediately({ quiz: true, quizStart: '2026-08-28T15:00:00.000Z' }, now)).toBe(false);
+    expect(quizWouldBeLiveImmediately({
+      quiz: true, quizStart: '2026-08-28T15:00:00.000Z', quizEnd: '2026-08-28T16:00:00.000Z',
+    }, now)).toBe(true);
+  });
 });

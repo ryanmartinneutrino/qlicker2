@@ -238,6 +238,8 @@ Create a session, enable quiz mode, and configure its window. A normal quiz is s
 
 ### During the window
 
+The status dropdowns in the course page and session editor control the same setting. **Switch to Live/Ended based on dates** follows the quiz schedule and extensions. **Live** opens the quiz immediately, even outside the scheduled dates, and keeps it open until you change its status. **Ended** closes general access while preserving individual extensions. Setting a quiz to **Live** keeps you in the editor; choose **Review Live Session Results** to monitor responses.
+
 Students' answers save while they move through the quiz. The course/dashboard cards show the relevant start/end time. Submitted normal quizzes cannot be edited again. Avoid editing question meaning or scoring while students are actively answering.
 
 ### After the window

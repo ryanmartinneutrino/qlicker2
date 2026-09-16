@@ -145,3 +145,59 @@ test('numerical questions copied within a quiz keep independent student answers'
   await expect(answers.nth(0)).toHaveValue('42');
   await expect(answers.nth(1)).toHaveValue('7');
 });
+
+test('quiz status controls agree across the course and editor and Live keeps the quiz editor open', async ({ page, request }) => {
+  const { admin, professor } = await seedUsers(request);
+  const course = await createCourseViaApi(request, admin.token);
+  await addInstructorToCourseViaApi(request, admin.token, course._id, professor.user._id);
+  const now = Date.now();
+  const quiz = await createSessionViaApi(request, admin.token, course._id, {
+    name: 'Quiz with an old deadline', quiz: true,
+    quizStart: new Date(now - 7200000).toISOString(), quizEnd: new Date(now - 3600000).toISOString(),
+  });
+  const editorPath = `/prof/course/${course._id}/session/${quiz._id}`;
+  await loginViaUi(page, professor.email, professor.password, /\/prof$/);
+  await page.goto(`/prof/course/${course._id}?tab=1`);
+  // The course search also has a Status filter, initially set to All.
+  const status = page.getByRole('combobox', { name: 'Status', exact: true }).filter({ hasNotText: /^All$/ });
+  await status.click();
+  await page.getByRole('option', { name: 'Live', exact: true }).click();
+  await expect(status).toHaveText('Live');
+  await expect(status).toBeEnabled();
+  await page.getByRole('button', { name: /Quiz with an old deadline Live/i }).first().click();
+  await expect(page).toHaveURL(new RegExp(`${editorPath}\\?`));
+  await expect(status).toHaveText('Live');
+  await page.reload();
+  await expect(status).toHaveText('Live');
+
+  await status.click();
+  await page.getByRole('option', { name: 'Ended', exact: true }).click();
+  await expect(status).toHaveText('Ended');
+  await expect(status).toBeEnabled();
+  await page.getByRole('button', { name: /back to course/i }).click();
+  await expect(status).toHaveText('Ended');
+
+  await page.goto(editorPath);
+  await status.click();
+  await page.getByRole('option', { name: 'Live', exact: true }).click();
+  await expect(status).toHaveText('Live');
+  await expect(status).toBeEnabled();
+  await expect(page).toHaveURL(new RegExp(`${editorPath}$`));
+  await page.getByRole('button', { name: 'Review Live Session Results', exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`${editorPath}/review`));
+
+  await patchSessionViaApi(request, admin.token, quiz._id, {
+    status: 'hidden',
+    quizStart: new Date(now - 60000).toISOString(), quizEnd: new Date(now + 3600000).toISOString(),
+  });
+  await page.goto(`/prof/course/${course._id}?tab=1`);
+  await status.click();
+  await page.getByRole('option', { name: 'Switch to Live/Ended based on dates', exact: true }).click();
+  await page.getByRole('button', { name: 'Make quiz live', exact: true }).click();
+  await expect(status).toHaveText('Live');
+  await expect(status).toBeEnabled();
+  await page.reload();
+  await expect(status).toHaveText('Live');
+  await page.goto(editorPath);
+  await expect(status).toHaveText('Live');
+});

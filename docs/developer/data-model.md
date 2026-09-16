@@ -55,6 +55,21 @@ Key concerns:
 - submission and participation tracking
 - join-code lifecycle, chat settings, and multi-select scoring policy
 
+### Session status and quiz access
+
+Interactive sessions are instructor-paced; quizzes (including practice quizzes) are student-paced. Both status dropdowns write the same persisted `status` field. Starting an interactive session opens its live controls; setting a quiz to Live keeps the editor open with a link to live results.
+
+| Stored status | Interactive session | Quiz |
+| --- | --- | --- |
+| `hidden` | Draft, hidden from students | Draft, closed even during scheduled windows |
+| `visible` | Upcoming | Date-controlled: effective status follows the base window and applicable extensions |
+| `running` | Live instructor controls | Explicitly open, regardless of base dates; remains open until changed |
+| `done` | Ended | Ended for instructors; individual extensions can still grant student access |
+
+For date-controlled quizzes, instructors see Live while the base window or any extension is active, Upcoming while a window remains in the future, and Ended after all windows expire. Students see the status for their own access. With stored `done`, instructors always see Ended even during an extension; only the assigned student's effective status changes. Active or upcoming extensions block review publication.
+
+The server derives the effective status in `buildSessionForUser` / `getQuizRuntimeState`. Course lists, session detail, and session PATCH responses use that same calculation. Clients display the returned status; they must not infer a different status from base dates. Expired scheduled quizzes are persisted as `done` on access, after every extension window has ended. Manual Live is not automatically closed by an old deadline.
+
 ## Question
 
 Represents a question or slide.
