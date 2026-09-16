@@ -40,4 +40,4 @@ Not every change needs every suite during iteration, but the final validation sh
 
 ## Data repair
 
-See [Repairing shared question references](question-reference-repair.md) for the dry-run-first repair of duplicate or foreign question IDs, and the manual decisions required for answered quizzes.
+See [Repairing shared question references](question-reference-repair.md) for the production Bash/Docker diagnostic, independent question copies, and interactive grading decisions for answered quizzes.

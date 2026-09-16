@@ -1037,6 +1037,7 @@ export async function recalculateSessionGrades({
       if (markNeedsGrading) needsGrading = true;
 
       marks.push({
+        ...(preserveManualMark ? existingMark : {}),
         questionId,
         responseId: participationResponse ? String(response?._id || '') : '',
         attempt: participationResponse ? toFiniteNumber(response?.attempt, 1) : 0,
