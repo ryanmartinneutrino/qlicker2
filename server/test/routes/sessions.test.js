@@ -1933,6 +1933,7 @@ describe('GET /api/v1/sessions/:id/live', () => {
     expect(presentationLiveRes.statusCode).toBe(200);
     expect(presentationLiveRes.json().showResponseList).toBe(false);
     expect(presentationLiveRes.json().responseStats?.answers || []).toHaveLength(0);
+    expect(presentationLiveRes.json().allResponses).toEqual([]);
 
     const instructorLiveRes = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/live?includeStudentNames=true`, {
       token: profToken,
@@ -3099,6 +3100,8 @@ describe('Live session websocket delta events', () => {
       questionHidden: false,
       responseStats: expect.objectContaining({ type: 'distribution', total: 1 }),
     }));
+    const { emittedAt, studentResponse, ...publicSnapshot } = studentCall[2];
+    expect(instructorCall[2].audience).toEqual(publicSnapshot);
     expect(studentCall[2].question).not.toHaveProperty('solution');
     expect(studentCall[2].question).not.toHaveProperty('solution_plainText');
     expect(studentCall[2].question).not.toHaveProperty('sessionProperties');
@@ -3243,6 +3246,14 @@ describe('Live session websocket delta events', () => {
       responseCount: 1,
     }));
     expect(instructorCall[2]).not.toHaveProperty('studentResponse');
+    const presentation = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/live?view=presentation`, { token: profToken });
+    expect(presentation.statusCode).toBe(200);
+    const live = presentation.json();
+    expect(live.currentQuestion).toEqual(JSON.parse(JSON.stringify(studentCall[2].question)));
+    for (const field of ['showStats', 'showCorrect', 'questionHidden', 'responseStats', 'currentAttempt', 'wordCloudData', 'histogramData']) {
+      expect(live[field]).toEqual(studentCall[2][field]);
+    }
+
     expect(instructorCall[2].question.solution).toBe('<p>Instructor-only solution</p>');
     expect(instructorCall[2].question.options[0].correct).toBe(true);
 
@@ -3260,6 +3271,8 @@ describe('Live session websocket delta events', () => {
         ],
       },
     }));
+    const { emittedAt, studentResponse, ...publicSnapshot } = studentCall[2];
+    expect(instructorCall[2].audience).toEqual(publicSnapshot);
     expect(studentCall[2].question).not.toHaveProperty('solution');
     expect(studentCall[2].question).not.toHaveProperty('solution_plainText');
     expect(studentCall[2].question).not.toHaveProperty('sessionProperties');

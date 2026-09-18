@@ -121,6 +121,25 @@ Redis can fan these events out across multiple app instances in production.
 
 Clients patch local state from sufficiently complete deltas and use targeted refreshes for incomplete/legacy payloads. Maintain that contract on high-volume response and chat paths.
 
+Student live pages and the presentation window share `LiveSessionWebSocketProvider`,
+`useLiveSessionData`, and the reducers in `liveSessionUpdates.js`. The provider
+delivers every event to subscribers (including messages batched into one React
+render), keeps the socket independent of panel changes, and refreshes on connection
+or reconnection. The data hook replays deltas received during an HTTP fetch over
+that snapshot so an older request cannot undo navigation or visibility changes.
+
+Presentation requests use `view=presentation`, retaining the classroom join code
+but using the student question snapshot. Instructor question, visibility, and
+response events carry an `audience` projection built with the student serializers;
+the presentation consumes that projection through the shared reducers. It never
+applies named instructor responses. Presentation chat uses its existing anonymous
+API projection. Incomplete events trigger a targeted refresh, with coalescing for
+legacy response events.
+
+The browser favicon is `client/public/favicon.svg`: a white Q in the application's
+Helvetica font stack on the app bar's primary blue (`#30B0E7`). Keep it aligned
+with `client/src/theme/index.js` when changing the branding.
+
 ## Storage and external services
 
 Image storage is selected in database-backed admin settings and can use local files, S3-compatible object storage, or Azure Blob. Clients upload through the API; stored images are served through authenticated `/uploads/<key>` paths rather than direct provider URLs.

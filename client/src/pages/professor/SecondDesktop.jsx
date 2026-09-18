@@ -4,8 +4,7 @@ import { useTranslation } from 'react-i18next';
 import {
   Box, Typography, Paper, Alert, CircularProgress, Chip, Button,
 } from '@mui/material';
-import apiClient, { getUsableAccessToken } from '../../api/client';
-import { closeWebSocketQuietly } from '../../utils/liveSocket';
+import { LiveSessionWebSocketProvider } from '../../contexts/LiveSessionWebSocketContext';
 import {
   QUESTION_TYPES,
   TYPE_COLORS,
@@ -22,10 +21,10 @@ import {
 import { buildCourseTitle } from '../../utils/courseTitle';
 import WordCloudPanel from '../../components/questions/WordCloudPanel';
 import HistogramPanel from '../../components/questions/HistogramPanel';
-import useLiveSessionTelemetry from '../../hooks/useLiveSessionTelemetry';
+import useLiveSessionData from '../../hooks/useLiveSessionData';
 import SessionChatPanel from '../../components/live/SessionChatPanel';
 import LiveSessionPanelNavigation from '../../components/live/LiveSessionPanelNavigation';
-import { applyLiveResponseAddedDelta, sortResponsesNewestFirst } from '../../utils/responses';
+import { sortResponsesNewestFirst } from '../../utils/responses';
 
 // ---------------------------------------------------------------------------
 // Constants & helpers
@@ -50,127 +49,10 @@ const richContentSx = {
   },
 };
 
-function buildWebsocketUrl(token) {
-  const encodedToken = encodeURIComponent(token);
-  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-  return `${protocol}://${window.location.host}/ws?token=${encodedToken}`;
-}
-
 function getOptionRichContentProps(option) {
   return {
     html: normalizeStoredHtml(option?.content || ''),
     fallback: option?.plainText || option?.answer || '',
-  };
-}
-
-function applyCurrentQuestionUpdate(prev, payload) {
-  if (!prev) return prev;
-
-  const nextQuestionId = String(payload?.questionId || '');
-  const currentQuestionId = String(prev?.currentQuestion?._id || prev?.session?.currentQuestion || '');
-  if (!nextQuestionId || currentQuestionId !== nextQuestionId || !payload?.question) {
-    return prev;
-  }
-
-  return {
-    ...prev,
-    currentQuestion: payload.question,
-  };
-}
-
-function applyQuestionChanged(prev, payload) {
-  if (!prev || !Object.prototype.hasOwnProperty.call(payload || {}, 'question')) return prev;
-  return {
-    ...prev,
-    session: prev.session
-      ? { ...prev.session, currentQuestion: payload?.questionId ?? prev.session.currentQuestion }
-      : prev.session,
-    currentQuestion: payload.question,
-    currentAttempt: payload?.currentAttempt ?? null,
-    responseStats: payload?.responseStats ?? null,
-    responseCount: payload?.responseCount ?? 0,
-    allResponses: payload?.allResponses ?? [],
-    wordCloudData: payload?.wordCloudData ?? null,
-    histogramData: payload?.histogramData ?? null,
-    questionNumber: payload?.questionNumber ?? prev.questionNumber,
-    questionCount: payload?.questionCount ?? prev.questionCount,
-    pageProgress: payload?.pageProgress ?? prev.pageProgress,
-    questionProgress: payload?.questionProgress ?? prev.questionProgress,
-  };
-}
-
-function applyVisibilityChanged(prev, payload) {
-  if (!prev) return prev;
-
-  const nextQuestionId = String(payload?.questionId || '');
-  const currentQuestionId = String(prev?.currentQuestion?._id || prev?.session?.currentQuestion || '');
-  if (!nextQuestionId || currentQuestionId !== nextQuestionId || !prev.currentQuestion) {
-    return prev;
-  }
-
-  return {
-    ...prev,
-    currentQuestion: {
-      ...prev.currentQuestion,
-      sessionOptions: {
-        ...(prev.currentQuestion.sessionOptions || {}),
-        hidden: payload?.hidden ?? prev.currentQuestion?.sessionOptions?.hidden,
-        stats: payload?.stats ?? prev.currentQuestion?.sessionOptions?.stats,
-        correct: payload?.correct ?? prev.currentQuestion?.sessionOptions?.correct,
-        responseListVisible: payload?.responseListVisible ?? prev.currentQuestion?.sessionOptions?.responseListVisible,
-      },
-    },
-  };
-}
-
-export function applyAttemptChanged(prev, payload) {
-  if (!prev) return prev;
-
-  const nextQuestionId = String(payload?.questionId || '');
-  const currentQuestionId = String(prev?.currentQuestion?._id || prev?.session?.currentQuestion || '');
-  if (!nextQuestionId || currentQuestionId !== nextQuestionId) {
-    return prev;
-  }
-
-  const previousAttemptNumber = prev.currentAttempt?.number ?? null;
-  const nextAttemptNumber = payload?.currentAttempt?.number ?? previousAttemptNumber;
-  const resetResponses = !!payload?.resetResponses || nextAttemptNumber !== previousAttemptNumber;
-
-  const nextQuestion = prev.currentQuestion
-    ? {
-      ...prev.currentQuestion,
-      sessionOptions: {
-        ...(prev.currentQuestion.sessionOptions || {}),
-        stats: payload?.stats ?? prev.currentQuestion?.sessionOptions?.stats,
-        correct: payload?.correct ?? prev.currentQuestion?.sessionOptions?.correct,
-      },
-    }
-    : prev.currentQuestion;
-
-  return {
-    ...prev,
-    currentAttempt: payload?.currentAttempt ?? prev.currentAttempt,
-    currentQuestion: nextQuestion,
-    responseCount: resetResponses ? 0 : prev.responseCount,
-    responseStats: resetResponses
-      ? (isOptionBasedQuestionType(normalizeQuestionType(nextQuestion || {}))
-        ? { type: 'distribution', distribution: [], total: 0 } : null)
-      : prev.responseStats,
-    allResponses: resetResponses ? [] : prev.allResponses,
-  };
-}
-
-function applyJoinCodeChanged(prev, payload) {
-  if (!prev?.session) return prev;
-  return {
-    ...prev,
-    session: {
-      ...prev.session,
-      joinCodeEnabled: payload?.joinCodeEnabled ?? prev.session.joinCodeEnabled,
-      joinCodeActive: payload?.joinCodeActive ?? prev.session.joinCodeActive,
-      joinCodeInterval: payload?.joinCodeInterval ?? prev.session.joinCodeInterval,
-      currentJoinCode: payload?.currentJoinCode ?? prev.session.currentJoinCode,
-    },
   };
 }
 
@@ -283,78 +165,14 @@ function ShortAnswerList({ responses }) {
 // Main component
 // ---------------------------------------------------------------------------
 
-export default function PresentationWindow() {
+function PresentationContent() {
   const { t } = useTranslation();
   const { sessionId } = useParams();
 
-  const [liveData, setLiveData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [sessionEnded, setSessionEnded] = useState(false);
-  const [liveTransport, setLiveTransport] = useState('unknown');
   const [activePanel, setActivePanel] = useState('question');
   const [chatRefreshToken, setChatRefreshToken] = useState(0);
   const [chatEvent, setChatEvent] = useState(null);
   const pendingChatRefreshRef = useRef(false);
-  const {
-    recordEventReceipt,
-    recordLiveFetch,
-    scheduleUiSyncMeasurement,
-  } = useLiveSessionTelemetry({ sessionId, role: 'presentation', transport: liveTransport });
-
-  // ---- Data fetching ----
-
-  const fetchLive = useCallback(async (syncContext = null) => {
-    const startedAtMs = Date.now();
-    try {
-      const { data } = await apiClient.get(`/sessions/${sessionId}/live`, {
-        params: {
-          view: 'presentation',
-          includeJoinedStudents: false,
-        },
-      });
-      const fetchMeasurement = recordLiveFetch({
-        startedAtMs,
-        completedAtMs: Date.now(),
-        success: true,
-        transportOverride: syncContext?.transport,
-      });
-      setLiveData(data);
-      scheduleUiSyncMeasurement({
-        fetchStartedAtMs: fetchMeasurement?.startedAtMs || startedAtMs,
-        emittedAtMs: syncContext?.emittedAtMs,
-        receivedAtMs: syncContext?.receivedAtMs,
-        success: true,
-        transportOverride: syncContext?.transport,
-      });
-      setError(null);
-      if (data?.session?.status === 'done') {
-        setSessionEnded(true);
-      }
-    } catch (err) {
-      recordLiveFetch({
-        startedAtMs,
-        completedAtMs: Date.now(),
-        success: false,
-        transportOverride: syncContext?.transport,
-      });
-      setError(err.response?.data?.message || t('professor.secondDesktop.failedLoadLiveSession'));
-    } finally {
-      setLoading(false);
-    }
-  }, [recordLiveFetch, scheduleUiSyncMeasurement, sessionId, t]);
-
-  // Throttled re-fetch: batches rapid response-added events into at most one
-  // re-fetch per 2-second window, dramatically reducing DB load during live sessions.
-  const fetchThrottleRef = useRef(null);
-  const scheduleFetchLive = useCallback((syncContext = null) => {
-    if (fetchThrottleRef.current) return;
-    fetchThrottleRef.current = setTimeout(() => {
-      fetchThrottleRef.current = null;
-      fetchLive(syncContext);
-    }, 2000);
-  }, [fetchLive]);
-
   const queueChatRefresh = useCallback((eventPayload = null) => {
     if (activePanel === 'chat' && eventPayload) {
       pendingChatRefreshRef.current = false;
@@ -374,217 +192,10 @@ export default function PresentationWindow() {
     pendingChatRefreshRef.current = true;
   }, [activePanel]);
 
-  // ---- WebSocket + polling ----
-
-  useEffect(() => {
-    fetchLive();
-  }, [fetchLive]);
-
-  useEffect(() => {
-    let ws = null;
-    let reconnectTimer = null;
-    let pollingTimer = null;
-    let closed = false;
-
-    const refresh = () => {
-      if (document.visibilityState !== 'visible') return;
-      fetchLive();
-    };
-
-    const startPolling = () => {
-      if (pollingTimer || closed) return;
-      setLiveTransport('polling');
-      pollingTimer = setInterval(refresh, 3000);
-    };
-
-    const stopPolling = () => {
-      if (!pollingTimer) return;
-      clearInterval(pollingTimer);
-      pollingTimer = null;
-    };
-
-    const connect = async () => {
-      if (closed) return;
-      const latestToken = await getUsableAccessToken({ refreshIfMissing: true, refreshIfExpiring: true });
-      if (!latestToken) {
-        setLiveTransport('unknown');
-        return;
-      }
-      try {
-        ws = new WebSocket(buildWebsocketUrl(latestToken));
-      } catch {
-        startPolling();
-        reconnectTimer = setTimeout(() => { void connect(); }, 2500);
-        return;
-      }
-
-      ws.onopen = () => {
-        stopPolling();
-        setLiveTransport('websocket');
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data);
-          const evt = message?.event;
-          const d = message?.data;
-          if (!evt || String(d?.sessionId || '') !== String(sessionId)) return;
-          const syncContext = recordEventReceipt({
-            emittedAt: d?.emittedAt,
-            success: true,
-            transportOverride: 'websocket',
-          });
-
-          switch (evt) {
-            case 'session:response-added':
-              setLiveData((prev) => (
-                d?.responseStats || d?.response
-                  ? applyLiveResponseAddedDelta(prev, d)
-                  : prev
-                    ? {
-                      ...prev,
-                      responseCount: d.responseCount ?? prev.responseCount,
-                      session: {
-                        ...prev.session,
-                        joinedCount: d.joinedCount ?? prev.session?.joinedCount,
-                      },
-                    }
-                    : prev
-              ));
-              scheduleUiSyncMeasurement({
-                emittedAtMs: syncContext?.emittedAtMs,
-                receivedAtMs: syncContext?.receivedAtMs,
-                success: true,
-                transportOverride: syncContext?.transport,
-              });
-              break;
-            case 'session:question-changed':
-              if (Object.prototype.hasOwnProperty.call(d || {}, 'question')) {
-                setLiveData((prev) => applyQuestionChanged(prev, d));
-                scheduleUiSyncMeasurement({
-                  emittedAtMs: syncContext?.emittedAtMs,
-                  receivedAtMs: syncContext?.receivedAtMs,
-                  success: true,
-                  transportOverride: syncContext?.transport,
-                });
-              } else {
-                fetchLive(syncContext);
-              }
-              break;
-            case 'session:question-updated':
-              setLiveData((prev) => applyCurrentQuestionUpdate(prev, d));
-              scheduleUiSyncMeasurement({
-                emittedAtMs: syncContext?.emittedAtMs,
-                receivedAtMs: syncContext?.receivedAtMs,
-                success: true,
-                transportOverride: syncContext?.transport,
-              });
-              break;
-            case 'session:attempt-changed':
-              setLiveData((prev) => applyAttemptChanged(prev, d));
-              scheduleUiSyncMeasurement({
-                emittedAtMs: syncContext?.emittedAtMs,
-                receivedAtMs: syncContext?.receivedAtMs,
-                success: true,
-                transportOverride: syncContext?.transport,
-              });
-              break;
-            case 'session:join-code-changed':
-              setLiveData((prev) => applyJoinCodeChanged(prev, d));
-              scheduleUiSyncMeasurement({
-                emittedAtMs: syncContext?.emittedAtMs,
-                receivedAtMs: syncContext?.receivedAtMs,
-                success: true,
-                transportOverride: syncContext?.transport,
-              });
-              break;
-            case 'session:visibility-changed':
-              setLiveData((prev) => applyVisibilityChanged(prev, d));
-              scheduleUiSyncMeasurement({
-                emittedAtMs: syncContext?.emittedAtMs,
-                receivedAtMs: syncContext?.receivedAtMs,
-                success: true,
-                transportOverride: syncContext?.transport,
-              });
-              break;
-            case 'session:word-cloud-updated':
-              setLiveData((prev) => prev ? { ...prev, wordCloudData: d.wordCloudData } : prev);
-              scheduleUiSyncMeasurement({
-                emittedAtMs: syncContext?.emittedAtMs,
-                receivedAtMs: syncContext?.receivedAtMs,
-                success: true,
-                transportOverride: syncContext?.transport,
-              });
-              break;
-            case 'session:histogram-updated':
-              setLiveData((prev) => prev ? { ...prev, histogramData: d.histogramData } : prev);
-              scheduleUiSyncMeasurement({
-                emittedAtMs: syncContext?.emittedAtMs,
-                receivedAtMs: syncContext?.receivedAtMs,
-                success: true,
-                transportOverride: syncContext?.transport,
-              });
-              break;
-            case 'session:status-changed':
-              if (d.status === 'done') { setSessionEnded(true); }
-              fetchLive(syncContext);
-              break;
-            case 'session:metadata-changed':
-              fetchLive(syncContext);
-              break;
-            case 'session:chat-settings-changed':
-              setLiveData((prev) => prev ? {
-                ...prev,
-                session: {
-                  ...prev.session,
-                  chatEnabled: d?.chatEnabled ?? prev.session?.chatEnabled,
-                  richTextChatEnabled: d?.richTextChatEnabled ?? prev.session?.richTextChatEnabled,
-                },
-              } : prev);
-              break;
-            case 'session:chat-updated':
-              queueChatRefresh();
-              break;
-            default:
-              break;
-          }
-        } catch {
-          // Ignore malformed payloads
-        }
-      };
-
-      ws.onclose = () => {
-        if (closed) return;
-        startPolling();
-        reconnectTimer = setTimeout(() => { void connect(); }, 2500);
-      };
-    };
-
-    const init = async () => {
-      try {
-        const { data } = await apiClient.get('/health');
-        if (data?.websocket === true) { void connect(); return; }
-      } catch { /* fall through */ }
-      startPolling();
-    };
-
-    init();
-
-    const handleVisibility = () => refresh();
-    window.addEventListener('focus', refresh);
-    document.addEventListener('visibilitychange', handleVisibility);
-
-    return () => {
-      closed = true;
-      if (reconnectTimer) clearTimeout(reconnectTimer);
-      if (fetchThrottleRef.current) clearTimeout(fetchThrottleRef.current);
-      fetchThrottleRef.current = null;
-      stopPolling();
-      closeWebSocketQuietly(ws);
-      window.removeEventListener('focus', refresh);
-      document.removeEventListener('visibilitychange', handleVisibility);
-    };
-  }, [fetchLive, queueChatRefresh, recordEventReceipt, scheduleFetchLive, scheduleUiSyncMeasurement, sessionId]);
+  const { liveData, loading, error, transport: liveTransport } = useLiveSessionData({
+    sessionId, role: 'presentation', onChatEvent: queueChatRefresh,
+  });
+  const sessionEnded = liveData?.session?.status === 'done';
 
   // ---- Derived state ----
 
@@ -600,10 +211,10 @@ export default function PresentationWindow() {
   const allResponses = liveData?.allResponses || [];
   const qType = currentQ ? normalizeQuestionType(currentQ) : null;
   const isSlide = isSlideType(qType);
-  const isHidden = !!currentQ?.sessionOptions?.hidden;
-  const showStats = !!currentQ?.sessionOptions?.stats;
-  const showCorrect = !!currentQ?.sessionOptions?.correct;
-  const showResponseList = currentQ?.sessionOptions?.responseListVisible !== false;
+  const isHidden = !!liveData?.questionHidden;
+  const showStats = !!liveData?.showStats;
+  const showCorrect = !!liveData?.showCorrect;
+  const showResponseList = liveData?.showResponseList !== false;
   const chatEnabled = !!session?.chatEnabled;
   const richTextChatEnabled = session?.richTextChatEnabled !== false;
   const showShortAnswerStats = showStats && responseStats?.type === 'shortAnswer'
@@ -1077,5 +688,14 @@ export default function PresentationWindow() {
         </>
       )}
     </Box>
+  );
+}
+
+export default function PresentationWindow() {
+  const { sessionId } = useParams();
+  return (
+    <LiveSessionWebSocketProvider sessionId={sessionId}>
+      <PresentationContent />
+    </LiveSessionWebSocketProvider>
   );
 }

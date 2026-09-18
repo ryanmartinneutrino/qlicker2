@@ -887,7 +887,7 @@ async function notifyLinkedSessionQuestionUpdated(app, question) {
       course,
       'session:question-updated',
       includeQuestionPayload
-        ? { ...payload, question: instructorQuestionPayload }
+        ? { ...payload, question: instructorQuestionPayload, audience: { ...payload, ...studentQuestionUpdate } }
         : payload
     );
     sendToStudents(

@@ -93,6 +93,17 @@ short-answer and numerical statistics include updated totals or summary fields
 without repeating the accumulated answer/value arrays. Clients append the new
 response to their existing snapshot.
 
+Instructor `session:question-changed`, `session:visibility-changed`,
+`session:question-updated` (for the current question), and `session:response-added`
+events also include an `audience` payload for presentation windows authenticated
+as the instructor. This uses the same public question/statistics projection as
+student events; `audience: null` on a response event means statistics are not
+shared. Presentation clients must consume this projection, or refresh
+`GET /sessions/:id/live?view=presentation` when an older event omits it. That
+endpoint returns the student visibility flags and sanitized question/statistics,
+alongside presentation session details such as the join code. It omits student
+names and hidden response lists.
+
 Redis publishes user-targeted/broadcast events between API replicas. Without Redis, WebSockets work only within a single server process.
 
 ## Adding or changing an endpoint
