@@ -263,6 +263,10 @@ test('live session flow carries multiple student responses and visibility change
     ],
   });
   await addQuestionToSessionViaApi(request, admin.token, session._id, secondQuestion._id);
+  const thirdQuestion = await createQuestionViaApi(request, admin.token, {
+    sessionId: session._id, courseId: course._id, content: 'Skipped directly to question three',
+  });
+  await addQuestionToSessionViaApi(request, admin.token, session._id, thirdQuestion._id);
 
   const professorContext = await browser.newContext();
   const professorPage = await professorContext.newPage();
@@ -374,6 +378,26 @@ test('live session flow carries multiple student responses and visibility change
   await expect(studentPage.getByRole('status').filter({ hasText: /response statistics are visible/i }).first()).toBeVisible();
   await expect(secondStudentPage.getByRole('status').filter({ hasText: /response statistics are visible/i }).first()).toBeVisible();
   await expect(presentationPage.getByText('50%', { exact: true })).toHaveCount(2);
+
+  // Numbered chips must update passive viewers too, including non-adjacent jumps.
+  await professorPage.getByRole('button', { name: '3', exact: true }).click();
+  for (const viewer of [studentPage, secondStudentPage, presentationPage]) {
+    await expect(viewer.getByText('Skipped directly to question three')).toBeVisible();
+    await expect(viewer.getByText('50%', { exact: true })).toHaveCount(0);
+  }
+  await professorPage.getByRole('button', { name: '1', exact: true }).click();
+  for (const viewer of [studentPage, secondStudentPage, presentationPage]) {
+    await expect(viewer.getByText('What is 2 + 2?')).toBeVisible();
+    await expect(viewer.getByText('50%', { exact: true })).toHaveCount(2);
+  }
+  await professorPage.getByLabel(/^Visible$/i).click();
+  for (const viewer of [studentPage, secondStudentPage, presentationPage]) {
+    await expect(viewer.getByText('What is 2 + 2?')).not.toBeVisible();
+  }
+  await professorPage.getByLabel(/^Visible$/i).click();
+  for (const viewer of [studentPage, secondStudentPage, presentationPage]) {
+    await expect(viewer.getByText('What is 2 + 2?')).toBeVisible();
+  }
 
   // Moving forward and then back to a question that already has stats enabled
   // must repaint every passive viewer from the websocket snapshot alone. Do

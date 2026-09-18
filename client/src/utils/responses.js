@@ -48,12 +48,7 @@ export function sortResponsesNewestFirst(responses = []) {
 }
 
 function getResponseMergeKey(response = {}) {
-  const responseId = String(response?._id || '').trim();
-  if (responseId) return `id:${responseId}`;
-
   return [
-    Number(response?.attempt || 0),
-    String(response?.questionId || ''),
     String(response?.studentName || ''),
     String(response?.answer ?? ''),
     String(response?.answerWysiwyg ?? ''),
@@ -62,13 +57,22 @@ function getResponseMergeKey(response = {}) {
 }
 
 export function mergeResponsesNewestFirst(existingResponses = [], incomingResponses = []) {
-  const mergedByKey = new Map();
-  [...(Array.isArray(existingResponses) ? existingResponses : []), ...(Array.isArray(incomingResponses) ? incomingResponses : [])]
-    .forEach((response) => {
-      if (!response) return;
-      mergedByKey.set(getResponseMergeKey(response), response);
-    });
-  return sortResponsesNewestFirst([...mergedByKey.values()]);
+  const merged = [...(Array.isArray(existingResponses) ? existingResponses : [])].filter(Boolean);
+  for (const response of (Array.isArray(incomingResponses) ? incomingResponses : [])) {
+    if (!response) continue;
+    let index = response._id ? merged.findIndex((entry) => entry._id === response._id) : -1;
+    if (index < 0) {
+      // Anonymous aggregate snapshots omit response IDs, while live deltas
+      // include them. Match one snapshot entry before appending, without
+      // collapsing distinct identified responses with identical text/times.
+      const key = getResponseMergeKey(response);
+      index = merged.findIndex((entry) => (!entry._id || !response._id)
+        && getResponseMergeKey(entry) === key);
+    }
+    if (index < 0) merged.push(response);
+    else merged[index] = response;
+  }
+  return sortResponsesNewestFirst(merged);
 }
 
 export function applyLiveResponseAddedDelta(prev, payload = {}) {

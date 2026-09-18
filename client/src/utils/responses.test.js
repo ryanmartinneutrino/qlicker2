@@ -1,6 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
-import { applyLiveResponseAddedDelta } from './responses';
+import { applyLiveResponseAddedDelta, mergeResponsesNewestFirst } from './responses';
+
+it('merges a response received in both an anonymous HTTP snapshot and a websocket delta exactly once', () => {
+  const anonymous = { answer: 'A shared response', createdAt: '2026-09-18T10:00:00.000Z' };
+  const delta = { ...anonymous, _id: 'r1', questionId: 'q1', attempt: 1, answerWysiwyg: '' };
+  const next = mergeResponsesNewestFirst([anonymous], [delta]);
+  expect(next).toEqual([delta]);
+  expect(mergeResponsesNewestFirst(next, [delta])).toEqual([delta]);
+  // Two students may submit the same text at the same time.
+  const second = { ...delta, _id: 'r2' };
+  expect(mergeResponsesNewestFirst([anonymous, anonymous], [delta, second])).toHaveLength(2);
+  expect(mergeResponsesNewestFirst([delta], [second])).toHaveLength(2);
+});
 
 describe('applyLiveResponseAddedDelta', () => {
   it('merges a compact numerical delta into the accumulated response list', () => {

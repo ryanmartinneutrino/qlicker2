@@ -306,7 +306,7 @@ For example, admit a verified late arrival individually after closing check-in. 
 
 - The professor always sees control information and, for short answer, the response list needed to moderate the class.
 - Students see only pages, statistics, correct answers, and shared short-answer lists that you have revealed.
-- The presentation window follows the public classroom state without the professor's management controls.
+- The presentation window follows the same question, visibility, statistics, correct-answer reveal, and attempt as the student view. Both numbered question buttons and Previous/Next update it automatically. Student names remain anonymous in presentation responses and chat, and reconnecting restores the current classroom state.
 
 Statistics include option distributions, word clouds for suitable short answers, and histograms for numerical responses. The shared short-answer response list can be hidden separately from its word cloud.
 

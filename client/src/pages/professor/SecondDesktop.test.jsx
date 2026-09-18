@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyAttemptChanged } from './SecondDesktop';
+import { applyAttemptChanged } from '../../utils/liveSessionUpdates';
 import { applyLiveResponseAddedDelta } from '../../utils/responses';
 
 describe('presentation attempt updates', () => {
@@ -16,7 +16,7 @@ describe('presentation attempt updates', () => {
       questionId: 'q1', currentAttempt: { number: 2, closed: false }, resetResponses: true, stats: false, correct: false,
     });
     expect(next).toMatchObject({ currentAttempt: { number: 2 }, responseCount: 0, allResponses: [],
-      responseStats: { type: 'distribution', total: 0, distribution: [] },
+      responseStats: null,
       currentQuestion: { sessionOptions: { stats: false, correct: false } } });
     const payload = { questionId: 'q1', attempt: 2, responseCount: 1,
       responseStats: { type: 'distribution', total: 1, distribution: [{ answer: '1', count: 1 }] } };

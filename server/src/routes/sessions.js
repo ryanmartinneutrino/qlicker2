@@ -2823,6 +2823,11 @@ async function notifyResponseAdded(app, course, session, data, { includeStudents
   };
   sendToInstructors(app, course, 'session:response-added', {
     ...payload,
+    audience: includeStudents ? {
+      ...payload,
+      ...(studentStats ? { responseStats: studentStats } : {}),
+      ...(studentResponse ? { response: studentResponse } : {}),
+    } : null,
     ...(instructorStats ? { responseStats: instructorStats } : {}),
     ...(instructorResponse ? { response: instructorResponse } : {}),
   });
@@ -2903,11 +2908,6 @@ async function notifyQuestionChanged(app, course, session, question, data) {
     sessionId: String(session._id),
   };
 
-  sendToInstructors(app, course, 'session:question-changed', {
-    ...basePayload,
-    ...buildInstructorQuestionSnapshot(question, responses, studentNameById, progressPayload),
-  });
-
   // Navigation must carry the same canonical aggregate snapshot as a direct
   // stats-visibility change. A cached attempt entry can be absent or stale
   // when returning to an earlier question, while the responses loaded above
@@ -2921,6 +2921,12 @@ async function notifyQuestionChanged(app, course, session, question, data) {
       responseStats: studentResponseStats,
     }),
   };
+  sendToInstructors(app, course, 'session:question-changed', {
+    ...basePayload,
+    audience: studentBasePayload,
+    ...buildInstructorQuestionSnapshot(question, responses, studentNameById, progressPayload),
+  });
+
   const responseByStudentId = new Map();
   responses.forEach((response) => {
     const studentId = getResponseStudentId(response);
@@ -2960,7 +2966,6 @@ async function notifyVisibilityChanged(app, course, session, question) {
     correct: !!question?.sessionOptions?.correct,
     responseListVisible: question?.sessionOptions?.responseListVisible !== false,
   };
-  sendToInstructors(app, course, 'session:visibility-changed', instructorPayload);
 
   const currentAttempt = isQuestionResponseCollectionEnabled(question)
     ? getCurrentAttempt(question)
@@ -2968,10 +2973,12 @@ async function notifyVisibilityChanged(app, course, session, question) {
   const responseStats = question?.sessionOptions?.stats && currentAttempt
     ? await getQuestionAttemptStats(question, currentAttempt.number)
     : null;
-  sendToJoinedStudents(app, session, 'session:visibility-changed', {
+  const audience = {
     ...basePayload,
     ...buildStudentLiveQuestionSnapshot(question, {}, { responseStats }),
-  });
+  };
+  sendToInstructors(app, course, 'session:visibility-changed', { ...instructorPayload, audience });
+  sendToJoinedStudents(app, session, 'session:visibility-changed', audience);
 }
 
 function notifyVisualizationUpdated(app, course, session, question, event, fieldName, value) {
@@ -5815,6 +5822,14 @@ export default async function sessionRoutes(app) {
         result.showResponseList = showResponseList;
         result.showCorrect = showCorrect;
         result.questionHidden = questionHidden;
+      }
+
+      if (presentationView) {
+        const { question, ...snapshot } = buildStudentLiveQuestionSnapshot(currentQuestion, {}, { responseStats });
+        Object.assign(result, snapshot, {
+          currentQuestion: question,
+          allResponses: snapshot.responseStats?.answers || [],
+        });
       }
 
       return result;

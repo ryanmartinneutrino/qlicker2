@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import apiClient, { getUsableAccessToken } from '../api/client';
 import { closeWebSocketQuietly } from '../utils/liveSocket';
 
@@ -15,15 +15,21 @@ export function LiveSessionWebSocketProvider({ sessionId, children }) {
   const [transport, setTransport] = useState('connecting');
   const eventIdRef = useRef(0);
   const refreshHandlerRef = useRef(null);
+  const eventHandlersRef = useRef(new Set());
 
-  const registerRefreshHandler = (handler) => {
+  const subscribe = useCallback((handler) => {
+    eventHandlersRef.current.add(handler);
+    return () => eventHandlersRef.current.delete(handler);
+  }, []);
+
+  const registerRefreshHandler = useCallback((handler) => {
     refreshHandlerRef.current = handler;
     return () => {
       if (refreshHandlerRef.current === handler) {
         refreshHandlerRef.current = null;
       }
     };
-  };
+  }, []);
 
   useEffect(() => {
     let ws = null;
@@ -51,6 +57,7 @@ export function LiveSessionWebSocketProvider({ sessionId, children }) {
     const connect = async () => {
       if (closed) return;
       const latestToken = await getUsableAccessToken({ refreshIfMissing: true, refreshIfExpiring: true });
+      if (closed) return;
       if (!latestToken) {
         startPolling();
         reconnectTimer = setTimeout(() => { void connect(); }, 2500);
@@ -68,6 +75,9 @@ export function LiveSessionWebSocketProvider({ sessionId, children }) {
       ws.onopen = () => {
         stopPolling();
         setTransport('websocket');
+        // Recover changes missed before the handshake or during a disconnect,
+        // including when the presentation is on another display/background tab.
+        refreshHandlerRef.current?.();
       };
 
       ws.onmessage = (event) => {
@@ -79,13 +89,17 @@ export function LiveSessionWebSocketProvider({ sessionId, children }) {
 
           const receivedAtMs = Date.now();
           eventIdRef.current += 1;
-          setLastEvent({
+          const nextEvent = {
             id: eventIdRef.current,
             event: evt,
             data,
             receivedAtMs,
             receivedAt: new Date(receivedAtMs).toISOString(),
-          });
+          };
+          // Deliver every delta, even when React batches several messages into
+          // one render. lastEvent remains available to older consumers.
+          eventHandlersRef.current.forEach((handler) => handler(nextEvent));
+          setLastEvent(nextEvent);
         } catch {
           // Ignore malformed websocket payloads.
         }
@@ -101,6 +115,7 @@ export function LiveSessionWebSocketProvider({ sessionId, children }) {
     const init = async () => {
       try {
         const { data } = await apiClient.get('/health');
+        if (closed) return;
         if (data?.websocket === true) {
           void connect();
           return;
@@ -131,7 +146,8 @@ export function LiveSessionWebSocketProvider({ sessionId, children }) {
     lastEvent,
     transport,
     registerRefreshHandler,
-  }), [lastEvent, registerRefreshHandler, transport]);
+    subscribe,
+  }), [lastEvent, registerRefreshHandler, subscribe, transport]);
 
   return (
     <LiveSessionWebSocketContext.Provider value={value}>

@@ -27,11 +27,10 @@ import {
 } from '../../components/questions/richTextUtils';
 import {
   LiveSessionWebSocketProvider,
-  useLiveSessionWebSocket,
 } from '../../contexts/LiveSessionWebSocketContext';
-import useLiveSessionTelemetry from '../../hooks/useLiveSessionTelemetry';
+import useLiveSessionData from '../../hooks/useLiveSessionData';
 import { formatToleranceValue } from '../../utils/numericalFormatting';
-import { applyLiveResponseAddedDelta, sortResponsesNewestFirst } from '../../utils/responses';
+import { sortResponsesNewestFirst } from '../../utils/responses';
 
 // ---------------------------------------------------------------------------
 // Constants & helpers
@@ -91,104 +90,6 @@ function getOptionRichContentProps(option) {
   };
 }
 
-function applyCurrentQuestionUpdate(prev, payload) {
-  if (!prev) return prev;
-
-  const nextQuestionId = String(payload?.questionId || '');
-  const currentQuestionId = String(prev?.currentQuestion?._id || '');
-  if (!nextQuestionId || currentQuestionId !== nextQuestionId) return prev;
-
-  return {
-    ...prev,
-    currentQuestion: payload?.question ?? null,
-    questionHidden: payload?.questionHidden ?? prev.questionHidden,
-    showStats: payload?.showStats ?? prev.showStats,
-    showCorrect: payload?.showCorrect ?? prev.showCorrect,
-  };
-}
-
-function applyAttemptChanged(prev, payload) {
-  if (!prev) return prev;
-
-  const nextQuestionId = String(payload?.questionId || '');
-  const currentQuestionId = String(prev?.currentQuestion?._id || '');
-  if (!nextQuestionId || currentQuestionId !== nextQuestionId) return prev;
-
-  const previousAttemptNumber = prev?.currentAttempt?.number ?? null;
-  const nextAttemptNumber = payload?.currentAttempt?.number ?? previousAttemptNumber;
-  const resetResponses = !!payload?.resetResponses || nextAttemptNumber !== previousAttemptNumber;
-
-  return {
-    ...prev,
-    currentAttempt: payload?.currentAttempt ?? prev.currentAttempt,
-    showStats: payload?.stats ?? prev.showStats,
-    showCorrect: payload?.correct ?? prev.showCorrect,
-    currentQuestion: prev.currentQuestion
-      ? {
-        ...prev.currentQuestion,
-        sessionOptions: {
-          ...(prev.currentQuestion.sessionOptions || {}),
-          stats: payload?.stats ?? prev.currentQuestion?.sessionOptions?.stats,
-          correct: payload?.correct ?? prev.currentQuestion?.sessionOptions?.correct,
-        },
-      }
-      : prev.currentQuestion,
-    responseStats: resetResponses ? null : prev.responseStats,
-    studentResponse: resetResponses ? null : prev.studentResponse,
-  };
-}
-
-function applyVisibilityChanged(prev, payload) {
-  if (!prev || !Object.prototype.hasOwnProperty.call(payload || {}, 'question')) return prev;
-
-  const nextQuestion = payload.question;
-  return {
-    ...prev,
-    currentQuestion: nextQuestion,
-    currentAttempt: payload?.currentAttempt ?? prev.currentAttempt,
-    questionHidden: payload?.questionHidden ?? payload?.hidden ?? prev.questionHidden,
-    showStats: payload?.showStats ?? payload?.stats ?? prev.showStats,
-    showCorrect: payload?.showCorrect ?? payload?.correct ?? prev.showCorrect,
-    showResponseList: payload?.showResponseList ?? payload?.responseListVisible ?? prev.showResponseList,
-    responseStats: payload?.responseStats ?? null,
-    wordCloudData: payload?.wordCloudData ?? null,
-    histogramData: payload?.histogramData ?? null,
-  };
-}
-
-function applyQuestionChanged(prev, payload) {
-  if (!prev || !Object.prototype.hasOwnProperty.call(payload || {}, 'question')) return prev;
-  return {
-    ...prev,
-    currentQuestion: payload.question,
-    currentAttempt: payload?.currentAttempt ?? null,
-    studentResponse: payload?.studentResponse ?? null,
-    responseStats: payload?.responseStats ?? null,
-    questionHidden: payload?.questionHidden ?? true,
-    showStats: payload?.showStats ?? false,
-    showCorrect: payload?.showCorrect ?? false,
-    showResponseList: payload?.showResponseList ?? true,
-    wordCloudData: payload?.wordCloudData ?? null,
-    histogramData: payload?.histogramData ?? null,
-    questionNumber: payload?.questionNumber ?? prev.questionNumber,
-    questionCount: payload?.questionCount ?? prev.questionCount,
-    pageProgress: payload?.pageProgress ?? prev.pageProgress,
-    questionProgress: payload?.questionProgress ?? prev.questionProgress,
-  };
-}
-
-function applyJoinCodeChanged(prev, payload) {
-  if (!prev?.session) return prev;
-  return {
-    ...prev,
-    session: {
-      ...prev.session,
-      joinCodeEnabled: payload?.joinCodeEnabled ?? prev.session.joinCodeEnabled,
-      joinCodeActive: payload?.joinCodeActive ?? prev.session.joinCodeActive,
-    },
-  };
-}
-
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
@@ -225,18 +126,7 @@ function LiveSessionContent() {
   const { courseId, sessionId } = useParams();
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
-  const { lastEvent, registerRefreshHandler, transport } = useLiveSessionWebSocket();
   const courseBackLink = `/student/course/${courseId}`;
-  const {
-    recordEventReceipt,
-    recordLiveFetch,
-    scheduleUiSyncMeasurement,
-  } = useLiveSessionTelemetry({ sessionId, role: 'student', transport });
-
-  // Core state
-  const [liveData, setLiveData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   // Join state
   const [joinCode, setJoinCode] = useState('');
@@ -263,51 +153,6 @@ function LiveSessionContent() {
   // Data fetching
   // --------------------------------------------------
 
-  const fetchLive = useCallback(async (syncContext = null) => {
-    const startedAtMs = Date.now();
-    try {
-      const { data } = await apiClient.get(`/sessions/${sessionId}/live`);
-      const fetchMeasurement = recordLiveFetch({
-        startedAtMs,
-        completedAtMs: Date.now(),
-        success: true,
-        transportOverride: syncContext?.transport,
-      });
-      setLiveData(data);
-      scheduleUiSyncMeasurement({
-        fetchStartedAtMs: fetchMeasurement?.startedAtMs || startedAtMs,
-        emittedAtMs: syncContext?.emittedAtMs,
-        receivedAtMs: syncContext?.receivedAtMs,
-        success: true,
-        transportOverride: syncContext?.transport,
-      });
-      setError(null);
-    } catch (err) {
-      recordLiveFetch({
-        startedAtMs,
-        completedAtMs: Date.now(),
-        success: false,
-        transportOverride: syncContext?.transport,
-      });
-      setError(err.response?.data?.message || t('student.liveSession.failedLoadLiveSession'));
-    } finally {
-      setLoading(false);
-    }
-  }, [recordLiveFetch, scheduleUiSyncMeasurement, sessionId, t]);
-
-  useEffect(() => { fetchLive(); }, [fetchLive]);
-
-  useEffect(() => registerRefreshHandler(fetchLive), [fetchLive, registerRefreshHandler]);
-
-  const fetchThrottleRef = useRef(null);
-  const scheduleFetchLive = useCallback((syncContext = null) => {
-    if (fetchThrottleRef.current) return;
-    fetchThrottleRef.current = setTimeout(() => {
-      fetchThrottleRef.current = null;
-      fetchLive(syncContext);
-    }, 2000);
-  }, [fetchLive]);
-
   const queueChatRefresh = useCallback((eventPayload = null) => {
     const addsUnreadPost = ['post-created', 'comment-added'].includes(eventPayload?.changeType)
       || (eventPayload?.changeType === 'quick-post-toggled' && eventPayload?.becameVisible);
@@ -332,6 +177,10 @@ function LiveSessionContent() {
     pendingChatRefreshRef.current = true;
   }, [activePanel]);
 
+  const { liveData, setLiveData, loading, error, fetchLive, transport } = useLiveSessionData({
+    sessionId, role: 'student', onChatEvent: queueChatRefresh,
+  });
+
   useEffect(() => {
     if (activePanel === 'chat') setChatUnseenCount(0);
   }, [activePanel]);
@@ -339,150 +188,6 @@ function LiveSessionContent() {
   const handlePanelChange = useCallback((nextPanel) => {
     if (nextPanel === 'chat') setChatUnseenCount(0);
     setActivePanel(nextPanel);
-  }, []);
-
-  useEffect(() => {
-    if (!lastEvent) return;
-
-    const syncContext = recordEventReceipt({
-      emittedAt: lastEvent?.data?.emittedAt,
-      receivedAtMs: lastEvent?.receivedAtMs,
-      success: true,
-    });
-    const { event, data } = lastEvent;
-    switch (event) {
-      // Students receive this only while joined and live stats are visible.
-      case 'session:response-added':
-        if (data?.responseStats || data?.response) {
-          setLiveData((prev) => applyLiveResponseAddedDelta(prev, data));
-          scheduleUiSyncMeasurement({
-            emittedAtMs: syncContext?.emittedAtMs,
-            receivedAtMs: syncContext?.receivedAtMs,
-            success: true,
-            transportOverride: syncContext?.transport,
-          });
-        } else {
-          scheduleFetchLive(syncContext);
-        }
-        break;
-      case 'session:question-changed':
-        if (Object.prototype.hasOwnProperty.call(data || {}, 'question')) {
-          setLiveData((prev) => applyQuestionChanged(prev, data));
-          // A complete question-change snapshot includes aggregate data when
-          // stats are visible. Recover immediately from an older/incomplete
-          // server event instead of waiting for a focus or click refresh.
-          if (data?.showStats && !data?.responseStats) {
-            fetchLive(syncContext);
-          }
-          scheduleUiSyncMeasurement({
-            emittedAtMs: syncContext?.emittedAtMs,
-            receivedAtMs: syncContext?.receivedAtMs,
-            success: true,
-            transportOverride: syncContext?.transport,
-          });
-        } else {
-          fetchLive(syncContext);
-        }
-        break;
-      case 'session:status-changed':
-      case 'session:metadata-changed':
-        fetchLive(syncContext);
-        break;
-      case 'session:visibility-changed':
-        if (Object.prototype.hasOwnProperty.call(data || {}, 'question')) {
-          setLiveData((prev) => applyVisibilityChanged(prev, data));
-          scheduleUiSyncMeasurement({
-            emittedAtMs: syncContext?.emittedAtMs,
-            receivedAtMs: syncContext?.receivedAtMs,
-            success: true,
-            transportOverride: syncContext?.transport,
-          });
-        } else {
-          fetchLive(syncContext);
-        }
-        break;
-      case 'session:question-updated':
-        setLiveData((prev) => applyCurrentQuestionUpdate(prev, data));
-        scheduleUiSyncMeasurement({
-          emittedAtMs: syncContext?.emittedAtMs,
-          receivedAtMs: syncContext?.receivedAtMs,
-          success: true,
-          transportOverride: syncContext?.transport,
-        });
-        break;
-      case 'session:attempt-changed':
-        setLiveData((prev) => applyAttemptChanged(prev, data));
-        scheduleUiSyncMeasurement({
-          emittedAtMs: syncContext?.emittedAtMs,
-          receivedAtMs: syncContext?.receivedAtMs,
-          success: true,
-          transportOverride: syncContext?.transport,
-        });
-        break;
-      case 'session:join-code-changed':
-        setLiveData((prev) => applyJoinCodeChanged(prev, data));
-        scheduleUiSyncMeasurement({
-          emittedAtMs: syncContext?.emittedAtMs,
-          receivedAtMs: syncContext?.receivedAtMs,
-          success: true,
-          transportOverride: syncContext?.transport,
-        });
-        break;
-      case 'session:participant-admitted':
-        fetchLive(syncContext);
-        break;
-      case 'session:chat-settings-changed':
-        setLiveData((prev) => prev ? {
-          ...prev,
-          session: {
-            ...prev.session,
-            chatEnabled: data?.chatEnabled ?? prev.session?.chatEnabled,
-            richTextChatEnabled: data?.richTextChatEnabled ?? prev.session?.richTextChatEnabled,
-          },
-        } : prev);
-        scheduleUiSyncMeasurement({
-          emittedAtMs: syncContext?.emittedAtMs,
-          receivedAtMs: syncContext?.receivedAtMs,
-          success: true,
-          transportOverride: syncContext?.transport,
-        });
-        break;
-      case 'session:chat-updated':
-        queueChatRefresh(data);
-        break;
-      case 'session:word-cloud-updated':
-        setLiveData((prev) => prev ? { ...prev, wordCloudData: data?.wordCloudData ?? null } : prev);
-        scheduleUiSyncMeasurement({
-          emittedAtMs: syncContext?.emittedAtMs,
-          receivedAtMs: syncContext?.receivedAtMs,
-          success: true,
-          transportOverride: syncContext?.transport,
-        });
-        break;
-      case 'session:histogram-updated':
-        setLiveData((prev) => prev ? { ...prev, histogramData: data?.histogramData ?? null } : prev);
-        scheduleUiSyncMeasurement({
-          emittedAtMs: syncContext?.emittedAtMs,
-          receivedAtMs: syncContext?.receivedAtMs,
-          success: true,
-          transportOverride: syncContext?.transport,
-        });
-        break;
-      default:
-        break;
-    }
-  }, [
-    fetchLive,
-    lastEvent,
-    queueChatRefresh,
-    recordEventReceipt,
-    scheduleFetchLive,
-    scheduleUiSyncMeasurement,
-  ]);
-
-  useEffect(() => () => {
-    if (fetchThrottleRef.current) clearTimeout(fetchThrottleRef.current);
-    fetchThrottleRef.current = null;
   }, []);
 
   // --------------------------------------------------
