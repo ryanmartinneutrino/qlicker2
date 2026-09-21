@@ -17,11 +17,16 @@ Session reviewable integration is in:
 
 ## Grading Lifecycle
 
+- Scheduled quizzes with stored `status: visible` automatically transition to `done` on session access after their last time window (including extensions); there is no timer-driven background grading job.
 - Grade rows are seeded when a session reaches `status: 'done'`, even if `reviewable` is still `false`.
-- Manual mark edits and recalculation are rejected until the session is ended.
-- Publishing `reviewable: true` through session updates, `/reviewable`, or `/end` recalculates automatic grades, including incomplete or stale existing rows, and synchronizes student visibility. Manual mark and overall-value overrides are preserved by the grading service. Ending without publication still seeds only missing grade rows.
+- Manual mark edits, overall-value edits, recalculation, and AI grading are rejected until the session is ended and no active/upcoming quiz extensions remain. The boundary is inclusive: grading unlocks only after an extension deadline.
+- Publishing `reviewable: true` through session updates, `/reviewable`, or `/end` recalculates automatic grades, including incomplete or stale existing rows, and synchronizes student visibility. Manual mark and overall-value overrides are preserved by the grading service. Ending without publication also refreshes existing automatic marks. This repairs the early-end → resume schedule → automatic-close path, which previously retained stale no-response marks.
 - An ended quiz can still accept responses from individually authorized extension students. Its instructor status stays `done`; the student's effective status and displayed dates reflect their own access window. Publishing reviewability after extensions finish includes responses received after the initial grade seeding.
 - Active or upcoming extensions block review publication. Granting a remaining extension clears `reviewable` and hides previously published grades; restarting a session also clears reviewability. Removing/expiring extensions does not automatically publish grades.
+
+- Reading session grades does not create missing rows. The instructor payload includes `gradingLockReason` (`not-ended`, `extensions`, `missing-grades`, or `null`). The grading panel offers **Create grade items**, using `POST /sessions/:id/grades/recalculate` with `missingOnly: true`, once closure permits grading.
+- Manual-grading flags are normalized on reads against current latest responses and question types, including existing production rows. An automatic zero for a nonblank, positive-point short answer remains pending; `automatic: false` records a confirmed score, including zero. No schema migration is needed. Use **Re-calculate all grades** on an already affected ended quiz to persist repaired automatic marks and totals; manual scores are preserved.
+- Blank detection includes whitespace, empty rich-text markup, and non-breaking spaces; rich-text-only and image answers count as content. AI grading uses saved response content, regardless of join/submission membership, and rechecks session readiness before saving each result.
 
 ## Latest Attempt and Legacy Data
 

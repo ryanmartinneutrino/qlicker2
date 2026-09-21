@@ -15,6 +15,7 @@ import {
   calculateResponsePoints,
   ensureSessionMsScoringMethod,
   getSessionMsScoringMethod,
+  getSessionGradingLockReason,
   getSessionUngradedSummary,
   hasNonEmptyFeedback,
   isQuestionAutoGradeable,
@@ -65,10 +66,13 @@ function getGradeIdentityFilter(grade) {
 }
 
 function ensureSessionEndedForGrading(session, reply) {
-  if (session?.status === 'done') return true;
+  const reason = getSessionGradingLockReason(session);
+  if (!reason) return true;
   reply.code(409).send({
     error: 'Conflict',
-    message: 'Session must be in Ended state before grades can be edited or recalculated',
+    message: reason === 'extensions'
+      ? 'Grading is locked until all quiz extensions have expired or been removed'
+      : 'Session must be in Ended state before grades can be edited or recalculated',
   });
   return false;
 }
@@ -304,6 +308,9 @@ export default async function gradeRoutes(app) {
     '/sessions/:id/grades',
     {
       preHandler: authenticate,
+      schema: {
+        description: 'Read grades without creating missing rows. Instructor responses include gradingLockReason: not-ended, extensions, missing-grades, or null.',
+      },
       config: {
         rateLimit: { max: 120, timeWindow: '1 minute' },
       },
@@ -333,16 +340,6 @@ export default async function gradeRoutes(app) {
         }
       }
 
-      if (instructorView && session.status === 'done') {
-        await recalculateSessionGrades({
-          sessionId: session._id,
-          sessionDoc: session,
-          courseDoc: course,
-          missingOnly: true,
-          visibleToStudents: session.reviewable,
-        });
-      }
-
       const gradeQuery = instructorView
         ? { sessionId: String(session._id), courseId: String(course._id) }
         : studentVisibleGradeQuery(course._id, session._id, request.user);
@@ -354,6 +351,7 @@ export default async function gradeRoutes(app) {
         sessionId: String(session._id),
         courseId: String(course._id),
         instructorView,
+        ...(instructorView ? { gradingLockReason: getSessionGradingLockReason(session) || (grades.length ? null : 'missing-grades') } : {}),
         grades,
       };
     }
@@ -478,7 +476,7 @@ export default async function gradeRoutes(app) {
 
       return {
         updatedCount: updatedGrades.length,
-        grades: updatedGrades,
+        grades: await normalizeGradesManualGradingState(updatedGrades),
       };
     }
   );
@@ -528,7 +526,7 @@ export default async function gradeRoutes(app) {
       if (result.feedbackStateChanged) {
         notifyFeedbackUpdatedForUser(app, grade.userId, course, grade.sessionId);
       }
-      return { grade: updated };
+      return { grade: (await normalizeGradesManualGradingState([updated]))[0] };
     }
   );
 
@@ -631,7 +629,7 @@ export default async function gradeRoutes(app) {
       );
 
       const updated = await Grade.findOne(getGradeIdentityFilter(grade)).lean();
-      return { grade: updated };
+      return { grade: (await normalizeGradesManualGradingState([updated]))[0] };
     }
   );
 
@@ -676,7 +674,7 @@ export default async function gradeRoutes(app) {
       );
 
       const updated = await Grade.findOne(getGradeIdentityFilter(grade)).lean();
-      return { grade: updated };
+      return { grade: (await normalizeGradesManualGradingState([updated]))[0] };
     }
   );
 
@@ -723,7 +721,7 @@ export default async function gradeRoutes(app) {
       );
 
       const updated = await Grade.findOne(getGradeIdentityFilter(grade)).lean();
-      return { grade: updated };
+      return { grade: (await normalizeGradesManualGradingState([updated]))[0] };
     }
   );
 
@@ -756,7 +754,7 @@ export default async function gradeRoutes(app) {
       }
 
       const sessions = await Session.find(sessionQuery)
-        .select('_id name status date quizStart createdAt reviewable quiz practiceQuiz questions joined submittedQuiz')
+        .select('_id name status date quizStart quizEnd quizExtensions createdAt reviewable quiz practiceQuiz questions joined submittedQuiz')
         .lean();
 
       sessions.sort((a, b) => {
@@ -824,7 +822,8 @@ export default async function gradeRoutes(app) {
       );
 
       const gradeByStudentAndSession = new Map();
-      grades.forEach((grade) => {
+      const normalizedGrades = await normalizeGradesManualGradingState(grades);
+      normalizedGrades.forEach((grade) => {
         const key = `${String(grade.userId)}::${String(grade.sessionId)}`;
         gradeByStudentAndSession.set(key, grade);
       });
@@ -850,6 +849,7 @@ export default async function gradeRoutes(app) {
           if (grade) {
             return {
               ...grade,
+              ...(instructorView ? { gradingLockReason: getSessionGradingLockReason(session) } : {}),
               name: grade.name || session.name,
               submitted,
             };
@@ -914,6 +914,7 @@ export default async function gradeRoutes(app) {
           _id: sessionId,
           name: session.name,
           status: session.status,
+          ...(instructorView ? { gradingLockReason: getSessionGradingLockReason(session) } : {}),
           reviewable: !!session.reviewable,
           quiz: !!session.quiz,
           practiceQuiz: !!session.practiceQuiz,

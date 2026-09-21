@@ -1809,6 +1809,9 @@
       "failedRecalculate": "No se pudieron recalcular las calificaciones.",
       "failedLoadGrades": "No se pudieron cargar las calificaciones de esta sesión.",
       "gradingLockedUntilEnded": "Esta interfaz de calificación está bloqueada mientras la sesión está en vivo. Finalice la sesión antes de calificar; los elementos de calificación se crean cuando la sesión llega a Finalizada.",
+      "gradingLockedExtensions": "La calificación está bloqueada mientras haya prórrogas activas o futuras. Espere a que venzan o elimínelas.",
+      "gradingLockedMissingGrades": "La calificación está bloqueada porque faltan registros de notas. Créelos para empezar.",
+      "createGradeItems": "Crear registros de notas",
       "noAnswer": "(sin respuesta)",
       "noCorrectOption": "No hay ninguna opción correcta configurada.",
       "manualGradingRequired": "Se requiere calificación manual.",
@@ -2264,7 +2267,7 @@
           "bullets": [
             "La revisión de la sesión le permite examinar resultados, datos de respuesta, estado de calificación y resúmenes de estudiantes. Las sesiones interactivas en vivo se pueden revisar mientras todavía están en curso, pero la calificación permanece bloqueada hasta que la sesión finaliza.",
             "Las calificaciones muestran la participación, las notas automáticas y las necesidades de calificación manual. Recalcule las calificaciones cuando cambien las reglas de puntuación o cuando desee que se reconstruyan los resultados automáticos.",
-            "La pestaña de calificaciones permanece bloqueada hasta que termina la sesión. Al finalizar se crean las calificaciones; al habilitar la revisión se recalculan las notas automáticas, se conservan las notas manuales y se publican los resultados para los estudiantes.",
+            "Para calificar, la sesión debe estar finalizada, las prórrogas vencidas o eliminadas y los registros de notas creados. Finalizar crea estos registros; los cuestionarios programados se cierran al acceder después del último plazo. Use Crear registros de notas si faltan. Las respuestas cortas no vacías necesitan calificación hasta guardar una nota, incluso cero. Solo las respuestas ausentes o vacías reciben cero automáticamente. La publicación recalcula las notas automáticas y conserva las manuales.",
             "La pestaña de resultados ahora muestra la calificación real de la sesión de cada estudiante antes de la participación, y hacer clic en el avatar de un estudiante en la pestaña Estudiantes abre la foto de perfil más grande.",
             "Los diálogos de detalle de calificación ahora etiquetan las filas de preguntas con el número y el tipo, como P1(OM) o P2(RC), y resaltan visualmente las filas que aún requieren calificación mientras ignoran los indicadores obsoletos de calificación en cero puntos.",
             "Los estudiantes reciben una notificación cuando usted publica nueva retroalimentación, así que use comentarios breves y accionables que les digan qué repasar.",

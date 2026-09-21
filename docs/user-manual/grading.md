@@ -12,9 +12,11 @@ Students respond → instructor ends session → grade rows are created/recalcul
 These states are intentionally separate:
 
 - **Running/visible** controls participation.
-- **Ended** unlocks instructor grading and creates grade items.
+- **Ended** creates or refreshes grade items. Grading unlocks once all active or upcoming extensions have expired or been removed and grade items exist.
 - **Reviewable** recalculates automatic grades and releases the session/results to students. Manual overrides are preserved. Review any warnings about responses that still require manual grading.
 - Grade visibility can be managed while corrections or manual work are underway.
+
+Scheduled quizzes close automatically when accessed after the final time window, including any extensions. If a quiz was ended early and then returned to its schedule, the final closure refreshes automatic marks for later responses while preserving confirmed manual grades.
 
 An instructor can review live response data while an interactive session is running, but cannot edit/recalculate grades until it ends.
 
@@ -22,7 +24,7 @@ An instructor can review live response data while an interactive session is runn
 
 1. End the activity.
 2. Open session **Review → Grading**, or open course **Grades**.
-3. Recalculate when grades have not been created or scoring/content changed.
+3. If the grading panel reports missing grade items, choose **Create grade items**. Use **Re-calculate all grades** when scoring/content changed or an earlier closure left stale automatic grades.
 4. Resolve warnings and manually grade short-answer responses.
 5. Add actionable feedback.
 6. Confirm question points, total points, percentages, and participation.
@@ -64,7 +66,9 @@ For a single-attempt question, if unique responders are fewer than 10% of the st
 
 ### Blank short answers
 
-A submitted blank short answer counts as participation but is automatically worth zero and does not remain in the manual-grading queue.
+A submitted blank short answer counts as participation but is automatically worth zero and does not remain in the manual-grading queue. Missing responses also receive zero. Whitespace and empty rich-text paragraphs count as blank; an answer stored only as rich text still counts as a response.
+
+A nonblank short answer worth points remains **Needs grading** until its score is saved. To award zero, leave or enter `0` and choose **Save** to confirm it. A displayed automatic zero is not a completed manual grade. Saved responses are graded even if the student did not press the final quiz submission button.
 
 ## Manual marks and feedback
 

@@ -1818,3 +1818,88 @@ describe('Grading routes', () => {
     expect(zeroedQuestion.sessionOptions.points).toBe(3);
   });
 });
+
+describe('Quiz grading readiness and saved-answer coverage', () => {
+  it('refreshes all answers when a prematurely ended quiz returns to its schedule and closes automatically', async () => {
+    const { prof, profToken, course, students } = await setupCourseWithStudents({ studentCount: 110, prefix: 'scheduled-count' });
+    const session = await createSessionInCourse(profToken, course._id, { quiz: true });
+    const question = await createSaQuestion({ creatorId: prof._id, sessionId: session._id, courseId: course._id, points: 5 });
+    await Session.updateOne({ _id: session._id }, { $set: {
+      status: 'visible', quizStart: new Date(Date.now() - 7200000), quizEnd: new Date(Date.now() - 3600000),
+      questions: [question._id], submittedQuiz: students.slice(0, 30).map((student) => student._id),
+    } });
+    await Response.insertMany(students.slice(0, 30).map((student) => ({
+      questionId: question._id, studentUserId: student._id, attempt: 1, answer: 'Early answer',
+    })));
+    const ended = await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/end`, { token: profToken, payload: {} });
+    expect(ended.statusCode).toBe(200);
+    expect(await Grade.countDocuments({ sessionId: session._id, needsGrading: true })).toBe(30);
+    const reopened = await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${session._id}`, {
+      token: profToken, payload: { status: 'visible', quizEnd: new Date(Date.now() + 3600000).toISOString() },
+    });
+    expect(reopened.statusCode).toBe(200);
+    await Response.insertMany(students.slice(30).map((student, index) => ({
+      questionId: question._id, studentUserId: student._id, attempt: 1,
+      answer: index === 79 ? '   ' : 'Later answer',
+    })));
+    await Session.updateOne({ _id: session._id }, { $set: { quizEnd: new Date(Date.now() - 1000) } });
+    const results = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/results`, { token: profToken });
+    expect(results.statusCode).toBe(200);
+    expect(results.json().session.status).toBe('done');
+    const res = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/grades`, { token: profToken });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().grades.filter((grade) => grade.needsGrading)).toHaveLength(109);
+    // Existing installations can already have stale false flags after this sequence.
+    await Grade.updateMany({ sessionId: session._id }, { $set: { needsGrading: false, 'marks.$[].needsGrading': false } });
+    const repairedRead = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/grades`, { token: profToken });
+    expect(repairedRead.json().grades.filter((entry) => entry.needsGrading)).toHaveLength(109);
+
+    const grade = res.json().grades.find((entry) => entry.userId === students[0]._id);
+    const save = await authenticatedRequest(app, 'PATCH', `/api/v1/grades/${grade._id}/marks/${question._id}`, {
+      token: profToken, payload: { points: 0 },
+    });
+    expect(save.statusCode).toBe(200);
+    const refreshed = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/grades`, { token: profToken });
+    expect(refreshed.json().grades.filter((entry) => entry.needsGrading)).toHaveLength(108);
+    expect(refreshed.json().grades.find((entry) => entry._id === grade._id).marks[0]).toMatchObject({ points: 0, automatic: false, needsGrading: false });
+  });
+
+  it('leaves missing grade items absent on read and permits explicit creation only by instructors', async () => {
+    const { prof, profToken, course, students, studentTokens } = await setupCourseWithStudents({ studentCount: 1, prefix: 'missing-items' });
+    const session = await createSessionInCourse(profToken, course._id);
+    const question = await createSaQuestion({ creatorId: prof._id, sessionId: session._id, courseId: course._id, points: 5 });
+    await Session.updateOne({ _id: session._id }, { $set: { status: 'done', questions: [question._id] } });
+    const read = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/grades`, { token: profToken });
+    expect(read.json()).toMatchObject({ grades: [], gradingLockReason: 'missing-grades' });
+    expect(await Grade.countDocuments({ sessionId: session._id })).toBe(0);
+    const denied = await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/grades/recalculate`, { token: studentTokens[0], payload: { missingOnly: true } });
+    expect(denied.statusCode).toBe(403);
+    const created = await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/grades/recalculate`, { token: profToken, payload: { missingOnly: true } });
+    expect(created.statusCode).toBe(200);
+    expect(await Grade.findOne({ sessionId: session._id, userId: students[0]._id }).lean()).toBeTruthy();
+  });
+
+  it.each(['active', 'upcoming'])('locks all grading writes during an %s extension on an ended quiz', async (window) => {
+    const { profToken, course, students } = await setupCourseWithStudents({ studentCount: 1, prefix: `extension-${window}` });
+    const session = await createSessionInCourse(profToken, course._id, { quiz: true });
+    await Session.updateOne({ _id: session._id }, { $set: { status: 'done', quizExtensions: [{
+      userId: students[0]._id, quizStart: new Date(Date.now() + (window === 'active' ? -3600000 : 3600000)), quizEnd: new Date(Date.now() + 7200000),
+    }] } });
+    const grade = await Grade.create({ userId: students[0]._id, courseId: course._id, sessionId: session._id, marks: [{ questionId: 'q', outOf: 5 }] });
+    const requests = [
+      ['POST', `/sessions/${session._id}/grades/recalculate`, { missingOnly: true }],
+      ['PATCH', `/grades/${grade._id}/marks/q`, { points: 0 }],
+      ['PATCH', `/sessions/${session._id}/grades/marks/q`, { gradeIds: [grade._id], points: 0 }],
+      ['POST', `/grades/${grade._id}/marks/q/set-automatic`, {}],
+      ['PATCH', `/grades/${grade._id}/value`, { value: 0 }],
+      ['POST', `/grades/${grade._id}/value/set-automatic`, {}],
+      ['POST', `/ai/courses/${course._id}/sessions/${session._id}/ai-grading`, {}],
+    ];
+    for (const [method, path, payload] of requests) {
+      const res = await authenticatedRequest(app, method, `/api/v1${path}`, { token: profToken, payload });
+      expect(res.statusCode, path).toBe(409);
+    }
+    const read = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/grades`, { token: profToken });
+    expect(read.json().gradingLockReason).toBe('extensions');
+  });
+});

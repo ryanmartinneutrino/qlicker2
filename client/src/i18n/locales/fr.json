@@ -1809,6 +1809,9 @@
       "failedRecalculate": "Échec du recalcul des notes.",
       "failedLoadGrades": "Échec du chargement des notes pour cette session.",
       "gradingLockedUntilEnded": "Cette interface d'évaluation est verrouillée pendant que la séance est en direct. Terminez la séance avant de corriger; les éléments de note sont créés lorsque la séance passe à l'état Terminée.",
+      "gradingLockedExtensions": "La correction est verrouillée tant que des prolongations sont actives ou à venir. Attendez leur expiration ou supprimez-les.",
+      "gradingLockedMissingGrades": "La correction est verrouillée car les éléments de note sont manquants. Créez-les pour commencer.",
+      "createGradeItems": "Créer les éléments de note",
       "noAnswer": "(pas de réponse)",
       "noCorrectOption": "Aucune option correcte configurée.",
       "manualGradingRequired": "Notation manuelle requise.",
@@ -2264,7 +2267,7 @@
           "bullets": [
             "La révision de séance vous permet d'inspecter les résultats, les données de réponse, l'état de correction et les résumés étudiants. Les séances interactives en direct peuvent être révisées pendant qu'elles roulent, mais la correction reste verrouillée jusqu'à la fin.",
             "Les notes affichent la participation, les points automatiques et les besoins de correction manuelle. Recalculez les notes lorsque les règles changent ou lorsque vous voulez reconstruire les résultats automatiques.",
-            "L’onglet de notation reste verrouillé jusqu’à la fin de la séance. Terminer la séance crée les notes ; la rendre consultable recalcule les notes automatiques, conserve les notes manuelles et publie les résultats pour les étudiants.",
+            "La correction nécessite une séance terminée, des prolongations expirées ou supprimées et des éléments de note. Terminer crée ces éléments ; les quiz programmés se ferment lors d’un accès après le dernier créneau. Utilisez Créer les éléments de note s’ils manquent. Les réponses courtes non vides restent à corriger jusqu’à l’enregistrement d’une note, même zéro. Seules les réponses absentes ou vides reçoivent automatiquement zéro. La publication recalcule les notes automatiques et conserve les notes manuelles.",
             "L'onglet Résultats affiche maintenant la note réelle de chaque étudiant avant la participation, et cliquer sur l'avatar d'un étudiant dans l'onglet Étudiants ouvre la photo en grand.",
             "Les dialogues de détail des notes identifient maintenant chaque ligne par numéro et type, par exemple Q1(MC) ou Q2(SA), et mettent en évidence les lignes qui demandent encore une correction tout en ignorant les anciens indicateurs de correction sur les questions à zéro point.",
             "Les étudiants reçoivent une notification lorsque vous publiez une nouvelle rétroaction; privilégiez donc des commentaires courts et directement actionnables.",

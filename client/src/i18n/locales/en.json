@@ -1809,6 +1809,9 @@
       "failedRecalculate": "Failed to re-calculate grades.",
       "failedLoadGrades": "Failed to load grades for this session.",
       "gradingLockedUntilEnded": "This grading interface is locked while the session is live. End the session before grading; grade items are created when the session reaches Ended.",
+      "gradingLockedExtensions": "Grading is locked while quiz extensions are active or upcoming. Wait until they expire or remove them before grading.",
+      "gradingLockedMissingGrades": "Grading is locked because grade items are missing. Create them to begin grading.",
+      "createGradeItems": "Create grade items",
       "noAnswer": "(no answer)",
       "noCorrectOption": "No correct option configured.",
       "manualGradingRequired": "Manual grading required.",
@@ -2311,7 +2314,7 @@
           "bullets": [
             "Session review lets you inspect results, response data, grading state, and student summaries. Live interactive sessions can be reviewed while they are still running, but grading stays locked until the session ends.",
             "Grades show participation, automatic marks, and manual-grading needs. Recalculate grades when scoring rules change or when you want automatic results rebuilt.",
-            "The grading tab stays locked until the session is Ended. Ending creates grade items; making the session reviewable recalculates automatic grades, preserves manual overrides, and releases results to students.",
+            "Grading requires an Ended session, expired or removed extensions, and grade items. Ending creates grade items; scheduled quizzes close after the last time window when accessed. Use Create grade items if they are missing. Nonblank short answers need grading until a score is saved, including zero. Only missing or blank answers receive zero automatically. Publishing recalculates automatic grades and preserves manual overrides.",
             "The results tab now shows each student's actual session grade before participation, and clicking a student's avatar in the Students tab opens the larger profile photo.",
             "Grade detail dialogs now label question rows with both number and type, such as Q1(MC) or Q2(SA), and visually highlight rows that still need grading while ignoring stale zero-point grading flags.",
             "Students receive a notification when you publish new feedback, so use short, actionable comments that tell them what to revisit.",

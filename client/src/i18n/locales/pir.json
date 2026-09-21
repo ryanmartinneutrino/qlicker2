@@ -1801,6 +1801,9 @@
       "failedRecalculate": "Couldn't reckon anew ledgers, arr.",
       "failedLoadGrades": "Couldn't load ledgers fer this voyage, arr.",
       "gradingLockedUntilEnded": "This reckonin' interface be locked while th' voyage be underway. End th' voyage afore reckonin'; ledger items be created when th' voyage reaches Docked.",
+      "gradingLockedExtensions": "Arrr, grading be locked while quiz extensions be active or yet to come. Wait for them to expire or remove them.",
+      "gradingLockedMissingGrades": "Arrr, grading be locked because grade items be missing. Create them to begin.",
+      "createGradeItems": "Create grade items, arrr",
       "noAnswer": "(nay answer)",
       "noCorrectOption": "Nary any right choice configured.",
       "manualGradingRequired": "Manual reckonin' required.",
@@ -2256,7 +2259,7 @@
           "bullets": [
             "Voyage recap lets ye inspect results, reply data, gradin' state, an' crew member summaries. Underway interactive voyages can be reviewed while they're still runnin', but gradin' stays locked until th' voyage ends.",
             "Ledgers reveal turnout, automatic notches, an' manual-gradin' needs. Reckon anew ledgers when scorin' rules change or when ye want automatic results rebuilt.",
-            "Arrr, the grading tab stays locked till the session be Ended. Ending creates grade entries; opening review recalculates automatic marks, keeps yer manual overrides, and shares results with the crew.",
+            "Grading needs an Ended session, expired or removed extensions, and grade items, arrr. Ending creates grade items; scheduled quizzes close when visited after the last time window. Use Create grade items if they be missing. Nonblank short answers need grading until a score be saved, even zero. Only missing or blank answers get zero automatically. Publishing recalculates automatic grades and keeps manual marks.",
             "Th' results tab now shows each crew member's actual voyage ledger afore turnout, an' clickin' a crew member's avatar in th' Crew tab opens th' larger dossier photo.",
             "Ledger detail dialogs now label riddle rows with both number an' type, such as Q1(MC) or Q2(SA), an' spotlight rows that still need gradin' while ignorin' adrift zero-doubloon gradin' flags.",
             "Crew get a bulletin when ye proclaim new holler, so use short, actionable remarks that tell 'em what to revisit.",

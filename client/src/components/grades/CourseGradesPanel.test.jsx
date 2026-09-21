@@ -144,6 +144,23 @@ describe('CourseGradesPanel', () => {
     expect(screen.getByRole('button', { name: /87.5%/i })).toBeInTheDocument();
   });
 
+  it('locks grade and question editors when an ended quiz has remaining extensions', async () => {
+    const payload = buildGradesPayload();
+    payload.sessions[0].gradingLockReason = 'extensions';
+    payload.rows[0].grades[0].gradingLockReason = 'extensions';
+    apiClient.get.mockImplementation(async (url) => ({ data: url.includes('/results')
+      ? { questions: [{ _id: 'q-sa', type: 2, content: 'Explain', sessionOptions: { points: 1 } }], studentResults: [] }
+      : payload }));
+    render(<CourseGradesPanel courseId="course-1" instructorView availableSessions={payload.sessions} />);
+    await openInstructorGradeTable();
+    fireEvent.click(screen.getByRole('button', { name: /87.5%/i }));
+    expect(await screen.findByRole('button', { name: i18n.t('grades.coursePanel.saveGradeValue') })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Q2(SA)' }));
+    expect(await screen.findByRole('button', { name: 'Save Mark' })).toBeDisabled();
+    expect(screen.getByLabelText('Manual points')).toBeDisabled();
+    expect(apiClient.patch).not.toHaveBeenCalled();
+  });
+
   it('labels non-auto-gradeable mark rows as manual only in the grade detail modal', async () => {
     render(
       <CourseGradesPanel

@@ -400,19 +400,27 @@ function getAttemptWeight(question, attemptNumber) {
   return 1;
 }
 
-function responseHasContent(response) {
-  if (!response) return false;
-  if (response.answer === undefined || response.answer === null) return false;
+export function responseHasContent(response) {
+  const hasContent = (value) => {
+    if (value === undefined || value === null) return false;
+    if (Array.isArray(value)) return value.some(hasContent);
+    if (typeof value !== 'string') return true;
+    // Rich-text editors can save empty paragraphs and non-breaking spaces.
+    if (/<(?:img|video|audio|math)\b/i.test(value)) return true;
+    return value.replace(/<[^>]*>/g, '')
+      .replace(/&(?:nbsp|#160|#x0*a0);/gi, ' ')
+      .replace(/[\u200B-\u200D\uFEFF]/g, '').trim().length > 0;
+  };
+  return hasContent(response?.answer) || hasContent(response?.answerWysiwyg);
+}
 
-  if (typeof response.answer === 'string') {
-    return response.answer.trim().length > 0;
-  }
-
-  if (Array.isArray(response.answer)) {
-    return response.answer.length > 0;
-  }
-
-  return true;
+export function getSessionGradingLockReason(session, now = Date.now()) {
+  if (session?.status !== 'done') return 'not-ended';
+  if ((session.quiz || session.practiceQuiz) && (session.quizExtensions || []).some((extension) => {
+    const end = getTimestampMs(extension.quizEnd || session.quizEnd);
+    return Number.isFinite(end) && now <= end;
+  })) return 'extensions';
+  return null;
 }
 
 function responseCountsForParticipation(question, response) {
@@ -655,66 +663,35 @@ function summarizeMarksNeedingGrading(grades = []) {
   return summary;
 }
 
-async function loadResponseContentMapForGrades(grades = []) {
-  const responseIds = new Set();
-  grades.forEach((grade) => {
-    (grade?.marks || []).forEach((mark) => {
-      if (!mark?.needsGrading) return;
-      const responseId = normalizeAnswerValue(mark?.responseId);
-      if (responseId) responseIds.add(responseId);
-    });
-  });
-
-  if (responseIds.size === 0) return new Map();
-
-  const responses = await Response.find({ _id: { $in: [...responseIds] } })
-    .select('_id answer')
-    .lean();
-
-  return new Map(responses.map((response) => [String(response._id), response]));
-}
-
-function shouldCountMarkAsNeedingGrading(mark, responseById = new Map()) {
-  if (!mark?.needsGrading) return false;
-  if (toFiniteNumber(mark?.outOf, 0) <= 0) return false;
-
-  const responseId = normalizeAnswerValue(mark?.responseId);
-  if (!responseId) return true;
-
-  const response = responseById.get(responseId);
-  if (!response) return true;
-
-  return responseHasContent(response);
-}
-
 export async function normalizeGradesManualGradingState(grades = []) {
   if (!Array.isArray(grades) || grades.length === 0) return [];
-
-  const responseById = await loadResponseContentMapForGrades(grades);
+  const questionIds = [...new Set(grades.flatMap((grade) => (grade.marks || []).map((mark) => mark.questionId)))];
+  const userIds = [...new Set(grades.map((grade) => grade.userId).filter(Boolean))];
+  const [questions, responses] = await Promise.all([
+    Question.find({ _id: { $in: questionIds } }).select('_id type options').lean(),
+    Response.find({ questionId: { $in: questionIds }, $or: [
+      { studentUserId: { $in: userIds } }, { userId: { $in: userIds } }, { studentId: { $in: userIds } },
+    ] }).select('_id questionId studentUserId userId studentId answer answerWysiwyg attempt updatedAt createdAt').lean(),
+  ]);
+  const questionById = new Map(questions.map((question) => [String(question._id), question]));
+  const latestByStudentQuestion = new Map();
+  responses.forEach((response) => {
+    const key = `${getResponseStudentId(response)}::${response.questionId}`;
+    latestByStudentQuestion.set(key, getLatestResponse([latestByStudentQuestion.get(key), response].filter(Boolean)));
+  });
   return grades.map((grade) => {
-    let changed = false;
-    const marks = (grade?.marks || []).map((mark) => {
-      if (shouldCountMarkAsNeedingGrading(mark, responseById)) {
-        return mark;
-      }
-      if (!mark?.needsGrading) {
-        return mark;
-      }
-      changed = true;
-      return {
-        ...mark,
-        needsGrading: false,
-      };
+    const marks = (grade.marks || []).map((mark) => {
+      const question = questionById.get(String(mark.questionId));
+      const response = latestByStudentQuestion.get(`${grade.userId}::${mark.questionId}`);
+      const needsManual = question
+        ? !isQuestionAutoGradeable(getQuestionType(question))
+        : !!mark.needsGrading;
+      // A placeholder score (including zero) is not a manual grading decision.
+      const needsGrading = toFiniteNumber(mark.outOf, 0) > 0 && responseHasContent(response)
+        && (mark.automatic === false ? !!mark.needsGrading : needsManual || !!mark.needsGrading);
+      return { ...mark, needsGrading };
     });
-
-    if (!changed) return grade;
-
-    const nextGrade = {
-      ...grade,
-      marks,
-    };
-    recomputeGradeAggregates(nextGrade);
-    return nextGrade;
+    return { ...grade, marks, needsGrading: marks.some((mark) => mark.needsGrading) };
   });
 }
 
@@ -1185,7 +1162,7 @@ export async function getSessionUngradedSummary(sessionIds = []) {
   if (!Array.isArray(sessionIds) || sessionIds.length === 0) return {};
 
   const grades = await Grade.find({ sessionId: { $in: sessionIds.map((id) => String(id)) } })
-    .select('sessionId marks needsGrading joined')
+    .select('sessionId userId marks needsGrading joined')
     .lean();
   const normalizedGrades = await normalizeGradesManualGradingState(grades);
 

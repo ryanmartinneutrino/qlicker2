@@ -1809,6 +1809,9 @@
       "failedRecalculate": "Impossibile ricalcolare i voti.",
       "failedLoadGrades": "Impossibile caricare i voti per questa sessione.",
       "gradingLockedUntilEnded": "Questa interfaccia di valutazione è bloccata mentre la sessione è in diretta. Termina la sessione prima di valutare; gli elementi di voto vengono creati quando la sessione raggiunge lo stato Terminata.",
+      "gradingLockedExtensions": "La valutazione è bloccata finché sono presenti proroghe attive o future. Attendi la scadenza o rimuovile.",
+      "gradingLockedMissingGrades": "La valutazione è bloccata perché mancano le voci di voto. Creale per iniziare.",
+      "createGradeItems": "Crea voci di voto",
       "noAnswer": "(nessuna risposta)",
       "noCorrectOption": "Nessuna opzione corretta configurata.",
       "manualGradingRequired": "È richiesta la valutazione manuale.",
@@ -2264,7 +2267,7 @@
           "bullets": [
             "La revisione della sessione ti permette di esaminare risultati, dati di risposta, stato di valutazione e riepiloghi per studente. Le sessioni interattive in diretta possono essere riviste mentre sono ancora in corso, ma la valutazione resta bloccata finché la sessione non termina.",
             "I voti mostrano la partecipazione, i punti automatici e le necessità di valutazione manuale. Ricalcola i voti quando cambiano le regole di punteggio o quando vuoi ricostruire i risultati automatici.",
-            "La scheda di valutazione resta bloccata fino al termine della sessione. Terminare la sessione crea le valutazioni; renderla consultabile ricalcola i voti automatici, conserva quelli manuali e pubblica i risultati per gli studenti.",
+            "La valutazione richiede una sessione terminata, proroghe scadute o rimosse e voci di voto. Terminare crea queste voci; i quiz programmati si chiudono al primo accesso dopo l’ultima finestra temporale. Usa Crea voci di voto se mancano. Le risposte brevi non vuote richiedono valutazione finché non viene salvato un voto, anche zero. Solo le risposte assenti o vuote ricevono automaticamente zero. La pubblicazione ricalcola i voti automatici e conserva quelli manuali.",
             "La scheda dei risultati mostra ora il voto reale di ciascuno studente prima della partecipazione, e cliccare sull'avatar di uno studente nella scheda Studenti apre la foto del profilo ingrandita.",
             "Le finestre di dettaglio dei voti ora etichettano le righe delle domande con numero e tipo, ad esempio D1(SM) o D2(RB), ed evidenziano visivamente le righe ancora da valutare ignorando i vecchi indicatori di valutazione su domande a zero punti.",
             "Gli studenti ricevono una notifica quando pubblichi un nuovo feedback, quindi usa commenti brevi e concreti che dicano loro cosa rivedere.",
