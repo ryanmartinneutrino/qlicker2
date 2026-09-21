@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
   calculateResponsePoints,
+  responseHasContent,
+  getSessionGradingLockReason,
   DEFAULT_MS_SCORING_METHOD,
   ensureSessionMsScoringMethod,
   MS_SCORING_METHODS,
@@ -233,5 +235,21 @@ describe('grading service helpers', () => {
 
     updateSpy.mockRestore();
     findByIdSpy.mockRestore();
+  });
+});
+
+
+describe('Grading content and readiness', () => {
+  it.each([undefined, {}, { answer: '' }, { answer: '  ' }, { answer: '<p><br></p>', answerWysiwyg: '<p>&nbsp;</p>' }, { answer: [] }])('recognizes blank responses: %j', (response) => {
+    expect(responseHasContent(response)).toBe(false);
+  });
+  it.each([{ answer: 0 }, { answer: '0' }, { answer: '', answerWysiwyg: '<p>Answer</p>' }, { answer: '', answerWysiwyg: '<img src="/image" />' }])('keeps real response content: %j', (response) => {
+    expect(responseHasContent(response)).toBe(true);
+  });
+  it('unlocks grading when extensions expire, including the exact closing boundary', () => {
+    const session = { status: 'done', quiz: true, quizExtensions: [{ quizEnd: new Date(1000) }] };
+    expect(getSessionGradingLockReason(session, 1000)).toBe('extensions');
+    expect(getSessionGradingLockReason(session, 1001)).toBe(null);
+    expect(getSessionGradingLockReason({ ...session, status: 'running' }, 1001)).toBe('not-ended');
   });
 });

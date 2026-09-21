@@ -507,6 +507,7 @@ function MarkQuestionDetailPanel({
               }}>{t('grades.coursePanel.feedback')}</Typography>
               <StudentRichTextEditor
                 value={feedbackHtml}
+                disabled={saving}
                 onChange={({ html }) => onFeedbackChange?.(html)}
                 placeholder={t('grades.coursePanel.addFeedback')}
               />
@@ -619,6 +620,7 @@ function GradeDetailDialog({
   }, [persistGrade, workingGrade]);
 
   if (!workingGrade) return null;
+  const gradingLocked = !!grade?.gradingLockReason;
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
@@ -643,6 +645,7 @@ function GradeDetailDialog({
         </Box>
       </DialogTitle>
       <DialogContent dividers>
+        {gradingLocked && <Alert severity="info" sx={{ mb: 2 }}>{t(`grades.questionPanel.${grade.gradingLockReason === 'extensions' ? 'gradingLockedExtensions' : 'gradingLockedUntilEnded'}`)}</Alert>}
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
         <Paper variant="outlined" sx={{ p: 1.5, mb: 2 }}>
@@ -658,11 +661,12 @@ function GradeDetailDialog({
                 size="small"
                 type="number"
                 label={t('grades.coursePanel.gradePercent')}
+                disabled={gradingLocked}
                 value={editingGradeValue}
                 onChange={(event) => setEditingGradeValue(event.target.value)}
                 sx={{ width: 140 }}
               />
-              <Button size="small" variant="outlined" onClick={handleSaveGradeValue} disabled={saving}>
+              <Button size="small" variant="outlined" onClick={handleSaveGradeValue} disabled={saving || gradingLocked}>
                 {t('grades.coursePanel.saveGradeValue')}
               </Button>
               {!workingGrade.automatic && (
@@ -671,7 +675,7 @@ function GradeDetailDialog({
                   variant="text"
                   startIcon={<AutoFixHighIcon />}
                   onClick={handleSetGradeAutomatic}
-                  disabled={saving}
+                  disabled={saving || gradingLocked}
                 >
                   {t('grades.coursePanel.restoreAutomatic')}
                 </Button>
@@ -841,6 +845,7 @@ function QuestionMarkDialog({
   onManualPointsChange,
   onFeedbackChange,
   saving,
+  gradingLockReason,
   canSetAutomatic,
   onSetAutomatic,
   onSave,
@@ -862,6 +867,7 @@ function QuestionMarkDialog({
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>{titleParts.join(' / ') || t('grades.coursePanel.question')}</DialogTitle>
       <DialogContent dividers>
+        {gradingLockReason && <Alert severity="info" sx={{ mb: 2 }}>{t(`grades.questionPanel.${gradingLockReason === 'extensions' ? 'gradingLockedExtensions' : 'gradingLockedUntilEnded'}`)}</Alert>}
         <MarkQuestionDetailPanel
           loading={loading}
           error={error}
@@ -874,7 +880,7 @@ function QuestionMarkDialog({
           onManualPointsChange={onManualPointsChange}
           feedbackHtml={feedbackHtml}
           onFeedbackChange={onFeedbackChange}
-          saving={saving}
+          saving={saving || !!gradingLockReason}
           showFeedbackEditor
           summary={(
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -888,7 +894,7 @@ function QuestionMarkDialog({
           )}
           actionButtons={(
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-              <Button size="small" variant="contained" onClick={onSave} disabled={saving}>
+              <Button size="small" variant="contained" onClick={onSave} disabled={saving || !!gradingLockReason}>
                 {t('grades.coursePanel.saveMark')}
               </Button>
               {canSetAutomatic ? (
@@ -897,7 +903,7 @@ function QuestionMarkDialog({
                   variant="outlined"
                   startIcon={<AutoFixHighIcon />}
                   onClick={onSetAutomatic}
-                  disabled={saving}
+                  disabled={saving || !!gradingLockReason}
                 >
                   {t('grades.coursePanel.setAutomatic')}
                 </Button>
@@ -2268,7 +2274,7 @@ export default function CourseGradesPanel({
                                         size="small"
                                         aria-label={t('common.recalculate')}
                                         onClick={() => handleRecalculateSession(session._id)}
-                                        disabled={recalculateAllProgress.active || !!refreshingSessionIds[session._id]}
+                                        disabled={!!session.gradingLockReason || recalculateAllProgress.active || !!refreshingSessionIds[session._id]}
                                       >
                                         <RefreshIcon fontSize="inherit" />
                                       </IconButton>
@@ -2449,6 +2455,7 @@ export default function CourseGradesPanel({
         feedbackHtml={questionDetailState.feedbackHtml}
         onManualPointsChange={(value) => setQuestionDetailState((prev) => ({ ...prev, manualPoints: value }))}
         onFeedbackChange={(value) => setQuestionDetailState((prev) => ({ ...prev, feedbackHtml: value }))}
+        gradingLockReason={questionDetailState.grade?.gradingLockReason}
         saving={questionDetailState.saving}
         canSetAutomatic={questionDetailState.canSetAutomatic}
         onSetAutomatic={handleSetQuestionDetailAutomatic}

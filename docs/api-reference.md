@@ -128,3 +128,9 @@ npm run build --prefix client
 ```
 
 For authentication, SSO, uploads, AI URL policy, grading, or WebSocket changes, add focused security/permission cases rather than relying only on the broad suite.
+
+## Grading readiness
+
+`GET /api/v1/sessions/:id/grades` reads existing grades without creating missing rows. Instructor responses include `gradingLockReason`: `not-ended`, `extensions`, `missing-grades`, or `null`. Active and upcoming extensions prevent grading even when the stored session status is `done`.
+
+`POST /api/v1/sessions/:id/grades/recalculate` with `{ "missingOnly": true }` explicitly creates missing grade items. Recalculation, manual mark/value updates (including bulk updates and resetting automatic scoring), and starting AI grading return `409` until the session and all extension windows have ended. Existing instructor authorization checks still apply. Grade reads derive pending manual work from current responses; a confirmed manual zero remains graded.

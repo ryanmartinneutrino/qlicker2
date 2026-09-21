@@ -658,6 +658,7 @@ export default function SessionQuestionGradingPanel({
   const [globalMessage, setGlobalMessage] = useState('');
   const [globalMessageType, setGlobalMessageType] = useState('info');
   const [gradesByStudentId, setGradesByStudentId] = useState({});
+  const [serverGradingLockReason, setServerGradingLockReason] = useState(null);
   const [activeQuestionId, setActiveQuestionId] = useState('');
   const [studentQuery, setStudentQuery] = useState('');
   const [answerQuery, setAnswerQuery] = useState('');
@@ -728,6 +729,7 @@ export default function SessionQuestionGradingPanel({
       });
       gradesLoadedRef.current = true;
       setGradesByStudentId(next);
+      setServerGradingLockReason(data?.gradingLockReason || null);
     } catch (err) {
       if (
         latestGradesSessionRef.current !== requestSessionId
@@ -749,7 +751,7 @@ export default function SessionQuestionGradingPanel({
 
   useEffect(() => {
     fetchSessionGrades();
-  }, [fetchSessionGrades]);
+  }, [fetchSessionGrades, session?.status, session?.quizHasRemainingExtensions]);
 
   const ungradedSummary = useMemo(
     () => summarizeUngradedFromGrades(gradesByStudentId),
@@ -784,9 +786,17 @@ export default function SessionQuestionGradingPanel({
   }, [activeQuestion]);
 
   const isQuizSession = !!(session?.quiz || session?.practiceQuiz);
-  const gradingLocked = normalizeValue(session?.status)
-    ? session?.status !== 'done'
-    : false;
+  const sessionNotEnded = normalizeValue(session?.status) && session?.status !== 'done';
+  const hasRemainingExtensions = !!session?.quizHasRemainingExtensions;
+  const missingGrades = Object.keys(gradesByStudentId).length === 0
+    || studentResults.some((student) => {
+      if (!(student.questionResults || []).some((result) => result.responses?.length)) return false;
+      return !gradesByStudentId[String(student.studentId)];
+    });
+  const gradingLockReason = sessionNotEnded ? 'not-ended'
+    : hasRemainingExtensions ? 'extensions'
+      : serverGradingLockReason || (missingGrades ? 'missing-grades' : null);
+  const gradingLocked = !!gradingLockReason;
 
   const questionStatuses = useMemo(() => {
     const eligibleStudents = studentResults.filter((student) => {
@@ -1309,12 +1319,12 @@ export default function SessionQuestionGradingPanel({
     });
   }, [filteredStudentIds]);
 
-  const handleRecalculateAll = useCallback(async () => {
+  const handleRecalculateAll = useCallback(async (missingOnly = false) => {
     if (!sessionId) return;
     setRecalculating(true);
     try {
       const { data } = await apiClient.post(`/sessions/${sessionId}/grades/recalculate`, {
-        missingOnly: false,
+        missingOnly,
       });
       const warnings = data?.summary?.warnings || [];
       if (warnings.length > 0) {
@@ -1601,7 +1611,13 @@ export default function SessionQuestionGradingPanel({
 
       {gradingLocked && (
         <Alert severity="info" sx={{ mb: 1.5 }}>
-          {t('grades.questionPanel.gradingLockedUntilEnded')}
+          {t(`grades.questionPanel.${gradingLockReason === 'extensions' ? 'gradingLockedExtensions'
+            : gradingLockReason === 'missing-grades' ? 'gradingLockedMissingGrades' : 'gradingLockedUntilEnded'}`)}
+          {gradingLockReason === 'missing-grades' && (
+            <Button size="small" onClick={() => handleRecalculateAll(true)} disabled={recalculating} sx={{ ml: 1 }}>
+              {t('grades.questionPanel.createGradeItems')}
+            </Button>
+          )}
         </Alert>
       )}
 
@@ -1815,7 +1831,7 @@ export default function SessionQuestionGradingPanel({
           size="small"
           variant="outlined"
           startIcon={<RefreshIcon />}
-          onClick={handleRecalculateAll}
+          onClick={() => handleRecalculateAll()}
           disabled={gradingLocked || recalculating}
         >
           {t('grades.questionPanel.recalculateGrades')}

@@ -11,6 +11,8 @@ import AiGradingJob from '../models/AiGradingJob.js';
 import AiSessionRubric from '../models/AiSessionRubric.js';
 import AiResponseSummary from '../models/AiResponseSummary.js';
 import Course from '../models/Course.js';
+import Grade from '../models/Grade.js';
+import { getSessionGradingLockReason } from '../services/grading.js';
 import Session from '../models/Session.js';
 import { getOrCreateSettingsDocument } from '../utils/settingsSingleton.js';
 import { isCourseInstructorOrAdmin, resolveCourseAiAudience } from '../utils/courseAccess.js';
@@ -899,6 +901,13 @@ export default async function aiRoutes(app) {
   app.post('/courses/:courseId/sessions/:sessionId/ai-grading', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
     const session = await instructorSession(course, request.params.sessionId, reply); if (!session) return undefined;
+    const gradingLockReason = getSessionGradingLockReason(session);
+    if (gradingLockReason) return reply.code(409).send({ error: 'Conflict', message: gradingLockReason === 'extensions'
+      ? 'Grading is locked until all quiz extensions have expired or been removed'
+      : 'Session must be in Ended state before grading' });
+    if (!await Grade.exists({ sessionId: session._id, courseId: course._id })) {
+      return reply.code(409).send({ error: 'Conflict', message: 'Create grade items before grading' });
+    }
     const settings = await getOrCreateSettingsDocument({ lean: true }); const policy = coursePolicy(settings, course._id);
     const selectedModel = resolveModel(course, settings, policy, request.body || {});
     if (!policy.enabled || !course.aiEnabled || !selectedModel) return reply.code(400).send({ error: 'Bad Request', message: 'Choose an approved AI model before grading' });

@@ -1081,3 +1081,36 @@ describe('SessionQuestionGradingPanel', () => {
     expect(screen.getByDisplayValue('2')).toBeInTheDocument();
   });
 });
+
+describe('Grading readiness locks', () => {
+  const question = { _id: 'q', type: 2, content: '<p>Explain</p>', sessionOptions: { points: 5 } };
+  const student = { studentId: 'student', firstname: 'Test', lastname: 'Student', questionResults: [{ questionId: 'q', responses: [{ answer: 'Answer', attempt: 1 }] }] };
+  beforeEach(() => {
+    vi.clearAllMocks();
+    i18n.changeLanguage('en');
+  });
+
+  it('offers explicit creation when grade items are missing and unlocks after creation', async () => {
+    let created = false;
+    apiClient.get.mockImplementation(async (url) => ({ data: url.includes('/ai/') ? {} : created
+      ? { grades: [{ _id: 'grade', userId: 'student', marks: [{ questionId: 'q', points: 0, outOf: 5, automatic: true, needsGrading: true }] }], gradingLockReason: null }
+      : { grades: [], gradingLockReason: 'missing-grades' } }));
+    apiClient.post.mockImplementation(async () => { created = true; return { data: {} }; });
+    render(<SessionQuestionGradingPanel sessionId="session" session={{ status: 'done', quiz: true }} questions={[question]} studentResults={[student]} />);
+    const create = await screen.findByRole('button', { name: 'Create grade items' });
+    expect(screen.getByRole('button', { name: 'AI Grading Assistant' })).toBeDisabled();
+    fireEvent.click(create);
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith('/sessions/session/grades/recalculate', { missingOnly: true }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Create grade items' })).not.toBeInTheDocument());
+    expect(screen.getByRole('button', { name: 'AI Grading Assistant' })).toBeEnabled();
+  });
+
+  it('locks an ended quiz with remaining extensions even when grade items exist', async () => {
+    apiClient.get.mockResolvedValue({ data: { grades: [{ _id: 'grade', userId: 'student', marks: [{ questionId: 'q', points: 0, outOf: 5, needsGrading: true }] }] } });
+    render(<SessionQuestionGradingPanel sessionId="session" session={{ status: 'done', quiz: true, quizHasRemainingExtensions: true }} questions={[question]} studentResults={[student]} />);
+    await screen.findByText(/Grading is locked while quiz extensions/);
+    expect(screen.getByRole('button', { name: 'AI Grading Assistant' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Re-calculate all grades' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Create grade items' })).not.toBeInTheDocument();
+  });
+});

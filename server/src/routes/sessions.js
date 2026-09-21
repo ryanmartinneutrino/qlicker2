@@ -31,6 +31,7 @@ import {
   getQuestionPoints,
   getTimestampMs,
   isQuestionAutoGradeable,
+  normalizeGradesManualGradingState,
   normalizeQuestionType,
   recalculateSessionGrades,
   sanitizeStudentVisibleGrade,
@@ -596,9 +597,9 @@ async function getNonAutoGradeableQuestions(session) {
 async function filterToActuallyUngradedQuestions(questions, sessionId) {
   if (questions.length === 0) return [];
 
-  const grades = await Grade.find({ sessionId: String(sessionId) })
-    .select('marks')
-    .lean();
+  const grades = await normalizeGradesManualGradingState(await Grade.find({ sessionId: String(sessionId) })
+    .select('userId marks')
+    .lean());
 
   // If no grades exist yet, all questions potentially need grading
   if (grades.length === 0) return questions;
@@ -3197,10 +3198,8 @@ async function seedSessionGradesIfNeeded(session, course, { visibleToStudents = 
     sessionId: session._id,
     sessionDoc: session,
     courseDoc: course,
-    // Existing rows may be incomplete or stale after edits, restarts, or extensions.
-    // Publication recalculates automatic marks while preserving manual overrides.
-    missingOnly: !session.reviewable,
-    preserveManualMarks: !!session.reviewable,
+    // Refresh automatic marks after restarts/extensions while retaining confirmed scores.
+    preserveManualMarks: true,
     visibleToStudents: visibleToStudents ?? session.reviewable,
   });
   return gradingResult.summary;

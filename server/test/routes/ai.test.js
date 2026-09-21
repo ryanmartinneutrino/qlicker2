@@ -6,6 +6,7 @@ import ResponseModel from '../../src/models/Response.js';
 import Session from '../../src/models/Session.js';
 import Settings from '../../src/models/Settings.js';
 import Grade from '../../src/models/Grade.js';
+import { runAiGradingJob } from '../../src/services/aiGradingRunner.js';
 import AiGradingJob from '../../src/models/AiGradingJob.js';
 import Post from '../../src/models/Post.js';
 import AiConversation from '../../src/models/AiConversation.js';
@@ -1253,5 +1254,44 @@ describe('AI course configuration and chat', () => {
     expect(result.sessions[0]).toMatchObject({ name: 'Second' });
     expect(result.students[0]).toMatchObject({ student: { name: 'Ada Lovelace' }, average_participation: 75 });
     expect(result.students[0].session_grades[0]).toMatchObject({ grade_percentage: 90, participation_percentage: 50, submitted: true });
+  });
+});
+
+
+describe('AI grading saved responses', () => {
+  it('grades a saved answer without final submission and automatically zeroes only blank answers', async () => {
+    const professor = await createTestUser({ email: 'ai-grading-prof@example.com', roles: ['professor'] });
+    const token = await getAuthToken(app, professor);
+    const course = await createCourse(token);
+    await configureAi(course._id);
+    const session = await Session.create({ name: 'Automatically closed quiz', courseId: course._id, quiz: true, status: 'done', joined: [], submittedQuiz: [] });
+    const question = await Question.create({ type: 2, creator: professor._id, content: 'Explain', sessionId: session._id, sessionOptions: { points: 5 } });
+    await Session.updateOne({ _id: session._id }, { $set: { questions: [question._id] } });
+    await ResponseModel.insertMany([
+      { questionId: question._id, studentUserId: 'saved', attempt: 1, answer: 'A saved answer' },
+      { questionId: question._id, studentUserId: 'blank', attempt: 1, answer: '<p>&nbsp;</p>' },
+    ]);
+    await Grade.insertMany(['saved', 'blank'].map((userId) => ({
+      userId, courseId: course._id, sessionId: session._id,
+      marks: [{ questionId: question._id, outOf: 5, automatic: true, needsGrading: false }],
+    })));
+    const job = await AiGradingJob.create({
+      courseId: course._id, sessionId: session._id, ownerId: professor._id,
+      backendId: 'ollama-local', modelId: 'llama3.2', questionIds: [question._id],
+      instructions: { [question._id]: { grading: 'Grade reasoning', regrade: true } },
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ message: {
+      content: JSON.stringify({ points: 3, feedback: 'Explain further', justification: 'Partly correct' }),
+    } }), { status: 200 })));
+    await runAiGradingJob(job._id);
+    expect((await AiGradingJob.findById(job._id).lean()).status).toBe('completed');
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const saved = await Grade.findOne({ sessionId: session._id, userId: 'saved' }).lean();
+    const blank = await Grade.findOne({ sessionId: session._id, userId: 'blank' }).lean();
+    expect(saved.marks[0]).toMatchObject({ points: 3, automatic: false, needsGrading: false });
+    expect(blank.marks[0]).toMatchObject({ points: 0, automatic: true, aiGraded: false, needsGrading: false });
+    await ResponseModel.updateOne({ studentUserId: 'blank', questionId: question._id }, { $set: { answer: 'A later answer' } });
+    const later = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/grades`, { token });
+    expect(later.json().grades.find((grade) => grade.userId === 'blank').marks[0].needsGrading).toBe(true);
   });
 });
