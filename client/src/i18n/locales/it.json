@@ -2348,7 +2348,8 @@
             "Le sessioni di pratica sono per lo studio autonomo e possono sembrare più flessibili perché sono pensate per aiutarti a esercitarti invece di tenere il ritmo di una lezione dal vivo.",
             "Le diapositive possono comparire tra una domanda e l'altra. Sono pagine di contenuto, quindi leggile con attenzione prima di andare avanti.",
             "Se il tuo docente rivela le statistiche di una nuvola di parole o di un istogramma, la vista dovrebbe aggiornarsi automaticamente senza bisogno di ricaricare.",
-            "Per le domande a risposta breve, l'elenco condiviso delle risposte può essere mostrato o nascosto separatamente dalla nuvola di parole, quindi potresti vedere l'uno senza l'altra."
+            "Per le domande a risposta breve, l'elenco condiviso delle risposte può essere mostrato o nascosto separatamente dalla nuvola di parole, quindi potresti vedere l'uno senza l'altra.",
+            "Scorrendo sopra una risposta numerica, il valore rimane invariato e il campo perde il focus per consentire lo scorrimento della pagina. Fai clic nel campo o torna al campo con il tasto Tab per continuare a modificare la risposta."
           ]
         },
         {

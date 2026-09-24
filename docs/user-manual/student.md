@@ -151,6 +151,8 @@ An extension still works after the instructor ends the quiz for the class. Only 
 4. Revisit unanswered items before the deadline.
 5. Select **Submit Quiz** and confirm only when finished.
 
+Scrolling over a numerical answer leaves its value unchanged and moves focus out of the input so the page can scroll. Click or tab back into the input to continue editing.
+
 ![Active quiz with question navigation, saved response controls, and submission action](../assets/manuals/student-quiz.png)
 
 A submitted normal quiz cannot be edited again. If time expires, the server's rules determine whether further saves/submission are accepted; do not rely on leaving the page open past the deadline.

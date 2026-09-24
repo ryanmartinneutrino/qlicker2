@@ -818,6 +818,14 @@ export default function QuizSession() {
                   }}
                   disabled={locked}
                   type="number"
+                  slotProps={{
+                    htmlInput: {
+                      'aria-label': t('student.quiz.enterNumber'),
+                      // Blur before the browser's wheel action to prevent accidental
+                      // answer changes while still allowing the page to scroll.
+                      onWheel: (event) => event.currentTarget.blur(),
+                    },
+                  }}
                   fullWidth
                   placeholder={t('student.quiz.enterNumber')}
                   helperText={question.toleranceNumerical != null
