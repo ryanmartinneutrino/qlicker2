@@ -2348,7 +2348,8 @@
             "Las sesiones de práctica son para el autoestudio y pueden sentirse más flexibles porque están diseñadas para ayudarlo a ensayar en lugar de mantener el ritmo de una clase en vivo.",
             "Las diapositivas pueden aparecer entre preguntas. Son páginas de contenido, así que léalas con atención antes de continuar.",
             "Si su instructor revela estadísticas para una nube de palabras o un histograma, la vista debería actualizarse automáticamente sin necesidad de recargar.",
-            "Para las preguntas de respuesta corta, la lista de respuestas compartida se puede mostrar u ocultar por separado de la nube de palabras, por lo que puede ver una sin la otra."
+            "Para las preguntas de respuesta corta, la lista de respuestas compartida se puede mostrar u ocultar por separado de la nube de palabras, por lo que puede ver una sin la otra.",
+            "Al desplazarte sobre una respuesta numérica, su valor no cambia y el campo pierde el foco para que la página pueda desplazarse. Haz clic en el campo o vuelve a él con la tecla Tab para seguir editando."
           ]
         },
         {

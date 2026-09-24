@@ -2348,7 +2348,8 @@
             "Übungssitzungen dienen dem Selbststudium und können sich flexibler anfühlen, da sie darauf ausgelegt sind, Ihnen beim Üben zu helfen, anstatt mit einem Live-Kurs Schritt zu halten.",
             "Folien können zwischen Fragen erscheinen. Sie sind Inhaltsseiten, lesen Sie sie daher sorgfältig, bevor Sie fortfahren.",
             "Wenn Ihr Dozent Statistiken für eine Wortwolke oder ein Histogramm freigibt, sollte sich die Ansicht automatisch aktualisieren, ohne dass Sie die Seite neu laden müssen.",
-            "Bei Freitextfragen kann die gemeinsame Antwortliste unabhängig von der Wortwolke ein- oder ausgeblendet werden, sodass Sie möglicherweise das eine ohne das andere sehen."
+            "Bei Freitextfragen kann die gemeinsame Antwortliste unabhängig von der Wortwolke ein- oder ausgeblendet werden, sodass Sie möglicherweise das eine ohne das andere sehen.",
+            "Beim Scrollen über einer numerischen Antwort bleibt ihr Wert unverändert. Der Eingabefokus wird aufgehoben, damit die Seite scrollen kann. Klicken Sie in das Feld oder wechseln Sie mit der Tabulatortaste zurück, um die Antwort weiter zu bearbeiten."
           ]
         },
         {

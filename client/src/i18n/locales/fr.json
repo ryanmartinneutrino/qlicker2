@@ -2348,7 +2348,8 @@
             "Les séances de pratique servent à l'étude personnelle et peuvent sembler plus flexibles parce qu'elles sont conçues pour la répétition, non pour suivre un cours en direct.",
             "Des diapositives peuvent apparaître entre les questions. Ce sont des pages de contenu; lisez-les attentivement avant de continuer.",
             "Si votre enseignant révèle les statistiques d'un nuage de mots ou d'un histogramme, la vue devrait se mettre à jour automatiquement sans rechargement.",
-            "Pour les questions à réponse courte, la liste partagée des réponses peut être affichée ou masquée séparément du nuage de mots; vous pouvez donc voir l'un sans l'autre."
+            "Pour les questions à réponse courte, la liste partagée des réponses peut être affichée ou masquée séparément du nuage de mots; vous pouvez donc voir l'un sans l'autre.",
+            "Faire défiler la page au-dessus d’une réponse numérique ne modifie pas sa valeur et retire le focus du champ pour permettre le défilement. Cliquez dans le champ ou utilisez la touche Tab pour continuer à modifier la réponse."
           ]
         },
         {

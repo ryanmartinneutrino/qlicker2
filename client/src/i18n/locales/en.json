@@ -2395,7 +2395,8 @@
             "Practice sessions are for self-study and can feel more flexible because they are designed to help you rehearse instead of keeping pace with a live class.",
             "Slides can appear between questions. They are content pages, so read them carefully before moving on.",
             "If your instructor reveals statistics for a word cloud or histogram, the view should update automatically without a refresh.",
-            "For short-answer questions, the shared response list can be shown or hidden separately from the word cloud, so you may see one without the other."
+            "For short-answer questions, the shared response list can be shown or hidden separately from the word cloud, so you may see one without the other.",
+            "Scrolling over a numerical answer leaves its value unchanged and moves focus out of the input so the page can scroll. Click or tab back into the input to continue editing."
           ]
         },
         {

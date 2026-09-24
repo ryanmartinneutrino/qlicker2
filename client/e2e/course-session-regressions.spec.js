@@ -146,6 +146,69 @@ test('numerical questions copied within a quiz keep independent student answers'
   await expect(answers.nth(1)).toHaveValue('7');
 });
 
+for (const practiceQuiz of [false, true]) {
+  test(`scrolling over numerical answers preserves values in a ${practiceQuiz ? 'practice' : 'normal'} quiz`, async ({ page, request }) => {
+    const { admin, student } = await seedUsers(request);
+    const course = await createCourseViaApi(request, admin.token);
+    await enrollStudentViaApi(request, student.token, course.enrollmentCode);
+    const now = Date.now();
+    const quiz = await createSessionViaApi(request, admin.token, course._id, {
+      name: 'Scroll-safe numerical quiz', quiz: true, practiceQuiz,
+      quizStart: new Date(now - 60000).toISOString(), quizEnd: new Date(now + 3600000).toISOString(),
+    });
+    for (let index = 0; index < 6; index += 1) {
+      const question = await createQuestionViaApi(request, admin.token, {
+        sessionId: quiz._id, courseId: course._id, type: 4, options: [],
+        content: `Numerical question ${index + 1}`, correctNumerical: 42, toleranceNumerical: 0,
+      });
+      await addQuestionToSessionViaApi(request, admin.token, quiz._id, question._id);
+    }
+    await patchSessionViaApi(request, admin.token, quiz._id, { status: 'visible' });
+    await page.setViewportSize({ width: 1000, height: 600 });
+    await loginViaUi(page, student.email, student.password, /\/student$/);
+    await page.goto(`/student/course/${course._id}/session/${quiz._id}/quiz`);
+    const input = page.getByRole('spinbutton', { name: 'Enter a number', exact: true }).nth(2);
+    await input.fill('-1.25e-3');
+    await expect(page.getByText('Saved', { exact: true })).toHaveCount(1);
+
+    for (const focused of [true, false]) {
+      for (const deltaY of [80, -80]) {
+        await input.evaluate((element) => element.scrollIntoView({ block: 'center' }));
+        if (focused) {
+          await input.focus();
+          await expect(input).toBeFocused();
+        } else {
+          await page.getByText('Numerical question 3', { exact: true }).click();
+          await expect(input).not.toBeFocused();
+        }
+        await input.hover();
+        const previousScroll = await page.evaluate(() => window.scrollY);
+        await page.mouse.wheel(0, deltaY);
+        await expect.poll(async () => {
+          const nextScroll = await page.evaluate(() => window.scrollY);
+          return deltaY > 0 ? nextScroll > previousScroll : nextScroll < previousScroll;
+        }).toBe(true);
+        await expect(input).not.toBeFocused();
+        await expect(input).toHaveValue('-1.25e-3');
+      }
+    }
+
+    await page.reload();
+    await expect(input).toHaveValue('-1.25e-3');
+    await input.fill('');
+    await expect(page.getByText('Saved', { exact: true })).toHaveCount(1);
+    await page.reload();
+    await expect(input).toHaveValue('');
+    await input.fill('42');
+    await input.press('ArrowUp');
+    await expect(input).toHaveValue('43');
+    await expect(page.getByText('Saved', { exact: true })).toHaveCount(1);
+    await page.reload();
+    await expect(input).toHaveValue('43');
+    await expectNoCriticalAccessibilityViolations(page);
+  });
+}
+
 test('quiz status controls agree across the course and editor and Live keeps the quiz editor open', async ({ page, request }) => {
   const { admin, professor } = await seedUsers(request);
   const course = await createCourseViaApi(request, admin.token);

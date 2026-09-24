@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import QuizSession from './QuizSession';
@@ -89,7 +89,7 @@ describe('Student QuizSession', () => {
     expect(screen.queryByText('\\(x^2\\)')).not.toBeInTheDocument();
   });
 
-  it('shows numerical tolerance helper text next to the answer input', async () => {
+  it('keeps numerical answers unchanged on wheel without cancelling page scrolling', async () => {
     apiClient.get.mockResolvedValueOnce({
       data: {
         session: {
@@ -124,5 +124,25 @@ describe('Student QuizSession', () => {
     );
 
     expect(await screen.findByText('Answers will be scored based on a tolerance of +/- 1.2E-4.')).toBeInTheDocument();
+
+    apiClient.patch.mockResolvedValue({ data: {} });
+    const input = screen.getByRole('spinbutton', { name: 'Enter a number' });
+    fireEvent.change(input, { target: { value: '-1.25e-3' } });
+    await waitFor(() => expect(apiClient.patch).toHaveBeenCalledWith(
+      '/sessions/session-1/quiz-response',
+      { questionId: 'q-1', answer: '-1.25e-3' },
+    ));
+    apiClient.patch.mockClear();
+
+    for (const deltaY of [100, -100]) {
+      input.focus();
+      expect(input).toHaveFocus();
+      expect(fireEvent.wheel(input, { deltaY, cancelable: true })).toBe(true);
+      expect(input).not.toHaveFocus();
+      expect(input.value).toBe('-1.25e-3');
+      expect(fireEvent.wheel(input, { deltaY, cancelable: true })).toBe(true);
+      expect(input.value).toBe('-1.25e-3');
+    }
+    expect(apiClient.patch).not.toHaveBeenCalled();
   });
 });
