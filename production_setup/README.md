@@ -139,6 +139,13 @@ Mongo tuning variables such as `MONGO_MAX_POOL_SIZE`,
 through from the existing `.env` or `.env.example` and written to the generated
 `.env`, even though setup does not prompt for each of them individually.
 
+Setup also writes the other optional settings without prompting:
+`TLS_RELOAD_CHECK_SECONDS`, `ANONYMOUS_SESSION_SECRET`, `TRUST_PROXY`,
+`DISABLE_RATE_LIMITS`, the `AI_BACKEND_*` settings, and the `SYSTEM_MONITOR_*`
+settings. When re-run against an existing production `.env`, setup keeps their
+current values. Otherwise it writes the documented defaults, so development
+values such as a disabled rate limiter are never imported into production.
+
 ### Configuration Inheritance
 
 The setup script loads defaults from existing configuration files in priority order:
@@ -154,6 +161,8 @@ When an existing config is found, the script prints a summary of imported values
 ### Re-running Setup
 
 Running `./setup.sh` again will detect the existing `.env` and offer to keep current values as defaults. The generated `.env` is also written with mode `600` so database and Redis credentials stay host-local by default.
+
+If you choose to regenerate `JWT_SECRET` and `ANONYMOUS_SESSION_SECRET` is empty, setup copies the previous `JWT_SECRET` into `ANONYMOUS_SESSION_SECRET`. Students then stay linked to their answers in existing [anonymous sessions](../docs/developer/data-model.md#anonymous-sessions). Regenerating secrets signs everyone out; run `docker compose up -d` afterwards to apply the new `.env`.
 
 ---
 
@@ -840,6 +849,7 @@ production_setup/
 | `API_PORT` | No | `3001` | Internal API port |
 | `ENABLE_API_DOCS` | No | `false` in production | Enables the admin-protected Swagger/OpenAPI UI at `/docs`; leave disabled on internet-facing deployments unless required |
 | `TRUST_PROXY` | No | `loopback,linklocal,uniquelocal` | Comma-separated IP/CIDR ranges for the reverse proxy connecting directly to Fastify; use `false` when exposing the API directly (numeric hop counts are unsupported) |
+| `DISABLE_RATE_LIMITS` | No | `false` | Load testing only; `load-testing/run.sh` toggles it. `setup.sh` warns when it is left `true` |
 | `AI_BACKEND_ALLOW_PRIVATE_HOSTS` | No | `true` | Allow administrator-configured AI backends on private networks; set to `false` to enforce the hostname allowlist |
 | `AI_BACKEND_ALLOWED_PRIVATE_HOSTS` | No | none | Comma-separated exact private-network AI backend hostnames used when `AI_BACKEND_ALLOW_PRIVATE_HOSTS=false` |
 | `AI_BACKEND_REQUEST_TIMEOUT_MS` | No | `300000` | Initial/fallback AI provider timeout in milliseconds; after setup, administrators can change the global timeout in Admin → AI settings |

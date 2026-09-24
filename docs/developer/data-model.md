@@ -67,7 +67,7 @@ Key concerns:
 - Grades are never created. Anonymous sessions are excluded from the course gradebook, grade edits return `409`, and AI grading is refused.
 - `anonymous` can change only before anyone joins, submits, or responds. Enabling it deletes existing grade rows for the session, which exist only if it had ended with no participation.
 
-Rotating the key used by active anonymous sessions detaches students from their earlier responses: they could answer again, and their own review would appear empty. Set `ANONYMOUS_SESSION_SECRET` to the previous key value before rotating `JWT_SECRET`. A server operator who holds the key and the course roster can recompute the mapping. The design protects against instructors and database-only access, not against the server operator.
+Rotating the key used by active anonymous sessions detaches students from their earlier responses: they could answer again, and their own review would appear empty. Set `ANONYMOUS_SESSION_SECRET` to the previous key value before rotating `JWT_SECRET`; `production_setup/setup.sh` does this automatically when it regenerates the secret. A server operator who holds the key and the course roster can recompute the mapping. The design protects against instructors and database-only access, not against the server operator.
 
 ### Session status and quiz access
 

@@ -195,7 +195,9 @@ test('session creation flow lets a professor create a session and open the edito
   const sessionName = `Session ${Date.now()}`;
 
   await loginViaUi(page, professor.email, professor.password, /\/prof$/);
-  await page.getByRole('heading', { name: /^CS 101$/ }).click();
+  // The cached professor accumulates several CS 101 courses during a full run,
+  // so select this test's course by its unique name.
+  await page.getByText(course.name).click();
   await expect(page).toHaveURL(new RegExp(`/prof/course/${course._id}$`));
 
   await page.getByRole('button', { name: /create session/i }).click();
