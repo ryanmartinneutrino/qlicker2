@@ -26,6 +26,7 @@ import {
   normalizeQuestionType,
 } from '../../components/questions/constants';
 import BackLinkButton from '../../components/common/BackLinkButton';
+import AnonymousSessionNotice from '../../components/common/AnonymousSessionNotice';
 import { useTranslation } from 'react-i18next';
 import { prepareRichTextInput, renderKatexInElement } from '../../components/questions/richTextUtils';
 
@@ -790,6 +791,8 @@ export default function SessionReview() {
           </Typography>
         )}
       </Box>
+
+      {session?.anonymous ? <AnonymousSessionNotice /> : null}
 
       {feedbackSummary?.hasNewFeedback && (
         <Alert

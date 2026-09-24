@@ -166,6 +166,7 @@ The production database (`qlickerdb`) contains the following collections:
   status: String,                 // 'hidden', 'visible', 'running', 'done'
   quiz: Boolean,
   practiceQuiz: Boolean,          // New
+  anonymous: Boolean,             // New: absent means false; see note below
   quizStart: Date,
   quizEnd: Date,
   questions: [String],            // Ordered question IDs (slides are question docs with type=6)
@@ -186,6 +187,8 @@ The production database (`qlickerdb`) contains the following collections:
   createdAt: Date
 }
 ```
+
+`anonymous` is additive and needs no migration: legacy sessions are read as non-anonymous and keep storing user IDs. For anonymous sessions, `joined`, `submittedQuiz`, and `Response.studentUserId` hold per-session `anon_…` pseudonyms instead of user IDs, `joinRecords` stays empty, and no grade rows exist. See [anonymous sessions](../docs/developer/data-model.md#anonymous-sessions).
 
 ### Questions Collection
 
@@ -231,7 +234,7 @@ The production database (`qlickerdb`) contains the following collections:
 {
   _id: String,
   questionId: String,
-  studentUserId: String,
+  studentUserId: String,          // User ID, or anon_ pseudonym in anonymous sessions
   attempt: Number,
   answer: Mixed,                  // String, Number, or Object depending on question type
   answerWysiwyg: String,          // New: HTML version for SA

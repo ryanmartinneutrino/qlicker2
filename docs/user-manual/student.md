@@ -79,6 +79,15 @@ Cards show status and the action currently available: join, start/continue a qui
 
 **Search sessions** starts expanded so you can search, filter by status, choose rows per page, and navigate pages. Select its heading to collapse or reopen it. The app may load the first group of cards before background loading finishes.
 
+### Anonymous sessions
+
+A card marked **Anonymous** is a session in which your instructor sees answers without names:
+
+- You still sign in, and you can answer each question (or each attempt) only once. A quiz can still be submitted only once.
+- Your instructor sees how many students took part, but not who took part or which answers are yours.
+- The session is not graded and does not appear under **Grades**. If it is made reviewable, you can still review your own answers.
+- Your identity is still used to stop duplicate answers, so an anonymous session is not a way to answer more than once.
+
 ## 3. Join an interactive live session
 
 Interactive sessions follow the instructor's pace.

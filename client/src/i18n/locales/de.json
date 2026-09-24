@@ -867,7 +867,8 @@
       "courseActiveHelp": "Wenn der Kurs aktiv ist, können Studierende darauf zugreifen.",
       "aiRequiresAdminAuthorization": "Erfordert eine Administratorfreigabe",
       "aiHelperHelp": "Aktivieren Sie einen KI-Assistenten, der beim Bewerten, Erstellen von Fragen und Verwalten von Sitzungen und Studierenden hilft.",
-      "enrollmentCodeHelp": "Dies ist der Code, den Studierende benötigen, um sich für den Kurs anzumelden."
+      "enrollmentCodeHelp": "Dies ist der Code, den Studierende benötigen, um sich für den Kurs anzumelden.",
+      "anonymousSession": "Anonym"
     },
     "sessionEditor": {
       "sessionSettings": "Sitzungseinstellungen",
@@ -1000,7 +1001,11 @@
       "applyingTagsToQuestions": "Tags werden angewendet…",
       "appliedSessionTagsToQuestions_one": "Die Sitzungs-Tags wurden auf 1 Frage angewendet.",
       "appliedSessionTagsToQuestions_other": "Die Sitzungs-Tags wurden auf {{count}} Fragen angewendet.",
-      "failedApplySessionTagsToQuestions": "Die Sitzungs-Tags konnten nicht auf die Fragen angewendet werden."
+      "failedApplySessionTagsToQuestions": "Die Sitzungs-Tags konnten nicht auf die Fragen angewendet werden.",
+      "anonymous": "Anonyme Antworten",
+      "anonymousHelp": "Lehrende sehen die Antworten, aber nicht, wer sie gegeben hat. Studierende melden sich weiterhin an und können nur einmal antworten. Anonyme Sitzungen werden nicht bewertet und erscheinen nicht im Notenbuch.",
+      "anonymousEnabledNote": "Antworten und Teilnahme werden ohne Identität der Studierenden gespeichert. Diese Sitzung wird nicht bewertet.",
+      "anonymousLockedNote": "Die Anonymität kann nicht mehr geändert werden, nachdem Studierende beigetreten sind oder geantwortet haben."
     },
     "liveSession": {
       "currentQuestion": "Aktuelle Frage",
@@ -1115,7 +1120,8 @@
       "joinTimeUnavailable": "Beitrittszeit nicht verfügbar",
       "ending": "Wird beendet…",
       "currentJoinCodeAria": "Aktueller Beitrittscode: {{code}}",
-      "pageProgressAria": "Seite {{current}} von {{total}}"
+      "pageProgressAria": "Seite {{current}} von {{total}}",
+      "anonymousStudentsNote": "Diese Sitzung ist anonym, daher werden die Namen der beigetretenen Studierenden nicht angezeigt."
     },
     "sessionReview": {
       "questions": "Fragen",
@@ -1191,7 +1197,23 @@
       "haltingAiResponseSummary": "Wird angehalten…",
       "aiSummaryHalted": "KI-Zusammenfassung angehalten. Sie können sie erneut erstellen.",
       "aiSummaryFailed": "KI-Zusammenfassung fehlgeschlagen. {{error}}",
-      "aiSummaryHaltFailed": "Die KI-Zusammenfassung konnte nicht angehalten werden."
+      "aiSummaryHaltFailed": "Die KI-Zusammenfassung konnte nicht angehalten werden.",
+      "respondentLabel": "Teilnehmende Person {{number}}",
+      "respondent": "Teilnehmende Person",
+      "respondents": "Antwortende",
+      "searchRespondents": "Antwortende suchen",
+      "anonymousSessionNotice": "Diese Sitzung ist anonym. Antwortende werden mit allgemeinen Bezeichnungen angezeigt, und die Sitzung wird nicht bewertet.",
+      "anonymousSmallGroupWarning_one": "Nur {{count}} Person hat geantwortet, daher lassen sich die Antworten möglicherweise leicht zuordnen.",
+      "anonymousSmallGroupWarning_other": "Nur {{count}} Personen haben geantwortet, daher lassen sich die Antworten möglicherweise leicht zuordnen.",
+      "responsesByQuestion": "Antworten nach Frage",
+      "anonymousResponsesHelp": "Antworten werden ohne Namen angezeigt. Anonyme Sitzungen haben keine Punkte und kein Feedback.",
+      "selectQuestion": "Frage",
+      "questionNumberLabel": "Frage {{number}}",
+      "filterAnswers": "Antworten filtern",
+      "noAnswersMatch": "Keine Antworten entsprechen dem Filter.",
+      "anonymousResponsesTable": "Anonyme Antworten",
+      "response": "Antwort",
+      "correctColumn": "Richtig"
     },
     "secondDesktop": {
       "joinCode": "Beitrittscode",
@@ -2244,7 +2266,8 @@
             "Quizze sind geplante Zeitfenster, in denen Studierende in ihrem eigenen Tempo antworten. Verwenden Sie Start- und Endzeiten sowie Verlängerungen für Nachteilsausgleich-Abläufe. Die Statusmenüs im Kurs und im Editor steuern dieselbe Einstellung. Live öffnet das Quiz unabhängig von den Terminen und lässt den Editor mit einem Link zu den Live-Ergebnissen geöffnet. Wählen Sie den datumsabhängigen Status, um dem Zeitplan zu folgen, oder Beendet, um den allgemeinen Zugang zu schließen und individuelle Verlängerungen beizubehalten.",
             "Übungsquizze fühlen sich eher wie angeleitetes Üben an und eignen sich gut für Selbststudium oder optionale Vertiefung.",
             "Wenn eine Sitzung von Passcodes, Gruppen oder sichtbaren Statistiken abhängt, bestätigen Sie diese Einstellungen, bevor Studierende beitreten.",
-            "Sitzungslisten halten Suche, Filter und Seitennavigation in „Sitzungen suchen“. Während eine interaktive Sitzung live ist, öffnet das Anklicken ihrer Karte direkt die Live-Steuerung; Live-Quiz-Karten öffnen weiterhin den Editor."
+            "Sitzungslisten halten Suche, Filter und Seitennavigation in „Sitzungen suchen“. Während eine interaktive Sitzung live ist, öffnet das Anklicken ihrer Karte direkt die Live-Steuerung; Live-Quiz-Karten öffnen weiterhin den Editor.",
+            "Aktivieren Sie im Sitzungseditor Anonyme Antworten für Umfragen und Kursfeedback. Studierende melden sich weiterhin an und beantworten jede Frage nur einmal, aber Sie sehen die Antworten unter Bezeichnungen wie Teilnehmende Person 1 statt unter Namen, die Live-Ansicht zeigt nur die Anzahl der Beigetretenen, und die Sitzung wird nie bewertet oder ins Notenbuch übernommen. Die Einstellung wird gesperrt, sobald jemand beitritt oder antwortet, und sehr kleine Gruppen lassen sich weiterhin durch Ausschluss identifizieren."
           ]
         },
         {
@@ -2349,7 +2372,8 @@
             "Folien können zwischen Fragen erscheinen. Sie sind Inhaltsseiten, lesen Sie sie daher sorgfältig, bevor Sie fortfahren.",
             "Wenn Ihr Dozent Statistiken für eine Wortwolke oder ein Histogramm freigibt, sollte sich die Ansicht automatisch aktualisieren, ohne dass Sie die Seite neu laden müssen.",
             "Bei Freitextfragen kann die gemeinsame Antwortliste unabhängig von der Wortwolke ein- oder ausgeblendet werden, sodass Sie möglicherweise das eine ohne das andere sehen.",
-            "Beim Scrollen über einer numerischen Antwort bleibt ihr Wert unverändert. Der Eingabefokus wird aufgehoben, damit die Seite scrollen kann. Klicken Sie in das Feld oder wechseln Sie mit der Tabulatortaste zurück, um die Antwort weiter zu bearbeiten."
+            "Beim Scrollen über einer numerischen Antwort bleibt ihr Wert unverändert. Der Eingabefokus wird aufgehoben, damit die Seite scrollen kann. Klicken Sie in das Feld oder wechseln Sie mit der Tabulatortaste zurück, um die Antwort weiter zu bearbeiten.",
+            "Die Kennzeichnung Anonym bedeutet, dass Ihre Lehrperson Ihre Antworten ohne Ihren Namen sieht. Sie melden sich weiterhin an und können jede Frage nur einmal beantworten, Sie können Ihre eigenen Antworten später ansehen, und die Sitzung wird nicht bewertet."
           ]
         },
         {
@@ -2733,5 +2757,9 @@
       "downloadArtifact": "{{filename}} herunterladen",
       "artifactUnavailable": "Dieses Artefakt ist abgelaufen oder nicht mehr verfügbar. Bitten Sie die KI, es erneut zu erstellen."
     }
+  },
+  "sessionAnonymity": {
+    "chip": "Anonym",
+    "studentNotice": "Diese Sitzung ist anonym. Sie melden sich weiterhin an und können jede Frage nur einmal beantworten, aber Ihre Lehrperson kann nicht sehen, welche Antworten von Ihnen stammen. Anonyme Sitzungen werden nicht bewertet."
   }
 }

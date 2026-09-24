@@ -54,6 +54,20 @@ Key concerns:
 - quiz windows and extensions
 - submission and participation tracking
 - join-code lifecycle, chat settings, and multi-select scoring policy
+- anonymity (`anonymous`), which changes how participation is stored
+
+### Anonymous sessions
+
+`anonymous: true` (absent or `false` on existing documents) marks a quiz or interactive session whose responses cannot be attributed by instructors. Practice and student-created sessions cannot be anonymous. The helper `server/src/utils/anonymousSession.js` owns the rules:
+
+- The participant id is `anon_` plus a truncated HMAC-SHA256 of the session id and user id. The key is `ANONYMOUS_SESSION_SECRET`, or `JWT_SECRET` when that is unset. It is stored in `Response.studentUserId`, `Session.joined`, and `Session.submittedQuiz` in place of the user id. The server recomputes it for the signed-in student to find their own responses, enforce one answer per question and attempt, and prevent resubmission. The database alone cannot map it back to a user.
+- No `joinRecords` are written, and `Response.submittedIpAddress` is empty, so join times and IP addresses cannot be linked to a response. Cached live answer lists in `sessionOptions.attemptStats` omit the pseudonym.
+- Live events for joined students are routed by recomputing pseudonyms for the course roster in memory (`resolveSessionParticipantUserIds`); the mapping is never persisted or sent to clients.
+- Instructor payloads replace `joined`, `joinRecords`, and `submittedQuiz` with `joinedCount` and `submittedCount`. Results list respondents only, as `respondent-N` with `anonymousIndex`, ordered by pseudonym. Response timestamps are removed, and student names are not attached to live responses, chat posts, or AI tool output.
+- Grades are never created. Anonymous sessions are excluded from the course gradebook, grade edits return `409`, and AI grading is refused.
+- `anonymous` can change only before anyone joins, submits, or responds. Enabling it deletes existing grade rows for the session, which exist only if it had ended with no participation.
+
+Rotating the key used by active anonymous sessions detaches students from their earlier responses: they could answer again, and their own review would appear empty. Set `ANONYMOUS_SESSION_SECRET` to the previous key value before rotating `JWT_SECRET`. A server operator who holds the key and the course roster can recompute the mapping. The design protects against instructors and database-only access, not against the server operator.
 
 ### Session status and quiz access
 
@@ -89,7 +103,7 @@ Represents a student's response to a question.
 
 Key concerns:
 
-- who answered
+- who answered (`studentUserId`, a user id or, in anonymous sessions, a per-session pseudonym)
 - which question and session the response belongs to
 - answer data structure by question type
 - attempt handling

@@ -66,6 +66,10 @@ function getGradeIdentityFilter(grade) {
 }
 
 function ensureSessionEndedForGrading(session, reply) {
+  if (session?.anonymous) {
+    reply.code(409).send({ error: 'Conflict', message: 'Anonymous sessions do not have grades' });
+    return false;
+  }
   const reason = getSessionGradingLockReason(session);
   if (!reason) return true;
   reply.code(409).send({
@@ -309,7 +313,7 @@ export default async function gradeRoutes(app) {
     {
       preHandler: authenticate,
       schema: {
-        description: 'Read grades without creating missing rows. Instructor responses include gradingLockReason: not-ended, extensions, missing-grades, or null.',
+        description: 'Read grades without creating missing rows. Instructor responses include gradingLockReason: not-ended, extensions, missing-grades, anonymous, or null. Anonymous sessions never have grades.',
       },
       config: {
         rateLimit: { max: 120, timeWindow: '1 minute' },
@@ -343,6 +347,17 @@ export default async function gradeRoutes(app) {
       const gradeQuery = instructorView
         ? { sessionId: String(session._id), courseId: String(course._id) }
         : studentVisibleGradeQuery(course._id, session._id, request.user);
+
+      if (session.anonymous) {
+        return {
+          sessionId: String(session._id),
+          courseId: String(course._id),
+          instructorView,
+          anonymous: true,
+          ...(instructorView ? { gradingLockReason: 'anonymous' } : {}),
+          grades: [],
+        };
+      }
 
       let grades = await normalizeGradesManualGradingState(await Grade.find(gradeQuery).lean());
       if (!instructorView) grades = grades.map(sanitizeStudentVisibleGrade);
@@ -742,7 +757,8 @@ export default async function gradeRoutes(app) {
       const requestedSessionIds = parseSessionIds(request.query?.sessionIds);
       const requestedStudentId = normalizeAnswerValue(request.query?.studentId);
 
-      const sessionQuery = { courseId: String(course._id) };
+      // Anonymous sessions are never graded and stay out of the gradebook.
+      const sessionQuery = { courseId: String(course._id), anonymous: { $ne: true } };
       if (requestedSessionIds.length > 0) {
         sessionQuery._id = { $in: requestedSessionIds };
       }

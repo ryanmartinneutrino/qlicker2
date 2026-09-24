@@ -196,6 +196,7 @@ export default function SessionEditor() {
   // Quiz settings
   const [quiz, setQuiz] = useState(false);
   const [practiceQuiz, setPracticeQuiz] = useState(false);
+  const [anonymous, setAnonymous] = useState(false);
   const [quizStart, setQuizStart] = useState('');
   const [quizEnd, setQuizEnd] = useState('');
   const [msScoringMethod, setMsScoringMethod] = useState(DEFAULT_MS_SCORING_METHOD);
@@ -271,6 +272,7 @@ export default function SessionEditor() {
       setEditFields({ name: s.name || '', description: s.description || '' });
       setQuiz(!!s.quiz);
       setPracticeQuiz(!!s.practiceQuiz);
+      setAnonymous(!!s.anonymous);
       setQuizStart(toDateTimeLocalString(s.quizStart));
       setQuizEnd(toDateTimeLocalString(s.quizEnd));
       setMsScoringMethod(s.msScoringMethod || DEFAULT_MS_SCORING_METHOD);
@@ -1367,6 +1369,13 @@ export default function SessionEditor() {
   const courseTitle = course?._id ? buildCourseTitle(course, 'long') : '';
   const courseSection = String(course?.section || '').trim();
   const canReviewRunningQuiz = (session.quiz || session.practiceQuiz) && status === 'running';
+  // Anonymity cannot change once students have joined or answered: their
+  // records are stored under a different identifier in anonymous sessions.
+  const anonymityLocked = !!session.hasResponses
+    || (Array.isArray(session.joined) && session.joined.length > 0)
+    || Number(session.joinedCount || 0) > 0
+    || (Array.isArray(session.submittedQuiz) && session.submittedQuiz.length > 0)
+    || Number(session.submittedCount || 0) > 0;
   const canReviewEndedSession = status === 'done';
   const hasGradableQuestions = questions.some((question) => !isSlideType(question.type));
   const normalizedAllQuestionPoints = String(allQuestionPoints).trim();
@@ -1566,12 +1575,33 @@ export default function SessionEditor() {
                     }
                     saveSessionPatch({ practiceQuiz: checked });
                   }}
-                  disabled={savingSession}
+                  disabled={savingSession || anonymous}
                 />
               )}
               label={(
                 <Tooltip title={t('professor.sessionEditor.practiceQuizHelp')} arrow>
                   <span>{t('professor.sessionEditor.practiceQuiz')}</span>
+                </Tooltip>
+              )}
+            />
+            <FormControlLabel
+              control={(
+                <Switch
+                  checked={anonymous}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setAnonymous(checked);
+                    saveSessionPatch({ anonymous: checked });
+                  }}
+                  disabled={savingSession || practiceQuiz || anonymityLocked}
+                  slotProps={(anonymous || anonymityLocked)
+                    ? { input: { 'aria-describedby': 'session-anonymous-help' } }
+                    : undefined}
+                />
+              )}
+              label={(
+                <Tooltip title={t('professor.sessionEditor.anonymousHelp')} arrow>
+                  <span>{t('professor.sessionEditor.anonymous')}</span>
                 </Tooltip>
               )}
             />
@@ -1592,6 +1622,15 @@ export default function SessionEditor() {
               )}
             />
           </Box>
+
+          {(anonymous || anonymityLocked) && (
+            <Typography id="session-anonymous-help" variant="body2" sx={{ color: 'text.secondary' }}>
+              {[
+                anonymous ? t('professor.sessionEditor.anonymousEnabledNote') : '',
+                anonymityLocked ? t('professor.sessionEditor.anonymousLockedNote') : '',
+              ].filter(Boolean).join(' ')}
+            </Typography>
+          )}
 
           {/* Join code settings (for interactive sessions only) */}
           {!quiz && (

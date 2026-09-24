@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import mongoose from 'mongoose';
 import Course from '../../src/models/Course.js';
+import Question from '../../src/models/Question.js';
+import Response from '../../src/models/Response.js';
 import Session from '../../src/models/Session.js';
 import User from '../../src/models/User.js';
 import {
   getCourseSessionOverview,
+  getQuestionResponses,
   getSessionDetails,
   getStudentSessionOverview,
 } from '../../src/services/aiCourseTools.js';
+import { getAnonymousParticipantId } from '../../src/utils/anonymousSession.js';
 
 describe('AI course session overview tools', () => {
   it('returns all instructor sessions but never exposes drafts to students', async (ctx) => {
@@ -159,5 +163,51 @@ describe('AI course session detail tool', () => {
         has_quiz_extension: true,
       }),
     ]);
+  });
+});
+
+describe('AI course tools for anonymous sessions', () => {
+  it('lists no participants and labels responses without identities', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const student = await User.create({
+      emails: [{ address: 'anon-ai-student@example.com', verified: true }],
+      profile: { firstname: 'Hidden', lastname: 'Person', roles: ['student'] },
+    });
+    const studentId = String(student._id);
+    const course = await Course.create({
+      name: 'Anonymous AI course', deptCode: 'TEST', courseNumber: '210', section: '001', semester: 'Fall 2026',
+      owner: 'prof-anon-ai', instructors: ['prof-anon-ai'], students: [studentId], enrollmentCode: 'ANONAI',
+    });
+    const session = await Session.create({
+      name: 'Anonymous survey', courseId: course._id, creator: 'prof-anon-ai', status: 'done', anonymous: true,
+    });
+    const participantId = getAnonymousParticipantId(session._id, studentId);
+    const question = await Question.create({
+      type: 2, content: '<p>Feedback?</p>', plainText: 'Feedback?', courseId: course._id, sessionId: session._id,
+      creator: 'prof-anon-ai',
+    });
+    await Session.updateOne(
+      { _id: session._id },
+      { $set: { questions: [question._id], joined: [participantId], submittedQuiz: [participantId] } }
+    );
+    await Response.create({
+      questionId: question._id, studentUserId: participantId, attempt: 1, answer: 'More examples please',
+    });
+
+    const details = await getSessionDetails(course._id, session._id);
+    expect(details).toMatchObject({ anonymous: true, joined_student_count: 1, participants: [] });
+    expect(JSON.stringify(details)).not.toContain(participantId);
+
+    const responses = await getQuestionResponses(course._id, session._id, question._id);
+    expect(responses.responses).toEqual([
+      expect.objectContaining({
+        student: { student_id: 'respondent-1', name: 'Anonymous respondent 1', email: '' },
+        answer: 'More examples please',
+      }),
+    ]);
+    const serialized = JSON.stringify(responses);
+    expect(serialized).not.toContain(studentId);
+    expect(serialized).not.toContain(participantId);
+    expect(serialized).not.toContain('Hidden');
   });
 });

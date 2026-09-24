@@ -867,7 +867,8 @@
       "courseActiveHelp": "Cuando el curso está activo, los estudiantes pueden acceder a él.",
       "aiRequiresAdminAuthorization": "Requiere autorización de administración",
       "aiHelperHelp": "Active un asistente de IA para ayudar con la calificación, generar preguntas y administrar sesiones y estudiantes.",
-      "enrollmentCodeHelp": "Este es el código que los estudiantes necesitan para inscribirse en el curso."
+      "enrollmentCodeHelp": "Este es el código que los estudiantes necesitan para inscribirse en el curso.",
+      "anonymousSession": "Anónima"
     },
     "sessionEditor": {
       "sessionSettings": "Configuración de la sesión",
@@ -1000,7 +1001,11 @@
       "applyingTagsToQuestions": "Aplicando etiquetas…",
       "appliedSessionTagsToQuestions_one": "Se aplicaron las etiquetas de la sesión a 1 pregunta.",
       "appliedSessionTagsToQuestions_other": "Se aplicaron las etiquetas de la sesión a {{count}} preguntas.",
-      "failedApplySessionTagsToQuestions": "No se pudieron aplicar las etiquetas de la sesión a las preguntas."
+      "failedApplySessionTagsToQuestions": "No se pudieron aplicar las etiquetas de la sesión a las preguntas.",
+      "anonymous": "Respuestas anónimas",
+      "anonymousHelp": "El profesorado ve las respuestas pero no quién las dio. Los estudiantes siguen iniciando sesión y solo pueden responder una vez. Las sesiones anónimas no se califican ni aparecen en el libro de calificaciones.",
+      "anonymousEnabledNote": "Las respuestas y la asistencia se guardan sin la identidad de los estudiantes. Esta sesión no se calificará.",
+      "anonymousLockedNote": "El anonimato no se puede cambiar después de que los estudiantes se hayan unido o hayan respondido."
     },
     "liveSession": {
       "currentQuestion": "Pregunta actual",
@@ -1115,7 +1120,8 @@
       "joinTimeUnavailable": "Hora de ingreso no disponible",
       "ending": "Finalizando…",
       "currentJoinCodeAria": "Código de acceso actual: {{code}}",
-      "pageProgressAria": "Página {{current}} de {{total}}"
+      "pageProgressAria": "Página {{current}} de {{total}}",
+      "anonymousStudentsNote": "Esta sesión es anónima, por lo que no se muestran los nombres de los estudiantes que se unieron."
     },
     "sessionReview": {
       "questions": "Preguntas",
@@ -1191,7 +1197,23 @@
       "haltingAiResponseSummary": "Deteniendo…",
       "aiSummaryHalted": "Resumen de IA detenido. Puede generarlo de nuevo.",
       "aiSummaryFailed": "Error al generar el resumen de IA. {{error}}",
-      "aiSummaryHaltFailed": "No se pudo detener el resumen de IA."
+      "aiSummaryHaltFailed": "No se pudo detener el resumen de IA.",
+      "respondentLabel": "Participante {{number}}",
+      "respondent": "Participante",
+      "respondents": "Participantes",
+      "searchRespondents": "Buscar participantes",
+      "anonymousSessionNotice": "Esta sesión es anónima. Los participantes se muestran con etiquetas genéricas y la sesión no se califica.",
+      "anonymousSmallGroupWarning_one": "Solo respondió {{count}} estudiante, por lo que sus respuestas podrían atribuirse fácilmente.",
+      "anonymousSmallGroupWarning_other": "Solo respondieron {{count}} estudiantes, por lo que sus respuestas podrían atribuirse fácilmente.",
+      "responsesByQuestion": "Respuestas por pregunta",
+      "anonymousResponsesHelp": "Las respuestas se muestran sin nombres. Las sesiones anónimas no tienen puntuaciones ni comentarios.",
+      "selectQuestion": "Pregunta",
+      "questionNumberLabel": "Pregunta {{number}}",
+      "filterAnswers": "Filtrar respuestas",
+      "noAnswersMatch": "Ninguna respuesta coincide con el filtro.",
+      "anonymousResponsesTable": "Respuestas anónimas",
+      "response": "Respuesta",
+      "correctColumn": "Correcta"
     },
     "secondDesktop": {
       "joinCode": "Código de acceso",
@@ -2244,7 +2266,8 @@
             "Los cuestionarios son ventanas programadas donde los estudiantes responden en su propio horario. Use las horas de inicio y fin más las extensiones para los flujos de trabajo de adaptación. Los menús de estado del curso y del editor controlan el mismo ajuste. Elegir En vivo abre el cuestionario independientemente de las fechas y mantiene abierto el editor, con un enlace a los resultados en vivo. Elija el estado basado en fechas para seguir el horario, o Finalizada para cerrar el acceso general conservando las prórrogas individuales.",
             "Los cuestionarios de práctica se sienten más como un ensayo guiado y son adecuados para el autoestudio o el refuerzo opcional.",
             "Si una sesión depende de códigos de acceso, grupos o estadísticas visibles, confirme esos ajustes antes de que los estudiantes empiecen a unirse.",
-            "Las listas de sesiones mantienen la búsqueda, los filtros y la paginación dentro de Buscar sesiones. Mientras una sesión interactiva está en vivo, abrir su tarjeta se une directamente a los controles en vivo; las tarjetas de cuestionario en vivo aún abren el editor."
+            "Las listas de sesiones mantienen la búsqueda, los filtros y la paginación dentro de Buscar sesiones. Mientras una sesión interactiva está en vivo, abrir su tarjeta se une directamente a los controles en vivo; las tarjetas de cuestionario en vivo aún abren el editor.",
+            "Activa Respuestas anónimas en el editor de sesiones para encuestas y evaluaciones del curso. Los estudiantes siguen iniciando sesión y responden cada pregunta una sola vez, pero ves las respuestas con etiquetas como Participante 1 en lugar de nombres, la vista en vivo solo muestra cuántos estudiantes se unieron, y la sesión nunca se califica ni se añade al libro de calificaciones. El ajuste se bloquea en cuanto alguien se une o responde, y los grupos muy pequeños aún pueden identificarse por descarte."
           ]
         },
         {
@@ -2349,7 +2372,8 @@
             "Las diapositivas pueden aparecer entre preguntas. Son páginas de contenido, así que léalas con atención antes de continuar.",
             "Si su instructor revela estadísticas para una nube de palabras o un histograma, la vista debería actualizarse automáticamente sin necesidad de recargar.",
             "Para las preguntas de respuesta corta, la lista de respuestas compartida se puede mostrar u ocultar por separado de la nube de palabras, por lo que puede ver una sin la otra.",
-            "Al desplazarte sobre una respuesta numérica, su valor no cambia y el campo pierde el foco para que la página pueda desplazarse. Haz clic en el campo o vuelve a él con la tecla Tab para seguir editando."
+            "Al desplazarte sobre una respuesta numérica, su valor no cambia y el campo pierde el foco para que la página pueda desplazarse. Haz clic en el campo o vuelve a él con la tecla Tab para seguir editando.",
+            "La etiqueta Anónima significa que tu docente ve tus respuestas sin tu nombre. Sigues iniciando sesión y solo puedes responder cada pregunta una vez, puedes revisar tus propias respuestas más adelante, y la sesión no se califica."
           ]
         },
         {
@@ -2704,5 +2728,9 @@
       "downloadArtifact": "Descargar {{filename}}",
       "artifactUnavailable": "Este artefacto ha caducado o ya no está disponible. Pide a la IA que lo genere de nuevo."
     }
+  },
+  "sessionAnonymity": {
+    "chip": "Anónima",
+    "studentNotice": "Esta sesión es anónima. Debes iniciar sesión y solo puedes responder cada pregunta una vez, pero tu docente no puede ver cuáles respuestas son tuyas. Las sesiones anónimas no se califican."
   }
 }

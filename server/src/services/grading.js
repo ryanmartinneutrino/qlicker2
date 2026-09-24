@@ -771,6 +771,33 @@ export async function recalculateSessionGrades({
 
   const courseId = String(course._id);
   const normalizedSessionId = String(session._id);
+
+  // Anonymous sessions never produce grade rows: grades are keyed by real
+  // user ids and would link students to their responses.
+  if (session.anonymous) {
+    return {
+      session,
+      course,
+      grades: [],
+      summary: {
+        sessionId: normalizedSessionId,
+        courseId,
+        missingOnly: !!missingOnly,
+        anonymous: true,
+        createdGradeCount: 0,
+        updatedGradeCount: 0,
+        skippedExistingCount: 0,
+        deduplicatedGradeRowCount: 0,
+        totalGradeCount: 0,
+        ungradableQuestionIds: [],
+        lowResponseExcludedQuestionIds: [],
+        needsGradingStudents: 0,
+        needsGradingMarks: 0,
+        manualMarkConflicts: [],
+        warnings: [],
+      },
+    };
+  }
   const sessionQuestionIds = Array.isArray(session.questions) ? session.questions.map((id) => String(id)) : [];
 
   const [questionDocs, responseDocs, existingGradeDocs, studentDocs] = await Promise.all([

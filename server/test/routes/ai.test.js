@@ -1295,3 +1295,26 @@ describe('AI grading saved responses', () => {
     expect(later.json().grades.find((grade) => grade.userId === 'blank').marks[0].needsGrading).toBe(true);
   });
 });
+
+describe('AI grading for anonymous sessions', () => {
+  it('refuses to start because anonymous sessions have no grades', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const professor = await createTestUser({ email: 'ai-anon-prof@example.com', roles: ['professor'] });
+    const token = await getAuthToken(app, professor);
+    const course = await createCourse(token);
+    await configureAi(course._id);
+    const session = await Session.create({
+      name: 'Anonymous survey', courseId: course._id, status: 'done', anonymous: true,
+    });
+
+    const response = await authenticatedRequest(
+      app,
+      'POST',
+      `/api/v1/ai/courses/${course._id}/sessions/${session._id}/ai-grading`,
+      { token, payload: { questionIds: ['q-1'] } }
+    );
+    expect(response.statusCode).toBe(409);
+    expect(response.json().message).toBe('Anonymous sessions do not have grades');
+    expect(await AiGradingJob.countDocuments({ sessionId: session._id })).toBe(0);
+  });
+});

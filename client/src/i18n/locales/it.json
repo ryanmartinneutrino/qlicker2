@@ -867,7 +867,8 @@
       "courseActiveHelp": "Quando il corso è attivo, gli studenti possono accedervi.",
       "aiRequiresAdminAuthorization": "Richiede l’autorizzazione dell’amministratore",
       "aiHelperHelp": "Abilita un assistente IA per aiutare con la valutazione, generare domande e gestire sessioni e studenti.",
-      "enrollmentCodeHelp": "Questo è il codice di cui gli studenti hanno bisogno per iscriversi al corso."
+      "enrollmentCodeHelp": "Questo è il codice di cui gli studenti hanno bisogno per iscriversi al corso.",
+      "anonymousSession": "Anonima"
     },
     "sessionEditor": {
       "sessionSettings": "Impostazioni della sessione",
@@ -1000,7 +1001,11 @@
       "applyingTagsToQuestions": "Applicazione delle etichette…",
       "appliedSessionTagsToQuestions_one": "Le etichette della sessione sono state applicate a 1 domanda.",
       "appliedSessionTagsToQuestions_other": "Le etichette della sessione sono state applicate a {{count}} domande.",
-      "failedApplySessionTagsToQuestions": "Impossibile applicare le etichette della sessione alle domande."
+      "failedApplySessionTagsToQuestions": "Impossibile applicare le etichette della sessione alle domande.",
+      "anonymous": "Risposte anonime",
+      "anonymousHelp": "I docenti vedono le risposte ma non chi le ha date. Gli studenti accedono comunque e possono rispondere una sola volta. Le sessioni anonime non vengono valutate e non compaiono nel registro dei voti.",
+      "anonymousEnabledNote": "Risposte e presenze vengono salvate senza l'identità degli studenti. Questa sessione non sarà valutata.",
+      "anonymousLockedNote": "L'anonimato non può essere modificato dopo che gli studenti si sono uniti o hanno risposto."
     },
     "liveSession": {
       "currentQuestion": "Domanda attuale",
@@ -1115,7 +1120,8 @@
       "joinTimeUnavailable": "Orario di partecipazione non disponibile",
       "ending": "Terminazione…",
       "currentJoinCodeAria": "Codice di accesso attuale: {{code}}",
-      "pageProgressAria": "Pagina {{current}} di {{total}}"
+      "pageProgressAria": "Pagina {{current}} di {{total}}",
+      "anonymousStudentsNote": "Questa sessione è anonima, quindi i nomi degli studenti che si sono uniti non vengono mostrati."
     },
     "sessionReview": {
       "questions": "Domande",
@@ -1191,7 +1197,23 @@
       "haltingAiResponseSummary": "Interruzione…",
       "aiSummaryHalted": "Riepilogo IA interrotto. Puoi generarlo di nuovo.",
       "aiSummaryFailed": "Riepilogo IA non riuscito. {{error}}",
-      "aiSummaryHaltFailed": "Impossibile interrompere il riepilogo IA."
+      "aiSummaryHaltFailed": "Impossibile interrompere il riepilogo IA.",
+      "respondentLabel": "Partecipante {{number}}",
+      "respondent": "Partecipante",
+      "respondents": "Partecipanti",
+      "searchRespondents": "Cerca partecipanti",
+      "anonymousSessionNotice": "Questa sessione è anonima. I partecipanti sono mostrati con etichette generiche e la sessione non viene valutata.",
+      "anonymousSmallGroupWarning_one": "Ha risposto solo {{count}} studente, quindi le sue risposte potrebbero essere facilmente attribuibili.",
+      "anonymousSmallGroupWarning_other": "Hanno risposto solo {{count}} studenti, quindi le loro risposte potrebbero essere facilmente attribuibili.",
+      "responsesByQuestion": "Risposte per domanda",
+      "anonymousResponsesHelp": "Le risposte sono mostrate senza nomi. Le sessioni anonime non hanno punteggi né commenti.",
+      "selectQuestion": "Domanda",
+      "questionNumberLabel": "Domanda {{number}}",
+      "filterAnswers": "Filtra risposte",
+      "noAnswersMatch": "Nessuna risposta corrisponde al filtro.",
+      "anonymousResponsesTable": "Risposte anonime",
+      "response": "Risposta",
+      "correctColumn": "Corretta"
     },
     "secondDesktop": {
       "joinCode": "Codice di accesso",
@@ -2244,7 +2266,8 @@
             "I quiz sono finestre pianificate in cui gli studenti rispondono secondo i propri tempi. Usa orari di inizio e fine più le proroghe per i flussi di adattamento. I menu di stato del corso e dell’editor controllano la stessa impostazione. Scegliere In diretta apre il quiz indipendentemente dalle date e mantiene aperto l’editor, con un collegamento ai risultati in diretta. Scegli il controllo in base alle date per seguire la pianificazione, oppure Terminata per chiudere l’accesso generale mantenendo le proroghe individuali.",
             "I quiz di pratica sono più simili a un'esercitazione guidata e sono adatti allo studio autonomo o al rinforzo facoltativo.",
             "Se una sessione dipende da codici di accesso, gruppi o statistiche visibili, conferma queste impostazioni prima che gli studenti inizino a partecipare.",
-            "Gli elenchi delle sessioni mantengono ricerca, filtri e paginazione dentro Cerca sessioni. Mentre una sessione interattiva è in diretta, aprire la sua scheda porta direttamente ai controlli in diretta; le schede dei quiz in diretta aprono ancora l'editor."
+            "Gli elenchi delle sessioni mantengono ricerca, filtri e paginazione dentro Cerca sessioni. Mentre una sessione interattiva è in diretta, aprire la sua scheda porta direttamente ai controlli in diretta; le schede dei quiz in diretta aprono ancora l'editor.",
+            "Attiva Risposte anonime nell'editor della sessione per sondaggi e valutazioni del corso. Gli studenti accedono comunque e rispondono a ogni domanda una sola volta, ma vedi le risposte con etichette come Partecipante 1 invece dei nomi, la vista dal vivo mostra solo quanti studenti si sono uniti, e la sessione non viene mai valutata né aggiunta al registro dei voti. L'impostazione si blocca non appena qualcuno si unisce o risponde, e i gruppi molto piccoli possono comunque essere identificati per esclusione."
           ]
         },
         {
@@ -2349,7 +2372,8 @@
             "Le diapositive possono comparire tra una domanda e l'altra. Sono pagine di contenuto, quindi leggile con attenzione prima di andare avanti.",
             "Se il tuo docente rivela le statistiche di una nuvola di parole o di un istogramma, la vista dovrebbe aggiornarsi automaticamente senza bisogno di ricaricare.",
             "Per le domande a risposta breve, l'elenco condiviso delle risposte può essere mostrato o nascosto separatamente dalla nuvola di parole, quindi potresti vedere l'uno senza l'altra.",
-            "Scorrendo sopra una risposta numerica, il valore rimane invariato e il campo perde il focus per consentire lo scorrimento della pagina. Fai clic nel campo o torna al campo con il tasto Tab per continuare a modificare la risposta."
+            "Scorrendo sopra una risposta numerica, il valore rimane invariato e il campo perde il focus per consentire lo scorrimento della pagina. Fai clic nel campo o torna al campo con il tasto Tab per continuare a modificare la risposta.",
+            "L'etichetta Anonima significa che il docente vede le tue risposte senza il tuo nome. Devi comunque accedere e puoi rispondere a ogni domanda una sola volta, puoi rivedere le tue risposte in seguito, e la sessione non viene valutata."
           ]
         },
         {
@@ -2734,5 +2758,9 @@
       "downloadArtifact": "Scarica {{filename}}",
       "artifactUnavailable": "Questo artefatto è scaduto o non è più disponibile. Chiedi all’IA di generarlo di nuovo."
     }
+  },
+  "sessionAnonymity": {
+    "chip": "Anonima",
+    "studentNotice": "Questa sessione è anonima. Devi comunque accedere e puoi rispondere a ogni domanda una sola volta, ma il docente non può vedere quali risposte sono tue. Le sessioni anonime non vengono valutate."
   }
 }
