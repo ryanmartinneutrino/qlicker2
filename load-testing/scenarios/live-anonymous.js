@@ -46,7 +46,7 @@ export const options = {
     },
   },
   thresholds: {
-    http_req_failed: ['rate==0'],
+    http_req_failed: [{ threshold: 'rate==0', abortOnFail: true }],
     anonymous_join_success: ['rate==1'],
     anonymous_respond_success: ['rate==1'],
     anonymous_privacy_success: ['rate==1'],

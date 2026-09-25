@@ -111,7 +111,9 @@ Otherwise, run `./setup.sh` and choose `prod` plus `docker` on either host.
    commands; a failed command in an `&&` chain skips the later commands.
 2. Run `./run.sh --prepare`. This checks or rebuilds the load-test seed image
    before disabling API and Nginx rate limits and recreating the server service.
-   The original API setting is saved in `state/rate-limit-restore.env`.
+   The runner verifies that the active Nginx configuration has no `limit_req`
+   directives. The original API setting is saved in
+   `state/rate-limit-restore.env`.
 3. Run each scenario at the same student count and with the same timing knobs:
 
    ```bash
@@ -130,6 +132,13 @@ Otherwise, run `./setup.sh` and choose `prod` plus `docker` on either host.
 4. Run `./run.sh --restore` and `./run.sh --clean` as separate commands when
    testing ends, including after a failed run. Keep result logs and summaries
    before cleanup.
+
+Before each main workload, the runner sends twelve empty login requests
+through the configured public `BASE_URL`. They should all reach API validation
+and return 400. A 503 or any other response stops the run before student VUs
+start; the diagnostic is saved in `results/preflight-NAME-TIMESTAMP.log`.
+Check Nginx and any proxy in front of it if the preflight fails. The probe
+uses no account credentials and does not change the application database.
 
 `results/k6-NAME-TIMESTAMP.log` contains the complete k6 output and
 `results/summary-NAME-TIMESTAMP.json` contains machine-readable metrics. Match

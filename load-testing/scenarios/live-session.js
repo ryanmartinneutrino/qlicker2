@@ -150,7 +150,7 @@ const chatEventSyncSuccess = new Rate('chat_event_sync_success');
 const chatActionSuccess = new Rate('chat_action_success');
 
 const thresholds = {
-  http_req_failed: ['rate==0'],
+  http_req_failed: [{ threshold: 'rate==0', abortOnFail: true }],
   ws_errors: ['count==0'],
   ws_handshake_failures: ['count==0'],
   'login_success{role:student}': ['rate==1'],

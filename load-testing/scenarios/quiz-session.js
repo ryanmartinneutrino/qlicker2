@@ -40,7 +40,7 @@ export const options = {
     },
   },
   thresholds: {
-    http_req_failed: ['rate==0'],
+    http_req_failed: [{ threshold: 'rate==0', abortOnFail: true }],
     quiz_course_list_success: ['rate==1'],
     quiz_open_success: ['rate==1'],
     quiz_autosave_success: ['rate==1'],

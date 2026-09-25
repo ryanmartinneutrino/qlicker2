@@ -275,6 +275,13 @@ seed_runner() {
 }
 
 k6_runner() {
+  local scenario_file="${1:-$SCENARIO_FILE}"
+  local -a k6_flags=()
+  if [[ "$scenario_file" == "preflight.js" ]]; then
+    k6_flags=(--quiet --summary-mode=compact)
+  else
+    k6_flags=(--summary-export "/results/summary-${SCENARIO}-${RUN_TIMESTAMP}.json")
+  fi
   local k6_base_url="$BASE_URL"
   if is_local_address "$k6_base_url"; then
     k6_base_url="$(rewrite_localhost_for_docker "$k6_base_url")"
@@ -327,8 +334,8 @@ k6_runner() {
       --env BASE_URL="$k6_base_url" \
       --env STATE_FILE=/state/state.json \
       "${k6_env[@]}" \
-      --summary-export "/results/summary-${SCENARIO}-${RUN_TIMESTAMP}.json" \
-      "/scenarios/${SCENARIO_FILE}"
+      "${k6_flags[@]}" \
+      "/scenarios/${scenario_file}"
 }
 
 require_seed_image() {
@@ -386,6 +393,11 @@ do_prepare() {
         "sed -i 's/^[[:space:]]*limit_req /#limit_req /g' /etc/nginx/conf.d/default.conf && nginx -s reload" \
         2>/dev/null; then
         error "Could not disable nginx rate limits; run --restore and check the nginx service."
+        exit 1
+      fi
+      if ! stack_compose exec -T nginx sh -c \
+        "nginx -T 2>/dev/null | grep -Eq '^[[:space:]]*limit_req[[:space:]]'; test \$? -eq 1"; then
+        error "Active Nginx configuration still contains a limit_req rule; run --restore and inspect nginx -T."
         exit 1
       fi
     fi
@@ -484,6 +496,15 @@ do_test() {
     session_chat_label="enabled"
   fi
 
+  info "Checking the public login path before starting $SCENARIO …"
+  local preflight_log="$RESULTS_DIR/preflight-${SCENARIO}-${RUN_TIMESTAMP}.log"
+  if ! k6_runner preflight.js > "$preflight_log" 2>&1; then
+    cat "$preflight_log"
+    error "Login ingress preflight failed. Check Nginx and any upstream proxy limits before running the load test."
+    error "Preflight log: $preflight_log"
+    return 1
+  fi
+  info "Login ingress preflight passed ✓"
   info "Running $SCENARIO load test against $BASE_URL …"
   if [[ "$SCENARIO" == "live-named" ]]; then info "Session chat: $session_chat_label"; fi
   info "Results log: $result_log"

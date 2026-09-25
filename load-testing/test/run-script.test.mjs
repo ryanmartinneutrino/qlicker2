@@ -195,3 +195,20 @@ esac
   assert.match(actions, /exec -T nginx/);
   assert.match(actions, /restart nginx/);
 });
+
+test('a failed login ingress preflight prevents the main workload from starting', async (t) => {
+  const { root, argsFile } = await fixture(t);
+  await fs.writeFile(path.join(root, 'bin/docker'), `#!/bin/sh
+printf '%s\\n' "$@" >> "$DOCKER_ARGS_FILE"
+case "$*" in
+  *'/scenarios/preflight.js'*) exit 17 ;;
+esac
+exit 0
+`, { mode: 0o755 });
+  const result = run(root, argsFile, '--test-only');
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Login ingress preflight failed/);
+  const args = await fs.readFile(argsFile, 'utf8');
+  assert.match(args, /\/scenarios\/preflight\.js/);
+  assert.doesNotMatch(args, /\/scenarios\/live-session\.js/);
+});
