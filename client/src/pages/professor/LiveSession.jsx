@@ -1838,6 +1838,10 @@ function LiveSessionContent() {
                   }}>
                     {t('professor.liveSession.selectQuestionToViewResponses')}
                   </Typography>
+                ) : anonymousSession ? (
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                    {t('professor.liveSession.respondedSummary', { responded: responseCount, total: joinedCount })}
+                  </Typography>
                 ) : responseStats?.type === 'distribution' ? (
                   <Typography variant="body2" sx={{
                     color: "text.secondary"
