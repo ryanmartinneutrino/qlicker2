@@ -208,6 +208,14 @@ describe('AI course tools for anonymous sessions', () => {
     })));
     const responses = await getQuestionResponses(course._id, session._id, question._id);
     expect(responses.responses).toHaveLength(4);
+    const expectedAnswerOrder = [
+      [participantId, 'More examples please'],
+      ...[2, 3, 4].map((number) => [
+        getAnonymousParticipantId(session._id, `anon-ai-student-${number}`),
+        `Feedback ${number}`,
+      ]),
+    ].sort(([left], [right]) => left.localeCompare(right)).map(([, answer]) => answer);
+    expect(responses.responses.map((response) => response.answer)).toEqual(expectedAnswerOrder);
     expect(responses.responses).toEqual(expect.arrayContaining([
       expect.objectContaining({ answer: 'More examples please' }),
     ]));

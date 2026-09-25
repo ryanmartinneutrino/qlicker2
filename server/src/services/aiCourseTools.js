@@ -519,7 +519,9 @@ export async function getQuestionResponses(courseId, sessionId, questionId, { of
       { $sort: { studentUserId: 1, updatedAt: -1, submittedAt: -1, createdAt: -1 } },
       { $group: { _id: '$studentUserId', response: { $first: '$$ROOT' } } },
       { $replaceRoot: { newRoot: '$response' } },
-      { $sort: { updatedAt: -1, submittedAt: -1, createdAt: -1 } },
+      { $sort: session.anonymous
+        ? { studentUserId: 1 }
+        : { updatedAt: -1, submittedAt: -1, createdAt: -1 } },
       { $facet: {
         metadata: [{ $count: 'total' }],
         responses: [{ $skip: pageOffset }, { $limit: pageSize }],
