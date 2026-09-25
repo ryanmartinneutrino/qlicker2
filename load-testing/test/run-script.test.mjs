@@ -234,3 +234,20 @@ test('prod/docker test-only refuses a stale preparation record', async (t) => {
   assert.match(result.stderr, /DISABLE_RATE_LIMITS=true is missing/);
   await assert.rejects(fs.access(argsFile));
 });
+
+
+test('an interrupted k6 process reports its exit and missing summary', async (t) => {
+  const { root, argsFile } = await fixture(t);
+  await fs.writeFile(path.join(root, 'bin/docker'), `#!/bin/sh
+printf '%s\\n' "$@" >> "$DOCKER_ARGS_FILE"
+case "$*" in
+  *'/scenarios/live-session.js'*) exit 141 ;;
+esac
+exit 0
+`, { mode: 0o755 });
+  const result = run(root, argsFile, '--test-only');
+  assert.equal(result.status, 141);
+  assert.match(result.stdout, /SIGPIPE \(141\)/);
+  assert.match(result.stdout, /No summary file was produced/);
+  assert.doesNotMatch(result.stdout, /Summary saved to:/);
+});

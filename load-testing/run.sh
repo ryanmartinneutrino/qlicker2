@@ -540,7 +540,12 @@ do_test() {
     warn "Load test FAILED (k6/container exit code $k6_exit). Inspect the log and threshold summary."
   fi
   info "Full log saved to: $result_log"
-  info "Summary saved to: $RESULTS_DIR/summary-${SCENARIO}-${RUN_TIMESTAMP}.json"
+  local summary_file="$RESULTS_DIR/summary-${SCENARIO}-${RUN_TIMESTAMP}.json"
+  if [[ -f "$summary_file" ]]; then
+    info "Summary saved to: $summary_file"
+  else
+    warn "No summary file was produced; the k6/container process ended before exporting it."
+  fi
 
   return $k6_exit
 }
