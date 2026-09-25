@@ -21,6 +21,7 @@ STATE_DIR="$SCRIPT_DIR/state"
 K6_IMAGE="${K6_IMAGE:-grafana/k6:latest}"
 K6_NOFILE_LIMIT="${K6_NOFILE_LIMIT:-16384}"
 DEFAULT_SEED_IMAGE="qlicker-load-testing-seed:local"
+SEED_FINGERPRINT_LABEL="org.qlicker.load-testing.seed-fingerprint"
 COMMON_SH="$SCRIPT_DIR/common.sh"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
@@ -61,6 +62,14 @@ SEED_IMAGE="${SEED_IMAGE:-$DEFAULT_SEED_IMAGE}"
 SESSION_CHAT_ENABLED="${SESSION_CHAT_ENABLED:-true}"
 SCENARIO="${SCENARIO:-live-named}"
 RATE_LIMIT_STATE_FILE="$STATE_DIR/rate-limit-restore.env"
+
+remind_restore_on_failure() {
+  local exit_status=$?
+  if (( exit_status != 0 )) && [[ -f "$RATE_LIMIT_STATE_FILE" ]]; then
+    warn "Load testing stopped while rate limits may be disabled. Run ./run.sh --restore, then ./run.sh --clean."
+  fi
+}
+trap remind_restore_on_failure EXIT
 
 if [[ ! "$K6_NOFILE_LIMIT" =~ ^[0-9]+$ ]] || (( K6_NOFILE_LIMIT < 1024 )); then
   error "K6_NOFILE_LIMIT must be an integer of at least 1024."
@@ -341,9 +350,22 @@ k6_runner() {
 }
 
 require_seed_image() {
-  if ! docker image inspect "$SEED_IMAGE" >/dev/null 2>&1; then
-    error "Seed image '$SEED_IMAGE' not found."
-    error "Run ./setup.sh to build it."
+  local expected_fingerprint image_fingerprint
+  expected_fingerprint="$(seed_image_fingerprint "$SCRIPT_DIR")"
+  image_fingerprint="$(docker image inspect --format "{{ index .Config.Labels \"$SEED_FINGERPRINT_LABEL\" }}" "$SEED_IMAGE" 2>/dev/null || true)"
+  if [[ "$image_fingerprint" == "$expected_fingerprint" ]]; then
+    return 0
+  fi
+
+  info "Seed image '$SEED_IMAGE' is missing or out of date; rebuilding it from this checkout …"
+  docker build \
+    --label "$SEED_FINGERPRINT_LABEL=$expected_fingerprint" \
+    -t "$SEED_IMAGE" \
+    -f "$SCRIPT_DIR/Dockerfile.seed" \
+    "$SCRIPT_DIR"
+  image_fingerprint="$(docker image inspect --format "{{ index .Config.Labels \"$SEED_FINGERPRINT_LABEL\" }}" "$SEED_IMAGE" 2>/dev/null || true)"
+  if [[ "$image_fingerprint" != "$expected_fingerprint" ]]; then
+    error "The rebuilt seed image does not match this checkout."
     exit 1
   fi
 }
@@ -352,6 +374,11 @@ do_prepare() {
   if [[ -f "$RATE_LIMIT_STATE_FILE" ]]; then
     error "A rate-limit restore record already exists: $RATE_LIMIT_STATE_FILE. Run --restore first."
     exit 1
+  fi
+  if [[ "$TARGET_RUNTIME" == "docker" ]]; then
+    # Build before changing the stack, so a missing/stale seed image cannot
+    # leave rate limits disabled when the load test has not even started.
+    require_seed_image
   fi
   if [[ ! -f "$TARGET_ENV_FILE" ]]; then error "Target environment file not found: $TARGET_ENV_FILE"; exit 1; fi
   mkdir -p "$STATE_DIR"
@@ -467,7 +494,7 @@ do_test() {
 
   local state_scenario
   if ! state_scenario="$(sed -n 's/^[[:space:]]*"scenario": "\([^"]*\)".*/\1/p' "$STATE_DIR/state.json" | head -1)" || [[ "$state_scenario" != "$SCENARIO" ]]; then
-    error "The state file does not match scenario '$SCENARIO'. Reseed before testing."
+    error "The state file does not match scenario '$SCENARIO'. Reseed before testing; the seed image may be stale."
     exit 1
   fi
   mkdir -p "$RESULTS_DIR"

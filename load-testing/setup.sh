@@ -17,6 +17,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 ENV_FILE="$SCRIPT_DIR/.env"
 DEFAULT_SEED_IMAGE="qlicker-load-testing-seed:local"
+SEED_FINGERPRINT_LABEL="org.qlicker.load-testing.seed-fingerprint"
 COMMON_SH="$SCRIPT_DIR/common.sh"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
@@ -283,7 +284,11 @@ info "Configuration written to $ENV_FILE"
 
 echo ""
 info "Building the seed Docker image ($DEFAULT_SEED_IMAGE_TAG) …"
-docker build -t "$DEFAULT_SEED_IMAGE_TAG" -f "$SCRIPT_DIR/Dockerfile.seed" "$SCRIPT_DIR"
+docker build \
+  --label "$SEED_FINGERPRINT_LABEL=$(seed_image_fingerprint "$SCRIPT_DIR")" \
+  -t "$DEFAULT_SEED_IMAGE_TAG" \
+  -f "$SCRIPT_DIR/Dockerfile.seed" \
+  "$SCRIPT_DIR"
 info "Seed image built ✓"
 
 mkdir -p "$SCRIPT_DIR/state" "$SCRIPT_DIR/results"

@@ -18,6 +18,10 @@ async function fixture(t, { environment = 'prod', host = 'qlicker.example.com', 
   await Promise.all([
     fs.copyFile(path.join(loadTestingRoot, 'run.sh'), path.join(root, 'run.sh')),
     fs.copyFile(path.join(loadTestingRoot, 'common.sh'), path.join(root, 'common.sh')),
+    fs.writeFile(path.join(root, 'Dockerfile.seed'), 'FROM node:24-alpine\n'),
+    fs.writeFile(path.join(root, 'package.json'), '{}\n'),
+    fs.writeFile(path.join(root, 'package-lock.json'), '{}\n'),
+    fs.writeFile(path.join(root, 'seed.mjs'), 'console.log(\"seed\")\n'),
     fs.writeFile(path.join(root, 'state/state.json'), JSON.stringify({ session: { scenario } }, null, 2)),
     fs.writeFile(path.join(root, 'scenarios/live-session.js'), ''),
     fs.writeFile(path.join(root, 'scenarios/live-anonymous.js'), ''),
@@ -86,9 +90,11 @@ test('staging rejects a target hostname mismatch before invoking Docker', async 
 
 test('test-only rejects a fixture from a different scenario', async (t) => {
   const { root, argsFile } = await fixture(t, { scenario: 'quiz-named' });
+  await fs.writeFile(path.join(root, 'state/rate-limit-restore.env'), 'DISABLE_RATE_LIMITS=false\n');
   const result = run(root, argsFile, '--test-only');
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /does not match scenario/);
+  assert.match(result.stdout, /Run \.\/run\.sh --restore/);
   await assert.rejects(fs.access(argsFile));
 });
 
@@ -107,4 +113,54 @@ test('prepare and restore preserve the original rate-limit setting', async (t) =
   result = run(root, argsFile, '--restore');
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.equal(await fs.readFile(targetEnv, 'utf8'), 'ROOT_URL=https://qlicker.example.com\n\n');
+});
+
+
+test('cleanup rebuilds an outdated seed image once, then reuses the matching image', async (t) => {
+  const { root, argsFile } = await fixture(t);
+  const labelFile = path.join(root, 'seed-image-label');
+  await fs.writeFile(path.join(root, 'bin/docker'), `#!/usr/bin/env bash
+case "$1 $2" in
+  'image inspect')
+    if [[ -f "$DOCKER_LABEL_FILE" ]]; then cat "$DOCKER_LABEL_FILE"; else printf 'old-image\n'; fi
+    ;;
+  'build --label')
+    printf 'build\n' >> "$DOCKER_ARGS_FILE"
+    printf '%s\n' "\${3#*=}" > "$DOCKER_LABEL_FILE"
+    ;;
+  'run --rm')
+    printf 'run\n' >> "$DOCKER_ARGS_FILE"
+    ;;
+esac
+`, { mode: 0o755 });
+  const invoke = () => spawnSync('bash', ['run.sh', '--clean'], {
+    cwd: root,
+    env: {
+      ...process.env,
+      PATH: `${path.join(root, 'bin')}:${process.env.PATH}`,
+      DOCKER_ARGS_FILE: argsFile,
+      DOCKER_LABEL_FILE: labelFile,
+    },
+    encoding: 'utf8',
+  });
+  let result = invoke();
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  result = invoke();
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.deepEqual((await fs.readFile(argsFile, 'utf8')).trim().split('\n'), ['build', 'run', 'run']);
+});
+
+test('staging preparation does not disable rate limits when seed image build fails', async (t) => {
+  const { root, argsFile } = await fixture(t, { environment: 'staging' });
+  await fs.writeFile(path.join(root, 'bin/docker'), `#!/bin/sh
+case "$1" in
+  image) exit 1 ;;
+  build) exit 29 ;;
+esac
+exit 0
+`, { mode: 0o755 });
+  const result = run(root, argsFile, '--prepare');
+  assert.notEqual(result.status, 0);
+  assert.equal(await fs.readFile(path.join(root, 'production_setup/.env'), 'utf8'), 'DISABLE_RATE_LIMITS=false\n');
+  await assert.rejects(fs.access(path.join(root, 'state/rate-limit-restore.env')));
 });

@@ -128,3 +128,13 @@ resolve_mongo_url() {
   fi
   return 1
 }
+
+# Include every file copied into the seed image. A checkout update can change the
+# seed program without changing the image tag used by an earlier setup run.
+seed_image_fingerprint() {
+  local script_dir="$1"
+  (
+    cd "$script_dir"
+    git hash-object Dockerfile.seed package.json package-lock.json seed.mjs | git hash-object --stdin
+  )
+}

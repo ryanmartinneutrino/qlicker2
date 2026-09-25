@@ -69,6 +69,14 @@ It then:
 - writes `load-testing/.env`
 - builds the local seed image (`qlicker-load-testing-seed:local` by default)
 
+`production_setup/update.sh` updates the application images. The load-test
+seed image is built separately. The load runner fingerprints the seed Dockerfile, package files, and
+`seed.mjs`; `--seed-only`, a full run, and `--clean` rebuild a missing or stale
+seed image automatically after a checkout update. On a Docker target,
+`--prepare` checks and rebuilds it before disabling rate limits. `--test-only`
+requires a fixture made for the selected scenario and does not rebuild or
+reseed it.
+
 ### URL Resolution
 
 - `staging` and `prod`: prefer `ROOT_URL`, then fall back to `https://$DOMAIN`
@@ -120,8 +128,11 @@ an external domain.
    consumed by a previous run. Quiz submissions and live session endings make
    a completed fixture unsuitable for another full pass.
 5. Always run `./run.sh --restore` and `./run.sh --clean` when testing is done.
-   If a test exits unsuccessfully, perform these steps manually. Keep result
-   logs and summaries before cleanup.
+   If a test exits unsuccessfully, perform these steps manually; `&&` skips
+   later commands when a run fails. Keep result logs and summaries before
+   cleanup. If an older `load-testing/.env` still says `TARGET_ENV=prod` on a
+   staging host, rerun `./setup.sh` and choose `staging` plus `docker` before
+   the next test.
 
 `results/k6-NAME-TIMESTAMP.log` contains the complete k6 output and
 `results/summary-NAME-TIMESTAMP.json` contains machine-readable metrics. Match
