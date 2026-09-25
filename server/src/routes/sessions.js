@@ -2841,12 +2841,10 @@ function sendToJoinedStudents(app, course, session, event, payload) {
   if (!session) return;
   // Anonymous sessions store pseudonyms in joined; resolve them against the
   // roster in memory so events still reach only joined students.
-  sendToUsersById(
-    app,
-    resolveSessionParticipantUserIds(session, session.joined || [], course?.students || []),
-    event,
-    payload
-  );
+  const recipients = isAnonymousSession(session)
+    ? resolveSessionParticipantUserIds(session, session.joined || [], course?.students || [])
+    : session.joined || [];
+  sendToUsersById(app, recipients, event, payload);
 }
 
 function sendToUser(app, userId, event, payload) {

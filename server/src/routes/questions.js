@@ -2365,6 +2365,7 @@ export default async function questionRoutes(app) {
         return reply.code(403).send({ error: 'Forbidden', message: 'Insufficient permissions' });
       }
       const anonymousSessions = await Session.find({
+        courseId: String(course._id),
         anonymous: true,
         $or: [
           { questions: String(question._id) },
@@ -2455,6 +2456,7 @@ export default async function questionRoutes(app) {
         return reply.code(403).send({ error: 'Forbidden', message: 'Insufficient permissions' });
       }
       const anonymousSessions = await Session.find({
+        courseId: String(course._id),
         anonymous: true,
         $or: [
           { questions: String(question._id) },
