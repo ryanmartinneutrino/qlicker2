@@ -997,6 +997,7 @@
       "anonymous": "Masked replies",
       "anonymousHelp": "Captains see the replies but not who gave 'em. Crew still sign aboard an' can answer but once. Masked voyages earn no plunder an' stay out o' the plunder ledger.",
       "anonymousEnabledNote": "Replies an' musters be stowed without the crew's names. This voyage won't be scored.",
+      "anonymousNoExtensions": "No one-on-one quiz extensions fer anonymous sessions.",
       "anonymousLockedNote": "The mask can't be changed once crew have boarded or replied."
     },
     "liveSession": {
@@ -1195,6 +1196,7 @@
       "respondents": "Deckhands",
       "searchRespondents": "Search deckhands",
       "anonymousSessionNotice": "This voyage be masked. Deckhands be shown with plain labels, an' the voyage earns no plunder.",
+      "anonymousResponsesWithheld": "Respondent rows stay hidden till at least {{minimum}} sailors answer each question and attempt with replies.",
       "anonymousSmallGroupWarning_one": "Only {{count}} sailor replied, so their answers may be easy to trace.",
       "anonymousSmallGroupWarning_other": "Only {{count}} sailors replied, so their answers may be easy to trace.",
       "responsesByQuestion": "Replies by question",
@@ -2259,7 +2261,7 @@
             "Drill reckonings feel more like guided rehearsal an' be well suited fer self-study or optional reinforcement.",
             "If a voyage depends on secret codes, watches, or in plain sight statistics, confirm those rigging afore crew begin joinin'.",
             "Voyage lists keep hunt, filters, an' pagination inside Hunt voyages. While an interactive voyage be underway, openin' its card joins th' underway controls directly; underway reckoning cards still open th' editor.",
-            "Hoist Masked replies in the voyage editor fer surveys an' course feedback. Crew still sign aboard an' answer each question but once, yet ye see replies under labels like Deckhand 1 instead o' names, the live deck shows only how many boarded, an' the voyage never earns plunder nor lands in the plunder ledger. The settin' locks once anyone boards or replies, an' very small crews can still be found out by elimination."
+            "Hoist Masked replies in the voyage editor fer surveys an' course feedback. Crew still sign aboard an' answer each question but once, yet ye see replies under labels like Deckhand 1 instead o' names, the live deck shows only how many boarded, an' the voyage never earns plunder nor lands in the plunder ledger. The settin' locks once anyone boards or replies, an' very small crews can still be found out by elimination. Respondent rows appear only after the voyage ends an' at least four sailors answer each question an' attempt with replies; a tellin' answer can still reveal a sailor."
           ]
         },
         {

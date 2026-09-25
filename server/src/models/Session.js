@@ -42,6 +42,8 @@ const SessionSchema = new mongoose.Schema(
     // Anonymous sessions store responses and attendance under per-session
     // pseudonyms and never create grades. Absent on legacy documents (false).
     anonymous: { type: Boolean, default: false },
+    // Monotonic guard: participation claims this before writing identity-shaped data.
+    participationStarted: { type: Boolean, default: false },
     date: { type: Date },
     quizStart: { type: Date },
     quizEnd: { type: Date },

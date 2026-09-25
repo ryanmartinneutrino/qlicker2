@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import mongoose from 'mongoose';
 import { createApp, createTestUser, getAuthToken, authenticatedRequest } from '../helpers.js';
 import Grade from '../../src/models/Grade.js';
+import Question from '../../src/models/Question.js';
 import Response from '../../src/models/Response.js';
 import Session from '../../src/models/Session.js';
 import {
@@ -175,6 +176,134 @@ describe('anonymous session settings', () => {
     expect((await Session.findById(sessionId).lean()).anonymous).toBe(true);
   });
 
+  it('keeps practice, extensions, and session type consistent with anonymity', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const { profToken, course, students } = await setupCourse({ studentCount: 1 });
+    const now = Date.now();
+    const sessionId = (await createSession(profToken, course._id, {
+      quiz: true,
+      quizStart: new Date(now - 60_000).toISOString(),
+      quizEnd: new Date(now + 3_600_000).toISOString(),
+    })).json().session._id;
+    const extension = {
+      userId: String(students[0].user._id),
+      quizStart: new Date(now - 60_000).toISOString(),
+      quizEnd: new Date(now + 7_200_000).toISOString(),
+    };
+    const addExtension = await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${sessionId}/extensions`, {
+      token: profToken, payload: { extensions: [extension] },
+    });
+    expect(addExtension.statusCode).toBe(200);
+    const blockedEnable = await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${sessionId}`, {
+      token: profToken, payload: { anonymous: true },
+    });
+    expect(blockedEnable.statusCode).toBe(400);
+    expect((await Session.findById(sessionId).lean()).anonymous).toBe(false);
+
+    const clearExtensions = await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${sessionId}/extensions`, {
+      token: profToken, payload: { extensions: [] },
+    });
+    expect(clearExtensions.statusCode).toBe(200);
+    const enable = await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${sessionId}`, {
+      token: profToken, payload: { anonymous: true },
+    });
+    expect(enable.statusCode).toBe(200);
+    const blockedExtension = await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${sessionId}/extensions`, {
+      token: profToken, payload: { extensions: [extension] },
+    });
+    expect(blockedExtension.statusCode).toBe(400);
+    const blockedPractice = await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${sessionId}`, {
+      token: profToken, payload: { practiceQuiz: true },
+    });
+    expect(blockedPractice.statusCode).toBe(400);
+    const switchToInteractive = await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${sessionId}`, {
+      token: profToken, payload: { quiz: false },
+    });
+    expect(switchToInteractive.statusCode).toBe(200);
+    expect(switchToInteractive.json().session.anonymous).toBe(true);
+    expect(switchToInteractive.json().session.quiz).toBe(false);
+
+    await addMcQuestion(profToken, sessionId, course._id);
+    await startLiveQuestion(profToken, sessionId);
+    const joined = await authenticatedRequest(app, 'POST', `/api/v1/sessions/${sessionId}/join`, {
+      token: students[0].token, payload: {},
+    });
+    expect(joined.statusCode).toBe(200);
+    const blockedMode = await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${sessionId}`, {
+      token: profToken, payload: { quiz: true },
+    });
+    expect(blockedMode.statusCode).toBe(409);
+    const blockedDisable = await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${sessionId}`, {
+      token: profToken, payload: { anonymous: false },
+    });
+    expect(blockedDisable.statusCode).toBe(409);
+  });
+
+  it('rejects an anonymity change racing with the first join', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const { profToken, course, students } = await setupCourse({ studentCount: 1 });
+    const sessionId = (await createSession(profToken, course._id)).json().session._id;
+    await addMcQuestion(profToken, sessionId, course._id);
+    await startLiveQuestion(profToken, sessionId);
+
+    const realExists = Response.exists.bind(Response);
+    let releaseCheck;
+    let enteredCheck;
+    const checkStarted = new Promise((resolve) => { enteredCheck = resolve; });
+    const checkReleased = new Promise((resolve) => { releaseCheck = resolve; });
+    const existsSpy = vi.spyOn(Response, 'exists').mockImplementation(async (...args) => {
+      enteredCheck();
+      await checkReleased;
+      return realExists(...args);
+    });
+    try {
+      const togglePromise = authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${sessionId}`, {
+        token: profToken, payload: { anonymous: true },
+      });
+      await checkStarted;
+      const join = await authenticatedRequest(app, 'POST', `/api/v1/sessions/${sessionId}/join`, {
+        token: students[0].token, payload: {},
+      });
+      expect(join.statusCode).toBe(200);
+      releaseCheck();
+      const toggle = await togglePromise;
+      expect(toggle.statusCode).toBe(409);
+      const stored = await Session.findById(sessionId).lean();
+      expect(stored.anonymous).toBe(false);
+      expect(stored.participationStarted).toBe(true);
+      expect(stored.joined).toContain(String(students[0].user._id));
+    } finally {
+      releaseCheck();
+      existsSpy.mockRestore();
+    }
+  });
+
+  it('locks anonymity when a quiz answer is saved without opening the quiz first', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const { profToken, course, students } = await setupCourse({ studentCount: 1 });
+    const now = Date.now();
+    const sessionId = (await createSession(profToken, course._id, {
+      quiz: true,
+      quizStart: new Date(now - 60_000).toISOString(),
+      quizEnd: new Date(now + 3_600_000).toISOString(),
+    })).json().session._id;
+    const questionId = await addMcQuestion(profToken, sessionId, course._id);
+    await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${sessionId}`, {
+      token: profToken, payload: { status: 'visible' },
+    });
+    const save = await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${sessionId}/quiz-response`, {
+      token: students[0].token, payload: { questionId, answer: '0' },
+    });
+    expect(save.statusCode).toBe(200);
+    const stored = await Session.findById(sessionId).lean();
+    expect(stored.joined).toEqual([]);
+    expect(stored.participationStarted).toBe(true);
+    const toggle = await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${sessionId}`, {
+      token: profToken, payload: { anonymous: true },
+    });
+    expect(toggle.statusCode).toBe(409);
+  });
+
   it('copies the anonymous setting with the session', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
     const { profToken, course } = await setupCourse({ studentCount: 0 });
@@ -230,6 +359,8 @@ describe('anonymous interactive sessions', () => {
     expect(storedSession.joined).toHaveLength(2);
     storedSession.joined.forEach((id) => expect(realIds).not.toContain(id));
     expect(storedSession.joinRecords).toHaveLength(0);
+    const cachedQuestion = await Question.findById(questionId).lean();
+    expect((cachedQuestion.sessionOptions?.attemptStats || []).flatMap((entry) => entry.answers || [])).toEqual([]);
 
     const studentLiveRes = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${sessionId}/live`, {
       token: students[0].token,
@@ -248,12 +379,20 @@ describe('anonymous interactive sessions', () => {
     expect(instructorLiveRes.json().session.joinedCount).toBe(2);
     expect(instructorLiveRes.json().session.joined).toBeUndefined();
     expect(instructorLiveRes.json().session.joinedStudents).toBeUndefined();
+    expect(instructorLiveRes.json().responseCount).toBe(2);
+    expect(instructorLiveRes.json().allResponses).toEqual([]);
+    expect(instructorLiveRes.json().responseStats).toBeNull();
     expectNoIdentity(instructorLiveRes.json(), students);
 
     const admitRes = await authenticatedRequest(app, 'POST', `/api/v1/sessions/${sessionId}/join/${realIds[0]}`, {
       token: profToken,
     });
     expect(admitRes.statusCode).toBe(400);
+
+    const earlyResults = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${sessionId}/results`, {
+      token: profToken,
+    });
+    expect(earlyResults.statusCode).toBe(409);
 
     const endRes = await authenticatedRequest(app, 'POST', `/api/v1/sessions/${sessionId}/end`, {
       token: profToken,
@@ -269,16 +408,11 @@ describe('anonymous interactive sessions', () => {
     expect(resultsRes.statusCode).toBe(200);
     const results = resultsRes.json();
     expect(results.session.anonymous).toBe(true);
-    expect(results.anonymousSummary).toEqual({ respondentCount: 2, joinedCount: 2, enrolledCount: 2 });
-    expect(results.studentResults.map((row) => row.studentId)).toEqual(['respondent-1', 'respondent-2']);
-    expect(results.studentResults.map((row) => row.anonymousIndex)).toEqual([1, 2]);
-    results.studentResults.forEach((row) => {
-      const [response] = row.questionResults[0].responses;
-      expect(response.studentUserId).toBe(row.studentId);
-      expect(response).not.toHaveProperty('createdAt');
-      expect(response).not.toHaveProperty('submittedIpAddress');
+    expect(results.anonymousSummary).toEqual({
+      respondentCount: 2, joinedCount: 2, enrolledCount: 2,
+      responsesWithheld: true, minimumRespondents: 4,
     });
-    expect(results.studentResults.map((row) => row.questionResults[0].responses[0].answer).sort()).toEqual(['0', '1']);
+    expect(results.studentResults).toEqual([]);
     expectNoIdentity(results, students);
     expect(JSON.stringify(results)).not.toContain('anon_');
 
@@ -317,6 +451,75 @@ describe('anonymous interactive sessions', () => {
     expect(sessionRes.json().session.joinRecords).toBeUndefined();
   });
 
+  it('keeps each respondent together across survey questions after ending', async (ctx) => {
+    if (mongoose.connection.readyState !== 1) ctx.skip();
+    const { profToken, course, students } = await setupCourse({ studentCount: 4 });
+    const sessionId = (await createSession(profToken, course._id, { anonymous: true })).json().session._id;
+    const firstQuestionId = await addMcQuestion(profToken, sessionId, course._id, 'First question');
+    const secondQuestionId = await addMcQuestion(profToken, sessionId, course._id, 'Second question');
+    await startLiveQuestion(profToken, sessionId);
+    for (const { token } of students) {
+      const join = await authenticatedRequest(app, 'POST', `/api/v1/sessions/${sessionId}/join`, { token, payload: {} });
+      expect(join.statusCode).toBe(200);
+    }
+    for (const [index, { token }] of students.entries()) {
+      const response = await authenticatedRequest(app, 'POST', `/api/v1/sessions/${sessionId}/respond`, {
+        token, payload: { answer: String(index) },
+      });
+      expect(response.statusCode).toBe(201);
+    }
+    const move = await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${sessionId}/current`, {
+      token: profToken, payload: { questionId: secondQuestionId },
+    });
+    expect(move.statusCode).toBe(200);
+    await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${sessionId}/question-visibility`, {
+      token: profToken, payload: { hidden: false },
+    });
+    for (const [index, { token }] of students.entries()) {
+      const response = await authenticatedRequest(app, 'POST', `/api/v1/sessions/${sessionId}/respond`, {
+        token, payload: { answer: String(1 - index) },
+      });
+      expect(response.statusCode).toBe(201);
+    }
+    const early = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${sessionId}/results`, { token: profToken });
+    expect(early.statusCode).toBe(409);
+    // A sparse second attempt withholds all respondent rows, even though
+    // four people answered both questions on the first attempt.
+    await Response.create({
+      questionId: firstQuestionId,
+      studentUserId: getAnonymousParticipantId(sessionId, students[0].user._id),
+      attempt: 2,
+      answer: 'follow-up',
+    });
+    await authenticatedRequest(app, 'POST', `/api/v1/sessions/${sessionId}/end`, { token: profToken, payload: {} });
+    const withheld = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${sessionId}/results`, { token: profToken });
+    expect(withheld.json().studentResults).toEqual([]);
+    expect(withheld.json().anonymousSummary.responsesWithheld).toBe(true);
+    await Response.insertMany(students.slice(1).map(({ user }) => ({
+      questionId: firstQuestionId,
+      studentUserId: getAnonymousParticipantId(sessionId, user._id),
+      attempt: 2,
+      answer: 'follow-up',
+    })));
+    const result = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${sessionId}/results`, { token: profToken });
+    expect(result.statusCode).toBe(200);
+    const rows = result.json().studentResults;
+    expect(rows).toHaveLength(4);
+    expect(rows.map((row) => row.questionResults.map((question) => question.responses[0]?.answer)).sort()).toEqual([
+      ['0', '1'], ['1', '0'], ['2', '-1'], ['3', '-2'],
+    ]);
+    expect(rows.map((row) => row.studentId).sort()).toEqual([
+      'respondent-1', 'respondent-2', 'respondent-3', 'respondent-4',
+    ]);
+    rows.forEach((row) => row.questionResults.forEach((question) => {
+      expect(question.responses[0].studentUserId).toBe(row.studentId);
+      expect(question.responses[0]).not.toHaveProperty('createdAt');
+      expect(question.responses[0]).not.toHaveProperty('submittedIpAddress');
+    }));
+    expect(rows[0].questionResults.map((question) => question.questionId)).toEqual([firstQuestionId, secondQuestionId]);
+    expectNoIdentity(result.json(), students);
+  });
+
   it('routes live events to joined students without exposing names to instructors', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
     const { prof, profToken, course, students } = await setupCourse({ studentCount: 2 });
@@ -338,6 +541,11 @@ describe('anonymous interactive sessions', () => {
     });
     const questionIds = (await Session.findById(sessionId).lean()).questions;
     await startLiveQuestion(profToken, sessionId);
+    const earlyWordCloud = await authenticatedRequest(
+      app, 'POST', `/api/v1/questions/${shortAnswerRes.json().question._id}/word-cloud`,
+      { token: profToken, payload: {} }
+    );
+    expect(earlyWordCloud.statusCode).toBe(409);
 
     const joinSpy = vi.spyOn(app, 'wsSendToUsers');
     await authenticatedRequest(app, 'POST', `/api/v1/sessions/${sessionId}/join`, {
@@ -378,8 +586,9 @@ describe('anonymous interactive sessions', () => {
     const responseCalls = joinSpy.mock.calls.filter(([, event]) => event === 'session:response-added');
     const instructorResponseCall = responseCalls.find(([userIds]) => userIds.includes(String(prof._id)));
     expect(instructorResponseCall).toBeDefined();
-    expect(instructorResponseCall[2].response).toEqual(expect.objectContaining({ answer: 'Private thought' }));
-    expect(instructorResponseCall[2].response.studentName).toBeUndefined();
+    expect(instructorResponseCall[2].response).toBeUndefined();
+    expect(instructorResponseCall[2].responseSubmittedAt).toBeUndefined();
+    expect(instructorResponseCall[2].responseStats).toBeUndefined();
     expectNoIdentity(instructorResponseCall[2], students);
 
     joinSpy.mockClear();
@@ -401,6 +610,8 @@ describe('anonymous interactive sessions', () => {
     ));
     expect(ownResponseDelivery?.[2].studentResponse).toEqual(expect.objectContaining({ answer: 'Private thought' }));
     const instructorSnapshot = questionChangedCalls.find(([userIds]) => userIds.includes(String(prof._id)));
+    expect(instructorSnapshot[2].allResponses).toEqual([]);
+    expect(instructorSnapshot[2].responseStats).toBeNull();
     expectNoIdentity(instructorSnapshot[2], students);
   });
 });

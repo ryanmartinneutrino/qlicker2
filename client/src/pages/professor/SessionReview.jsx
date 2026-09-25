@@ -57,7 +57,6 @@ const COMPACT_CHIP_SX = {
 
 const OPTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 // At or below this many respondents, answers may be attributable by elimination.
-const SMALL_ANONYMOUS_RESPONDENT_COUNT = 3;
 
 const richContentSx = {
   '& p': { my: 0.5 },
@@ -1408,9 +1407,11 @@ export default function SessionReview() {
           {t('professor.sessionReview.anonymousSessionNotice')}
         </Alert>
       ) : null}
-      {anonymousSession && totalStudents > 0 && totalStudents <= SMALL_ANONYMOUS_RESPONDENT_COUNT ? (
+      {anonymousSession && anonymousSummary?.responsesWithheld ? (
         <Alert severity="warning" sx={{ mb: 2 }}>
-          {t('professor.sessionReview.anonymousSmallGroupWarning', { count: totalStudents })}
+          {t('professor.sessionReview.anonymousResponsesWithheld', {
+            minimum: anonymousSummary.minimumRespondents,
+          })}
         </Alert>
       ) : null}
       {reviewableWarning ? (

@@ -1005,6 +1005,7 @@
       "anonymous": "Anonyme Antworten",
       "anonymousHelp": "Lehrende sehen die Antworten, aber nicht, wer sie gegeben hat. Studierende melden sich weiterhin an und können nur einmal antworten. Anonyme Sitzungen werden nicht bewertet und erscheinen nicht im Notenbuch.",
       "anonymousEnabledNote": "Antworten und Teilnahme werden ohne Identität der Studierenden gespeichert. Diese Sitzung wird nicht bewertet.",
+      "anonymousNoExtensions": "Individuelle Quizverlängerungen sind für anonyme Sitzungen nicht verfügbar.",
       "anonymousLockedNote": "Die Anonymität kann nicht mehr geändert werden, nachdem Studierende beigetreten sind oder geantwortet haben."
     },
     "liveSession": {
@@ -1203,6 +1204,7 @@
       "respondents": "Antwortende",
       "searchRespondents": "Antwortende suchen",
       "anonymousSessionNotice": "Diese Sitzung ist anonym. Antwortende werden mit allgemeinen Bezeichnungen angezeigt, und die Sitzung wird nicht bewertet.",
+      "anonymousResponsesWithheld": "Antwortzeilen bleiben verborgen, bis mindestens {{minimum}} Personen jede Frage und jeden Versuch mit Antworten beantwortet haben.",
       "anonymousSmallGroupWarning_one": "Nur {{count}} Person hat geantwortet, daher lassen sich die Antworten möglicherweise leicht zuordnen.",
       "anonymousSmallGroupWarning_other": "Nur {{count}} Personen haben geantwortet, daher lassen sich die Antworten möglicherweise leicht zuordnen.",
       "responsesByQuestion": "Antworten nach Frage",
@@ -2267,7 +2269,7 @@
             "Übungsquizze fühlen sich eher wie angeleitetes Üben an und eignen sich gut für Selbststudium oder optionale Vertiefung.",
             "Wenn eine Sitzung von Passcodes, Gruppen oder sichtbaren Statistiken abhängt, bestätigen Sie diese Einstellungen, bevor Studierende beitreten.",
             "Sitzungslisten halten Suche, Filter und Seitennavigation in „Sitzungen suchen“. Während eine interaktive Sitzung live ist, öffnet das Anklicken ihrer Karte direkt die Live-Steuerung; Live-Quiz-Karten öffnen weiterhin den Editor.",
-            "Aktivieren Sie im Sitzungseditor Anonyme Antworten für Umfragen und Kursfeedback. Studierende melden sich weiterhin an und beantworten jede Frage nur einmal, aber Sie sehen die Antworten unter Bezeichnungen wie Teilnehmende Person 1 statt unter Namen, die Live-Ansicht zeigt nur die Anzahl der Beigetretenen, und die Sitzung wird nie bewertet oder ins Notenbuch übernommen. Die Einstellung wird gesperrt, sobald jemand beitritt oder antwortet, und sehr kleine Gruppen lassen sich weiterhin durch Ausschluss identifizieren."
+            "Aktivieren Sie im Sitzungseditor Anonyme Antworten für Umfragen und Kursfeedback. Studierende melden sich weiterhin an und beantworten jede Frage nur einmal, aber Sie sehen die Antworten unter Bezeichnungen wie Teilnehmende Person 1 statt unter Namen, die Live-Ansicht zeigt nur die Anzahl der Beigetretenen, und die Sitzung wird nie bewertet oder ins Notenbuch übernommen. Die Einstellung wird gesperrt, sobald jemand beitritt oder antwortet, und sehr kleine Gruppen lassen sich weiterhin durch Ausschluss identifizieren. Antwortzeilen erscheinen erst nach dem Ende der Sitzung und wenn mindestens vier Personen jede Frage und jeden Versuch mit Antworten beantwortet haben; eindeutige oder selbstidentifizierende Antworten können dennoch Rückschlüsse auf Personen zulassen."
           ]
         },
         {

@@ -41,3 +41,5 @@ Not every change needs every suite during iteration, but the final validation sh
 ## Data repair
 
 See [Repairing shared question references](question-reference-repair.md) for the production Bash/Docker diagnostic, independent question copies, and interactive grading decisions for answered quizzes.
+
+The proposed [session access by activity code](external-session-access-plan.md) design covers outside-course quiz and interactive participation; it is not implemented yet.

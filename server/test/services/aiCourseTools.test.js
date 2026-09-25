@@ -198,13 +198,24 @@ describe('AI course tools for anonymous sessions', () => {
     expect(details).toMatchObject({ anonymous: true, joined_student_count: 1, participants: [] });
     expect(JSON.stringify(details)).not.toContain(participantId);
 
+    await expect(getQuestionResponses(course._id, session._id, question._id))
+      .rejects.toThrow('At least four respondents');
+    await Response.insertMany([2, 3, 4].map((number) => ({
+      questionId: question._id,
+      studentUserId: getAnonymousParticipantId(session._id, `anon-ai-student-${number}`),
+      attempt: 1,
+      answer: `Feedback ${number}`,
+    })));
     const responses = await getQuestionResponses(course._id, session._id, question._id);
-    expect(responses.responses).toEqual([
-      expect.objectContaining({
-        student: { student_id: 'respondent-1', name: 'Anonymous respondent 1', email: '' },
-        answer: 'More examples please',
-      }),
-    ]);
+    expect(responses.responses).toHaveLength(4);
+    expect(responses.responses).toEqual(expect.arrayContaining([
+      expect.objectContaining({ answer: 'More examples please' }),
+    ]));
+    responses.responses.forEach((response) => {
+      expect(response.student.student_id).toMatch(/^respondent-[1-4]$/);
+      expect(response.student.name).toMatch(/^Anonymous respondent [1-4]$/);
+      expect(response.student.email).toBe('');
+    });
     const serialized = JSON.stringify(responses);
     expect(serialized).not.toContain(studentId);
     expect(serialized).not.toContain(participantId);

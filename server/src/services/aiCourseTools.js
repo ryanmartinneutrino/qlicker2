@@ -2,6 +2,7 @@ import Course from '../models/Course.js';
 import Grade from '../models/Grade.js';
 import Question from '../models/Question.js';
 import Response from '../models/Response.js';
+import { anonymousResponsesReleasable } from './anonymousResponseRelease.js';
 import Session from '../models/Session.js';
 import User from '../models/User.js';
 import {
@@ -498,6 +499,9 @@ export async function getSessionDetails(
 
 export async function getQuestionResponses(courseId, sessionId, questionId, { offset = 0, limit = DEFAULT_PAGE_SIZE } = {}) {
   const session = await requireCourseSession(courseId, sessionId);
+  if (session.anonymous && session.status !== 'done') {
+    throw new Error('Anonymous responses are available after the session ends');
+  }
   const orderedQuestions = await loadOrderedQuestions(session);
   const question = orderedQuestions.find((entry) => String(entry._id) === String(questionId));
   if (!question) throw new Error('Question not found in this session');
@@ -525,10 +529,12 @@ export async function getQuestionResponses(courseId, sessionId, questionId, { of
   const responseCount = Number(responsePage.metadata?.[0]?.total || 0);
   const displayedResponses = responsePage.responses || [];
   const anonymousSession = !!session.anonymous;
+  if (anonymousSession && !await anonymousResponsesReleasable(session)) {
+    throw new Error('At least four respondents are required before anonymous answers are available');
+  }
   const respondentIndexById = anonymousSession
     ? buildAnonymousRespondentIndex(await Response.distinct('studentUserId', {
-      questionId: String(question._id),
-      attempt: highestAttempt,
+      questionId: { $in: orderedQuestions.map((entry) => String(entry._id)) },
     }))
     : null;
   const users = !anonymousSession && displayedResponses.length > 0

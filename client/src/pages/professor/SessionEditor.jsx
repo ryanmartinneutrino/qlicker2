@@ -1368,11 +1368,13 @@ export default function SessionEditor() {
   if (!session) return <Box sx={{ p: 3 }}><Alert severity="error">{t('professor.sessionEditor.sessionNotFound')}</Alert></Box>;
   const courseTitle = course?._id ? buildCourseTitle(course, 'long') : '';
   const courseSection = String(course?.section || '').trim();
-  const canReviewRunningQuiz = (session.quiz || session.practiceQuiz) && status === 'running';
+  const canReviewRunningQuiz = !session.anonymous && (session.quiz || session.practiceQuiz) && status === 'running';
   // Anonymity cannot change once students have joined or answered: their
   // records are stored under a different identifier in anonymous sessions.
-  const anonymityLocked = !!session.hasResponses
+  const anonymityLocked = !!session.participationStarted
+    || !!session.hasResponses
     || (Array.isArray(session.joined) && session.joined.length > 0)
+    || (Array.isArray(session.joinRecords) && session.joinRecords.length > 0)
     || Number(session.joinedCount || 0) > 0
     || (Array.isArray(session.submittedQuiz) && session.submittedQuiz.length > 0)
     || Number(session.submittedCount || 0) > 0;
@@ -1549,7 +1551,7 @@ export default function SessionEditor() {
                         : { quiz: checked }
                     );
                   }}
-                  disabled={savingSession}
+                  disabled={savingSession || (anonymous && anonymityLocked)}
                 />
               )}
               label={(
@@ -1593,8 +1595,8 @@ export default function SessionEditor() {
                     setAnonymous(checked);
                     saveSessionPatch({ anonymous: checked });
                   }}
-                  disabled={savingSession || practiceQuiz || anonymityLocked}
-                  slotProps={(anonymous || anonymityLocked)
+                  disabled={savingSession || practiceQuiz || anonymityLocked || (!anonymous && extensionDrafts.length > 0)}
+                  slotProps={(anonymous || anonymityLocked || extensionDrafts.length > 0)
                     ? { input: { 'aria-describedby': 'session-anonymous-help' } }
                     : undefined}
                 />
@@ -1623,11 +1625,12 @@ export default function SessionEditor() {
             />
           </Box>
 
-          {(anonymous || anonymityLocked) && (
+          {(anonymous || anonymityLocked || extensionDrafts.length > 0) && (
             <Typography id="session-anonymous-help" variant="body2" sx={{ color: 'text.secondary' }}>
               {[
                 anonymous ? t('professor.sessionEditor.anonymousEnabledNote') : '',
                 anonymityLocked ? t('professor.sessionEditor.anonymousLockedNote') : '',
+                !anonymous && extensionDrafts.length > 0 ? t('professor.sessionEditor.anonymousNoExtensions') : '',
               ].filter(Boolean).join(' ')}
             </Typography>
           )}
@@ -1808,21 +1811,25 @@ export default function SessionEditor() {
                   {t('professor.sessionEditor.defaultQuizWindows')}
                 </Typography>
               </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
-                <Typography variant="body2" sx={{
-                  color: "text.secondary"
-                }}>
-                  {t('professor.sessionEditor.quizExtensions', { count: extensionDrafts.length })}
+              {anonymous ? (
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                  {t('professor.sessionEditor.anonymousNoExtensions')}
                 </Typography>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={openExtensionsDialog}
-                  disabled={savingSession}
-                >
-                  {t('professor.sessionEditor.manageExtensions')}
-                </Button>
-              </Box>
+              ) : (
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                    {t('professor.sessionEditor.quizExtensions', { count: extensionDrafts.length })}
+                  </Typography>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={openExtensionsDialog}
+                    disabled={savingSession}
+                  >
+                    {t('professor.sessionEditor.manageExtensions')}
+                  </Button>
+                </Box>
+              )}
             </Box>
           )}
 

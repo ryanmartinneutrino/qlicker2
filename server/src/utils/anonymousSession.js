@@ -7,6 +7,7 @@ import config from '../config/index.js';
 // enforce one answer and show their own responses) but cannot be reversed
 // from database contents alone.
 export const ANONYMOUS_PARTICIPANT_PREFIX = 'anon_';
+export const MIN_ANONYMOUS_RESPONDENTS = 4;
 
 const PSEUDONYM_CACHE_MAX = 20000;
 const pseudonymCache = new Map();

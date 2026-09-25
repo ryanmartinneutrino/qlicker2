@@ -1005,6 +1005,7 @@
       "anonymous": "Risposte anonime",
       "anonymousHelp": "I docenti vedono le risposte ma non chi le ha date. Gli studenti accedono comunque e possono rispondere una sola volta. Le sessioni anonime non vengono valutate e non compaiono nel registro dei voti.",
       "anonymousEnabledNote": "Risposte e presenze vengono salvate senza l'identità degli studenti. Questa sessione non sarà valutata.",
+      "anonymousNoExtensions": "Le proroghe individuali non sono disponibili per le sessioni anonime.",
       "anonymousLockedNote": "L'anonimato non può essere modificato dopo che gli studenti si sono uniti o hanno risposto."
     },
     "liveSession": {
@@ -1203,6 +1204,7 @@
       "respondents": "Partecipanti",
       "searchRespondents": "Cerca partecipanti",
       "anonymousSessionNotice": "Questa sessione è anonima. I partecipanti sono mostrati con etichette generiche e la sessione non viene valutata.",
+      "anonymousResponsesWithheld": "Le righe dei partecipanti restano nascoste finché almeno {{minimum}} persone non hanno risposto a ogni domanda e tentativo con risposte.",
       "anonymousSmallGroupWarning_one": "Ha risposto solo {{count}} studente, quindi le sue risposte potrebbero essere facilmente attribuibili.",
       "anonymousSmallGroupWarning_other": "Hanno risposto solo {{count}} studenti, quindi le loro risposte potrebbero essere facilmente attribuibili.",
       "responsesByQuestion": "Risposte per domanda",
@@ -2267,7 +2269,7 @@
             "I quiz di pratica sono più simili a un'esercitazione guidata e sono adatti allo studio autonomo o al rinforzo facoltativo.",
             "Se una sessione dipende da codici di accesso, gruppi o statistiche visibili, conferma queste impostazioni prima che gli studenti inizino a partecipare.",
             "Gli elenchi delle sessioni mantengono ricerca, filtri e paginazione dentro Cerca sessioni. Mentre una sessione interattiva è in diretta, aprire la sua scheda porta direttamente ai controlli in diretta; le schede dei quiz in diretta aprono ancora l'editor.",
-            "Attiva Risposte anonime nell'editor della sessione per sondaggi e valutazioni del corso. Gli studenti accedono comunque e rispondono a ogni domanda una sola volta, ma vedi le risposte con etichette come Partecipante 1 invece dei nomi, la vista dal vivo mostra solo quanti studenti si sono uniti, e la sessione non viene mai valutata né aggiunta al registro dei voti. L'impostazione si blocca non appena qualcuno si unisce o risponde, e i gruppi molto piccoli possono comunque essere identificati per esclusione."
+            "Attiva Risposte anonime nell'editor della sessione per sondaggi e valutazioni del corso. Gli studenti accedono comunque e rispondono a ogni domanda una sola volta, ma vedi le risposte con etichette come Partecipante 1 invece dei nomi, la vista dal vivo mostra solo quanti studenti si sono uniti, e la sessione non viene mai valutata né aggiunta al registro dei voti. L'impostazione si blocca non appena qualcuno si unisce o risponde, e i gruppi molto piccoli possono comunque essere identificati per esclusione. Le righe dei partecipanti compaiono solo dopo la fine dell’attività e quando almeno quattro persone hanno risposto a ogni domanda e tentativo con risposte; risposte uniche o identificative possono comunque rivelare qualcuno."
           ]
         },
         {

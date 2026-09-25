@@ -1005,6 +1005,7 @@
       "anonymous": "Respuestas anónimas",
       "anonymousHelp": "El profesorado ve las respuestas pero no quién las dio. Los estudiantes siguen iniciando sesión y solo pueden responder una vez. Las sesiones anónimas no se califican ni aparecen en el libro de calificaciones.",
       "anonymousEnabledNote": "Las respuestas y la asistencia se guardan sin la identidad de los estudiantes. Esta sesión no se calificará.",
+      "anonymousNoExtensions": "Las prórrogas individuales no están disponibles para las sesiones anónimas.",
       "anonymousLockedNote": "El anonimato no se puede cambiar después de que los estudiantes se hayan unido o hayan respondido."
     },
     "liveSession": {
@@ -1203,6 +1204,7 @@
       "respondents": "Participantes",
       "searchRespondents": "Buscar participantes",
       "anonymousSessionNotice": "Esta sesión es anónima. Los participantes se muestran con etiquetas genéricas y la sesión no se califica.",
+      "anonymousResponsesWithheld": "Las filas de participantes se ocultan hasta que al menos {{minimum}} personas respondan a cada pregunta e intento que tenga respuestas.",
       "anonymousSmallGroupWarning_one": "Solo respondió {{count}} estudiante, por lo que sus respuestas podrían atribuirse fácilmente.",
       "anonymousSmallGroupWarning_other": "Solo respondieron {{count}} estudiantes, por lo que sus respuestas podrían atribuirse fácilmente.",
       "responsesByQuestion": "Respuestas por pregunta",
@@ -2267,7 +2269,7 @@
             "Los cuestionarios de práctica se sienten más como un ensayo guiado y son adecuados para el autoestudio o el refuerzo opcional.",
             "Si una sesión depende de códigos de acceso, grupos o estadísticas visibles, confirme esos ajustes antes de que los estudiantes empiecen a unirse.",
             "Las listas de sesiones mantienen la búsqueda, los filtros y la paginación dentro de Buscar sesiones. Mientras una sesión interactiva está en vivo, abrir su tarjeta se une directamente a los controles en vivo; las tarjetas de cuestionario en vivo aún abren el editor.",
-            "Activa Respuestas anónimas en el editor de sesiones para encuestas y evaluaciones del curso. Los estudiantes siguen iniciando sesión y responden cada pregunta una sola vez, pero ves las respuestas con etiquetas como Participante 1 en lugar de nombres, la vista en vivo solo muestra cuántos estudiantes se unieron, y la sesión nunca se califica ni se añade al libro de calificaciones. El ajuste se bloquea en cuanto alguien se une o responde, y los grupos muy pequeños aún pueden identificarse por descarte."
+            "Activa Respuestas anónimas en el editor de sesiones para encuestas y evaluaciones del curso. Los estudiantes siguen iniciando sesión y responden cada pregunta una sola vez, pero ves las respuestas con etiquetas como Participante 1 en lugar de nombres, la vista en vivo solo muestra cuántos estudiantes se unieron, y la sesión nunca se califica ni se añade al libro de calificaciones. El ajuste se bloquea en cuanto alguien se une o responde, y los grupos muy pequeños aún pueden identificarse por descarte. Las filas de participantes aparecen solo cuando termina la actividad y al menos cuatro personas han respondido cada pregunta e intento con respuestas; las respuestas únicas o que revelan la identidad aún pueden identificar a alguien."
           ]
         },
         {

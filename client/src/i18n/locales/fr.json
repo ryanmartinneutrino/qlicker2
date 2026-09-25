@@ -1005,6 +1005,7 @@
       "anonymous": "Réponses anonymes",
       "anonymousHelp": "Les enseignants voient les réponses mais pas qui les a données. Les étudiants se connectent toujours et ne peuvent répondre qu'une fois. Les sessions anonymes ne sont pas notées et n'apparaissent pas dans le carnet de notes.",
       "anonymousEnabledNote": "Les réponses et la présence sont enregistrées sans l'identité des étudiants. Cette session ne sera pas notée.",
+      "anonymousNoExtensions": "Les prolongations individuelles ne sont pas disponibles pour les sessions anonymes.",
       "anonymousLockedNote": "L'anonymat ne peut plus être modifié une fois que des étudiants ont rejoint la session ou répondu."
     },
     "liveSession": {
@@ -1203,6 +1204,7 @@
       "respondents": "Répondants",
       "searchRespondents": "Rechercher des répondants",
       "anonymousSessionNotice": "Cette session est anonyme. Les répondants sont affichés avec des libellés génériques et la session n'est pas notée.",
+      "anonymousResponsesWithheld": "Les lignes des répondants restent masquées jusqu’à ce qu’au moins {{minimum}} personnes aient répondu à chaque question et tentative ayant des réponses.",
       "anonymousSmallGroupWarning_one": "Seulement {{count}} étudiant a répondu : ses réponses pourraient être faciles à attribuer.",
       "anonymousSmallGroupWarning_other": "Seulement {{count}} étudiants ont répondu : leurs réponses pourraient être faciles à attribuer.",
       "responsesByQuestion": "Réponses par question",
@@ -2267,7 +2269,7 @@
             "Les quiz de pratique conviennent bien à l'étude personnelle ou au renforcement facultatif.",
             "Si une séance dépend des codes d'accès, des groupes ou des statistiques visibles, confirmez ces réglages avant que les étudiants commencent à se joindre.",
             "Les listes de séances gardent la recherche, les filtres et la pagination dans Rechercher des séances. Lorsqu'une séance interactive est en direct, l'ouverture de sa carte rejoint directement les contrôles en direct; les cartes de quiz en direct ouvrent encore l'éditeur.",
-            "Activez Réponses anonymes dans l'éditeur de session pour les sondages et les évaluations de cours. Les étudiants se connectent toujours et répondent une seule fois à chaque question, mais vous voyez les réponses sous des libellés comme Répondant 1 plutôt que des noms, la vue en direct n'indique que le nombre d'étudiants présents, et la session n'est jamais notée ni ajoutée au carnet de notes. Le réglage est verrouillé dès qu'une personne rejoint la session ou répond, et les très petits groupes restent identifiables par élimination."
+            "Activez Réponses anonymes dans l'éditeur de session pour les sondages et les évaluations de cours. Les étudiants se connectent toujours et répondent une seule fois à chaque question, mais vous voyez les réponses sous des libellés comme Répondant 1 plutôt que des noms, la vue en direct n'indique que le nombre d'étudiants présents, et la session n'est jamais notée ni ajoutée au carnet de notes. Le réglage est verrouillé dès qu'une personne rejoint la session ou répond, et les très petits groupes restent identifiables par élimination. Les lignes des répondants ne s’affichent qu’après la fin de l’activité et lorsque quatre personnes au moins ont répondu à chaque question et tentative ayant des réponses; une réponse unique ou révélatrice peut encore identifier quelqu’un."
           ]
         },
         {

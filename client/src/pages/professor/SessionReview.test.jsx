@@ -383,6 +383,29 @@ describe('SessionReview', () => {
     expect(row).toBe('Respondent 1,100%,100%,B,');
   });
 
+  it('explains when anonymous rows are withheld below the respondent threshold', async () => {
+    const defaultGet = apiClient.get.getMockImplementation();
+    apiClient.get.mockImplementation(async (url) => {
+      if (url === '/sessions/session-1/results') {
+        return { data: {
+          ...buildResultsPayload({ anonymous: true }),
+          studentResults: [],
+          anonymousSummary: {
+            respondentCount: 2, joinedCount: 2, enrolledCount: 10,
+            responsesWithheld: true, minimumRespondents: 4,
+          },
+        } };
+      }
+      return defaultGet(url);
+    });
+
+    renderSessionReview();
+    expect(await screen.findByText(/Respondent rows are hidden until at least 4 people/)).toBeInTheDocument();
+    expect(screen.getByText('Respondents')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: /response data/i }));
+    expect(screen.queryByRole('table', { name: /student results/i })).not.toBeInTheDocument();
+  });
+
   it('shows anonymous results with respondent labels and a read-only responses tab', async () => {
     const defaultGet = apiClient.get.getMockImplementation();
     apiClient.get.mockImplementation(async (url) => {
@@ -409,7 +432,6 @@ describe('SessionReview', () => {
     renderSessionReview();
 
     expect(await screen.findByText(/This session is anonymous/)).toBeInTheDocument();
-    expect(screen.getByText(/Only 2 students responded/)).toBeInTheDocument();
     expect(screen.getByText('Respondents')).toBeInTheDocument();
     expect(screen.getByText('3/10')).toBeInTheDocument();
     expect(apiClient.get).not.toHaveBeenCalledWith('/sessions/session-1/grades');

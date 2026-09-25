@@ -237,12 +237,12 @@ Use **Anonymous responses** for course feedback, sensitive check-ins, or any int
 What changes:
 
 - Students still sign in and can answer each question (or each attempt) only once. A quiz can still be submitted only once. Students see a notice that the session is anonymous and can review their own answers later.
-- The live view shows how many students joined, but not their names. Short-answer lists have no names, and manual admission is not available. Share the join code instead.
-- Review shows respondents as **Respondent 1**, **Respondent 2**, and so on, without join times or grades. The CSV export uses the same labels. The **Responses by question** tab replaces grading with a read-only list of each respondent's answer and whether it was correct.
+- During an anonymous live activity, the instructor view shows response counts without individual answers. After the activity ends, review shows answer rows only when at least four people have answered every question and attempt that has responses. Otherwise it shows a count and explains that rows are withheld. The joined-student list, manual admission, and individual quiz extensions are unavailable. Share the live join code if one is required.
+- After the session ends, review shows respondents as **Respondent 1**, **Respondent 2**, and so on, with one row per respondent across questions but without join times or grades. The CSV export uses the same labels. The **Responses by question** tab replaces grading with a read-only list of each respondent's answer and whether it was correct.
 - The session is never graded and does not appear in the course gradebook. AI grading is unavailable, and session chat does not show authors' names.
-- The setting locks once anyone joins or answers. Decide before the session starts.
+- The setting locks once anyone joins, saves an answer, or submits. Anonymous quiz/interactive mode also locks after participation. Remove any individual quiz extensions before enabling anonymity.
 
-With only a few respondents, answers can still be traced by elimination; review warns when three or fewer students responded. Label numbers do not follow answer order or names.
+Linked rows are needed to correlate survey answers, but a unique or self-identifying answer can expose the rest of that respondent's row. The four-person minimum reduces direct identification by elimination, but does not prevent inference from unique answers or knowledge of who participated. Label numbers do not follow answer order or names.
 
 ## 7. Configure and deliver a quiz
 
@@ -511,7 +511,7 @@ Open the course **Grades** tab, choose **Show Grade Table**, select sessions, an
 7. Enable reviewability/grade visibility when release is intended.
 8. Export CSV for your external gradebook and inspect the file before importing it elsewhere.
 
-Anonymous sessions have no grades. Their review shows respondent labels, a **Responses by question** tab instead of **Grading**, and no gradebook column. See [Run an anonymous survey](#run-an-anonymous-survey).
+Anonymous sessions have no grades. Once at least four people have answered each answered question and attempt, their review shows respondent labels and a **Responses by question** tab instead of **Grading**. Before then, individual rows are withheld. Anonymous sessions have no gradebook column. See [Run an anonymous survey](#run-an-anonymous-survey).
 
 Changing a question's point value from review triggers a full session recalculation after confirmation. Existing manual marks remain preserved. For the detailed calculation and visibility rules, use the [Grading guide](grading.md).
 

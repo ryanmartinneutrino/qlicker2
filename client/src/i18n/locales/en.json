@@ -1005,6 +1005,7 @@
       "anonymous": "Anonymous responses",
       "anonymousHelp": "Instructors see the answers but not who gave them. Students still sign in and can answer only once. Anonymous sessions are not graded and do not appear in the gradebook.",
       "anonymousEnabledNote": "Responses and attendance are stored without student identities. This session will not be graded.",
+      "anonymousNoExtensions": "Individual quiz extensions are unavailable for anonymous sessions.",
       "anonymousLockedNote": "Anonymity cannot be changed after students have joined or responded."
     },
     "liveSession": {
@@ -1203,6 +1204,7 @@
       "respondents": "Respondents",
       "searchRespondents": "Search respondents",
       "anonymousSessionNotice": "This session is anonymous. Respondents are shown with generic labels, and the session is not graded.",
+      "anonymousResponsesWithheld": "Respondent rows are hidden until at least {{minimum}} people have answered each question and attempt that has responses.",
       "anonymousSmallGroupWarning_one": "Only {{count}} student responded, so their answers may be easy to attribute.",
       "anonymousSmallGroupWarning_other": "Only {{count}} students responded, so their answers may be easy to attribute.",
       "responsesByQuestion": "Responses by question",
@@ -2314,7 +2316,7 @@
             "Practice quizzes feel more like guided rehearsal and are well suited for self-study or optional reinforcement.",
             "If a session depends on passcodes, groups, or visible statistics, confirm those settings before students begin joining.",
             "Session lists keep search, filters, and pagination inside Search sessions. While an interactive session is live, opening its card joins the live controls directly; live quiz cards still open the editor.",
-            "Turn on Anonymous responses in the session editor for surveys and course feedback. Students still sign in and answer each question once, but you see answers under labels such as Respondent 1 instead of names, the live view shows only how many students joined, and the session is never graded or added to the gradebook. The setting locks once anyone joins or answers, and very small groups can still be identified by elimination."
+            "Turn on Anonymous responses in the session editor for surveys and course feedback. Students still sign in and answer each question once, but you see answers under labels such as Respondent 1 instead of names, the live view shows only how many students joined, and the session is never graded or added to the gradebook. The setting locks once anyone joins or answers, and very small groups can still be identified by elimination. Respondent rows appear only after the activity ends and at least four people have answered every question and attempt with responses; unique or self-identifying answers may still reveal someone."
           ]
         },
         {
