@@ -6299,7 +6299,7 @@ export default async function sessionRoutes(app) {
       // touch the shared Session document; every response is counted atomically
       // on the Question document above.
       const storedSessionCount = Number(getSessionQuestionResponseCounts(session)?.[String(questionId)] || 0);
-      if (responseCount > 0 && storedSessionCount === 0) {
+      if ((isAnonymousSession(session) ? responseCount > 0 : responseCount === 1) && storedSessionCount === 0) {
         await Session.updateOne(
           { _id: session._id },
           {
