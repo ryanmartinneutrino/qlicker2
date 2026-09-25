@@ -54,7 +54,6 @@ prompt_choice() {
   local current="$2"
   local first="$3"
   local second="$4"
-  local third="${5:-}"
   local answer=""
 
   while true; do
@@ -62,12 +61,12 @@ prompt_choice() {
     read -r answer
     answer="${answer:-$current}"
     case "$answer" in
-      "$first"|"$second"|"$third")
+      "$first"|"$second")
         printf '%s\n' "$answer"
         return 0
         ;;
       *)
-        warn "Please enter one of: $first, $second${third:+, $third}." >&2
+        warn "Please enter '$first' or '$second'." >&2
         ;;
     esac
   done
@@ -99,7 +98,7 @@ echo ""
 if $NON_INTERACTIVE; then
   TARGET_ENV="${DEFAULT_TARGET_ENV:?TARGET_ENV must be set in load-testing/.env for --non-interactive}"
 else
-  TARGET_ENV="$(prompt_choice "Target environment (dev, staging, or prod)" "$DEFAULT_TARGET_ENV" "dev" "prod" "staging")"
+  TARGET_ENV="$(prompt_choice "Target environment (dev or prod)" "$DEFAULT_TARGET_ENV" "dev" "prod")"
 fi
 
 if $NON_INTERACTIVE; then
@@ -108,13 +107,8 @@ else
   TARGET_RUNTIME="$(prompt_choice "Runtime for the running stack (docker or native)" "$DEFAULT_RUNTIME" "docker" "native")"
 fi
 
-case "$TARGET_ENV" in dev|staging|prod) ;; *) error "TARGET_ENV must be dev, staging, or prod"; exit 1 ;; esac
+case "$TARGET_ENV" in dev|prod) ;; *) error "TARGET_ENV must be dev or prod"; exit 1 ;; esac
 case "$TARGET_RUNTIME" in docker|native) ;; *) error "TARGET_RUNTIME must be docker or native"; exit 1 ;; esac
-if [[ "$TARGET_ENV" == "staging" && "$TARGET_RUNTIME" != "docker" ]]; then
-  error "Staging tests require the production_setup Docker stack."
-  exit 1
-fi
-
 if [[ "$TARGET_RUNTIME" == "docker" ]] && ! docker compose version >/dev/null 2>&1; then
   error "Docker Compose is required when the target stack is running in Docker."
   exit 1
@@ -143,13 +137,6 @@ if [[ ! -f "$TARGET_ENV_FILE" ]]; then
 fi
 
 STACK_DIR="$(dirname "$TARGET_ENV_FILE")"
-if [[ "$TARGET_ENV" == "staging" ]]; then
-  STACK_DIR="$PROJECT_ROOT/production_setup"
-  if [[ "$(dirname "$TARGET_ENV_FILE")" != "$STACK_DIR" ]]; then
-    error "The staging .env file must be inside $STACK_DIR"
-    exit 1
-  fi
-fi
 TARGET_COMPOSE_FILE=""
 if [[ "$TARGET_RUNTIME" == "docker" ]]; then
   TARGET_COMPOSE_FILE="$STACK_DIR/docker-compose.yml"
@@ -217,26 +204,6 @@ else
   NUM_STUDENTS="$DEFAULT_STUDENTS"
 fi
 
-STAGING_HOST=""
-if [[ "$TARGET_ENV" == "staging" ]]; then
-  DEFAULT_STAGING_HOST="$(existing_val STAGING_HOST)"
-  if $NON_INTERACTIVE; then
-    STAGING_HOST="${DEFAULT_STAGING_HOST:?Set STAGING_HOST in load-testing/.env for non-interactive staging setup}"
-  else
-    ask "Expected staging hostname [${DEFAULT_STAGING_HOST:-required}]: "
-    read -r STAGING_HOST_INPUT
-    STAGING_HOST="${STAGING_HOST_INPUT:-$DEFAULT_STAGING_HOST}"
-    if [[ -z "$STAGING_HOST" ]]; then error "A staging hostname is required"; exit 1; fi
-  fi
-  RESOLVED_BASE_HOST="${RESOLVED_BASE_URL#*://}"
-  RESOLVED_BASE_HOST="${RESOLVED_BASE_HOST%%/*}"
-  RESOLVED_BASE_HOST="${RESOLVED_BASE_HOST%%:*}"
-  if [[ "$RESOLVED_BASE_HOST" != "$STAGING_HOST" ]]; then
-    error "Base URL host '$RESOLVED_BASE_HOST' does not match staging host '$STAGING_HOST'"
-    exit 1
-  fi
-fi
-
 if [[ "$TARGET_RUNTIME" == "docker" && -n "$QLICKER_NETWORK" ]]; then
   if docker network inspect "$QLICKER_NETWORK" >/dev/null 2>&1; then
     info "Network '$QLICKER_NETWORK' exists ✓"
@@ -257,7 +224,6 @@ TARGET_RUNTIME="$TARGET_RUNTIME"
 TARGET_ENV_FILE="$TARGET_ENV_FILE"
 STACK_DIR="$STACK_DIR"
 TARGET_COMPOSE_FILE="$TARGET_COMPOSE_FILE"
-STAGING_HOST="$STAGING_HOST"
 
 # Docker network for stack-internal services (required for docker/prod)
 QLICKER_NETWORK="$QLICKER_NETWORK"

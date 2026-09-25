@@ -155,24 +155,6 @@ case "$SCENARIO" in
   *) error "Unknown scenario '$SCENARIO'. Use live-named, live-anonymous, quiz-named, or quiz-anonymous."; exit 1 ;;
 esac
 
-if [[ "$TARGET_ENV" == "staging" ]]; then
-  if [[ "$TARGET_RUNTIME" != "docker" || "$STACK_DIR" != */production_setup || "$TARGET_COMPOSE_FILE" != "$STACK_DIR/docker-compose.yml" ]]; then
-    error "Staging load tests require the production_setup Docker Compose stack."
-    exit 1
-  fi
-  if [[ -z "${STAGING_HOST:-}" ]]; then
-    error "Set STAGING_HOST in load-testing/.env to the staging host before running."
-    exit 1
-  fi
-  base_host="${BASE_URL#*://}"
-  base_host="${base_host%%/*}"
-  base_host="${base_host%%:*}"
-  if [[ "$base_host" != "$STAGING_HOST" ]]; then
-    error "BASE_URL host '$base_host' does not match STAGING_HOST '$STAGING_HOST'."
-    exit 1
-  fi
-fi
-
 is_local_address() {
   local value="$1"
   [[ "$value" == *localhost* || "$value" == *127.0.0.1* || "$value" == *"[::1]"* ]]
@@ -398,16 +380,13 @@ do_prepare() {
     info "Recreating the server service with rate limits disabled …"
     stack_compose up -d server
 
-    if [[ "$TARGET_ENV" == "prod" || "$TARGET_ENV" == "staging" ]]; then
+    if [[ "$TARGET_ENV" == "prod" ]]; then
       info "Disabling nginx limit_req directives …"
       if ! stack_compose exec -T nginx sh -c \
         "sed -i 's/^[[:space:]]*limit_req /#limit_req /g' /etc/nginx/conf.d/default.conf && nginx -s reload" \
         2>/dev/null; then
-        if [[ "$TARGET_ENV" == "staging" ]]; then
-          error "Could not disable staging nginx rate limits; run --restore and check the nginx service."
-          exit 1
-        fi
-        warn "Could not modify nginx config (is the prod nginx container running?)."
+        error "Could not disable nginx rate limits; run --restore and check the nginx service."
+        exit 1
       fi
     fi
 
@@ -450,7 +429,7 @@ do_restore() {
     info "Recreating the server service with its original rate-limit setting …"
     stack_compose up -d server
 
-    if [[ "$TARGET_ENV" == "prod" || "$TARGET_ENV" == "staging" ]]; then
+    if [[ "$TARGET_ENV" == "prod" ]]; then
       info "Restarting nginx to restore its rendered rate-limit config …"
       stack_compose restart nginx
     fi

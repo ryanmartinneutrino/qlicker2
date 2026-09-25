@@ -8,7 +8,7 @@ import { test } from 'node:test';
 
 const loadTestingRoot = fileURLToPath(new URL('../', import.meta.url));
 
-async function fixture(t, { environment = 'prod', host = 'qlicker.example.com', scenario = 'live-named' } = {}) {
+async function fixture(t, { runtime = 'native', baseUrl = 'https://qlicker.example.com', scenario = 'live-named' } = {}) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'qlicker-load-runner-test-'));
   t.after(() => fs.rm(root, { recursive: true, force: true }));
   await fs.mkdir(path.join(root, 'bin'));
@@ -29,14 +29,13 @@ async function fixture(t, { environment = 'prod', host = 'qlicker.example.com', 
     fs.writeFile(path.join(root, 'production_setup/docker-compose.yml'), 'services: {}\n'),
     fs.writeFile(path.join(root, 'production_setup/.env'), 'DISABLE_RATE_LIMITS=false\n'),
     fs.writeFile(path.join(root, '.env'), [
-      `TARGET_ENV=${environment}`,
-      `TARGET_RUNTIME=${environment === 'staging' ? 'docker' : 'native'}`,
+      `TARGET_ENV=prod`,
+      `TARGET_RUNTIME=${runtime}`,
       `TARGET_ENV_FILE=${path.join(root, 'production_setup/.env')}`,
       `STACK_DIR=${path.join(root, 'production_setup')}`,
       `TARGET_COMPOSE_FILE=${path.join(root, 'production_setup/docker-compose.yml')}`,
-      `STAGING_HOST=${host}`,
       'MONGO_URL=mongodb://unused/qlicker',
-      'BASE_URL=https://qlicker.example.com',
+      `BASE_URL=${baseUrl}`,
       'NUM_STUDENTS=500',
       'K6_NOFILE_LIMIT=16384',
     ].join('\n')),
@@ -70,22 +69,15 @@ test('named live retains the existing scenario and raises the k6 file-descriptor
   assert.equal(args.at(-1), '/scenarios/live-session.js');
 });
 
-test('staging routes an anonymous quiz through the production Docker target', async (t) => {
-  const { root, argsFile } = await fixture(t, { environment: 'staging', scenario: 'quiz-anonymous' });
+test('prod/docker routes an anonymous quiz to the configured host', async (t) => {
+  const { root, argsFile } = await fixture(t, { runtime: 'docker', baseUrl: 'https://staging.example.com', scenario: 'quiz-anonymous' });
   const result = run(root, argsFile, '--scenario', 'quiz-anonymous', '--test-only');
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const args = (await fs.readFile(argsFile, 'utf8')).trim().split('\n');
   assert.equal(args.at(-1), '/scenarios/quiz-session.js');
   assert.ok(args.includes('--summary-export'));
   assert.ok(args.some((arg) => arg.includes('/results/summary-quiz-anonymous-')));
-});
-
-test('staging rejects a target hostname mismatch before invoking Docker', async (t) => {
-  const { root, argsFile } = await fixture(t, { environment: 'staging', host: 'other.example.com' });
-  const result = run(root, argsFile, '--test-only');
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /does not match STAGING_HOST/);
-  await assert.rejects(fs.access(argsFile));
+  assert.ok(args.includes('BASE_URL=https://staging.example.com'));
 });
 
 test('test-only rejects a fixture from a different scenario', async (t) => {
@@ -150,8 +142,8 @@ esac
   assert.deepEqual((await fs.readFile(argsFile, 'utf8')).trim().split('\n'), ['build', 'run', 'run']);
 });
 
-test('staging preparation does not disable rate limits when seed image build fails', async (t) => {
-  const { root, argsFile } = await fixture(t, { environment: 'staging' });
+test('prod/docker preparation does not disable rate limits when seed image build fails', async (t) => {
+  const { root, argsFile } = await fixture(t, { runtime: 'docker' });
   await fs.writeFile(path.join(root, 'bin/docker'), `#!/bin/sh
 case "$1" in
   image) exit 1 ;;
@@ -163,4 +155,43 @@ exit 0
   assert.notEqual(result.status, 0);
   assert.equal(await fs.readFile(path.join(root, 'production_setup/.env'), 'utf8'), 'DISABLE_RATE_LIMITS=false\n');
   await assert.rejects(fs.access(path.join(root, 'state/rate-limit-restore.env')));
+});
+
+test('prod/docker prepares and restores the same Compose stack used on staging', async (t) => {
+  const { root, argsFile } = await fixture(t, { runtime: 'docker', baseUrl: 'https://staging.example.com' });
+  const labelFile = path.join(root, 'seed-image-label');
+  await fs.writeFile(path.join(root, 'bin/docker'), `#!/usr/bin/env bash
+case "$1 $2" in
+  'image inspect')
+    if [[ -f "$DOCKER_LABEL_FILE" ]]; then cat "$DOCKER_LABEL_FILE"; else printf 'old-image\\n'; fi
+    ;;
+  'build --label')
+    printf 'build\\n' >> "$DOCKER_ARGS_FILE"
+    printf '%s\\n' "\${3#*=}" > "$DOCKER_LABEL_FILE"
+    ;;
+  'compose --project-directory')
+    printf 'compose %s\\n' "$*" >> "$DOCKER_ARGS_FILE"
+    ;;
+esac
+`, { mode: 0o755 });
+  const invoke = (mode) => spawnSync('bash', ['run.sh', mode], {
+    cwd: root,
+    env: {
+      ...process.env,
+      PATH: `${path.join(root, 'bin')}:${process.env.PATH}`,
+      DOCKER_ARGS_FILE: argsFile,
+      DOCKER_LABEL_FILE: labelFile,
+    },
+    encoding: 'utf8',
+  });
+  let result = invoke('--prepare');
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(await fs.readFile(path.join(root, 'production_setup/.env'), 'utf8'), /^DISABLE_RATE_LIMITS=true/m);
+  result = invoke('--restore');
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.equal(await fs.readFile(path.join(root, 'production_setup/.env'), 'utf8'), 'DISABLE_RATE_LIMITS=false\n');
+  const actions = await fs.readFile(argsFile, 'utf8');
+  assert.match(actions, /build/);
+  assert.match(actions, /exec -T nginx/);
+  assert.match(actions, /restart nginx/);
 });

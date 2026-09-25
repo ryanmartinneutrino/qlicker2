@@ -1032,12 +1032,11 @@ For high-traffic deployments:
 5. **Enable swap** on the host to handle memory spikes
 6. **Use an SSD** for MongoDB data volume
 
-## Staging load tests
+## Load tests on production-style deployments
 
-The staging load-test runner uses this Compose file and the deployed Docker
-images. Configure it from `load-testing/setup.sh` with `staging` and `docker`,
-using a staging env file in this directory. The runner checks the expected
-staging hostname and runs four separate named and anonymous quiz/live scenarios.
-See [the load-testing guide](../load-testing/README.md#staging-procedure-and-comparisons)
-for the prepare, run, restore, and cleanup sequence. Use a separate staging
-MongoDB database; seeding replaces the suite's load-test fixtures.
+A staging copy and the production server use this same Compose file and Docker
+image workflow. Configure `load-testing/setup.sh` with `prod` and `docker` on
+each host. The runner exercises named and anonymous quiz/live scenarios with
+the host's own `production_setup/.env`, then restores the original rate-limit
+setting. See [the load-testing guide](../load-testing/README.md#identical-staging-and-production-runs)
+for the prepare, run, restore, and cleanup sequence.

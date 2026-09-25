@@ -17,15 +17,14 @@ The original named interactive scenario follows the real classroom flow:
 
 The seed and k6 runners run as Docker images. The target Qlicker stack can be:
 
-- `staging` + `docker` using `production_setup/docker-compose.yml` and its
-  prebuilt application images
-- `prod` + `docker`
+- `prod` + `docker` on either a staging or production host, using
+  `production_setup/docker-compose.yml` and its deployed application images
 - `dev` + `docker`
 - `dev` + `native`
 
-Run load tests only against a dedicated staging or development database. Each
-new seed removes the previous load-test users, course, questions, session, and
-responses. `--clean` removes those fixtures after the run.
+Each new seed removes the previous load-test users, course, questions, session,
+and responses from the configured database. `--clean` removes those fixtures
+after the run.
 
 ## Quick Start
 
@@ -55,10 +54,9 @@ target `.env` and tell you to restart the server so the change takes effect.
 
 `./setup.sh` asks for:
 
-- target environment: `dev`, `staging`, or `prod`
+- target environment: `dev` or `prod`
 - runtime: `docker` or `native`
-- path to the `.env` file for the stack that is currently running (inside
-  `production_setup/` for staging)
+- path to the `.env` file for the stack that is currently running
 - number of students to simulate
 
 It then:
@@ -79,7 +77,7 @@ reseed it.
 
 ### URL Resolution
 
-- `staging` and `prod`: prefer `ROOT_URL`, then fall back to `https://$DOMAIN`
+- `prod`: prefers `ROOT_URL`, then falls back to `https://$DOMAIN`
 - `dev`: prefers `VITE_API_URL`, then `API_PORT`, then `PORT`
 
 For dev, the base URL normally points at the API/WebSocket server origin, not
@@ -99,20 +97,22 @@ an external domain.
 | `./run.sh --prepare` | Disable rate limits on the running stack |
 | `./run.sh --restore` | Restore the stack’s original rate-limit setting |
 
-## Staging procedure and comparisons
+## Identical staging and production runs
 
-1. Deploy the same `production_setup` Docker stack and images to a dedicated
-   staging host. Do not point this configuration at the production database.
-2. On that host, run `cd load-testing && ./setup.sh`, choose `staging` and
-   `docker`, point to the staging environment file inside `production_setup/`,
-   and enter the expected staging hostname. The setup uses
-   `production_setup/docker-compose.yml`; `run.sh` refuses a staging base URL
-   whose host differs from `STAGING_HOST`.
-3. Run `./run.sh --prepare` and keep the generated
-   `state/rate-limit-restore.env` until the run is complete. This disables API
-   and Nginx rate limits and restarts the server service. The file records the
-   original API setting for `--restore`.
-4. Run each scenario at the same student count and with the same timing knobs:
+Both servers use the same `prod` + `docker` load-test configuration and
+`production_setup/docker-compose.yml`. Their `production_setup/.env` files set
+the host-specific image tags, MongoDB connection, and `ROOT_URL`. If
+`load-testing/.env` is already configured with `TARGET_ENV=prod` and
+`TARGET_RUNTIME=docker`, a checkout update does not require rerunning setup.
+Otherwise, run `./setup.sh` and choose `prod` plus `docker` on either host.
+
+1. If a prior test stopped after `--prepare`, run `./run.sh --restore` and
+   `./run.sh --clean` before starting another test. Run these as separate
+   commands; a failed command in an `&&` chain skips the later commands.
+2. Run `./run.sh --prepare`. This checks or rebuilds the load-test seed image
+   before disabling API and Nginx rate limits and recreating the server service.
+   The original API setting is saved in `state/rate-limit-restore.env`.
+3. Run each scenario at the same student count and with the same timing knobs:
 
    ```bash
    JOIN_GRACE_S=30 ./run.sh --scenario live-named --students 100
@@ -122,35 +122,32 @@ an external domain.
    ```
 
    Choose `JOIN_GRACE_S` long enough for the student login wave to complete;
-   keep it identical for baseline and PR runs. Each command reseeds its own
-   fixture. Run `./run.sh --test-only --scenario
-   NAME` only if the current fixture was seeded for that name and has not been
-   consumed by a previous run. Quiz submissions and live session endings make
-   a completed fixture unsuitable for another full pass.
-5. Always run `./run.sh --restore` and `./run.sh --clean` when testing is done.
-   If a test exits unsuccessfully, perform these steps manually; `&&` skips
-   later commands when a run fails. Keep result logs and summaries before
-   cleanup. If an older `load-testing/.env` still says `TARGET_ENV=prod` on a
-   staging host, rerun `./setup.sh` and choose `staging` plus `docker` before
-   the next test.
+   keep it identical across comparison runs. Each command reseeds its own
+   fixture. Run `./run.sh --test-only --scenario NAME` only if the current
+   fixture was seeded for that name and has not been consumed by a previous
+   run. Quiz submissions and live session endings make a completed fixture
+   unsuitable for another full pass.
+4. Run `./run.sh --restore` and `./run.sh --clean` as separate commands when
+   testing ends, including after a failed run. Keep result logs and summaries
+   before cleanup.
 
 `results/k6-NAME-TIMESTAMP.log` contains the complete k6 output and
 `results/summary-NAME-TIMESTAMP.json` contains machine-readable metrics. Match
-student count, timing knobs, target image versions, and staging host between
-baseline and PR runs. Compare error rate, p95/p99 HTTP duration, login and
-join, WebSocket event delivery, answer submission, quiz autosave, and final
-results duration. Run `quiz-anonymous` and `live-anonymous` once with three
-students to confirm that result rows remain withheld below four respondents,
-then with at least four students to verify correlated rows appear. A threshold
-failure or a missing summary is a failed run; investigate it before comparing
-latency. The anonymous live workload intentionally refreshes `/live` on relevant
-WebSocket events and is a stress test; the named live workload remains the
-browser-like delta baseline.
+student count, timing knobs, and image versions for baseline and PR runs.
+Compare error rate, p95/p99 HTTP duration, login and join, WebSocket event
+delivery, answer submission, quiz autosave, and final results duration. Run
+`quiz-anonymous` and `live-anonymous` once with three students to confirm that
+result rows remain withheld below four respondents, then with at least four
+students to verify correlated rows appear. A threshold failure or a missing
+summary is a failed run; investigate it before comparing latency. The
+anonymous live workload intentionally refreshes `/live` on relevant WebSocket
+events and is a stress test; the named live workload remains the browser-like
+delta baseline.
 
-The staging URL check protects against an accidental target typo. It does not
-validate that the staging database is isolated, so confirm the Compose env and
-image tags before seeding. `load-testing/.env`, state, and results contain test
-credentials and should remain local to the staging host.
+Test on the lower-stakes host first, then use the same commands on production.
+`load-testing/.env`, state, and results contain test credentials and remain
+local to each host. Confirm each host's configuration points at its intended
+stack before seeding.
 
 ## Workloads
 
