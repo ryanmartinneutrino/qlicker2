@@ -53,6 +53,7 @@ prompt_choice() {
   local current="$2"
   local first="$3"
   local second="$4"
+  local third="${5:-}"
   local answer=""
 
   while true; do
@@ -60,12 +61,12 @@ prompt_choice() {
     read -r answer
     answer="${answer:-$current}"
     case "$answer" in
-      "$first"|"$second")
+      "$first"|"$second"|"$third")
         printf '%s\n' "$answer"
         return 0
         ;;
       *)
-        warn "Please enter '$first' or '$second'." >&2
+        warn "Please enter one of: $first, $second${third:+, $third}." >&2
         ;;
     esac
   done
@@ -97,13 +98,20 @@ echo ""
 if $NON_INTERACTIVE; then
   TARGET_ENV="${DEFAULT_TARGET_ENV:?TARGET_ENV must be set in load-testing/.env for --non-interactive}"
 else
-  TARGET_ENV="$(prompt_choice "Target environment (dev or prod)" "$DEFAULT_TARGET_ENV" "dev" "prod")"
+  TARGET_ENV="$(prompt_choice "Target environment (dev, staging, or prod)" "$DEFAULT_TARGET_ENV" "dev" "prod" "staging")"
 fi
 
 if $NON_INTERACTIVE; then
   TARGET_RUNTIME="${DEFAULT_RUNTIME:?TARGET_RUNTIME must be set in load-testing/.env for --non-interactive}"
 else
   TARGET_RUNTIME="$(prompt_choice "Runtime for the running stack (docker or native)" "$DEFAULT_RUNTIME" "docker" "native")"
+fi
+
+case "$TARGET_ENV" in dev|staging|prod) ;; *) error "TARGET_ENV must be dev, staging, or prod"; exit 1 ;; esac
+case "$TARGET_RUNTIME" in docker|native) ;; *) error "TARGET_RUNTIME must be docker or native"; exit 1 ;; esac
+if [[ "$TARGET_ENV" == "staging" && "$TARGET_RUNTIME" != "docker" ]]; then
+  error "Staging tests require the production_setup Docker stack."
+  exit 1
 fi
 
 if [[ "$TARGET_RUNTIME" == "docker" ]] && ! docker compose version >/dev/null 2>&1; then
@@ -134,6 +142,13 @@ if [[ ! -f "$TARGET_ENV_FILE" ]]; then
 fi
 
 STACK_DIR="$(dirname "$TARGET_ENV_FILE")"
+if [[ "$TARGET_ENV" == "staging" ]]; then
+  STACK_DIR="$PROJECT_ROOT/production_setup"
+  if [[ "$(dirname "$TARGET_ENV_FILE")" != "$STACK_DIR" ]]; then
+    error "The staging .env file must be inside $STACK_DIR"
+    exit 1
+  fi
+fi
 TARGET_COMPOSE_FILE=""
 if [[ "$TARGET_RUNTIME" == "docker" ]]; then
   TARGET_COMPOSE_FILE="$STACK_DIR/docker-compose.yml"
@@ -175,7 +190,7 @@ if [[ -z "$DEFAULT_NETWORK" && -n "$DETECTED_NETWORK" ]]; then
 fi
 
 QLICKER_NETWORK="${DEFAULT_NETWORK:-}"
-if [[ "$TARGET_RUNTIME" == "docker" && "$TARGET_ENV" == "prod" ]]; then
+if [[ "$TARGET_RUNTIME" == "docker" && "$TARGET_ENV" != "dev" ]]; then
   if $NON_INTERACTIVE; then
     : "${QLICKER_NETWORK:?QLICKER_NETWORK must be set for docker/prod in load-testing/.env}"
   else
@@ -190,7 +205,7 @@ if ! $NON_INTERACTIVE; then
   read -r BASE_URL_INPUT
   RESOLVED_BASE_URL="${BASE_URL_INPUT:-$RESOLVED_BASE_URL}"
 
-  ask "MongoDB URL for the seed script [$RESOLVED_MONGO_URL]: "
+  ask "MongoDB URL for the seed script [derived from stack env; Enter to keep]: "
   read -r MONGO_URL_INPUT
   RESOLVED_MONGO_URL="${MONGO_URL_INPUT:-$RESOLVED_MONGO_URL}"
 
@@ -199,6 +214,26 @@ if ! $NON_INTERACTIVE; then
   NUM_STUDENTS="${NUM_STUDENTS_INPUT:-$DEFAULT_STUDENTS}"
 else
   NUM_STUDENTS="$DEFAULT_STUDENTS"
+fi
+
+STAGING_HOST=""
+if [[ "$TARGET_ENV" == "staging" ]]; then
+  DEFAULT_STAGING_HOST="$(existing_val STAGING_HOST)"
+  if $NON_INTERACTIVE; then
+    STAGING_HOST="${DEFAULT_STAGING_HOST:?Set STAGING_HOST in load-testing/.env for non-interactive staging setup}"
+  else
+    ask "Expected staging hostname [${DEFAULT_STAGING_HOST:-required}]: "
+    read -r STAGING_HOST_INPUT
+    STAGING_HOST="${STAGING_HOST_INPUT:-$DEFAULT_STAGING_HOST}"
+    if [[ -z "$STAGING_HOST" ]]; then error "A staging hostname is required"; exit 1; fi
+  fi
+  RESOLVED_BASE_HOST="${RESOLVED_BASE_URL#*://}"
+  RESOLVED_BASE_HOST="${RESOLVED_BASE_HOST%%/*}"
+  RESOLVED_BASE_HOST="${RESOLVED_BASE_HOST%%:*}"
+  if [[ "$RESOLVED_BASE_HOST" != "$STAGING_HOST" ]]; then
+    error "Base URL host '$RESOLVED_BASE_HOST' does not match staging host '$STAGING_HOST'"
+    exit 1
+  fi
 fi
 
 if [[ "$TARGET_RUNTIME" == "docker" && -n "$QLICKER_NETWORK" ]]; then
@@ -221,6 +256,7 @@ TARGET_RUNTIME="$TARGET_RUNTIME"
 TARGET_ENV_FILE="$TARGET_ENV_FILE"
 STACK_DIR="$STACK_DIR"
 TARGET_COMPOSE_FILE="$TARGET_COMPOSE_FILE"
+STAGING_HOST="$STAGING_HOST"
 
 # Docker network for stack-internal services (required for docker/prod)
 QLICKER_NETWORK="$QLICKER_NETWORK"
@@ -260,7 +296,7 @@ echo "  Target environment: $TARGET_ENV"
 echo "  Runtime:            $TARGET_RUNTIME"
 echo "  Stack env file:     $TARGET_ENV_FILE"
 echo "  Base URL:           $RESOLVED_BASE_URL"
-echo "  MongoDB URL:        $RESOLVED_MONGO_URL"
+echo "  MongoDB connection: configured in load-testing/.env"
 if [[ -n "$QLICKER_NETWORK" ]]; then
   echo "  Docker network:     $QLICKER_NETWORK"
 fi

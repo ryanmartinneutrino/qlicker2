@@ -166,6 +166,10 @@ const sessionSchema = new mongoose.Schema(
     status: { type: String, default: 'hidden' },
     quiz: { type: Boolean, default: false },
     practiceQuiz: { type: Boolean, default: false },
+    anonymous: { type: Boolean, default: false },
+    participationStarted: { type: Boolean, default: false },
+    quizStart: Date,
+    quizEnd: Date,
     reviewable: { type: Boolean, default: false },
     questions: [String],
     currentQuestion: { type: String, default: '' },
@@ -307,13 +311,19 @@ async function main() {
 
   const studentsIdx = args.indexOf('--students');
   const numStudents = studentsIdx !== -1 ? parseInt(args[studentsIdx + 1], 10) : 500;
+  const scenarioIdx = args.indexOf('--scenario');
+  const scenario = scenarioIdx !== -1 ? args[scenarioIdx + 1] : 'live-named';
+  if (!['live-named', 'live-anonymous', 'quiz-named', 'quiz-anonymous'].includes(scenario)) {
+    console.error('--scenario must be live-named, live-anonymous, quiz-named, or quiz-anonymous');
+    process.exit(1);
+  }
   if (Number.isNaN(numStudents) || numStudents < 1) {
     console.error('--students must be a positive integer');
     process.exit(1);
   }
 
   const mongoUrl = process.env.MONGO_URL || 'mongodb://localhost:27017/qlicker';
-  console.log(`Connecting to ${mongoUrl} …`);
+  console.log('Connecting to the configured load-test MongoDB …');
   await connectWithRetry(mongoUrl);
 
   if (cleanOnly) {
@@ -326,7 +336,7 @@ async function main() {
   }
 
   console.log(`Seeding ${numStudents} students + professor + admin …`);
-  const state = await seed(numStudents);
+  const state = await seed(numStudents, scenario);
 
   fs.writeFileSync(STATE_PATH, JSON.stringify(state, null, 2));
   console.log(`State written to ${STATE_PATH}`);
@@ -339,7 +349,7 @@ async function main() {
 const LOAD_TEST_TAG = '__loadtest__';
 const PASSWORD = 'LoadTest1!';
 
-async function seed(numStudents) {
+async function seed(numStudents, scenario) {
   // Clean any previous run first
   await cleanup();
 
@@ -435,12 +445,20 @@ async function seed(numStudents) {
   }
 
   // --- Session ---
+  const isQuiz = scenario.startsWith('quiz-');
+  const anonymous = scenario.endsWith('-anonymous');
   const session = await Session.create({
-    name: 'Load Test Session',
+    name: `Load Test Session (${scenario})`,
     description: `${LOAD_TEST_TAG} generated fixture`,
     courseId: course._id,
     creator: professor._id,
-    status: 'hidden',
+    status: isQuiz ? 'visible' : 'hidden',
+    quiz: isQuiz,
+    anonymous,
+    ...(isQuiz ? {
+      quizStart: new Date(Date.now() - 60_000),
+      quizEnd: new Date(Date.now() + 60 * 60_000),
+    } : {}),
     questions: questionIds,
     tags: [{
       value: LOAD_TEST_TAG,
@@ -469,7 +487,7 @@ async function seed(numStudents) {
     professor: { email: 'loadtest-prof@example.com', id: professor._id },
     students,
     course: { id: course._id, enrollmentCode },
-    session: { id: session._id },
+    session: { id: session._id, scenario, anonymous, quiz: isQuiz },
     questions: questionIds.map((id, i) => ({
       id,
       type: QUESTIONS[i].type,
@@ -501,6 +519,11 @@ async function cleanup() {
     { _id: 1, courseId: 1 },
   ).lean();
   const sessionIds = loadTestSessions.map((session) => session._id);
+  const loadTestQuestions = await Question.find(
+    { 'tags.value': LOAD_TEST_TAG },
+    { _id: 1 },
+  ).lean();
+  const questionIds = loadTestQuestions.map((question) => question._id);
 
   // Remove users with loadtest emails
   await User.deleteMany({ 'emails.address': /^loadtest-/ });
@@ -519,11 +542,13 @@ async function cleanup() {
   // Clean responses from load test students
   const db = mongoose.connection.db;
   if (db) {
-    if (userIds.length > 0) {
-      await db
-        .collection('responses')
-        .deleteMany({ studentUserId: { $in: userIds } })
-        .catch(() => {});
+    if (questionIds.length > 0 || userIds.length > 0) {
+      await db.collection('responses').deleteMany({
+        $or: [
+          ...(questionIds.length > 0 ? [{ questionId: { $in: questionIds } }] : []),
+          ...(userIds.length > 0 ? [{ studentUserId: { $in: userIds } }] : []),
+        ],
+      });
     }
     if (sessionIds.length > 0 || courseIds.length > 0 || userIds.length > 0) {
       await db

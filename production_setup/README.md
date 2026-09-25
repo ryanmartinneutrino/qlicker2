@@ -849,7 +849,7 @@ production_setup/
 | `API_PORT` | No | `3001` | Internal API port |
 | `ENABLE_API_DOCS` | No | `false` in production | Enables the admin-protected Swagger/OpenAPI UI at `/docs`; leave disabled on internet-facing deployments unless required |
 | `TRUST_PROXY` | No | `loopback,linklocal,uniquelocal` | Comma-separated IP/CIDR ranges for the reverse proxy connecting directly to Fastify; use `false` when exposing the API directly (numeric hop counts are unsupported) |
-| `DISABLE_RATE_LIMITS` | No | `false` | Load testing only; `load-testing/run.sh` toggles it. `setup.sh` warns when it is left `true` |
+| `DISABLE_RATE_LIMITS` | No | `false` | Load testing only; `load-testing/run.sh --prepare` temporarily enables it and `--restore` returns it to its original setting. `setup.sh` warns when it is left `true` |
 | `AI_BACKEND_ALLOW_PRIVATE_HOSTS` | No | `true` | Allow administrator-configured AI backends on private networks; set to `false` to enforce the hostname allowlist |
 | `AI_BACKEND_ALLOWED_PRIVATE_HOSTS` | No | none | Comma-separated exact private-network AI backend hostnames used when `AI_BACKEND_ALLOW_PRIVATE_HOSTS=false` |
 | `AI_BACKEND_REQUEST_TIMEOUT_MS` | No | `300000` | Initial/fallback AI provider timeout in milliseconds; after setup, administrators can change the global timeout in Admin → AI settings |
@@ -1031,3 +1031,13 @@ For high-traffic deployments:
 4. **Increase Redis memory**: edit `docker-compose.yml` → `maxmemory`
 5. **Enable swap** on the host to handle memory spikes
 6. **Use an SSD** for MongoDB data volume
+
+## Staging load tests
+
+The staging load-test runner uses this Compose file and the deployed Docker
+images. Configure it from `load-testing/setup.sh` with `staging` and `docker`,
+using a staging env file in this directory. The runner checks the expected
+staging hostname and runs four separate named and anonymous quiz/live scenarios.
+See [the load-testing guide](../load-testing/README.md#staging-procedure-and-comparisons)
+for the prepare, run, restore, and cleanup sequence. Use a separate staging
+MongoDB database; seeding replaces the suite's load-test fixtures.

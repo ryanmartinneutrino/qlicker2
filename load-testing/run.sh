@@ -59,6 +59,8 @@ BASE_URL="${BASE_URL:-}"
 NUM_STUDENTS="${NUM_STUDENTS:-500}"
 SEED_IMAGE="${SEED_IMAGE:-$DEFAULT_SEED_IMAGE}"
 SESSION_CHAT_ENABLED="${SESSION_CHAT_ENABLED:-true}"
+SCENARIO="${SCENARIO:-live-named}"
+RATE_LIMIT_STATE_FILE="$STATE_DIR/rate-limit-restore.env"
 
 if [[ ! "$K6_NOFILE_LIMIT" =~ ^[0-9]+$ ]] || (( K6_NOFILE_LIMIT < 1024 )); then
   error "K6_NOFILE_LIMIT must be an integer of at least 1024."
@@ -103,7 +105,11 @@ fi
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --students)
+      if [[ $# -lt 2 ]]; then error "--students requires a number"; exit 1; fi
       NUM_STUDENTS="$2"; shift 2 ;;
+    --scenario)
+      if [[ $# -lt 2 ]]; then error "--scenario requires a name"; exit 1; fi
+      SCENARIO="$2"; shift 2 ;;
     --session-chat)
       if [[ $# -lt 2 ]]; then
         error "--session-chat requires a value: on|off"
@@ -132,6 +138,31 @@ while [[ $# -gt 0 ]]; do
       exit 1 ;;
   esac
 done
+
+case "$SCENARIO" in
+  live-named) SCENARIO_FILE="live-session.js" ;;
+  live-anonymous) SCENARIO_FILE="live-anonymous.js" ;;
+  quiz-named|quiz-anonymous) SCENARIO_FILE="quiz-session.js" ;;
+  *) error "Unknown scenario '$SCENARIO'. Use live-named, live-anonymous, quiz-named, or quiz-anonymous."; exit 1 ;;
+esac
+
+if [[ "$TARGET_ENV" == "staging" ]]; then
+  if [[ "$TARGET_RUNTIME" != "docker" || "$STACK_DIR" != */production_setup || "$TARGET_COMPOSE_FILE" != "$STACK_DIR/docker-compose.yml" ]]; then
+    error "Staging load tests require the production_setup Docker Compose stack."
+    exit 1
+  fi
+  if [[ -z "${STAGING_HOST:-}" ]]; then
+    error "Set STAGING_HOST in load-testing/.env to the staging host before running."
+    exit 1
+  fi
+  base_host="${BASE_URL#*://}"
+  base_host="${base_host%%/*}"
+  base_host="${base_host%%:*}"
+  if [[ "$base_host" != "$STAGING_HOST" ]]; then
+    error "BASE_URL host '$base_host' does not match STAGING_HOST '$STAGING_HOST'."
+    exit 1
+  fi
+fi
 
 is_local_address() {
   local value="$1"
@@ -290,6 +321,7 @@ k6_runner() {
   done
 
   docker run --rm \
+    --user "$(id -u):$(id -g)" \
     --ulimit "nofile=${K6_NOFILE_LIMIT}:${K6_NOFILE_LIMIT}" \
     "${network_args[@]}" \
     --add-host=host.docker.internal:host-gateway \
@@ -304,7 +336,8 @@ k6_runner() {
       --env BASE_URL="$k6_base_url" \
       --env STATE_FILE=/state/state.json \
       "${k6_env[@]}" \
-      /scenarios/live-session.js
+      --summary-export "/results/summary-${SCENARIO}-${RUN_TIMESTAMP}.json" \
+      "/scenarios/${SCENARIO_FILE}"
 }
 
 require_seed_image() {
@@ -316,6 +349,15 @@ require_seed_image() {
 }
 
 do_prepare() {
+  if [[ -f "$RATE_LIMIT_STATE_FILE" ]]; then
+    error "A rate-limit restore record already exists: $RATE_LIMIT_STATE_FILE. Run --restore first."
+    exit 1
+  fi
+  if [[ ! -f "$TARGET_ENV_FILE" ]]; then error "Target environment file not found: $TARGET_ENV_FILE"; exit 1; fi
+  mkdir -p "$STATE_DIR"
+  local existing_line
+  existing_line="$(grep -m1 '^DISABLE_RATE_LIMITS=' "$TARGET_ENV_FILE" || true)"
+  printf '%s\n' "$existing_line" > "$RATE_LIMIT_STATE_FILE"
   info "Preparing the $TARGET_ENV/$TARGET_RUNTIME stack for load testing …"
   set_boolean_env_var DISABLE_RATE_LIMITS true "$TARGET_ENV_FILE"
   info "Set DISABLE_RATE_LIMITS=true in $TARGET_ENV_FILE"
@@ -329,11 +371,17 @@ do_prepare() {
     info "Recreating the server service with rate limits disabled …"
     stack_compose up -d server
 
-    if [[ "$TARGET_ENV" == "prod" ]]; then
+    if [[ "$TARGET_ENV" == "prod" || "$TARGET_ENV" == "staging" ]]; then
       info "Disabling nginx limit_req directives …"
-      stack_compose exec -T nginx sh -c \
+      if ! stack_compose exec -T nginx sh -c \
         "sed -i 's/^[[:space:]]*limit_req /#limit_req /g' /etc/nginx/conf.d/default.conf && nginx -s reload" \
-        2>/dev/null || warn "Could not modify nginx config (is the prod nginx container running?)."
+        2>/dev/null; then
+        if [[ "$TARGET_ENV" == "staging" ]]; then
+          error "Could not disable staging nginx rate limits; run --restore and check the nginx service."
+          exit 1
+        fi
+        warn "Could not modify nginx config (is the prod nginx container running?)."
+      fi
     fi
 
     info "Prepare complete ✓"
@@ -348,9 +396,23 @@ do_prepare() {
 }
 
 do_restore() {
+  if [[ ! -f "$RATE_LIMIT_STATE_FILE" ]]; then
+    error "No rate-limit restore record found. Run --prepare first."
+    exit 1
+  fi
   info "Restoring rate limits on the $TARGET_ENV/$TARGET_RUNTIME stack …"
-  set_boolean_env_var DISABLE_RATE_LIMITS false "$TARGET_ENV_FILE"
-  info "Set DISABLE_RATE_LIMITS=false in $TARGET_ENV_FILE"
+  local original_line
+  original_line="$(cat "$RATE_LIMIT_STATE_FILE")"
+  if [[ -n "$original_line" ]]; then
+    if grep -q '^DISABLE_RATE_LIMITS=' "$TARGET_ENV_FILE"; then
+      sed -i "s|^DISABLE_RATE_LIMITS=.*|${original_line}|" "$TARGET_ENV_FILE"
+    else
+      printf '\n%s\n' "$original_line" >> "$TARGET_ENV_FILE"
+    fi
+  else
+    sed -i '/^DISABLE_RATE_LIMITS=/d' "$TARGET_ENV_FILE"
+  fi
+  info "Restored DISABLE_RATE_LIMITS to its original setting in $TARGET_ENV_FILE"
 
   if [[ "$TARGET_RUNTIME" == "docker" ]]; then
     if [[ -z "$TARGET_COMPOSE_FILE" || ! -f "$TARGET_COMPOSE_FILE" ]]; then
@@ -358,20 +420,22 @@ do_restore() {
       exit 1
     fi
 
-    info "Recreating the server service with rate limits enabled …"
+    info "Recreating the server service with its original rate-limit setting …"
     stack_compose up -d server
 
-    if [[ "$TARGET_ENV" == "prod" ]]; then
+    if [[ "$TARGET_ENV" == "prod" || "$TARGET_ENV" == "staging" ]]; then
       info "Restarting nginx to restore its rendered rate-limit config …"
       stack_compose restart nginx
     fi
 
+    rm -f "$RATE_LIMIT_STATE_FILE"
     info "Restore complete ✓"
     return 0
   fi
 
   warn "Native runtime detected."
-  warn "Restart the server process to apply DISABLE_RATE_LIMITS=false."
+  rm -f "$RATE_LIMIT_STATE_FILE"
+  warn "Restart the server process to apply its original rate-limit setting."
   if [[ -x "$STACK_DIR/scripts/qlicker.sh" ]]; then
     warn "If you use qlicker.sh: (cd $STACK_DIR && ./scripts/qlicker.sh restart)"
   fi
@@ -382,8 +446,8 @@ do_seed() {
   check_network_if_needed
   mkdir -p "$STATE_DIR"
 
-  info "Seeding database with $NUM_STUDENTS students …"
-  seed_runner --students "$NUM_STUDENTS"
+  info "Seeding $SCENARIO with $NUM_STUDENTS students …"
+  seed_runner --students "$NUM_STUDENTS" --scenario "$SCENARIO"
   info "Seeding complete ✓"
 
   if [[ ! -f "$STATE_DIR/state.json" ]]; then
@@ -401,17 +465,21 @@ do_test() {
     exit 1
   fi
 
+  local state_scenario
+  if ! state_scenario="$(sed -n 's/^[[:space:]]*"scenario": "\([^"]*\)".*/\1/p' "$STATE_DIR/state.json" | head -1)" || [[ "$state_scenario" != "$SCENARIO" ]]; then
+    error "The state file does not match scenario '$SCENARIO'. Reseed before testing."
+    exit 1
+  fi
   mkdir -p "$RESULTS_DIR"
-  local timestamp
-  timestamp="$(date +%Y%m%d-%H%M%S)"
-  local result_log="$RESULTS_DIR/k6-${timestamp}.log"
+  RUN_TIMESTAMP="$(date +%Y%m%d-%H%M%S-%N)"
+  local result_log="$RESULTS_DIR/k6-${SCENARIO}-${RUN_TIMESTAMP}.log"
   local session_chat_label="disabled"
   if [[ "$SESSION_CHAT_ENABLED" == "true" ]]; then
     session_chat_label="enabled"
   fi
 
-  info "Running k6 load test against $BASE_URL …"
-  info "Session chat: $session_chat_label"
+  info "Running $SCENARIO load test against $BASE_URL …"
+  if [[ "$SCENARIO" == "live-named" ]]; then info "Session chat: $session_chat_label"; fi
   info "Results log: $result_log"
   echo ""
 
@@ -427,6 +495,7 @@ do_test() {
     warn "Load test FAILED (exit code $k6_exit) — check thresholds in the log above."
   fi
   info "Full log saved to: $result_log"
+  info "Summary saved to: $RESULTS_DIR/summary-${SCENARIO}-${RUN_TIMESTAMP}.json"
 
   return $k6_exit
 }
