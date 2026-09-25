@@ -71,6 +71,8 @@ test('named live retains the existing scenario and raises the k6 file-descriptor
 
 test('prod/docker routes an anonymous quiz to the configured host', async (t) => {
   const { root, argsFile } = await fixture(t, { runtime: 'docker', baseUrl: 'https://staging.example.com', scenario: 'quiz-anonymous' });
+  await fs.writeFile(path.join(root, 'state/rate-limit-restore.env'), 'DISABLE_RATE_LIMITS=false\n');
+  await fs.writeFile(path.join(root, 'production_setup/.env'), 'DISABLE_RATE_LIMITS=true\n');
   const result = run(root, argsFile, '--scenario', 'quiz-anonymous', '--test-only');
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const args = (await fs.readFile(argsFile, 'utf8')).trim().split('\n');
@@ -111,6 +113,7 @@ test('prepare and restore preserve the original rate-limit setting', async (t) =
 test('cleanup rebuilds an outdated seed image once, then reuses the matching image', async (t) => {
   const { root, argsFile } = await fixture(t);
   const labelFile = path.join(root, 'seed-image-label');
+  await fs.writeFile(path.join(root, 'state/rate-limit-restore.env'), 'DISABLE_RATE_LIMITS=false\n');
   await fs.writeFile(path.join(root, 'bin/docker'), `#!/usr/bin/env bash
 case "$1 $2" in
   'image inspect')
@@ -140,6 +143,7 @@ esac
   result = invoke();
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.deepEqual((await fs.readFile(argsFile, 'utf8')).trim().split('\n'), ['build', 'run', 'run']);
+  assert.equal(await fs.readFile(path.join(root, 'state/rate-limit-restore.env'), 'utf8'), 'DISABLE_RATE_LIMITS=false\n');
 });
 
 test('prod/docker preparation does not disable rate limits when seed image build fails', async (t) => {
@@ -211,4 +215,22 @@ exit 0
   const args = await fs.readFile(argsFile, 'utf8');
   assert.match(args, /\/scenarios\/preflight\.js/);
   assert.doesNotMatch(args, /\/scenarios\/live-session\.js/);
+});
+
+test('prod/docker full run refuses to seed without preparation', async (t) => {
+  const { root, argsFile } = await fixture(t, { runtime: 'docker' });
+  const result = run(root, argsFile);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /require --prepare before seeding or testing/);
+  await assert.rejects(fs.access(argsFile));
+});
+
+
+test('prod/docker test-only refuses a stale preparation record', async (t) => {
+  const { root, argsFile } = await fixture(t, { runtime: 'docker' });
+  await fs.writeFile(path.join(root, 'state/rate-limit-restore.env'), 'DISABLE_RATE_LIMITS=false\n');
+  const result = run(root, argsFile, '--test-only');
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /DISABLE_RATE_LIMITS=true is missing/);
+  await assert.rejects(fs.access(argsFile));
 });

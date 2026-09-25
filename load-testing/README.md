@@ -131,7 +131,16 @@ Otherwise, run `./setup.sh` and choose `prod` plus `docker` on either host.
    unsuitable for another full pass.
 4. Run `./run.sh --restore` and `./run.sh --clean` as separate commands when
    testing ends, including after a failed run. Keep result logs and summaries
-   before cleanup.
+   before cleanup. The prod/docker runner refuses a full or test-only run if
+   `--prepare` has not left a restore record and `DISABLE_RATE_LIMITS=true`.
+   `--clean` removes fixtures but keeps the restore record.
+
+If `--restore` reports that its record is missing, it cannot know the previous
+API setting. Check `DISABLE_RATE_LIMITS` in `production_setup/.env` and inspect
+the active Nginx `limit_req` directives before another run. If the API setting
+is still `true`, restore the intended value and recreate the server service;
+restart Nginx if its active rate-limit directives were disabled. Do not run
+`--prepare` again until that state is understood.
 
 Before each main workload, the runner sends twelve empty login requests
 through the configured public `BASE_URL`. They should all reach API validation

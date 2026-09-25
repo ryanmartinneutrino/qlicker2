@@ -415,7 +415,7 @@ do_prepare() {
 
 do_restore() {
   if [[ ! -f "$RATE_LIMIT_STATE_FILE" ]]; then
-    error "No rate-limit restore record found. Run --prepare first."
+    error "No rate-limit restore record found; the original rate-limit setting is unknown. Check $TARGET_ENV_FILE and the active Nginx config before another load test."
     exit 1
   fi
   info "Restoring rate limits on the $TARGET_ENV/$TARGET_RUNTIME stack …"
@@ -476,7 +476,23 @@ do_seed() {
   info "State file: $STATE_DIR/state.json"
 }
 
+require_prepared_stack() {
+  if [[ "$TARGET_ENV" != "prod" || "$TARGET_RUNTIME" != "docker" ]]; then
+    return 0
+  fi
+  if [[ ! -f "$RATE_LIMIT_STATE_FILE" ]]; then
+    error "Production Docker load tests require --prepare before seeding or testing. No restore record exists at $RATE_LIMIT_STATE_FILE."
+    error "If DISABLE_RATE_LIMITS is already true, inspect the stack and restore it manually before preparing again."
+    return 1
+  fi
+  if ! grep -qx 'DISABLE_RATE_LIMITS=true' "$TARGET_ENV_FILE"; then
+    error "The restore record exists, but DISABLE_RATE_LIMITS=true is missing from $TARGET_ENV_FILE. Run --restore, then --prepare."
+    return 1
+  fi
+}
+
 do_test() {
+  require_prepared_stack
   check_network_if_needed
   if [[ ! -f "$STATE_DIR/state.json" ]]; then
     error "state/state.json not found. Run seeding first: ./run.sh --seed-only"
@@ -518,8 +534,10 @@ do_test() {
   echo ""
   if [[ $k6_exit -eq 0 ]]; then
     info "Load test PASSED ✓"
+  elif (( k6_exit == 141 )); then
+    warn "Load test FAILED: k6/container exited with SIGPIPE (141). Inspect the log for the underlying cause."
   else
-    warn "Load test FAILED (exit code $k6_exit) — check thresholds in the log above."
+    warn "Load test FAILED (k6/container exit code $k6_exit). Inspect the log and threshold summary."
   fi
   info "Full log saved to: $result_log"
   info "Summary saved to: $RESULTS_DIR/summary-${SCENARIO}-${RUN_TIMESTAMP}.json"
@@ -555,6 +573,7 @@ case "$ACTION" in
     do_clean
     ;;
   full)
+    require_prepared_stack
     do_seed
     echo ""
     TEST_EXIT=0
