@@ -32,6 +32,7 @@ Fastify schemas supply parameters, request bodies, response shapes, tags, and be
 | `/api/v1/settings` | Public settings, admin configuration, backup health, storage, SAML, video, and AI policy |
 | `/api/v1/courses` | Course CRUD, enrollment, rosters, sessions, groups, grades, and course video endpoints |
 | `/api/v1/sessions` | Session CRUD/copy/import/export, live state/actions, quiz saves/submission, review, grading integration, and session chat |
+| `/api/v1/activity-codes` and session activity-share paths | Instructor code management and signed-in code redemption; participant delivery is pending |
 | `/api/v1/questions` and course/session question paths | Question CRUD, visibility, library search/copy/import/export, aggregates, and ordering |
 | `/api/v1/grades` and course/session grade paths | Grade tables, recalculation, point/feedback/manual overrides, visibility, and CSV data |
 | `/api/v1/.../chat` | Course/session posts, comments, votes, quick posts, moderation, settings, summaries, and review payloads |
@@ -62,6 +63,14 @@ For anonymous sessions:
 - `GET /sessions/:id/results` lists respondents only. Each row has `studentId: "respondent-N"`, `anonymousIndex`, and empty name, email, and photo fields. Response entries contain answer content without timestamps or IP addresses. The response adds `anonymousSummary: { respondentCount, joinedCount, enrolledCount }`. Until at least four distinct respondents have answered every question and attempt with responses, `studentResults` and `chatPosts` are empty and `anonymousSummary` includes `responsesWithheld: true` and `minimumRespondents: 4`. Chat posts have no author names.
 - `POST /sessions/:id/join/:studentId` (manual admission) returns `400`, because its result would show whether a named student had joined.
 - Students use the same quiz, live, and review endpoints; their own responses are found through the session pseudonym.
+
+## Activity code foundation
+
+`GET /api/v1/sessions/:id/activity-share` returns `{ enabled, expiresAt }` to a course instructor or admin. `POST /api/v1/sessions/:id/activity-share` issues or rotates a code and returns `{ code, expiresAt }`; an optional `expiresAt` must be within the next year, with 30 days as the default. The plaintext code is returned only on issuance. `DELETE /api/v1/sessions/:id/activity-share` disables sharing and revokes existing grants. Practice quizzes, student-created sessions, and inactive courses cannot issue codes.
+
+`POST /api/v1/activity-codes/redeem` accepts `{ code }` from an authenticated user and returns only `{ sessionId, name, quiz, anonymous }`. Codes are `S-` plus 40 hexadecimal characters. Unknown, expired, disabled, and unavailable codes receive the same 404 response. Redemption is rate limited. A successful redemption records a session-scoped grant and locks the session's anonymity mode; it does not enroll the user in the course or create a grade. Rotating a code preserves existing grants; disabling sharing revokes them, including after a later reissue.
+
+This first backend slice does not authorize grant holders on quiz, live, review, image, or WebSocket routes. The dashboard code field does not dispatch activity codes yet. The new PR remains a draft until participant delivery is wired and tested.
 
 ## Question copies and ordering
 

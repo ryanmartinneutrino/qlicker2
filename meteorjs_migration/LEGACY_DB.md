@@ -55,6 +55,7 @@ The production database (`qlickerdb`) contains the following collections:
 | `images` | `Image` | ✅ Compatible | Legacy documents (`_id`, `url`, `UID`) load without errors. `key`, `type`, `size` are optional with defaults. |
 | `settings` | `Settings` | ✅ Compatible | Schema uses both new and legacy field names with virtual getters. `strict: false` preserves extra legacy fields on save. |
 | `meteor_accounts_loginServiceConfiguration` | None | N/A | Empty in snapshot. No equivalent model needed. |
+| `activityShares`, `activityGrants` | `ActivityShare`, `ActivityGrant` | New additive collections | Session-scoped codes and signed-in grants; legacy course enrollment, session, and response documents need no migration. |
 
 ---
 

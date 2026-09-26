@@ -56,6 +56,12 @@ Key concerns:
 - join-code lifecycle, chat settings, and multi-select scoring policy
 - anonymity (`anonymous`), which changes how participation is stored
 
+### Activity code access foundation
+
+`ActivityShare` (`activityShares`) holds one share configuration per session: a SHA-256 hash of a 160-bit random `S-` code, enable state, expiry for new redemptions, and an `accessEpoch`. Only the issuance response contains the plaintext code. `ActivityGrant` (`activityGrants`) holds a signed-in user's session-scoped grant and the epoch when it was redeemed. Both collections use Meteor-style string IDs. Unique indexes on share `sessionId`, share `codeHash`, and grant `(sessionId, userId)` are created explicitly at API startup because production disables Mongoose automatic index creation. They are new collections; existing session documents require no migration.
+
+A redeemed grant sets `Session.participationStarted` through a conditional update using the current anonymity mode. This prevents later identity-mode changes even if a grant is revoked. Code rotation leaves the share epoch unchanged and preserves current grants. Disabling sharing increments the epoch, so old grants remain revoked if a new code is issued later. Code expiry stops new redemption but does not evict accounts that already redeemed. The participant API, quiz/live delivery, and response tracking for grant holders are subsequent work; ordinary course membership checks still apply to those routes.
+
 ### Anonymous sessions
 
 `anonymous: true` (absent or `false` on existing documents) marks a quiz or interactive session whose stored responses have no direct instructor-visible account identity. Practice and student-created sessions cannot be anonymous. Individual quiz extensions are unavailable because a named access window could identify an answer. The helper `server/src/utils/anonymousSession.js` owns the rules:
