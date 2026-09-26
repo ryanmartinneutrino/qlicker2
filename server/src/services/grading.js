@@ -774,7 +774,7 @@ export async function recalculateSessionGrades({
 
   // Anonymous sessions never produce grade rows: grades are keyed by real
   // user ids and would link students to their responses.
-  if (session.anonymous) {
+  if (session.anonymous || session.activityEverShared) {
     return {
       session,
       course,

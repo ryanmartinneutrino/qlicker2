@@ -190,7 +190,7 @@ The production database (`qlickerdb`) contains the following collections:
 }
 ```
 
-`anonymous` and `participationStarted` are additive and need no migration: legacy sessions are read as non-anonymous, and existing participation arrays and responses still block an anonymity change. For anonymous sessions, `joined`, `submittedQuiz`, and `Response.studentUserId` hold per-session `anon_…` pseudonyms instead of user IDs, `joinRecords` stays empty, and no grade rows exist. See [anonymous sessions](../docs/developer/data-model.md#anonymous-sessions).
+`anonymous`, `participationStarted`, `activityAccessEnabled`, and `activityEverShared` are additive and need no migration: legacy sessions are read as non-anonymous, and existing participation arrays and responses still block an anonymity change. For anonymous sessions, `joined`, `submittedQuiz`, and `Response.studentUserId` hold per-session `anon_…` pseudonyms instead of user IDs, `joinRecords` stays empty, and no grade rows exist. See [anonymous sessions](../docs/developer/data-model.md#anonymous-sessions).
 
 ### Questions Collection
 
@@ -404,3 +404,5 @@ cd scripts
 ### Shared question references
 
 Some sessions created through older copy/order workflows may contain duplicate question IDs or references to questions owned by a library or another session. Use the [question reference repair guide](../docs/developer/question-reference-repair.md) to diagnose all sessions by course/session name through the production Bash/Docker launcher. The interactive repair can copy unused questions or remove duplicate positions with an explicit decision to keep or recalculate grades. Existing responses cannot be split by question position or session automatically: their persisted key is `questionId`, not session plus position. The utility preserves legacy fields and string IDs, leaves response rows untouched, and preserves manual grading overrides.
+
+Course documents without `allowSharedActivities` remain in the default-off state for activity-code access; no migration is needed.

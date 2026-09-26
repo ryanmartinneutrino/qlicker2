@@ -1,10 +1,13 @@
 import crypto from 'node:crypto';
 import ActivityGrant from '../models/ActivityGrant.js';
+import config from '../config/index.js';
 import ActivityShare from '../models/ActivityShare.js';
 import Course from '../models/Course.js';
 import Session from '../models/Session.js';
+import { isCourseMember } from '../utils/courseAccess.js';
 
-const CODE_PATTERN = /^S-[A-F0-9]{40}$/;
+const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const CODE_PATTERN = /^(?:S-[A-HJ-NP-Z2-9]{10}|S-[A-F0-9]{40})$/;
 
 export function normalizeActivityCode(value) {
   const code = String(value || '').trim().toUpperCase();
@@ -15,22 +18,55 @@ export function hashActivityCode(code) {
   return crypto.createHash('sha256').update(code).digest('hex');
 }
 
+export function deriveActivityCode(seed) {
+  if (!/^[a-f0-9]{32}$/.test(String(seed || ''))) return null;
+  const digest = crypto.createHmac('sha256', config.jwtSecret)
+    .update(`qlicker-activity-code-v1:${seed}`).digest();
+  return `S-${[...digest.subarray(0, 10)].map((byte) => CODE_ALPHABET[byte & 31]).join('')}`;
+}
+
 export function makeActivityCode() {
-  return `S-${crypto.randomBytes(20).toString('hex').toUpperCase()}`;
+  const seed = crypto.randomBytes(16).toString('hex');
+  return { seed, code: deriveActivityCode(seed) };
+}
+
+export function getDisplayActivityCode(share) {
+  if (!share?.enabled || !share.codeSeed) return null;
+  const code = deriveActivityCode(share.codeSeed);
+  return code && hashActivityCode(code) === share.codeHash ? code : null;
 }
 
 export async function issueActivityCode(sessionId, expiresAt) {
-  const code = makeActivityCode();
+  const { seed, code } = makeActivityCode();
   const now = new Date();
   const share = await ActivityShare.findOneAndUpdate(
     { sessionId },
     {
-      $set: { codeHash: hashActivityCode(code), enabled: true, expiresAt, updatedAt: now },
+      $set: { codeHash: hashActivityCode(code), codeSeed: seed, enabled: true, expiresAt, updatedAt: now },
       $setOnInsert: { createdAt: now },
     },
     { upsert: true, returnDocument: 'after', runValidators: true }
   ).lean();
   return { code, share };
+}
+
+export async function hasSessionParticipantAccess(course, session, user) {
+  if (isCourseMember(course, user)) return true;
+  if (course?.inactive || !course?.allowSharedActivities) return false;
+  if (!session?.activityAccessEnabled) return false;
+  return hasActivityGrant(String(session._id), String(user?.userId || ''));
+}
+
+export async function getActivityRecipientUserIds(session, course = null) {
+  if (!session?.activityAccessEnabled) return [];
+  const activityCourse = course || await Course.findById(session.courseId).select('allowSharedActivities').lean();
+  if (!activityCourse?.allowSharedActivities) return [];
+  const share = await ActivityShare.findOne({ sessionId: String(session._id), enabled: true })
+    .select('accessEpoch').lean();
+  if (!share) return [];
+  const grants = await ActivityGrant.find({ sessionId: String(session._id), accessEpoch: share.accessEpoch })
+    .select('userId').lean();
+  return grants.map((grant) => String(grant.userId));
 }
 
 export async function hasActivityGrant(sessionId, userId) {
@@ -48,16 +84,19 @@ export async function redeemActivityCode(rawCode, userId) {
   if (!code || !userId) return null;
   const now = new Date();
   const share = await ActivityShare.findOne({
-    codeHash: hashActivityCode(code), enabled: true, expiresAt: { $gt: now },
+    codeHash: hashActivityCode(code), enabled: true,
   }).lean();
   if (!share) return null;
+  if (share.expiresAt <= now && !await ActivityGrant.exists({
+    sessionId: share.sessionId, userId: String(userId), accessEpoch: share.accessEpoch,
+  })) return null;
 
   const session = await Session.findById(share.sessionId)
     .select('_id name courseId quiz practiceQuiz studentCreated anonymous participationStarted')
     .lean();
   if (!session || session.practiceQuiz || session.studentCreated) return null;
-  const course = await Course.findById(session.courseId).select('inactive').lean();
-  if (!course || course.inactive) return null;
+  const course = await Course.findById(session.courseId).select('inactive allowSharedActivities').lean();
+  if (!course || course.inactive || !course.allowSharedActivities) return null;
 
   // This claim races safely with an instructor changing identity mode: the
   // setting update requires participationStarted to remain false.
@@ -88,5 +127,5 @@ export async function redeemActivityCode(rawCode, userId) {
     _id: share._id, enabled: true, accessEpoch: share.accessEpoch,
   });
   if (!currentShare) return null;
-  return { sessionId: session._id, name: session.name, quiz: !!session.quiz, anonymous: !!session.anonymous };
+  return { sessionId: session._id, courseId: session.courseId, name: session.name, quiz: !!session.quiz, anonymous: !!session.anonymous };
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo, useLayoutEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   Box, Typography, Button, Paper, Alert, CircularProgress, Chip,
   TextField, Radio, RadioGroup, FormControlLabel, Checkbox, FormGroup,
@@ -126,8 +126,9 @@ function RichContent({ html, fallback, allowVideoEmbeds = false }) {
 function LiveSessionContent() {
   const { courseId, sessionId } = useParams();
   const navigate = useNavigate();
+  const isOutsideActivity = useLocation().pathname.startsWith('/activity/');
   const { t, i18n } = useTranslation();
-  const courseBackLink = `/student/course/${courseId}`;
+  const courseBackLink = isOutsideActivity ? '/student' : `/student/course/${courseId}`;
 
   // Join state
   const [joinCode, setJoinCode] = useState('');

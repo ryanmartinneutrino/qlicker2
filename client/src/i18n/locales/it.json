@@ -61,7 +61,8 @@
     "option": "Opzione {{letter}}",
     "ta": "TA",
     "redirecting": "Reindirizzamento…",
-    "confirm": "Conferma"
+    "confirm": "Conferma",
+    "rowsPerPage": "Righe per pagina"
   },
   "autoSave": {
     "errorNotSaved": "Non è stato possibile salvare le modifiche. La tua ultima modifica non è stata registrata.",
@@ -868,7 +869,11 @@
       "aiRequiresAdminAuthorization": "Richiede l’autorizzazione dell’amministratore",
       "aiHelperHelp": "Abilita un assistente IA per aiutare con la valutazione, generare domande e gestire sessioni e studenti.",
       "enrollmentCodeHelp": "Questo è il codice di cui gli studenti hanno bisogno per iscriversi al corso.",
-      "anonymousSession": "Anonima"
+      "anonymousSession": "Anonima",
+      "allowSharedActivities": "Consenti la condivisione delle attività tramite codice",
+      "allowSharedActivitiesHelp": "Disattivato per impostazione predefinita. Disattivandolo, i codici esistenti e l’accesso esterno vengono revocati.",
+      "searchSessionsPlaceholder": "Cerca per nome della sessione",
+      "noSessionsMatchFilters": "Nessuna sessione corrisponde ai filtri attuali."
     },
     "sessionEditor": {
       "sessionSettings": "Impostazioni della sessione",
@@ -1006,7 +1011,26 @@
       "anonymousHelp": "I docenti vedono le risposte ma non chi le ha date. Gli studenti accedono comunque e possono rispondere una sola volta. Le sessioni anonime non vengono valutate e non compaiono nel registro dei voti.",
       "anonymousEnabledNote": "Risposte e presenze vengono salvate senza l'identità degli studenti. Questa sessione non sarà valutata.",
       "anonymousNoExtensions": "Le proroghe individuali non sono disponibili per le sessioni anonime.",
-      "anonymousLockedNote": "L'anonimato non può essere modificato dopo che gli studenti si sono uniti o hanno risposto."
+      "anonymousLockedNote": "L'anonimato non può essere modificato dopo che gli studenti si sono uniti o hanno risposto.",
+      "activityCodeTitle": "Condividi con un codice attività",
+      "activityCodeHelp": "Chi ha il codice può aprire solo questa attività senza iscriversi al corso. Chiunque abbia un account può usarlo. Le risposte non vengono mai valutate. Le risposte anonime sono visibili solo dopo che almeno quattro persone hanno risposto a ogni domanda e tentativo. Una risposta particolare potrebbe comunque identificare qualcuno.",
+      "activityCodeExpires": "Il codice scade il {{date}}",
+      "activityCodeLabel": "Codice attività",
+      "generateActivityCode": "Genera codice",
+      "rotateActivityCode": "Rigenera codice",
+      "disableActivityCode": "Disattiva codice",
+      "activityCodeError": "Impossibile modificare la condivisione dell’attività.",
+      "activityUngraded": "Questa attività resterà senza valutazione anche dopo la disattivazione del codice.",
+      "removeExtensionsBeforeSharing": "Rimuovi le proroghe individuali del quiz prima di generare un codice attività.",
+      "sharedNoExtensions": "Le proroghe individuali del quiz non sono disponibili dopo che questa attività è stata condivisa tramite codice.",
+      "courseSharingDisabled": "Attiva prima la condivisione tramite codice nelle impostazioni del corso.",
+      "allowActivityCodeAccess": "Consenti l’accesso tramite codice attività",
+      "disableActivityCodeHelp": "Disattivandolo, questo codice e tutti gli accessi esterni vengono revocati. L’attività resta senza voto.",
+      "activityCodeUnavailable": "Questo codice non può essere mostrato. Rigeneralo per visualizzare un nuovo codice persistente.",
+      "sessionName": "Nome della sessione",
+      "tags": "Tag della sessione",
+      "tagsPlaceholder": "Aggiungi un tag argomento",
+      "tagsHelp": "Usa tag che descrivano l’argomento specifico di questa sessione e delle sue domande."
     },
     "liveSession": {
       "currentQuestion": "Domanda attuale",
@@ -1286,7 +1310,11 @@
       "enrollSuccess": "Iscrizione al corso riuscita",
       "failedEnroll": "Impossibile iscriversi",
       "inactiveCourseCannotEnroll": "Questo corso è inattivo e non può essere raggiunto in questo momento.",
-      "failedLoadCourses": "Impossibile caricare i corsi"
+      "failedLoadCourses": "Impossibile caricare i corsi",
+      "enterJoinCode": "Inserisci un codice",
+      "courseOrActivityCode": "Codice corso o attività",
+      "courseOrActivityCodeHelp": "Inserisci un codice di iscrizione al corso o un codice attività fornito dal docente.",
+      "continueWithCode": "Continua"
     },
     "course": {
       "lectures": "Lezioni",
@@ -2013,7 +2041,8 @@
     "groupMembersTitle": "{{category}} — {{group}}",
     "uncategorizedGroup": "Senza categoria",
     "removeFromCourse": "Rimuovi dal corso",
-    "confirmRemove": "Conferma rimozione"
+    "confirmRemove": "Conferma rimozione",
+    "noStudentsMatch": "Nessuno studente corrisponde alla ricerca attuale."
   },
   "video": {
     "title": "Videochiamata",
@@ -2269,7 +2298,8 @@
             "I quiz di pratica sono più simili a un'esercitazione guidata e sono adatti allo studio autonomo o al rinforzo facoltativo.",
             "Se una sessione dipende da codici di accesso, gruppi o statistiche visibili, conferma queste impostazioni prima che gli studenti inizino a partecipare.",
             "Gli elenchi delle sessioni mantengono ricerca, filtri e paginazione dentro Cerca sessioni. Mentre una sessione interattiva è in diretta, aprire la sua scheda porta direttamente ai controlli in diretta; le schede dei quiz in diretta aprono ancora l'editor.",
-            "Attiva Risposte anonime nell'editor della sessione per sondaggi e valutazioni del corso. Gli studenti accedono comunque e rispondono a ogni domanda una sola volta, ma vedi le risposte con etichette come Partecipante 1 invece dei nomi, la vista dal vivo mostra solo quanti studenti si sono uniti, e la sessione non viene mai valutata né aggiunta al registro dei voti. L'impostazione si blocca non appena qualcuno si unisce o risponde, e i gruppi molto piccoli possono comunque essere identificati per esclusione. Le righe dei partecipanti compaiono solo dopo la fine dell’attività e quando almeno quattro persone hanno risposto a ogni domanda e tentativo con risposte; risposte uniche o identificative possono comunque rivelare qualcuno."
+            "Attiva Risposte anonime nell'editor della sessione per sondaggi e valutazioni del corso. Gli studenti accedono comunque e rispondono a ogni domanda una sola volta, ma vedi le risposte con etichette come Partecipante 1 invece dei nomi, la vista dal vivo mostra solo quanti studenti si sono uniti, e la sessione non viene mai valutata né aggiunta al registro dei voti. L'impostazione si blocca non appena qualcuno si unisce o risponde, e i gruppi molto piccoli possono comunque essere identificati per esclusione. Le righe dei partecipanti compaiono solo dopo la fine dell’attività e quando almeno quattro persone hanno risposto a ogni domanda e tentativo con risposte; risposte uniche o identificative possono comunque rivelare qualcuno.",
+            "Usa l’interruttore della sessione per attivare o disattivare la condivisione; il codice attivo resta visibile dopo il ricaricamento e può essere rigenerato. Attiva prima la condivisione tramite codice nelle impostazioni del corso; è disattivata per impostazione predefinita. Disattivarla revoca i codici esistenti e l’accesso esterno. Rimuovi le proroghe individuali prima della condivisione; resteranno non disponibili anche dopo. Per invitare persone con account esterne al corso, crea un quiz o una sessione dal vivo nel corso e genera un codice attività S- nell’editor. Copialo subito; rigenerarlo impedisce nuovi accessi col vecchio codice e disattivarlo revoca l’accesso esterno. L’attività resta senza voto per tutti. Scegli risposte nominate o anonime prima del primo accesso. Le righe anonime appaiono solo dopo la fine e quattro risposte a ogni domanda e tentativo. Una risposta particolare può comunque identificare qualcuno. Il codice rotante della sessione dal vivo resta necessario se attivato."
           ]
         },
         {
@@ -2356,7 +2386,8 @@
             "Gli elenchi delle sessioni mantengono ricerca, filtri e paginazione dentro un'area comprimibile Cerca sessioni, così puoi espandere i controlli solo quando ti servono.",
             "Se la tua istituzione richiede email verificata o SSO, completa prima questa configurazione prima di supporre che il codice di iscrizione sia sbagliato.",
             "Di solito ti serve il codice di iscrizione solo una volta per corso. Una volta funzionante, il corso resta sulla tua dashboard finché non vieni rimosso o il corso viene archiviato per il tuo account.",
-            "Tieni d'occhio l'indicatore sul tuo avatar nella barra dell'applicazione per le notifiche attive, poi apri Notifiche dal menu account per leggerle o chiuderle."
+            "Tieni d'occhio l'indicatore sul tuo avatar nella barra dell'applicazione per le notifiche attive, poi apri Notifiche dal menu account per leggerle o chiuderle.",
+            "Inserisci un codice attività S- nel modulo del pannello per aprire un quiz o una sessione senza iscriverti al corso. Una sessione dal vivo può richiedere anche il codice rotante. Queste attività non hanno voti. Le risposte anonime restano collegate tra domande sotto un’unica etichetta e compaiono per il docente solo dopo la fine e quattro risposte a ogni domanda e tentativo; una risposta particolare può identificarti."
           ],
           "screenshot": {
             "variant": "studentCourse",

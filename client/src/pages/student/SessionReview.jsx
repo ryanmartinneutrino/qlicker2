@@ -1,7 +1,7 @@
 import {
   useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo,
 } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import {
   Box, Typography, Button, Paper, Alert, CircularProgress,
   Chip, ToggleButtonGroup, ToggleButton,
@@ -554,10 +554,11 @@ function ReviewQuestionCard({
 export default function SessionReview() {
   const { t } = useTranslation();
   const { courseId, sessionId } = useParams();
+  const isOutsideActivity = useLocation().pathname.startsWith('/activity/');
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const requestedReturnTab = parseCourseTab(searchParams.get('returnTab'));
-  const fallbackCourseBackLink = requestedReturnTab === 0
+  const fallbackCourseBackLink = isOutsideActivity ? '/student' : requestedReturnTab === 0
     ? `/student/course/${courseId}`
     : `/student/course/${courseId}?tab=${requestedReturnTab}`;
 
@@ -754,7 +755,7 @@ export default function SessionReview() {
   const resolvedReturnTab = session && (session.quiz || session.practiceQuiz)
     ? (session.studentCreated ? 2 : 1)
     : requestedReturnTab;
-  const courseBackLink = resolvedReturnTab === 0
+  const courseBackLink = isOutsideActivity ? '/student' : resolvedReturnTab === 0
     ? `/student/course/${courseId}`
     : `/student/course/${courseId}?tab=${resolvedReturnTab}`;
   const currentQ = questions[questionIdx];

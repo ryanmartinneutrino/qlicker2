@@ -150,9 +150,9 @@ done
 
 case "$SCENARIO" in
   live-named) SCENARIO_FILE="live-session.js" ;;
-  live-anonymous) SCENARIO_FILE="live-anonymous.js" ;;
-  quiz-named|quiz-anonymous) SCENARIO_FILE="quiz-session.js" ;;
-  *) error "Unknown scenario '$SCENARIO'. Use live-named, live-anonymous, quiz-named, or quiz-anonymous."; exit 1 ;;
+  live-anonymous|live-external-named|live-external-anonymous) SCENARIO_FILE="live-anonymous.js" ;;
+  quiz-named|quiz-anonymous|quiz-external-named|quiz-external-anonymous) SCENARIO_FILE="quiz-session.js" ;;
+  *) error "Unknown scenario '$SCENARIO'. Use live-named, live-anonymous, quiz-named, quiz-anonymous, or their live/quiz external named/anonymous variants."; exit 1 ;;
 esac
 
 is_local_address() {

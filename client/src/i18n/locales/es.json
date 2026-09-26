@@ -61,7 +61,8 @@
     "option": "Opción {{letter}}",
     "ta": "TA",
     "redirecting": "Redirigiendo…",
-    "confirm": "Confirmar"
+    "confirm": "Confirmar",
+    "rowsPerPage": "Filas por página"
   },
   "autoSave": {
     "errorNotSaved": "No se pudieron guardar los cambios. Su último cambio no se registró.",
@@ -868,7 +869,11 @@
       "aiRequiresAdminAuthorization": "Requiere autorización de administración",
       "aiHelperHelp": "Active un asistente de IA para ayudar con la calificación, generar preguntas y administrar sesiones y estudiantes.",
       "enrollmentCodeHelp": "Este es el código que los estudiantes necesitan para inscribirse en el curso.",
-      "anonymousSession": "Anónima"
+      "anonymousSession": "Anónima",
+      "allowSharedActivities": "Permitir compartir actividades mediante código",
+      "allowSharedActivitiesHelp": "Desactivado de forma predeterminada. Al desactivarlo, se revocan los códigos existentes y el acceso externo.",
+      "searchSessionsPlaceholder": "Buscar por nombre de sesión",
+      "noSessionsMatchFilters": "Ninguna sesión coincide con los filtros actuales."
     },
     "sessionEditor": {
       "sessionSettings": "Configuración de la sesión",
@@ -1006,7 +1011,26 @@
       "anonymousHelp": "El profesorado ve las respuestas pero no quién las dio. Los estudiantes siguen iniciando sesión y solo pueden responder una vez. Las sesiones anónimas no se califican ni aparecen en el libro de calificaciones.",
       "anonymousEnabledNote": "Las respuestas y la asistencia se guardan sin la identidad de los estudiantes. Esta sesión no se calificará.",
       "anonymousNoExtensions": "Las prórrogas individuales no están disponibles para las sesiones anónimas.",
-      "anonymousLockedNote": "El anonimato no se puede cambiar después de que los estudiantes se hayan unido o hayan respondido."
+      "anonymousLockedNote": "El anonimato no se puede cambiar después de que los estudiantes se hayan unido o hayan respondido.",
+      "activityCodeTitle": "Compartir mediante código de actividad",
+      "activityCodeHelp": "Quien tenga el código puede abrir solo esta actividad sin unirse al curso. Cualquier persona con una cuenta puede usarlo. Las respuestas nunca se califican. Las respuestas anónimas solo se muestran cuando al menos cuatro personas responden cada pregunta e intento. Una respuesta singular aún podría identificar a alguien.",
+      "activityCodeExpires": "El código caduca el {{date}}",
+      "activityCodeLabel": "Código de actividad",
+      "generateActivityCode": "Generar código",
+      "rotateActivityCode": "Regenerar código",
+      "disableActivityCode": "Desactivar código",
+      "activityCodeError": "No se pudo cambiar el acceso a la actividad.",
+      "activityUngraded": "Esta actividad seguirá sin calificación aunque se desactive el código.",
+      "removeExtensionsBeforeSharing": "Elimina las ampliaciones individuales del cuestionario antes de generar un código de actividad.",
+      "sharedNoExtensions": "Las ampliaciones individuales del cuestionario no están disponibles después de compartir esta actividad mediante un código.",
+      "courseSharingDisabled": "Activa primero el uso compartido por código en la configuración del curso.",
+      "allowActivityCodeAccess": "Permitir el acceso mediante código de actividad",
+      "disableActivityCodeHelp": "Al desactivarlo, se revocan este código y todo acceso externo. Esta actividad sigue sin calificación.",
+      "activityCodeUnavailable": "Este código no se puede mostrar. Regenéralo para ver un nuevo código permanente.",
+      "sessionName": "Nombre de la sesión",
+      "tags": "Etiquetas de la sesión",
+      "tagsPlaceholder": "Añadir una etiqueta de tema",
+      "tagsHelp": "Usa etiquetas que describan el tema específico de esta sesión y sus preguntas."
     },
     "liveSession": {
       "currentQuestion": "Pregunta actual",
@@ -1286,7 +1310,11 @@
       "enrollSuccess": "Inscripción exitosa en el curso",
       "failedEnroll": "No se pudo realizar la inscripción",
       "inactiveCourseCannotEnroll": "Este curso está inactivo y no se puede unir en este momento.",
-      "failedLoadCourses": "No se pudieron cargar los cursos"
+      "failedLoadCourses": "No se pudieron cargar los cursos",
+      "enterJoinCode": "Introducir un código",
+      "courseOrActivityCode": "Código de curso o actividad",
+      "courseOrActivityCodeHelp": "Introduce un código de inscripción al curso o un código de actividad de tu instructor.",
+      "continueWithCode": "Continuar"
     },
     "course": {
       "lectures": "Clases",
@@ -2013,7 +2041,8 @@
     "groupMembersTitle": "{{category}} — {{group}}",
     "uncategorizedGroup": "Sin categorizar",
     "removeFromCourse": "Quitar del curso",
-    "confirmRemove": "Confirmar eliminación"
+    "confirmRemove": "Confirmar eliminación",
+    "noStudentsMatch": "Ningún estudiante coincide con la búsqueda actual."
   },
   "video": {
     "title": "Videochat",
@@ -2269,7 +2298,8 @@
             "Los cuestionarios de práctica se sienten más como un ensayo guiado y son adecuados para el autoestudio o el refuerzo opcional.",
             "Si una sesión depende de códigos de acceso, grupos o estadísticas visibles, confirme esos ajustes antes de que los estudiantes empiecen a unirse.",
             "Las listas de sesiones mantienen la búsqueda, los filtros y la paginación dentro de Buscar sesiones. Mientras una sesión interactiva está en vivo, abrir su tarjeta se une directamente a los controles en vivo; las tarjetas de cuestionario en vivo aún abren el editor.",
-            "Activa Respuestas anónimas en el editor de sesiones para encuestas y evaluaciones del curso. Los estudiantes siguen iniciando sesión y responden cada pregunta una sola vez, pero ves las respuestas con etiquetas como Participante 1 en lugar de nombres, la vista en vivo solo muestra cuántos estudiantes se unieron, y la sesión nunca se califica ni se añade al libro de calificaciones. El ajuste se bloquea en cuanto alguien se une o responde, y los grupos muy pequeños aún pueden identificarse por descarte. Las filas de participantes aparecen solo cuando termina la actividad y al menos cuatro personas han respondido cada pregunta e intento con respuestas; las respuestas únicas o que revelan la identidad aún pueden identificar a alguien."
+            "Activa Respuestas anónimas en el editor de sesiones para encuestas y evaluaciones del curso. Los estudiantes siguen iniciando sesión y responden cada pregunta una sola vez, pero ves las respuestas con etiquetas como Participante 1 en lugar de nombres, la vista en vivo solo muestra cuántos estudiantes se unieron, y la sesión nunca se califica ni se añade al libro de calificaciones. El ajuste se bloquea en cuanto alguien se une o responde, y los grupos muy pequeños aún pueden identificarse por descarte. Las filas de participantes aparecen solo cuando termina la actividad y al menos cuatro personas han respondido cada pregunta e intento con respuestas; las respuestas únicas o que revelan la identidad aún pueden identificar a alguien.",
+            "Usa el interruptor de la sesión para activar o desactivar el acceso; el código activo sigue visible tras recargar y se puede regenerar. Activa primero el uso compartido por código en la configuración del curso; está desactivado de forma predeterminada. Desactivarlo revoca los códigos existentes y el acceso externo. Elimina las ampliaciones individuales antes de compartir; después seguirán sin estar disponibles. Para invitar a personas con cuenta ajenas al curso, crea un cuestionario o sesión en directo dentro del curso y genera un código de actividad S- en el editor. Cópialo al aparecer; regenerarlo impide nuevos accesos con el código anterior y desactivarlo revoca el acceso externo. La actividad nunca se califica. Elige respuestas identificadas o anónimas antes de que alguien use el código. Las filas anónimas solo aparecen al terminar y tras cuatro respuestas por pregunta e intento. Una respuesta singular aún puede identificar a alguien. El código rotativo de la sesión sigue siendo necesario si está activado."
           ]
         },
         {
@@ -2356,7 +2386,8 @@
             "Las listas de sesiones mantienen la búsqueda, los filtros y la paginación dentro de un área plegable de Buscar sesiones para que pueda expandir los controles solo cuando los necesite.",
             "Si su institución requiere correo verificado o SSO, complete primero esa configuración antes de suponer que el código de inscripción es incorrecto.",
             "Por lo general, solo necesita el código de acceso una vez por curso. Después de que funcione, el curso permanece en su panel hasta que se le quite o el curso se archive para su cuenta.",
-            "Observe la insignia en su avatar en la barra de la aplicación para ver notificaciones activas, y luego abra Notificaciones desde el menú de la cuenta para leerlas o descartarlas."
+            "Observe la insignia en su avatar en la barra de la aplicación para ver notificaciones activas, y luego abra Notificaciones desde el menú de la cuenta para leerlas o descartarlas.",
+            "Introduce un código de actividad S- en el formulario del panel para abrir un cuestionario o sesión sin unirte al curso. Una sesión en directo puede pedir también su código rotativo. Estas actividades no tienen calificaciones. Las respuestas anónimas se vinculan entre preguntas bajo una etiqueta y solo se muestran al instructor al terminar y con cuatro respuestas por pregunta e intento; una respuesta singular aún puede identificarte."
           ],
           "screenshot": {
             "variant": "studentCourse",

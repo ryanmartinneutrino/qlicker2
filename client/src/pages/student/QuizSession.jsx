@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -173,6 +173,7 @@ function RichContent({ html, fallback, allowVideoEmbeds = false }) {
 export default function QuizSession() {
   const { courseId, sessionId } = useParams();
   const navigate = useNavigate();
+  const isOutsideActivity = useLocation().pathname.startsWith('/activity/');
   const { t, i18n } = useTranslation();
 
   const [loading, setLoading] = useState(true);
@@ -192,10 +193,10 @@ export default function QuizSession() {
   const autosaveTimersRef = useRef(new Map());
   const latestQuestionsRef = useRef([]);
   const courseQuizTabLink = useMemo(() => (
-    session?.studentCreated
+    isOutsideActivity ? '/student' : session?.studentCreated
       ? `/student/course/${courseId}?tab=2`
       : `/student/course/${courseId}?tab=1`
-  ), [courseId, session?.studentCreated]);
+  ), [courseId, isOutsideActivity, session?.studentCreated]);
 
   const hydrateFromPayload = useCallback((payload) => {
     const nextSession = payload?.session || null;

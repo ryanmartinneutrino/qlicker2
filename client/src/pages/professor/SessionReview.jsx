@@ -408,6 +408,7 @@ function formatAnswerText(question, answer) {
 
 export function buildSessionResultsCsv({
   anonymous = false,
+  ungraded = false,
   csvQuestionAttempts,
   gradesByStudentId,
   sessionName,
@@ -434,7 +435,7 @@ export function buildSessionResultsCsv({
       t('professor.sessionReview.csvLastName'),
       t('professor.sessionReview.csvFirstName'),
       t('professor.sessionReview.csvEmail'),
-      t('professor.sessionReview.grade'),
+      ...(!ungraded ? [t('professor.sessionReview.grade')] : []),
       t('professor.sessionReview.inSession'),
       t('professor.sessionReview.csvParticipation'),
       t('professor.sessionReview.percentCorrect'),
@@ -470,7 +471,7 @@ export function buildSessionResultsCsv({
         escapeCsvCell(student.lastname),
         escapeCsvCell(student.firstname),
         escapeCsvCell(student.email),
-        escapeCsvCell(formatPercent(gradeValue)),
+        ...(!ungraded ? [escapeCsvCell(formatPercent(gradeValue))] : []),
         escapeCsvCell(student.inSession ? t('common.yes') : t('common.no')),
         escapeCsvCell(formatParticipation(student.participation)),
         escapeCsvCell(formatPercent(visibleStudent?.percentCorrectValue)),
@@ -692,6 +693,7 @@ export default function SessionReview() {
   editSessionParams.set('returnTo', 'review');
   const editSessionPath = `/prof/course/${courseId}/session/${sessionId}?${editSessionParams.toString()}`;
   const anonymousSession = !!session?.anonymous;
+  const ungradedSession = anonymousSession || !!session?.activityEverShared;
   // Anonymous results arrive without identities; give each respondent a
   // generic, stable label so the table, CSV, and charts stay readable.
   const studentResults = useMemo(() => (anonymousSession
@@ -716,8 +718,8 @@ export default function SessionReview() {
       setAnonymousSummary(data.anonymousSummary || null);
       setChatPosts(data.chatPosts || []);
 
-      if (data.session?.anonymous) {
-        // Anonymous sessions never have grades.
+      if (data.session?.anonymous || data.session?.activityEverShared) {
+        // Anonymous and code-accessible sessions never have grades.
         setGradesByStudentId({});
         setGradingNeedsSummary({ marks: 0, students: 0, questions: 0 });
         setError(null);
@@ -1252,6 +1254,7 @@ export default function SessionReview() {
   const handleExportCsv = useCallback(() => {
     const csvExport = buildSessionResultsCsv({
       anonymous: anonymousSession,
+      ungraded: ungradedSession,
       csvQuestionAttempts,
       gradesByStudentId,
       sessionName: session?.name,
@@ -1262,7 +1265,7 @@ export default function SessionReview() {
     if (!csvExport) return;
 
     downloadCsv(csvExport.filename, csvExport.csvContent);
-  }, [anonymousSession, csvQuestionAttempts, gradesByStudentId, sortedStudentsTabRows, studentResults, session?.name, t]);
+  }, [anonymousSession, ungradedSession, csvQuestionAttempts, gradesByStudentId, sortedStudentsTabRows, studentResults, session?.name, t]);
 
   // ---- Render: loading ----
 
@@ -1406,6 +1409,8 @@ export default function SessionReview() {
         <Alert severity="info" icon={<VisibilityOffIcon fontSize="inherit" />} sx={{ mb: 2 }}>
           {t('professor.sessionReview.anonymousSessionNotice')}
         </Alert>
+      ) : session?.activityEverShared ? (
+        <Alert severity="info" sx={{ mb: 2 }}>{t('professor.sessionEditor.activityUngraded')}</Alert>
       ) : null}
       {anonymousSession && anonymousSummary?.responsesWithheld ? (
         <Alert severity="warning" sx={{ mb: 2 }}>
@@ -1448,7 +1453,7 @@ export default function SessionReview() {
         tabs={[
           { value: 0, label: t('professor.sessionReview.results') },
           { value: 1, label: t('professor.sessionReview.responseData') },
-          anonymousSession ? {
+          ungradedSession ? {
             value: 2,
             label: t('professor.sessionReview.responsesByQuestion'),
           } : {
@@ -1776,7 +1781,7 @@ export default function SessionReview() {
                       </TableCell>
                       {!anonymousSession && (
                         <>
-                          <TableCell component="th" scope="col" align="center" sx={{ fontWeight: 700 }}>
+                          {!ungradedSession && <TableCell component="th" scope="col" align="center" sx={{ fontWeight: 700 }}>
                             <TableSortLabel
                               active={studentSort.field === 'grade'}
                               direction={studentSort.field === 'grade' ? studentSort.direction : 'desc'}
@@ -1784,7 +1789,7 @@ export default function SessionReview() {
                             >
                               {t('professor.sessionReview.grade')}
                             </TableSortLabel>
-                          </TableCell>
+                          </TableCell>}
                           <TableCell component="th" scope="col" align="center" sx={{ fontWeight: 700 }}>
                             <TableSortLabel
                               active={studentSort.field === 'inSession'}
@@ -1856,9 +1861,9 @@ export default function SessionReview() {
                         </TableCell>
                         {!anonymousSession && (
                           <>
-                            <TableCell align="center">
+                            {!ungradedSession && <TableCell align="center">
                               {formatPercent(student.gradeValue)}
-                            </TableCell>
+                            </TableCell>}
                             <TableCell align="center">
                               <Chip
                                 label={student.inSession ? t('common.yes') : t('common.no')}
@@ -1897,10 +1902,11 @@ export default function SessionReview() {
 
       {/* Grading tab (read-only responses by question for anonymous sessions) */}
       <TabPanel value={tab} index={2}>
-        {anonymousSession ? (
+        {ungradedSession ? (
           <AnonymousResponsesPanel
             questions={questions.filter((question) => !isSlideType(normalizeQuestionType(question)))}
             studentResults={studentResults}
+            anonymous={anonymousSession}
             getResponseCorrectness={isLatestResponseCorrect}
           />
         ) : (
