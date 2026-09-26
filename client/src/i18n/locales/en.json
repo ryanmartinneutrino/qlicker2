@@ -867,7 +867,8 @@
       "courseActiveHelp": "When the course is active, students can access it.",
       "aiRequiresAdminAuthorization": "Requires admin authorization",
       "aiHelperHelp": "Enable an AI assistant to help with grading, generate questions, manage sessions and students.",
-      "enrollmentCodeHelp": "This is the code students need to enroll in the course."
+      "enrollmentCodeHelp": "This is the code students need to enroll in the course.",
+      "anonymousSession": "Anonymous"
     },
     "sessionEditor": {
       "sessionSettings": "Session Settings",
@@ -1000,7 +1001,12 @@
       "applyingTagsToQuestions": "Applying tags…",
       "appliedSessionTagsToQuestions_one": "Applied the session tags to 1 question.",
       "appliedSessionTagsToQuestions_other": "Applied the session tags to {{count}} questions.",
-      "failedApplySessionTagsToQuestions": "Failed to apply the session tags to the questions."
+      "failedApplySessionTagsToQuestions": "Failed to apply the session tags to the questions.",
+      "anonymous": "Anonymous responses",
+      "anonymousHelp": "Instructors see the answers but not who gave them. Students still sign in and can answer only once. Anonymous sessions are not graded and do not appear in the gradebook.",
+      "anonymousEnabledNote": "Responses and attendance are stored without student identities. This session will not be graded.",
+      "anonymousNoExtensions": "Individual quiz extensions are unavailable for anonymous sessions.",
+      "anonymousLockedNote": "Anonymity cannot be changed after students have joined or responded."
     },
     "liveSession": {
       "currentQuestion": "Current question",
@@ -1115,7 +1121,8 @@
       "joinTimeUnavailable": "Join time unavailable",
       "ending": "Ending…",
       "currentJoinCodeAria": "Current join code: {{code}}",
-      "pageProgressAria": "Page {{current}} of {{total}}"
+      "pageProgressAria": "Page {{current}} of {{total}}",
+      "anonymousStudentsNote": "This session is anonymous, so the names of students who joined are not shown."
     },
     "sessionReview": {
       "questions": "Questions",
@@ -1191,7 +1198,24 @@
       "haltingAiResponseSummary": "Halting…",
       "aiSummaryHalted": "AI summary halted. You can generate it again.",
       "aiSummaryFailed": "AI summary failed. {{error}}",
-      "aiSummaryHaltFailed": "Could not halt the AI summary."
+      "aiSummaryHaltFailed": "Could not halt the AI summary.",
+      "respondentLabel": "Respondent {{number}}",
+      "respondent": "Respondent",
+      "respondents": "Respondents",
+      "searchRespondents": "Search respondents",
+      "anonymousSessionNotice": "This session is anonymous. Respondents are shown with generic labels, and the session is not graded.",
+      "anonymousResponsesWithheld": "Respondent rows are hidden until at least {{minimum}} people have answered each question and attempt that has responses.",
+      "anonymousSmallGroupWarning_one": "Only {{count}} student responded, so their answers may be easy to attribute.",
+      "anonymousSmallGroupWarning_other": "Only {{count}} students responded, so their answers may be easy to attribute.",
+      "responsesByQuestion": "Responses by question",
+      "anonymousResponsesHelp": "Responses are shown without names. Anonymous sessions have no marks or feedback.",
+      "selectQuestion": "Question",
+      "questionNumberLabel": "Question {{number}}",
+      "filterAnswers": "Filter answers",
+      "noAnswersMatch": "No answers match the filter.",
+      "anonymousResponsesTable": "Anonymous responses",
+      "response": "Response",
+      "correctColumn": "Correct"
     },
     "secondDesktop": {
       "joinCode": "Join Code",
@@ -2291,7 +2315,8 @@
             "Quizzes are scheduled windows where students answer on their own timeline. Use start and end times plus extensions for accommodation workflows. The course and editor status menus control the same setting. Choosing Live opens the quiz regardless of dates and keeps the editor open, with a link to live results. Choose date-controlled status to follow the schedule, or Ended to close general access while preserving individual extensions.",
             "Practice quizzes feel more like guided rehearsal and are well suited for self-study or optional reinforcement.",
             "If a session depends on passcodes, groups, or visible statistics, confirm those settings before students begin joining.",
-            "Session lists keep search, filters, and pagination inside Search sessions. While an interactive session is live, opening its card joins the live controls directly; live quiz cards still open the editor."
+            "Session lists keep search, filters, and pagination inside Search sessions. While an interactive session is live, opening its card joins the live controls directly; live quiz cards still open the editor.",
+            "Turn on Anonymous responses in the session editor for surveys and course feedback. Students still sign in and answer each question once, but you see answers under labels such as Respondent 1 instead of names, the live view shows only how many students joined, and the session is never graded or added to the gradebook. The setting locks once anyone joins or answers, and very small groups can still be identified by elimination. Respondent rows appear only after the activity ends and at least four people have answered every question and attempt with responses; unique or self-identifying answers may still reveal someone."
           ]
         },
         {
@@ -2396,7 +2421,8 @@
             "Slides can appear between questions. They are content pages, so read them carefully before moving on.",
             "If your instructor reveals statistics for a word cloud or histogram, the view should update automatically without a refresh.",
             "For short-answer questions, the shared response list can be shown or hidden separately from the word cloud, so you may see one without the other.",
-            "Scrolling over a numerical answer leaves its value unchanged and moves focus out of the input so the page can scroll. Click or tab back into the input to continue editing."
+            "Scrolling over a numerical answer leaves its value unchanged and moves focus out of the input so the page can scroll. Click or tab back into the input to continue editing.",
+            "An Anonymous label means your instructor sees your answers without your name. You still sign in and can answer each question only once, you can review your own answers later, and the session is not graded."
           ]
         },
         {
@@ -2679,5 +2705,9 @@
       "confirmDeleteTitle": "Delete notification?",
       "confirmDeleteMessage": "Delete \"{{title}}\" permanently? This cannot be undone."
     }
+  },
+  "sessionAnonymity": {
+    "chip": "Anonymous",
+    "studentNotice": "This session is anonymous. You still sign in and can answer each question only once, but your instructor cannot see which responses are yours. Anonymous sessions are not graded."
   }
 }

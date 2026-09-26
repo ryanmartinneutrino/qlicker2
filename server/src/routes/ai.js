@@ -901,6 +901,7 @@ export default async function aiRoutes(app) {
   app.post('/courses/:courseId/sessions/:sessionId/ai-grading', { preHandler: authenticate, rateLimit: WRITE_LIMIT }, async (request, reply) => {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
     const session = await instructorSession(course, request.params.sessionId, reply); if (!session) return undefined;
+    if (session.anonymous) return reply.code(409).send({ error: 'Conflict', message: 'Anonymous sessions do not have grades' });
     const gradingLockReason = getSessionGradingLockReason(session);
     if (gradingLockReason) return reply.code(409).send({ error: 'Conflict', message: gradingLockReason === 'extensions'
       ? 'Grading is locked until all quiz extensions have expired or been removed'

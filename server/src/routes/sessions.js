@@ -58,6 +58,17 @@ import {
 } from '../utils/sessionResponseTracking.js';
 import { getUserAccessFlags } from '../utils/userAccess.js';
 import { generateMeteorId } from '../utils/meteorId.js';
+import {
+  buildAnonymousRespondentIndex,
+  MIN_ANONYMOUS_RESPONDENTS,
+  buildParticipantUserIdMap,
+  getAnonymousRespondentKey,
+  getSessionParticipantId,
+  isAnonymousParticipantId,
+  isAnonymousSession,
+  redactAnonymousSessionAttendance,
+  resolveSessionParticipantUserIds,
+} from '../utils/anonymousSession.js';
 
 const createSessionSchema = {
   body: {
@@ -68,6 +79,7 @@ const createSessionSchema = {
       description: { type: 'string' },
       quiz: { type: 'boolean' },
       practiceQuiz: { type: 'boolean' },
+      anonymous: { type: 'boolean' },
       quizStart: { type: 'string', format: 'date-time' },
       quizEnd: { type: 'string', format: 'date-time' },
       date: { type: 'string', format: 'date-time' },
@@ -97,6 +109,7 @@ const updateSessionSchema = {
       description: { type: 'string' },
       quiz: { type: 'boolean' },
       practiceQuiz: { type: 'boolean' },
+      anonymous: { type: 'boolean' },
       quizStart: { type: 'string', format: 'date-time' },
       quizEnd: { type: 'string', format: 'date-time' },
       reviewable: { type: 'boolean' },
@@ -205,6 +218,7 @@ const importSessionSchema = {
           description: { type: 'string' },
           quiz: { type: 'boolean' },
           practiceQuiz: { type: 'boolean' },
+          anonymous: { type: 'boolean' },
           reviewable: { type: 'boolean' },
           joinCodeEnabled: { type: 'boolean' },
           joinCodeInterval: { type: 'number', minimum: 5, maximum: 120 },
@@ -398,6 +412,7 @@ function sanitizeExportedSession(session, orderedQuestions = []) {
       description: session?.description || '',
       quiz: !!session?.quiz,
       practiceQuiz: !!session?.practiceQuiz,
+      anonymous: !!session?.anonymous && !session?.practiceQuiz,
       reviewable: !!session?.reviewable,
       joinCodeEnabled: !!session?.joinCodeEnabled,
       chatEnabled: !!session?.chatEnabled,
@@ -433,6 +448,7 @@ function buildImportedSessionPayload(sourceSession = {}, courseId = '') {
     status: 'hidden',
     quiz: isQuiz,
     practiceQuiz: isPracticeQuiz,
+    anonymous: !!sourceSession?.anonymous && !isPracticeQuiz && !sourceSession?.studentCreated,
     reviewable: !!sourceSession?.reviewable,
     hasResponses: false,
     questionResponseCounts: {},
@@ -565,6 +581,44 @@ function getResponseStudentId(response) {
   return normalizeAnswerValue(
     response?.studentUserId || response?.userId || response?.studentId
   );
+}
+
+async function sessionHasParticipationData(session) {
+  if (session?.participationStarted || (session?.joined || []).length > 0
+    || (session?.joinRecords || []).length > 0 || (session?.submittedQuiz || []).length > 0) return true;
+  if (getSessionHasResponses(session)) return true;
+  const questionIds = normalizeQuestionIds(session?.questions || []);
+  if (questionIds.length === 0) return false;
+  return !!(await Response.exists({ questionId: { $in: questionIds } }));
+}
+
+function expectedAnonymityFilter(session) {
+  return session?.anonymous ? { anonymous: true } : { anonymous: { $ne: true } };
+}
+
+async function claimSessionParticipation(session) {
+  if (session.participationStarted) return true;
+  const result = await Session.updateOne(
+    { _id: session._id, ...expectedAnonymityFilter(session) },
+    { $set: { participationStarted: true } }
+  );
+  return result.matchedCount > 0;
+}
+
+// Cached live stats keep answer lists; anonymous pseudonyms are omitted so the
+// cache cannot tie answers across questions to one respondent.
+function getStatsStudentId(response) {
+  const studentId = getResponseStudentId(response);
+  return isAnonymousParticipantId(studentId) ? '' : studentId;
+}
+
+// A student's responses are keyed by user id, except in anonymous sessions
+// where each session uses its own pseudonym.
+function getStudentResponseOwnerIds(sessions = [], userId = '') {
+  return [...new Set([
+    String(userId || ''),
+    ...sessions.map((session) => getSessionParticipantId(session, userId)),
+  ].filter(Boolean))];
 }
 
 function parseBooleanQuery(value) {
@@ -1128,8 +1182,8 @@ function isRichTextChatEnabled(session) {
 
 function getChatPermissionFlags({ session, course, request, viewMode }) {
   const isInstructorView = isInstructorOrAdmin(course, request.user);
-  const userId = String(request.user?.userId || '');
-  const isJoined = (session?.joined || []).some((joinedId) => String(joinedId) === userId);
+  const participantId = getSessionParticipantId(session, request.user?.userId);
+  const isJoined = (session?.joined || []).some((joinedId) => String(joinedId) === participantId);
   const isRunning = session?.status === 'running';
 
   const canViewLive = isInstructorView || (viewMode === 'live' && isRunning && isJoined);
@@ -1141,7 +1195,7 @@ function getChatPermissionFlags({ session, course, request, viewMode }) {
     canViewLive,
     canWrite,
     canModerate: isInstructorView && viewMode === 'live' && isRunning,
-    canViewNames: isInstructorView && viewMode !== 'presentation',
+    canViewNames: isInstructorView && viewMode !== 'presentation' && !isAnonymousSession(session),
   };
 }
 
@@ -1467,7 +1521,7 @@ async function loadSessionChatPayload({ session, course, request }) {
 
 async function loadSessionChatContext(sessionId) {
   const session = await Session.findById(sessionId)
-    .select('courseId status joined questions currentQuestion chatEnabled richTextChatEnabled')
+    .select('courseId status anonymous joined questions currentQuestion chatEnabled richTextChatEnabled')
     .lean();
   if (!session) return { session: null, course: null };
   const course = await Course.findById(session.courseId)
@@ -1633,6 +1687,7 @@ function sanitizeStudentReviewSession(session) {
     description: session.description || '',
     quiz: !!session.quiz,
     practiceQuiz: !!session.practiceQuiz,
+    anonymous: isAnonymousSession(session),
     studentCreated: !!session.studentCreated,
   };
 }
@@ -1664,6 +1719,22 @@ function sanitizeStudentReviewResponse(response) {
     attempt: response.attempt,
     answer: response.answer,
     answerWysiwyg: response.answerWysiwyg || '',
+  };
+}
+
+// Anonymous review responses keep answer content only: no stored identity,
+// timestamps (which could be matched to join times or extensions), or IP.
+function sanitizeAnonymousReviewResponse(response, respondentKey) {
+  return {
+    _id: response._id,
+    questionId: response.questionId,
+    studentUserId: respondentKey,
+    attempt: response.attempt,
+    answer: response.answer,
+    answerWysiwyg: response.answerWysiwyg || '',
+    correct: response.correct,
+    mark: response.mark,
+    editable: response.editable,
   };
 }
 
@@ -1753,7 +1824,7 @@ function mergeResponseIntoAttemptStatsEntry(entry, question, response) {
     entry.answers = [
       ...(Array.isArray(entry.answers) ? entry.answers : []),
       {
-        studentUserId: getResponseStudentId(response),
+        studentUserId: getStatsStudentId(response),
         answer: response.answer,
         answerWysiwyg: response.answerWysiwyg || '',
         createdAt: response.createdAt || null,
@@ -1767,7 +1838,7 @@ function mergeResponseIntoAttemptStatsEntry(entry, question, response) {
     entry.answers = [
       ...(Array.isArray(entry.answers) ? entry.answers : []),
       {
-        studentUserId: getResponseStudentId(response),
+        studentUserId: getStatsStudentId(response),
         answer: response.answer,
         createdAt: response.createdAt || null,
         updatedAt: response.updatedAt || null,
@@ -1809,7 +1880,7 @@ function materializeAttemptStatsEntry(entry) {
     return {
       type: 'shortAnswer',
       answers: answers.map((item) => ({
-        studentUserId: getResponseStudentId(item),
+        studentUserId: getStatsStudentId(item),
         answer: item?.answer,
         answerWysiwyg: item?.answerWysiwyg || '',
         createdAt: item?.createdAt || null,
@@ -1842,7 +1913,7 @@ function materializeAttemptStatsEntry(entry) {
       type: 'numerical',
       values,
       answers: sortResponseEntriesNewestFirst(entry.answers || []).map((item) => ({
-        studentUserId: getResponseStudentId(item),
+        studentUserId: getStatsStudentId(item),
         answer: item?.answer,
         createdAt: item?.createdAt || null,
         updatedAt: item?.updatedAt || null,
@@ -2021,7 +2092,7 @@ function buildResponseStats(question, responses, attemptNumber = 1) {
   return materializeAttemptStatsEntry(buildAttemptStatsEntry(question, attemptNumber, responses));
 }
 
-function formatInstructorLiveResponseStats(responseStats, studentNameById = {}, includeStudentNames = false) {
+function formatInstructorLiveResponseStats(responseStats, studentNameById = {}, includeStudentNames = false, anonymous = false) {
   if (!responseStats) return responseStats;
 
   if (responseStats.type === 'shortAnswer' && Array.isArray(responseStats.answers)) {
@@ -2031,8 +2102,7 @@ function formatInstructorLiveResponseStats(responseStats, studentNameById = {}, 
       answers: answers.map((entry) => ({
         answer: entry.answer,
         answerWysiwyg: entry.answerWysiwyg,
-        createdAt: entry.createdAt || null,
-        updatedAt: entry.updatedAt || null,
+        ...(!anonymous ? { createdAt: entry.createdAt || null, updatedAt: entry.updatedAt || null } : {}),
         ...(includeStudentNames
           ? { studentName: studentNameById[getResponseStudentId(entry)] || 'Unknown Student' }
           : {}),
@@ -2046,8 +2116,7 @@ function formatInstructorLiveResponseStats(responseStats, studentNameById = {}, 
       ...responseStats,
       answers: answers.map((entry) => ({
         answer: entry.answer,
-        createdAt: entry.createdAt || null,
-        updatedAt: entry.updatedAt || null,
+        ...(!anonymous ? { createdAt: entry.createdAt || null, updatedAt: entry.updatedAt || null } : {}),
         ...(includeStudentNames
           ? { studentName: studentNameById[getResponseStudentId(entry)] || 'Unknown Student' }
           : {}),
@@ -2058,7 +2127,7 @@ function formatInstructorLiveResponseStats(responseStats, studentNameById = {}, 
   return responseStats;
 }
 
-function formatStudentLiveResponseStats(responseStats, { showCorrect = false, showResponseList = true } = {}) {
+function formatStudentLiveResponseStats(responseStats, { showCorrect = false, showResponseList = true, anonymous = false } = {}) {
   if (!responseStats) return responseStats;
 
   if (responseStats.type === 'distribution' && Array.isArray(responseStats.distribution)) {
@@ -2084,8 +2153,7 @@ function formatStudentLiveResponseStats(responseStats, { showCorrect = false, sh
         ? answers.map((entry) => ({
           answer: entry.answer,
           answerWysiwyg: entry.answerWysiwyg,
-          createdAt: entry.createdAt || null,
-          updatedAt: entry.updatedAt || null,
+          ...(!anonymous ? { createdAt: entry.createdAt || null, updatedAt: entry.updatedAt || null } : {}),
         }))
         : [],
     };
@@ -2098,8 +2166,7 @@ function formatStudentLiveResponseStats(responseStats, { showCorrect = false, sh
       answers: showResponseList
         ? answers.map((entry) => ({
           answer: entry.answer,
-          createdAt: entry.createdAt || null,
-          updatedAt: entry.updatedAt || null,
+          ...(!anonymous ? { createdAt: entry.createdAt || null, updatedAt: entry.updatedAt || null } : {}),
         }))
         : [],
     };
@@ -2158,10 +2225,10 @@ function sanitizeStudentOwnResponse(response) {
   };
 }
 
-function buildStudentLiveQuestionSnapshot(question, extra = {}, { responseStats: resolvedResponseStats } = {}) {
+function buildStudentLiveQuestionSnapshot(question, extra = {}, { responseStats: resolvedResponseStats, anonymous = false } = {}) {
   const questionHidden = !!question?.sessionOptions?.hidden;
   const collectsResponses = isQuestionResponseCollectionEnabled(question);
-  const showStats = collectsResponses && !!question?.sessionOptions?.stats;
+  const showStats = collectsResponses && !!question?.sessionOptions?.stats && !anonymous;
   const showCorrect = collectsResponses && !!question?.sessionOptions?.correct;
   const showResponseList = question?.sessionOptions?.responseListVisible !== false;
   const currentAttempt = collectsResponses ? getCurrentAttempt(question) : null;
@@ -2171,7 +2238,7 @@ function buildStudentLiveQuestionSnapshot(question, extra = {}, { responseStats:
       ? materializeAttemptStatsEntry(getAttemptStatsEntry(question, currentAttempt.number))
       : null;
   const responseStats = showStats
-    ? formatStudentLiveResponseStats(cachedStats, { showCorrect, showResponseList })
+    ? formatStudentLiveResponseStats(cachedStats, { showCorrect, showResponseList, anonymous })
     : null;
   const wordCloudData = showStats && question?.sessionOptions?.wordCloudData?.visible
     ? question.sessionOptions.wordCloudData
@@ -2195,7 +2262,7 @@ function buildStudentLiveQuestionSnapshot(question, extra = {}, { responseStats:
   };
 }
 
-function serializeLiveResponseEntry(response, { studentName = null } = {}) {
+function serializeLiveResponseEntry(response, { studentName = null, anonymous = false } = {}) {
   if (!response) return null;
 
   const entry = {
@@ -2206,8 +2273,7 @@ function serializeLiveResponseEntry(response, { studentName = null } = {}) {
     answerWysiwyg: response.answerWysiwyg,
     correct: response.correct,
     mark: response.mark,
-    createdAt: response.createdAt || null,
-    updatedAt: response.updatedAt || null,
+    ...(!anonymous ? { createdAt: response.createdAt || null, updatedAt: response.updatedAt || null } : {}),
     editable: response.editable,
   };
 
@@ -2305,6 +2371,26 @@ async function appendResponseToQuestionAttemptStats(question, attemptNumber, res
   const normalizedAttemptNumber = Number(attemptNumber) || 1;
   if (!question?._id || !response) return null;
 
+  if (isAnonymousParticipantId(getResponseStudentId(response))) {
+    // The Question document is readable through authoring APIs. Keep no
+    // individual anonymous answer or submission time in its live cache.
+    const count = await Response.countDocuments({
+      questionId: question._id,
+      attempt: normalizedAttemptNumber,
+    });
+    return Question.findByIdAndUpdate(
+      question._id,
+      {
+        $set: { 'sessionProperties.lastAttemptNumber': normalizedAttemptNumber },
+        $max: {
+          'sessionProperties.lastAttemptResponseCount': count,
+          'sessionProperties.lastAttemptAggregateCount': count,
+        },
+      },
+      { returnDocument: 'after' }
+    ).lean();
+  }
+
   const cachedEntry = getAttemptStatsEntry(question, normalizedAttemptNumber);
   const trackedCount = Number(question?.sessionProperties?.lastAttemptResponseCount || 0);
   const aggregateCount = Number(question?.sessionProperties?.lastAttemptAggregateCount || 0);
@@ -2363,7 +2449,7 @@ async function appendResponseToQuestionAttemptStats(question, attemptNumber, res
       ...update,
       $push: {
         'sessionOptions.attemptStats.$[attempt].answers': {
-          studentUserId: getResponseStudentId(response),
+          studentUserId: getStatsStudentId(response),
           answer: response.answer,
           answerWysiwyg: response.answerWysiwyg || '',
           createdAt: response.createdAt || null,
@@ -2377,7 +2463,7 @@ async function appendResponseToQuestionAttemptStats(question, attemptNumber, res
       ...update,
       $push: {
         'sessionOptions.attemptStats.$[attempt].answers': {
-          studentUserId: getResponseStudentId(response),
+          studentUserId: getStatsStudentId(response),
           answer: response.answer,
           createdAt: response.createdAt || null,
           updatedAt: response.updatedAt || null,
@@ -2634,8 +2720,9 @@ function buildSessionForUser(session, user, { instructorView = false } = {}) {
   if (isQuizLikeSession(normalized)) {
     const submittedQuiz = Array.isArray(normalized.submittedQuiz) ? normalized.submittedQuiz : [];
     const joined = Array.isArray(normalized.joined) ? normalized.joined : [];
-    normalized.quizSubmittedByCurrentUser = submittedQuiz.includes(user?.userId);
-    normalized.quizStartedByCurrentUser = joined.includes(user?.userId);
+    const participantId = getSessionParticipantId(normalized, user?.userId);
+    normalized.quizSubmittedByCurrentUser = submittedQuiz.includes(participantId);
+    normalized.quizStartedByCurrentUser = joined.includes(participantId);
     normalized.quizHasActiveExtensions = runtime.quizHasActiveExtensions;
     normalized.quizHasRemainingExtensions = runtime.quizHasRemainingExtensions;
     normalized.activeExtensionsCount = runtime.activeExtensionsCount;
@@ -2652,6 +2739,7 @@ function buildSessionForUser(session, user, { instructorView = false } = {}) {
   }
 
   normalized.hasResponses = getSessionHasResponses(normalized);
+  normalized.anonymous = isAnonymousSession(normalized);
 
   if (!instructorView) {
     delete normalized.submittedQuiz;
@@ -2664,7 +2752,14 @@ function buildSessionForUser(session, user, { instructorView = false } = {}) {
   // legacy field defensively so old database documents cannot leak it.
   delete normalized.aiGradingLog;
 
-  return normalized;
+  return instructorView ? redactAnonymousSessionAttendance(normalized) : normalized;
+}
+
+/** Instructor payload for raw session documents returned by mutation routes. */
+function serializeInstructorSession(session) {
+  if (!session) return session;
+  const plain = typeof session.toObject === 'function' ? session.toObject() : { ...session };
+  return redactAnonymousSessionAttendance(plain);
 }
 
 function getDefaultFeedbackSummary() {
@@ -2742,9 +2837,14 @@ function sendToStudents(app, course, event, payload) {
   sendToUsersById(app, course.students || [], event, payload);
 }
 
-function sendToJoinedStudents(app, session, event, payload) {
+function sendToJoinedStudents(app, course, session, event, payload) {
   if (!session) return;
-  sendToUsersById(app, session.joined || [], event, payload);
+  // Anonymous sessions store pseudonyms in joined; resolve them against the
+  // roster in memory so events still reach only joined students.
+  const recipients = isAnonymousSession(session)
+    ? resolveSessionParticipantUserIds(session, session.joined || [], course?.students || [])
+    : session.joined || [];
+  sendToUsersById(app, recipients, event, payload);
 }
 
 function sendToUser(app, userId, event, payload) {
@@ -2787,9 +2887,12 @@ async function notifyResponseAdded(app, course, session, data, { includeStudents
 
   // Instructors always receive response stats so distribution bars update in
   // real-time regardless of whether live stats are shown to students.
-  const instructorStats = await buildResponseAddedStatsDelta(question, attempt, data?.responseCount, { force: true });
+  const anonymousSession = isAnonymousSession(session);
+  const instructorStats = anonymousSession
+    ? null
+    : await buildResponseAddedStatsDelta(question, attempt, data?.responseCount, { force: true });
   // Students only receive stats when the instructor has enabled live stats.
-  const rawStudentStats = includeStudents
+  const rawStudentStats = includeStudents && !anonymousSession
     ? await buildResponseAddedStatsDelta(question, attempt, data?.responseCount)
     : null;
   const studentStats = rawStudentStats
@@ -2797,9 +2900,9 @@ async function notifyResponseAdded(app, course, session, data, { includeStudents
     : null;
 
   let instructorResponse = null;
-  if (response && includesResponseEntry) {
+  if (response && includesResponseEntry && !anonymousSession) {
     let studentName = null;
-    const studentId = getResponseStudentId(response);
+    const studentId = isAnonymousSession(session) ? '' : getResponseStudentId(response);
     if (studentId) {
       const student = await User.findById(studentId)
         .select('_id profile emails email')
@@ -2809,7 +2912,7 @@ async function notifyResponseAdded(app, course, session, data, { includeStudents
     instructorResponse = serializeLiveResponseEntry(response, { studentName });
   }
 
-  const studentResponse = response && includesResponseEntry && showResponseList
+  const studentResponse = response && includesResponseEntry && showResponseList && !anonymousSession
     ? serializeLiveResponseEntry(response)
     : null;
 
@@ -2820,7 +2923,7 @@ async function notifyResponseAdded(app, course, session, data, { includeStudents
     attempt,
     responseCount: Number(data?.responseCount || 0),
     joinedCount: Number(data?.joinedCount || 0),
-    responseSubmittedAt: response?.submittedAt || response?.createdAt || null,
+    ...(!anonymousSession ? { responseSubmittedAt: response?.submittedAt || response?.createdAt || null } : {}),
   };
   sendToInstructors(app, course, 'session:response-added', {
     ...payload,
@@ -2833,7 +2936,7 @@ async function notifyResponseAdded(app, course, session, data, { includeStudents
     ...(instructorResponse ? { response: instructorResponse } : {}),
   });
   if (includeStudents) {
-    sendToJoinedStudents(app, session, 'session:response-added', {
+    sendToJoinedStudents(app, course, session, 'session:response-added', {
       ...payload,
       ...(studentStats ? { responseStats: studentStats } : {}),
       ...(studentResponse ? { response: studentResponse } : {}),
@@ -2841,7 +2944,13 @@ async function notifyResponseAdded(app, course, session, data, { includeStudents
   }
 }
 
-function buildInstructorQuestionSnapshot(question, responses = [], studentNameById = {}, extra = {}) {
+function buildInstructorQuestionSnapshot(
+  question,
+  responses = [],
+  studentNameById = {},
+  extra = {},
+  { includeStudentNames = true, anonymous = false } = {}
+) {
   const currentAttempt = isQuestionResponseCollectionEnabled(question)
     ? getCurrentAttempt(question)
     : null;
@@ -2852,7 +2961,9 @@ function buildInstructorQuestionSnapshot(question, responses = [], studentNameBy
     && isCanonicalAttemptStatsEntry(question, cachedStats, responses.length)
     ? materializeAttemptStatsEntry(cachedStats)
     : buildResponseStats(question, responses, currentAttempt?.number || 1);
-  const responseStats = formatInstructorLiveResponseStats(rawResponseStats, studentNameById, true);
+  const responseStats = anonymous
+    ? null
+    : formatInstructorLiveResponseStats(rawResponseStats, studentNameById, includeStudentNames, anonymous);
   const questionPayload = toPlainObject(question);
   if (questionPayload?.sessionOptions) {
     questionPayload.sessionOptions = { ...questionPayload.sessionOptions };
@@ -2867,11 +2978,11 @@ function buildInstructorQuestionSnapshot(question, responses = [], studentNameBy
     currentAttempt,
     responseStats,
     responseCount: responses.length,
-    allResponses: responses.map((response) => serializeLiveResponseEntry(response, {
-      studentName: studentNameById[getResponseStudentId(response)] || null,
+    allResponses: anonymous ? [] : responses.map((response) => serializeLiveResponseEntry(response, {
+      studentName: includeStudentNames ? (studentNameById[getResponseStudentId(response)] || null) : null,
     })),
-    wordCloudData: question?.sessionOptions?.wordCloudData || null,
-    histogramData: question?.sessionOptions?.histogramData || null,
+    wordCloudData: anonymous ? null : question?.sessionOptions?.wordCloudData || null,
+    histogramData: anonymous ? null : question?.sessionOptions?.histogramData || null,
     ...extra,
   };
 }
@@ -2891,7 +3002,10 @@ async function notifyQuestionChanged(app, course, session, question, data) {
       : [],
     loadSessionProgress(session.questions || [], question._id),
   ]);
-  const responderIds = [...new Set(responses.map(getResponseStudentId).filter(Boolean))];
+  const anonymousSession = isAnonymousSession(session);
+  const responderIds = anonymousSession
+    ? []
+    : [...new Set(responses.map(getResponseStudentId).filter(Boolean))];
   const responderUsers = responderIds.length > 0
     ? await User.find({ _id: { $in: responderIds } }).select('_id profile emails email').lean()
     : [];
@@ -2919,13 +3033,17 @@ async function notifyQuestionChanged(app, course, session, question, data) {
   const studentBasePayload = {
     ...basePayload,
     ...buildStudentLiveQuestionSnapshot(question, progressPayload, {
-      responseStats: studentResponseStats,
+      responseStats: anonymousSession ? null : studentResponseStats,
+      anonymous: anonymousSession,
     }),
   };
   sendToInstructors(app, course, 'session:question-changed', {
     ...basePayload,
     audience: studentBasePayload,
-    ...buildInstructorQuestionSnapshot(question, responses, studentNameById, progressPayload),
+    ...buildInstructorQuestionSnapshot(question, responses, studentNameById, progressPayload, {
+      includeStudentNames: !anonymousSession,
+      anonymous: anonymousSession,
+    }),
   });
 
   const responseByStudentId = new Map();
@@ -2936,16 +3054,26 @@ async function notifyQuestionChanged(app, course, session, question, data) {
     }
   });
 
+  // Ids here are participant ids: user ids, or pseudonyms in anonymous sessions.
+  const participantUserIds = buildParticipantUserIdMap(session, course?.students || []);
+  const toUserId = (participantId) => (
+    participantUserIds ? (participantUserIds.get(participantId) || '') : participantId
+  );
   const joinedStudentIds = [...new Set((session.joined || []).map((id) => String(id)).filter(Boolean))];
   const joinedStudentIdSet = new Set(joinedStudentIds);
-  const studentsWithoutResponse = joinedStudentIds.filter((id) => !responseByStudentId.has(id));
+  const studentsWithoutResponse = joinedStudentIds
+    .filter((id) => !responseByStudentId.has(id))
+    .map(toUserId)
+    .filter(Boolean);
   sendToUsersById(app, studentsWithoutResponse, 'session:question-changed', {
     ...studentBasePayload,
     studentResponse: null,
   });
   responseByStudentId.forEach((response, studentId) => {
     if (!joinedStudentIdSet.has(studentId)) return;
-    sendToUser(app, studentId, 'session:question-changed', {
+    const recipientUserId = toUserId(studentId);
+    if (!recipientUserId) return;
+    sendToUser(app, recipientUserId, 'session:question-changed', {
       ...studentBasePayload,
       studentResponse: sanitizeStudentOwnResponse(response),
     });
@@ -2971,15 +3099,15 @@ async function notifyVisibilityChanged(app, course, session, question) {
   const currentAttempt = isQuestionResponseCollectionEnabled(question)
     ? getCurrentAttempt(question)
     : null;
-  const responseStats = question?.sessionOptions?.stats && currentAttempt
+  const responseStats = !isAnonymousSession(session) && question?.sessionOptions?.stats && currentAttempt
     ? await getQuestionAttemptStats(question, currentAttempt.number)
     : null;
   const audience = {
     ...basePayload,
-    ...buildStudentLiveQuestionSnapshot(question, {}, { responseStats }),
+    ...buildStudentLiveQuestionSnapshot(question, {}, { responseStats, anonymous: isAnonymousSession(session) }),
   };
   sendToInstructors(app, course, 'session:visibility-changed', { ...instructorPayload, audience });
-  sendToJoinedStudents(app, session, 'session:visibility-changed', audience);
+  sendToJoinedStudents(app, course, session, 'session:visibility-changed', audience);
 }
 
 function notifyVisualizationUpdated(app, course, session, question, event, fieldName, value) {
@@ -2992,7 +3120,7 @@ function notifyVisualizationUpdated(app, course, session, question, event, field
   sendToInstructors(app, course, event, { ...basePayload, [fieldName]: value });
 
   const visibleToStudents = !!question?.sessionOptions?.stats && !!value?.visible;
-  sendToJoinedStudents(app, session, event, {
+  sendToJoinedStudents(app, course, session, event, {
     ...basePayload,
     [fieldName]: visibleToStudents ? value : null,
   });
@@ -3093,7 +3221,7 @@ function notifyChatSettingsChanged(app, course, session) {
     chatEnabled: !!session?.chatEnabled,
     richTextChatEnabled: isRichTextChatEnabled(session),
   });
-  sendToJoinedStudents(app, session, 'session:chat-settings-changed', {
+  sendToJoinedStudents(app, course, session, 'session:chat-settings-changed', {
     courseId: String(course._id),
     sessionId: String(session._id),
     chatEnabled: !!session?.chatEnabled,
@@ -3109,8 +3237,9 @@ async function notifyChatUpdated(app, course, session, payload = {}) {
     currentQuestionNumber = (await loadSessionChatQuestionMetadata(session)).currentQuestionNumber;
   }
 
+  const instructorsSeeNames = !isAnonymousSession(session);
   const authorMetadataMap = post
-    ? await buildChatAuthorMetadataMap([post], { includeAllAuthors: true })
+    ? await buildChatAuthorMetadataMap([post], { includeAllAuthors: instructorsSeeNames })
     : new Map();
   const basePayload = {
     courseId: String(course._id),
@@ -3129,14 +3258,14 @@ async function notifyChatUpdated(app, course, session, payload = {}) {
   sendToInstructors(app, course, 'session:chat-updated', {
     ...basePayload,
     ...buildChatEventDelta(post, {
-      includeNames: true,
+      includeNames: instructorsSeeNames,
       includeDismissed: true,
       currentQuestionNumber,
       authorMetadataMap,
       allowRoleBasedExposure: true,
     }),
   });
-  sendToJoinedStudents(app, session, 'session:chat-updated', {
+  sendToJoinedStudents(app, course, session, 'session:chat-updated', {
     ...basePayload,
     ...buildChatEventDelta(post, {
       includeNames: false,
@@ -3238,9 +3367,14 @@ export default async function sessionRoutes(app) {
         date,
         msScoringMethod,
         tags,
+        anonymous,
       } = request.body;
       const isPracticeQuiz = !!practiceQuiz;
       const isQuiz = isPracticeQuiz ? true : !!quiz;
+      const isAnonymous = !!anonymous;
+      if (isAnonymous && (isPracticeQuiz || isStudentPracticeCreation)) {
+        return reply.code(400).send({ error: 'Bad Request', message: 'Practice sessions cannot be anonymous' });
+      }
       const allowedTagValues = getAllowedCourseTagValues(course);
       if (isStudentPracticeCreation && !isPracticeQuiz) {
         return reply.code(403).send({ error: 'Forbidden', message: 'Students can only create practice sessions' });
@@ -3270,6 +3404,7 @@ export default async function sessionRoutes(app) {
         status: isStudentPracticeCreation ? 'running' : 'hidden',
         quiz: isQuiz,
         practiceQuiz: isPracticeQuiz,
+        anonymous: isAnonymous,
         quizStart: quizStart ? new Date(quizStart) : undefined,
         quizEnd: quizEnd ? new Date(quizEnd) : undefined,
         date: date ? new Date(date) : undefined,
@@ -3380,7 +3515,7 @@ export default async function sessionRoutes(app) {
       }
 
       const sessions = await Session.find(sessionFilter)
-        .select('_id name courseId status quiz practiceQuiz quizStart quizEnd quizExtensions submittedQuiz joined studentCreated creator questions')
+        .select('_id name courseId status quiz practiceQuiz anonymous quizStart quizEnd quizExtensions submittedQuiz joined studentCreated creator questions')
         .lean();
 
       const normalizedSessions = sessions
@@ -3408,7 +3543,7 @@ export default async function sessionRoutes(app) {
 
           if (questionToSessionId.size > 0) {
             const responses = await Response.find({
-              studentUserId: userId,
+              studentUserId: { $in: getStudentResponseOwnerIds(runningQuizSessions, userId) },
               questionId: { $in: [...questionToSessionId.keys()] },
             })
               .select('questionId')
@@ -3685,7 +3820,7 @@ export default async function sessionRoutes(app) {
         const questionIds = [...questionToSessionId.keys()];
         if (questionIds.length > 0) {
           const responses = await Response.find({
-            studentUserId: request.user.userId,
+            studentUserId: { $in: getStudentResponseOwnerIds(quizSessions, request.user.userId) },
             questionId: { $in: questionIds },
           })
             .select('questionId')
@@ -3830,7 +3965,7 @@ export default async function sessionRoutes(app) {
 
       const allowed = isStudentOwner
         ? ['name', 'description']
-        : ['name', 'description', 'quiz', 'practiceQuiz', 'quizStart', 'quizEnd', 'reviewable', 'status', 'date', 'joinCodeEnabled', 'chatEnabled', 'richTextChatEnabled', 'joinCodeInterval', 'msScoringMethod', 'tags'];
+        : ['name', 'description', 'quiz', 'practiceQuiz', 'anonymous', 'quizStart', 'quizEnd', 'reviewable', 'status', 'date', 'joinCodeEnabled', 'chatEnabled', 'richTextChatEnabled', 'joinCodeInterval', 'msScoringMethod', 'tags'];
       const updates = {};
       for (const key of allowed) {
         if (request.body[key] !== undefined) {
@@ -3851,6 +3986,26 @@ export default async function sessionRoutes(app) {
       }
       if (updates.quiz === false) {
         updates.practiceQuiz = false;
+      }
+
+      const nextAnonymous = updates.anonymous !== undefined ? !!updates.anonymous : !!session.anonymous;
+      const nextPracticeQuiz = updates.practiceQuiz !== undefined ? !!updates.practiceQuiz : !!session.practiceQuiz;
+      if (nextAnonymous && nextPracticeQuiz) {
+        return reply.code(400).send({ error: 'Bad Request', message: 'Practice sessions cannot be anonymous' });
+      }
+      const changingAnonymity = updates.anonymous !== undefined && !!updates.anonymous !== !!session.anonymous;
+      const changingAnonymousMode = !!session.anonymous && (
+        (updates.quiz !== undefined && !!updates.quiz !== !!session.quiz)
+        || (updates.practiceQuiz !== undefined && !!updates.practiceQuiz !== !!session.practiceQuiz)
+      );
+      if (nextAnonymous && (session.quizExtensions || []).length > 0) {
+        return reply.code(400).send({ error: 'Bad Request', message: 'Remove quiz extensions before enabling anonymity' });
+      }
+      if ((changingAnonymity || changingAnonymousMode) && await sessionHasParticipationData(session)) {
+        return reply.code(409).send({
+          error: 'Conflict',
+          message: 'Anonymity and session mode cannot change after participation has started',
+        });
       }
 
       const quizWindowValidationError = getQuizWindowValidationMessage(session, updates);
@@ -3893,7 +4048,7 @@ export default async function sessionRoutes(app) {
 
       if (!isStudentOwner && updates.status && updates.status !== 'done') updates.reviewable = false;
 
-      if (!isStudentOwner && updates.reviewable === true && !session.reviewable) {
+      if (!isStudentOwner && updates.reviewable === true && !session.reviewable && !nextAnonymous) {
         const nonAutoGradeable = await getNonAutoGradeableQuestions(session);
         const ungradedNonAuto = await filterToActuallyUngradedQuestions(nonAutoGradeable, session._id);
         if (ungradedNonAuto.length > 0 && !request.body.acknowledgeNonAutoGradeable) {
@@ -3909,14 +4064,40 @@ export default async function sessionRoutes(app) {
         }
       }
 
-      const updated = await Session.findByIdAndUpdate(
-        request.params.id,
+      const guardedSettingsChange = changingAnonymity || changingAnonymousMode;
+      const updateFilter = { _id: request.params.id };
+      if (guardedSettingsChange) {
+        Object.assign(updateFilter, expectedAnonymityFilter(session), {
+          participationStarted: { $ne: true },
+          'joined.0': { $exists: false },
+          'joinRecords.0': { $exists: false },
+          'submittedQuiz.0': { $exists: false },
+        });
+        if (nextAnonymous) updateFilter['quizExtensions.0'] = { $exists: false };
+      }
+      if (nextAnonymous && updates.practiceQuiz !== false) {
+        updateFilter.practiceQuiz = { $ne: true };
+      }
+      if (nextPracticeQuiz && updates.anonymous !== false) {
+        updateFilter.anonymous = { $ne: true };
+      }
+      const updated = await Session.findOneAndUpdate(
+        updateFilter,
         { $set: updates },
         { returnDocument: 'after' }
       );
+      if (!updated) {
+        return reply.code(409).send({ error: 'Conflict', message: 'Session settings changed; reload and retry' });
+      }
 
       if (updates.tags !== undefined) {
         await inheritSessionTagsForQuestions(updated.toObject());
+      }
+
+      if (changingAnonymity && updated.anonymous) {
+        // Only reachable before any participation, so these rows hold no
+        // student work; anonymous sessions must not appear in the gradebook.
+        await Grade.deleteMany({ sessionId: String(updated._id) });
       }
 
       let grading = null;
@@ -4102,7 +4283,7 @@ export default async function sessionRoutes(app) {
       }
       notifyStatusChanged(app, course, updated?._id || request.params.id, { status: 'running' });
 
-      return { session: updated.toObject() };
+      return { session: serializeInstructorSession(updated) };
     }
   );
 
@@ -4140,15 +4321,18 @@ export default async function sessionRoutes(app) {
           }
         }
 
-        const [nonAutoGradeable, noResponseQuestions] = await Promise.all([
-          getNonAutoGradeableQuestions(session),
-          getNoResponseQuestions(session),
-        ]);
+        const [nonAutoGradeable, noResponseQuestions] = isAnonymousSession(session)
+          // Anonymous sessions are never graded, so grading warnings do not apply.
+          ? [[], []]
+          : await Promise.all([
+            getNonAutoGradeableQuestions(session),
+            getNoResponseQuestions(session),
+          ]);
         const ungradedNonAuto = await filterToActuallyUngradedQuestions(nonAutoGradeable, session._id);
         const needsReviewableWarning = ungradedNonAuto.length > 0 || noResponseQuestions.length > 0;
         if (needsReviewableWarning && !request.body?.acknowledgeNonAutoGradeable) {
           return {
-            session,
+            session: serializeInstructorSession(session),
             grading: null,
             nonAutoGradeableWarning: buildReviewableWarning({
               nonAutoGradeable: ungradedNonAuto,
@@ -4192,7 +4376,7 @@ export default async function sessionRoutes(app) {
 
       notifyStatusChanged(app, course, updated?._id || request.params.id, { status: 'done' });
 
-      return { session: updated.toObject(), grading, nonAutoGradeableWarning };
+      return { session: serializeInstructorSession(updated), grading, nonAutoGradeableWarning };
     }
   );
   // PATCH /sessions/:id/current - Set current question in a live session
@@ -4246,7 +4430,7 @@ export default async function sessionRoutes(app) {
         questionCount: (session.questions || []).length,
       });
 
-      return { session: updated.toObject() };
+      return { session: serializeInstructorSession(updated) };
     }
   );
   app.patch(
@@ -4310,7 +4494,7 @@ export default async function sessionRoutes(app) {
 
       notifySessionMetadataChanged(app, course, updated?._id || request.params.id);
 
-      return { session: updated.toObject(), grading, nonAutoGradeableWarning: null };
+      return { session: serializeInstructorSession(updated), grading, nonAutoGradeableWarning: null };
     }
   );
 
@@ -4338,6 +4522,9 @@ export default async function sessionRoutes(app) {
 
       if (!isQuizLikeSession(session)) {
         return reply.code(400).send({ error: 'Bad Request', message: 'Session is not a quiz' });
+      }
+      if (session.anonymous && request.body.extensions.length > 0) {
+        return reply.code(400).send({ error: 'Bad Request', message: 'Anonymous quizzes cannot have individual extensions' });
       }
 
       const baseQuizStart = toDateOrNull(session.quizStart);
@@ -4385,11 +4572,17 @@ export default async function sessionRoutes(app) {
       );
       const hasRemainingExtensions = normalizedExtensions.some((extension) => extensionHasRemainingWindow(extension, Date.now()));
 
-      const updated = await Session.findByIdAndUpdate(
-        request.params.id,
+      const updated = await Session.findOneAndUpdate(
+        {
+          _id: request.params.id,
+          ...(normalizedExtensions.length > 0 ? { anonymous: { $ne: true } } : {}),
+        },
         { $set: { quizExtensions: normalizedExtensions, ...(hasRemainingExtensions ? { reviewable: false } : {}) } },
         { returnDocument: 'after' }
       );
+      if (!updated) {
+        return reply.code(409).send({ error: 'Conflict', message: 'Session settings changed; reload and retry' });
+      }
 
       if (hasRemainingExtensions && session.reviewable) {
         await setSessionGradesVisibility({ sessionId: session._id, visibleToStudents: false });
@@ -4678,7 +4871,7 @@ export default async function sessionRoutes(app) {
       // Fetch this student's responses for these questions
       const responses = await Response.find({
         questionId: { $in: questionIds },
-        studentUserId: request.user.userId,
+        studentUserId: getSessionParticipantId(normalizedSession, request.user.userId),
       }).lean();
 
       // Group responses by questionId
@@ -4822,8 +5015,10 @@ export default async function sessionRoutes(app) {
         instructorView: false,
       });
 
+      const participantId = getSessionParticipantId(normalizedSession, request.user.userId);
+      const anonymousSession = isAnonymousSession(normalizedSession);
       const submittedByCurrentUser = Array.isArray(normalizedSession.submittedQuiz)
-        && normalizedSession.submittedQuiz.includes(request.user.userId);
+        && normalizedSession.submittedQuiz.includes(participantId);
       if (submittedByCurrentUser && !normalizedSession.practiceQuiz) {
         return reply.code(403).send({ error: 'Forbidden', message: 'Quiz already submitted' });
       }
@@ -4836,12 +5031,18 @@ export default async function sessionRoutes(app) {
       }
 
       // Mark the student as participating once they open an active quiz.
-      const userId = request.user.userId;
+      // Anonymous sessions record only the pseudonym, without join records.
+      const userId = participantId;
       const now = new Date();
       const joined = Array.isArray(normalizedSession.joined) ? normalizedSession.joined : [];
       if (!joined.includes(userId)) {
+        if (!await claimSessionParticipation(normalizedSession)) {
+          return reply.code(409).send({ error: 'Conflict', message: 'Session settings changed; reload and retry' });
+        }
         const existingRecord = (normalizedSession.joinRecords || []).find((record) => record.userId === userId);
-        if (existingRecord) {
+        if (anonymousSession) {
+          await Session.findByIdAndUpdate(request.params.id, { $addToSet: { joined: userId } });
+        } else if (existingRecord) {
           await Session.findOneAndUpdate(
             { _id: request.params.id, 'joinRecords.userId': userId },
             {
@@ -4957,9 +5158,10 @@ export default async function sessionRoutes(app) {
         return reply.code(403).send({ error: 'Forbidden', message: 'Quiz is closed' });
       }
 
+      const participantId = getSessionParticipantId(normalizedSession, request.user.userId);
       if (
         Array.isArray(normalizedSession.submittedQuiz)
-        && normalizedSession.submittedQuiz.includes(request.user.userId)
+        && normalizedSession.submittedQuiz.includes(participantId)
         && !normalizedSession.practiceQuiz
       ) {
         return reply.code(403).send({ error: 'Forbidden', message: 'Quiz already submitted' });
@@ -4981,7 +5183,10 @@ export default async function sessionRoutes(app) {
         return reply.code(400).send({ error: 'Bad Request', message: 'Slides do not accept quiz responses' });
       }
 
-      const userId = request.user.userId;
+      const userId = participantId;
+      if (!await claimSessionParticipation(normalizedSession)) {
+        return reply.code(409).send({ error: 'Conflict', message: 'Session settings changed; reload and retry' });
+      }
       const existing = await Response.findOne({
         questionId,
         studentUserId: userId,
@@ -4999,7 +5204,8 @@ export default async function sessionRoutes(app) {
 
       const now = new Date();
       const editable = true;
-      const submittedIpAddress = getRequestIp(request);
+      // IP addresses would identify anonymous respondents.
+      const submittedIpAddress = isAnonymousSession(normalizedSession) ? '' : getRequestIp(request);
       const payload = {
         answer: request.body.answer,
         answerWysiwyg: request.body.answerWysiwyg || '',
@@ -5102,7 +5308,7 @@ export default async function sessionRoutes(app) {
 
       const response = await Response.findOne({
         questionId,
-        studentUserId: request.user.userId,
+        studentUserId: getSessionParticipantId(normalizedSession, request.user.userId),
         attempt: 1,
       });
       if (!response) {
@@ -5161,13 +5367,14 @@ export default async function sessionRoutes(app) {
         return reply.code(400).send({ error: 'Bad Request', message: 'Practice quizzes are submitted per question' });
       }
 
-      const userId = request.user.userId;
+      const anonymousSession = isAnonymousSession(normalizedSession);
+      const userId = getSessionParticipantId(normalizedSession, request.user.userId);
       if (Array.isArray(normalizedSession.submittedQuiz) && normalizedSession.submittedQuiz.includes(userId)) {
         return reply.code(409).send({ error: 'Conflict', message: 'Quiz already submitted' });
       }
 
       const runtime = getQuizRuntimeState(normalizedSession, {
-        userId,
+        userId: request.user.userId,
         instructorView: false,
       });
       if (!runtime.isOpenForUser) {
@@ -5192,6 +5399,9 @@ export default async function sessionRoutes(app) {
         return reply.code(400).send({ error: 'Bad Request', message: 'Must answer all questions to submit quiz' });
       }
 
+      if (!await claimSessionParticipation(normalizedSession)) {
+        return reply.code(409).send({ error: 'Conflict', message: 'Session settings changed; reload and retry' });
+      }
       const now = new Date();
       await Response.updateMany(
         {
@@ -5208,7 +5418,9 @@ export default async function sessionRoutes(app) {
       const updateOps = {
         $addToSet: { submittedQuiz: userId, joined: userId },
       };
-      if (hasJoinRecord) {
+      if (anonymousSession) {
+        // No timestamped join records for anonymous sessions.
+      } else if (hasJoinRecord) {
         updateOps.$set = { 'joinRecords.$[student].joinedAt': now };
       } else {
         updateOps.$push = {
@@ -5223,7 +5435,7 @@ export default async function sessionRoutes(app) {
       const updated = await Session.findByIdAndUpdate(
         request.params.id,
         updateOps,
-        hasJoinRecord
+        hasJoinRecord && !anonymousSession
           ? {
             returnDocument: 'after',
             arrayFilters: [{ 'student.userId': userId }],
@@ -5278,7 +5490,8 @@ export default async function sessionRoutes(app) {
         return reply.code(403).send({ error: 'Forbidden', message: 'Not a member of this course' });
       }
 
-      const userId = request.user.userId;
+      const anonymousSession = isAnonymousSession(session);
+      const userId = getSessionParticipantId(session, request.user.userId);
 
       // Check if already joined
       const alreadyInList = (session.joined || []).includes(userId);
@@ -5307,10 +5520,16 @@ export default async function sessionRoutes(app) {
         }
       }
 
+      if (!await claimSessionParticipation(session)) {
+        return reply.code(409).send({ error: 'Conflict', message: 'Session settings changed; reload and retry' });
+      }
       const now = new Date();
       const joinedWithCode = joinCodeRequired && session.joinCodeActive;
 
-      if (existingRecord) {
+      if (anonymousSession) {
+        // Attendance is stored only as the session pseudonym, with no join time.
+        await Session.findByIdAndUpdate(request.params.id, { $addToSet: { joined: userId } });
+      } else if (existingRecord) {
         // Upgrade existing record to mark joinedWithCode
         await Session.findOneAndUpdate(
           { _id: request.params.id, 'joinRecords.userId': userId },
@@ -5338,14 +5557,19 @@ export default async function sessionRoutes(app) {
       const updatedSession = await Session.findById(request.params.id)
         .select('joined')
         .lean();
+      const joinedCount = Array.isArray(updatedSession?.joined)
+        ? updatedSession.joined.length
+        : ((session.joined || []).length + 1);
+      if (anonymousSession) {
+        notifyParticipantJoined(app, course, request.params.id, { joinedCount, anonymous: true });
+        return { success: true, alreadyJoined: false };
+      }
       const joinedUser = await User.findById(userId)
         .select('_id profile emails email')
         .lean();
 
       notifyParticipantJoined(app, course, request.params.id, {
-        joinedCount: Array.isArray(updatedSession?.joined)
-          ? updatedSession.joined.length
-          : ((session.joined || []).length + 1),
+        joinedCount,
         joinedStudent: {
           _id: userId,
           firstname: normalizeAnswerValue(joinedUser?.profile?.firstname),
@@ -5401,6 +5625,10 @@ export default async function sessionRoutes(app) {
       }
       if (!session.joinCodeEnabled) {
         return reply.code(400).send({ error: 'Bad Request', message: 'Passcode is not required for this session' });
+      }
+      if (isAnonymousSession(session)) {
+        // Admission results would reveal whether a named student has joined.
+        return reply.code(400).send({ error: 'Bad Request', message: 'Students cannot be admitted individually in anonymous sessions' });
       }
 
       const studentId = normalizeAnswerValue(request.params.studentId);
@@ -5520,15 +5748,19 @@ export default async function sessionRoutes(app) {
       }
 
       const isInstrOrAdmin = isInstructorOrAdmin(course, request.user);
+      const anonymousSession = isAnonymousSession(session);
       const presentationView = isInstrOrAdmin
         && normalizeAnswerValue(request.query?.view).toLowerCase() === 'presentation';
+      // Anonymous sessions never attach names to responses or list attendees.
       const includeStudentNames = isInstrOrAdmin
         && !presentationView
+        && !anonymousSession
         && parseBooleanQuery(request.query?.includeStudentNames);
       const includeJoinedStudents = isInstrOrAdmin
         && !presentationView
+        && !anonymousSession
         && parseBooleanQuery(request.query?.includeJoinedStudents);
-      const userId = request.user.userId;
+      const userId = getSessionParticipantId(session, request.user.userId);
       let isJoined = (session.joined || []).includes(userId);
 
       // Fetch current question
@@ -5549,7 +5781,8 @@ export default async function sessionRoutes(app) {
 
       // For students: strip answer info and limit data
       const questionHidden = currentQuestion?.sessionOptions?.hidden ?? true;
-      const showStats = currentItemCollectsResponses ? (currentQuestion?.sessionOptions?.stats ?? false) : false;
+      const showStats = currentItemCollectsResponses && !anonymousSession
+        ? (currentQuestion?.sessionOptions?.stats ?? false) : false;
       const showCorrect = currentItemCollectsResponses ? (currentQuestion?.sessionOptions?.correct ?? false) : false;
       const attempts = currentQuestion?.sessionOptions?.attempts || [];
       const currentAttempt = currentItemCollectsResponses
@@ -5559,6 +5792,7 @@ export default async function sessionRoutes(app) {
       let responseStats = null;
       let studentResponse = null;
       let allResponses = null;
+      let instructorResponseCount = 0;
       const questionId = currentQuestion?._id;
 
       if (questionId && currentItemCollectsResponses) {
@@ -5569,10 +5803,11 @@ export default async function sessionRoutes(app) {
             questionId,
             attempt: currentAttempt.number,
           }).sort({ updatedAt: -1, createdAt: -1, _id: -1 }).lean();
+          instructorResponseCount = responses.length;
           const cachedResponseStats = currentAttempt
             ? getAttemptStatsEntry(currentQuestion, currentAttempt.number)
             : null;
-          responseStats = cachedResponseStats
+          responseStats = anonymousSession ? null : cachedResponseStats
             && isCanonicalAttemptStatsEntry(currentQuestion, cachedResponseStats, responses.length)
             ? materializeAttemptStatsEntry(cachedResponseStats)
             : buildResponseStats(currentQuestion, responses, currentAttempt.number);
@@ -5597,7 +5832,7 @@ export default async function sessionRoutes(app) {
           }
 
           // Keep response content but strip raw student identifiers from live payloads.
-          allResponses = responses.map((response) => {
+          allResponses = anonymousSession ? [] : responses.map((response) => {
             const base = {
               _id: response._id,
               attempt: response.attempt,
@@ -5620,7 +5855,8 @@ export default async function sessionRoutes(app) {
           responseStats = formatInstructorLiveResponseStats(
             responseStats,
             studentNameById,
-            includeNamesInPayload
+            includeNamesInPayload,
+            anonymousSession
           );
         } else if (isJoined && !questionHidden) {
           if (showStats) {
@@ -5721,8 +5957,11 @@ export default async function sessionRoutes(app) {
             status: session.status,
             questions: session.questions,
             currentQuestion: session.currentQuestion,
+            anonymous: anonymousSession,
             joinedCount: (session.joined || []).length,
-            ...(!presentationView ? { joined: Array.isArray(session.joined) ? session.joined : [] } : {}),
+            ...(!presentationView && !anonymousSession
+              ? { joined: Array.isArray(session.joined) ? session.joined : [] }
+              : {}),
             joinCodeActive: session.joinCodeActive,
             joinCodeEnabled: session.joinCodeEnabled,
             chatEnabled: session.chatEnabled,
@@ -5733,6 +5972,7 @@ export default async function sessionRoutes(app) {
             _id: session._id,
             name: session.name,
             status: session.status,
+            anonymous: anonymousSession,
             joinCodeActive: session.joinCodeActive,
             joinCodeEnabled: session.joinCodeEnabled,
             chatEnabled: session.chatEnabled,
@@ -5749,7 +5989,7 @@ export default async function sessionRoutes(app) {
       };
 
       if (isInstrOrAdmin) {
-        result.responseCount = allResponses ? allResponses.length : 0;
+        result.responseCount = instructorResponseCount;
       }
 
       if (isInstrOrAdmin) {
@@ -5760,7 +6000,9 @@ export default async function sessionRoutes(app) {
           };
         }
         if (!presentationView) {
-          result.session.joinedStudentsLoaded = includeJoinedStudents;
+          // Anonymous sessions report the roster as loaded but empty, so the
+          // client does not keep requesting names it cannot receive.
+          result.session.joinedStudentsLoaded = includeJoinedStudents || anonymousSession;
           if (includeJoinedStudents) {
             result.session.joined = session.joined;
             result.session.joinRecords = session.joinRecords;
@@ -5824,7 +6066,10 @@ export default async function sessionRoutes(app) {
       }
 
       if (presentationView) {
-        const { question, ...snapshot } = buildStudentLiveQuestionSnapshot(currentQuestion, {}, { responseStats });
+        const { question, ...snapshot } = buildStudentLiveQuestionSnapshot(currentQuestion, {}, {
+          responseStats,
+          anonymous: anonymousSession,
+        });
         Object.assign(result, snapshot, {
           currentQuestion: question,
           allResponses: snapshot.responseStats?.answers || [],
@@ -5974,7 +6219,7 @@ export default async function sessionRoutes(app) {
         return reply.code(400).send({ error: 'Bad Request', message: 'Session is not live' });
       }
 
-      const userId = request.user.userId;
+      const userId = getSessionParticipantId(session, request.user.userId);
       if (!(session.joined || []).includes(userId)) {
         return reply.code(403).send({ error: 'Forbidden', message: 'You have not joined this session' });
       }
@@ -6024,6 +6269,9 @@ export default async function sessionRoutes(app) {
         return reply.code(409).send({ error: 'Conflict', message: 'You have already responded to this attempt' });
       }
 
+      if (!await claimSessionParticipation(session)) {
+        return reply.code(409).send({ error: 'Conflict', message: 'Session settings changed; reload and retry' });
+      }
       const now = new Date();
       const response = await Response.create({
         questionId,
@@ -6032,7 +6280,8 @@ export default async function sessionRoutes(app) {
         answer: request.body.answer,
         answerWysiwyg: request.body.answerWysiwyg || '',
         submittedAt: now,
-        submittedIpAddress: getRequestIp(request),
+        // IP addresses would identify anonymous respondents.
+        submittedIpAddress: isAnonymousSession(session) ? '' : getRequestIp(request),
         createdAt: now,
       });
 
@@ -6048,7 +6297,7 @@ export default async function sessionRoutes(app) {
       // touch the shared Session document; every response is counted atomically
       // on the Question document above.
       const storedSessionCount = Number(getSessionQuestionResponseCounts(session)?.[String(questionId)] || 0);
-      if (responseCount === 1 && storedSessionCount === 0) {
+      if ((isAnonymousSession(session) ? responseCount > 0 : responseCount === 1) && storedSessionCount === 0) {
         await Session.updateOne(
           { _id: session._id },
           {
@@ -6781,7 +7030,7 @@ export default async function sessionRoutes(app) {
 
       notifyJoinCodeChanged(app, course, updated);
 
-      return { session: updated.toObject() };
+      return { session: serializeInstructorSession(updated) };
     }
   );
 
@@ -7485,6 +7734,9 @@ export default async function sessionRoutes(app) {
       if (changed) {
         notifyStatusChanged(app, course, session?._id || request.params.id, { status: 'done' });
       }
+      if (isAnonymousSession(session) && session.status !== 'done') {
+        return reply.code(409).send({ error: 'Conflict', message: 'Anonymous results are available after the session ends' });
+      }
 
       // Fetch questions in session order and normalize legacy fields for review.
       const questionIds = session.questions || [];
@@ -7496,7 +7748,13 @@ export default async function sessionRoutes(app) {
       );
       const orderedQuestions = questionIds
         .map((id) => questionMap.get(String(id)))
-        .filter(Boolean);
+        .filter(Boolean)
+        .map((question) => {
+          if (!isAnonymousSession(session) || !question.sessionOptions) return question;
+          const sessionOptions = { ...question.sessionOptions };
+          delete sessionOptions.attemptStats;
+          return { ...question, sessionOptions };
+        });
 
       // Fetch all responses for this session's questions.
       const allResponses = questionIds.length > 0
@@ -7526,15 +7784,49 @@ export default async function sessionRoutes(app) {
         });
       });
 
+      const anonymousSession = isAnonymousSession(session);
       const joinedUserIds = new Set((session.joined || []).map((id) => String(id)).filter(Boolean));
       const courseStudentIds = new Set((course.students || []).map((id) => String(id)).filter(Boolean));
-      const resultUserIds = [...new Set([
-        ...courseStudentIds,
-        ...joinedUserIds,
-        ...responderUserIds,
-      ])];
+      if (anonymousSession) {
+        const respondentIdsByQuestionAttempt = new Map();
+        allResponses.forEach((response) => {
+          const respondentId = getResponseStudentId(response);
+          if (!respondentId) return;
+          const key = `${String(response.questionId)}::${Number(response.attempt) || 1}`;
+          if (!respondentIdsByQuestionAttempt.has(key)) respondentIdsByQuestionAttempt.set(key, new Set());
+          respondentIdsByQuestionAttempt.get(key).add(respondentId);
+        });
+        const responsesWithheld = responderUserIds.size < MIN_ANONYMOUS_RESPONDENTS
+          || [...respondentIdsByQuestionAttempt.values()].some((ids) => ids.size < MIN_ANONYMOUS_RESPONDENTS);
+        if (responsesWithheld) {
+          return {
+            session: buildSessionForUser(session, request.user, { instructorView: true }),
+            questions: orderedQuestions,
+            studentResults: [],
+            chatPosts: [],
+            anonymousSummary: {
+              respondentCount: responderUserIds.size,
+              joinedCount: joinedUserIds.size,
+              enrolledCount: courseStudentIds.size,
+              responsesWithheld: true,
+              minimumRespondents: MIN_ANONYMOUS_RESPONDENTS,
+            },
+          };
+        }
+      }
+      // Anonymous results list respondents only, under stable generic labels.
+      const respondentIndexById = anonymousSession
+        ? buildAnonymousRespondentIndex([...responderUserIds])
+        : null;
+      const resultUserIds = anonymousSession
+        ? [...respondentIndexById.keys()]
+        : [...new Set([
+          ...courseStudentIds,
+          ...joinedUserIds,
+          ...responderUserIds,
+        ])];
 
-      const students = resultUserIds.length > 0
+      const students = !anonymousSession && resultUserIds.length > 0
         ? await User.find({ _id: { $in: resultUserIds } })
           .select('_id profile emails email')
           .lean()
@@ -7579,9 +7871,9 @@ export default async function sessionRoutes(app) {
             if (voteDiff !== 0) return voteDiff;
             return getTimestampMs(a?.createdAt) - getTimestampMs(b?.createdAt);
           });
-        const authorMetadataMap = await buildChatAuthorMetadataMap(visiblePosts, { includeAllAuthors: true });
+        const authorMetadataMap = await buildChatAuthorMetadataMap(visiblePosts, { includeAllAuthors: !anonymousSession });
         chatPosts = visiblePosts.map((post) => serializeChatPost(post, {
-          includeNames: true,
+          includeNames: !anonymousSession,
           includeDismissed: true,
           viewerUserId: String(request.user.userId || ''),
           authorMetadataMap,
@@ -7594,12 +7886,17 @@ export default async function sessionRoutes(app) {
         const firstname = student?.profile?.firstname || '';
         const lastname = student?.profile?.lastname || '';
         const email = student?.emails?.[0]?.address || student?.email || '';
+        const anonymousIndex = anonymousSession ? respondentIndexById.get(String(studentId)) : null;
+        const respondentKey = anonymousSession ? getAnonymousRespondentKey(anonymousIndex) : '';
 
         const questionResults = orderedQuestions.map((question) => {
           const key = `${studentId}::${String(question._id)}`;
+          const responses = responsesByStudentQuestion.get(key) || [];
           return {
             questionId: question._id,
-            responses: responsesByStudentQuestion.get(key) || [],
+            responses: anonymousSession
+              ? responses.map((response) => sanitizeAnonymousReviewResponse(response, respondentKey))
+              : responses,
           };
         });
 
@@ -7619,6 +7916,22 @@ export default async function sessionRoutes(app) {
           participation = 100;
         }
 
+        if (anonymousSession) {
+          return {
+            studentId: respondentKey,
+            anonymousIndex,
+            firstname: '',
+            lastname: '',
+            email: '',
+            profileImage: '',
+            profileThumbnail: '',
+            inSession: true,
+            joinedAt: null,
+            participation,
+            questionResults,
+          };
+        }
+
         return {
           studentId,
           firstname,
@@ -7632,6 +7945,7 @@ export default async function sessionRoutes(app) {
           questionResults,
         };
       }).sort((a, b) => {
+        if (anonymousSession) return a.anonymousIndex - b.anonymousIndex;
         const lastCmp = normalizeAnswerValue(a.lastname).localeCompare(normalizeAnswerValue(b.lastname));
         if (lastCmp !== 0) return lastCmp;
         const firstCmp = normalizeAnswerValue(a.firstname).localeCompare(normalizeAnswerValue(b.firstname));
@@ -7644,6 +7958,15 @@ export default async function sessionRoutes(app) {
         questions: orderedQuestions,
         studentResults,
         chatPosts,
+        ...(anonymousSession
+          ? {
+            anonymousSummary: {
+              respondentCount: studentResults.length,
+              joinedCount: joinedUserIds.size,
+              enrolledCount: courseStudentIds.size,
+            },
+          }
+          : {}),
       };
     }
   );

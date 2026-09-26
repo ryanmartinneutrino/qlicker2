@@ -20,6 +20,8 @@ Scheduled quizzes close automatically when accessed after the final time window,
 
 An instructor can review live response data while an interactive session is running, but cannot edit/recalculate grades until it ends.
 
+Anonymous sessions skip this lifecycle entirely: they never create grade items, stay out of the course grade table, and reject recalculation and AI grading. Their review offers a read-only **Responses by question** tab instead of **Grading**. See [Run an anonymous survey](professor.md#run-an-anonymous-survey).
+
 ## Instructor workflow
 
 1. End the activity.
@@ -167,7 +169,7 @@ The session is probably still running/visible rather than ended. End it first.
 
 ### A student has no grade
 
-Confirm enrollment, participation/submission, session ended state, and whether grade recalculation completed. For a quiz, confirm final submission and availability rules.
+Anonymous sessions never have grades. Otherwise, confirm enrollment, participation/submission, session ended state, and whether grade recalculation completed. For a quiz, confirm final submission and availability rules.
 
 ### A grade changed after recalculation
 

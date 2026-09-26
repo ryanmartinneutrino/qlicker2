@@ -2,6 +2,7 @@ import Course from '../models/Course.js';
 import Grade from '../models/Grade.js';
 import Question from '../models/Question.js';
 import Response from '../models/Response.js';
+import { anonymousResponsesReleasable } from './anonymousResponseRelease.js';
 import Session from '../models/Session.js';
 import User from '../models/User.js';
 import {
@@ -11,6 +12,11 @@ import {
   studentVisibleGradeQuery,
 } from '../utils/courseAccess.js';
 import { buildQuestionWithNormalizedOptions, getQuestionPoints } from './grading.js';
+import {
+  buildAnonymousRespondentIndex,
+  getAnonymousRespondentKey,
+  redactAnonymousSessionAttendance,
+} from '../utils/anonymousSession.js';
 
 const MAX_RESPONSE_PAGE_SIZE = 100;
 const MAX_RESPONSE_CONTENT_CHARS = 30_000;
@@ -84,6 +90,7 @@ function sessionOverviewRow(session, { includeJoinedCount = false, now, userId, 
     name: session?.name || '',
     quiz,
     practice_quiz: !!session?.practiceQuiz,
+    anonymous: !!session?.anonymous,
     status: sessionOverviewStatus(session, { now, userId, instructorView }),
     reviewable: !!session?.reviewable,
     quiz_start: quiz && session?.quizStart ? new Date(session.quizStart).toISOString() : null,
@@ -286,7 +293,7 @@ export async function getCourseSessionOverview(courseId, { now = new Date() } = 
     courseId: String(courseId),
     studentCreated: { $ne: true },
   })
-    .select('_id name status date quiz quizStart quizEnd quizExtensions practiceQuiz reviewable createdAt questions joined joinRecords tags')
+    .select('_id name status date quiz quizStart quizEnd quizExtensions practiceQuiz anonymous reviewable createdAt questions joined joinRecords tags')
     .sort({ date: -1, quizStart: -1, createdAt: -1 })
     .lean();
   return {
@@ -309,7 +316,7 @@ export async function getStudentSessionOverview(courseId, userId, { now = new Da
     studentCreated: { $ne: true },
     status: { $in: STUDENT_OVERVIEW_SESSION_STATUSES },
   })
-    .select('_id name status date quiz quizStart quizEnd quizExtensions practiceQuiz reviewable createdAt questions tags')
+    .select('_id name status date quiz quizStart quizEnd quizExtensions practiceQuiz anonymous reviewable createdAt questions tags')
     .sort({ date: -1, quizStart: -1, createdAt: -1 })
     .lean();
   return {
@@ -422,6 +429,22 @@ export async function getSessionDetails(
   { participantOffset = 0, participantLimit = DEFAULT_PAGE_SIZE } = {}
 ) {
   const session = await requireCourseSession(courseId, sessionId);
+  if (session.anonymous) {
+    // Attendance in anonymous sessions is stored under pseudonyms and must
+    // not be listed per student.
+    const redactedSession = redactAnonymousSessionAttendance(session);
+    return {
+      session: jsonSafeSessionValue(redactedSession),
+      anonymous: true,
+      joined_student_count: redactedSession.joinedCount,
+      submitted_quiz_student_count: redactedSession.submittedCount,
+      participant_count: redactedSession.joinedCount,
+      participant_offset: 0,
+      returned_participant_count: 0,
+      next_participant_offset: null,
+      participants: [],
+    };
+  }
   const joinedIds = [...new Set([
     ...(session.joined || []).map(String),
     ...(session.joinRecords || []).map((record) => String(record.userId || '')).filter(Boolean),
@@ -476,6 +499,9 @@ export async function getSessionDetails(
 
 export async function getQuestionResponses(courseId, sessionId, questionId, { offset = 0, limit = DEFAULT_PAGE_SIZE } = {}) {
   const session = await requireCourseSession(courseId, sessionId);
+  if (session.anonymous && session.status !== 'done') {
+    throw new Error('Anonymous responses are available after the session ends');
+  }
   const orderedQuestions = await loadOrderedQuestions(session);
   const question = orderedQuestions.find((entry) => String(entry._id) === String(questionId));
   if (!question) throw new Error('Question not found in this session');
@@ -493,7 +519,9 @@ export async function getQuestionResponses(courseId, sessionId, questionId, { of
       { $sort: { studentUserId: 1, updatedAt: -1, submittedAt: -1, createdAt: -1 } },
       { $group: { _id: '$studentUserId', response: { $first: '$$ROOT' } } },
       { $replaceRoot: { newRoot: '$response' } },
-      { $sort: { updatedAt: -1, submittedAt: -1, createdAt: -1 } },
+      { $sort: session.anonymous
+        ? { studentUserId: 1 }
+        : { updatedAt: -1, submittedAt: -1, createdAt: -1 } },
       { $facet: {
         metadata: [{ $count: 'total' }],
         responses: [{ $skip: pageOffset }, { $limit: pageSize }],
@@ -502,19 +530,44 @@ export async function getQuestionResponses(courseId, sessionId, questionId, { of
     : [{ metadata: [], responses: [] }];
   const responseCount = Number(responsePage.metadata?.[0]?.total || 0);
   const displayedResponses = responsePage.responses || [];
-  const users = displayedResponses.length > 0
+  const anonymousSession = !!session.anonymous;
+  if (anonymousSession && !await anonymousResponsesReleasable(session)) {
+    throw new Error('At least four respondents are required before anonymous answers are available');
+  }
+  const respondentIndexById = anonymousSession
+    ? buildAnonymousRespondentIndex(await Response.distinct('studentUserId', {
+      questionId: { $in: orderedQuestions.map((entry) => String(entry._id)) },
+    }))
+    : null;
+  const users = !anonymousSession && displayedResponses.length > 0
     ? await User.find({ _id: { $in: displayedResponses.map((response) => response.studentUserId) } }).select('_id profile emails email').lean()
     : [];
   const studentById = new Map(users.map((student) => [String(student._id), formatStudent(student)]));
 
-  const serializedResponses = displayedResponses.map((response) => ({
-    student: studentById.get(String(response.studentUserId)) || { student_id: String(response.studentUserId || ''), name: 'Unknown student', email: '' },
-    answer: serializeAnswer(response.answer),
-    answer_wysiwyg: response.answerWysiwyg || '',
-    correct: response.correct,
-    mark: response.mark,
-    submitted_at: response.submittedAt || response.updatedAt || response.createdAt || null,
-  }));
+  const serializedResponses = displayedResponses.map((response) => {
+    if (anonymousSession) {
+      const respondentIndex = respondentIndexById.get(String(response.studentUserId || '')) || 0;
+      return {
+        student: {
+          student_id: getAnonymousRespondentKey(respondentIndex),
+          name: `Anonymous respondent ${respondentIndex}`,
+          email: '',
+        },
+        answer: serializeAnswer(response.answer),
+        answer_wysiwyg: response.answerWysiwyg || '',
+        correct: response.correct,
+        mark: response.mark,
+      };
+    }
+    return {
+      student: studentById.get(String(response.studentUserId)) || { student_id: String(response.studentUserId || ''), name: 'Unknown student', email: '' },
+      answer: serializeAnswer(response.answer),
+      answer_wysiwyg: response.answerWysiwyg || '',
+      correct: response.correct,
+      mark: response.mark,
+      submitted_at: response.submittedAt || response.updatedAt || response.createdAt || null,
+    };
+  });
   const boundedResponses = [];
   let contentSize = 0;
   let contentTruncated = false;
@@ -630,7 +683,7 @@ export async function getCourseGradeTable(
   const course = await Course.findById(courseId).select('name students').lean();
   if (!course) throw new Error('Course not found');
 
-  const sessions = await Session.find({ courseId: String(courseId), studentCreated: { $ne: true } })
+  const sessions = await Session.find({ courseId: String(courseId), studentCreated: { $ne: true }, anonymous: { $ne: true } })
     .select('_id name status date quizStart createdAt quiz practiceQuiz submittedQuiz')
     .lean();
   sessions.sort((left, right) => sessionSortTime(right) - sessionSortTime(left));

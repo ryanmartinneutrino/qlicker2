@@ -17,6 +17,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 ENV_FILE="$SCRIPT_DIR/.env"
 DEFAULT_SEED_IMAGE="qlicker-load-testing-seed:local"
+SEED_FINGERPRINT_LABEL="org.qlicker.load-testing.seed-fingerprint"
 COMMON_SH="$SCRIPT_DIR/common.sh"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
@@ -106,6 +107,8 @@ else
   TARGET_RUNTIME="$(prompt_choice "Runtime for the running stack (docker or native)" "$DEFAULT_RUNTIME" "docker" "native")"
 fi
 
+case "$TARGET_ENV" in dev|prod) ;; *) error "TARGET_ENV must be dev or prod"; exit 1 ;; esac
+case "$TARGET_RUNTIME" in docker|native) ;; *) error "TARGET_RUNTIME must be docker or native"; exit 1 ;; esac
 if [[ "$TARGET_RUNTIME" == "docker" ]] && ! docker compose version >/dev/null 2>&1; then
   error "Docker Compose is required when the target stack is running in Docker."
   exit 1
@@ -175,7 +178,7 @@ if [[ -z "$DEFAULT_NETWORK" && -n "$DETECTED_NETWORK" ]]; then
 fi
 
 QLICKER_NETWORK="${DEFAULT_NETWORK:-}"
-if [[ "$TARGET_RUNTIME" == "docker" && "$TARGET_ENV" == "prod" ]]; then
+if [[ "$TARGET_RUNTIME" == "docker" && "$TARGET_ENV" != "dev" ]]; then
   if $NON_INTERACTIVE; then
     : "${QLICKER_NETWORK:?QLICKER_NETWORK must be set for docker/prod in load-testing/.env}"
   else
@@ -190,7 +193,7 @@ if ! $NON_INTERACTIVE; then
   read -r BASE_URL_INPUT
   RESOLVED_BASE_URL="${BASE_URL_INPUT:-$RESOLVED_BASE_URL}"
 
-  ask "MongoDB URL for the seed script [$RESOLVED_MONGO_URL]: "
+  ask "MongoDB URL for the seed script [derived from stack env; Enter to keep]: "
   read -r MONGO_URL_INPUT
   RESOLVED_MONGO_URL="${MONGO_URL_INPUT:-$RESOLVED_MONGO_URL}"
 
@@ -247,7 +250,11 @@ info "Configuration written to $ENV_FILE"
 
 echo ""
 info "Building the seed Docker image ($DEFAULT_SEED_IMAGE_TAG) …"
-docker build -t "$DEFAULT_SEED_IMAGE_TAG" -f "$SCRIPT_DIR/Dockerfile.seed" "$SCRIPT_DIR"
+docker build \
+  --label "$SEED_FINGERPRINT_LABEL=$(seed_image_fingerprint "$SCRIPT_DIR")" \
+  -t "$DEFAULT_SEED_IMAGE_TAG" \
+  -f "$SCRIPT_DIR/Dockerfile.seed" \
+  "$SCRIPT_DIR"
 info "Seed image built ✓"
 
 mkdir -p "$SCRIPT_DIR/state" "$SCRIPT_DIR/results"
@@ -260,7 +267,7 @@ echo "  Target environment: $TARGET_ENV"
 echo "  Runtime:            $TARGET_RUNTIME"
 echo "  Stack env file:     $TARGET_ENV_FILE"
 echo "  Base URL:           $RESOLVED_BASE_URL"
-echo "  MongoDB URL:        $RESOLVED_MONGO_URL"
+echo "  MongoDB connection: configured in load-testing/.env"
 if [[ -n "$QLICKER_NETWORK" ]]; then
   echo "  Docker network:     $QLICKER_NETWORK"
 fi

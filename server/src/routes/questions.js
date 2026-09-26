@@ -14,6 +14,7 @@ import { isQuestionResponseCollectionEnabled, normalizeQuestionType } from '../s
 import { computeWordFrequencies } from '../utils/wordFrequency.js';
 import { computeHistogramData } from '../utils/histogram.js';
 import { buildSessionResponseTracking } from '../utils/sessionResponseTracking.js';
+import { anonymousResponsesReleasable } from '../services/anonymousResponseRelease.js';
 import { isCourseInstructorOrAdmin as isInstructorOrAdmin } from '../utils/courseAccess.js';
 import { inheritSessionTagsForQuestions, mergeSessionQuestionTags } from '../services/sessionQuestionTags.js';
 
@@ -2363,6 +2364,20 @@ export default async function questionRoutes(app) {
       if (!course || !isInstructorOrAdmin(course, request.user)) {
         return reply.code(403).send({ error: 'Forbidden', message: 'Insufficient permissions' });
       }
+      const anonymousSessions = await Session.find({
+        courseId: String(course._id),
+        anonymous: true,
+        $or: [
+          { questions: String(question._id) },
+          ...(sessionId ? [{ _id: sessionId }] : []),
+        ],
+      }).lean();
+      if ((await Promise.all(anonymousSessions.map(anonymousResponsesReleasable))).some((released) => !released)) {
+        return reply.code(409).send({
+          error: 'Conflict',
+          message: 'Anonymous analysis is available after four respondents answer each answered question and attempt',
+        });
+      }
 
       const responses = await Response.find({ questionId: question._id }).lean();
       const texts = [];
@@ -2439,6 +2454,20 @@ export default async function questionRoutes(app) {
       }
       if (!course || !isInstructorOrAdmin(course, request.user)) {
         return reply.code(403).send({ error: 'Forbidden', message: 'Insufficient permissions' });
+      }
+      const anonymousSessions = await Session.find({
+        courseId: String(course._id),
+        anonymous: true,
+        $or: [
+          { questions: String(question._id) },
+          ...(sessionId ? [{ _id: sessionId }] : []),
+        ],
+      }).lean();
+      if ((await Promise.all(anonymousSessions.map(anonymousResponsesReleasable))).some((released) => !released)) {
+        return reply.code(409).send({
+          error: 'Conflict',
+          message: 'Anonymous analysis is available after four respondents answer each answered question and attempt',
+        });
       }
 
       const responses = await Response.find({ questionId: question._id }).lean();

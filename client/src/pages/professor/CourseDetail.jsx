@@ -153,6 +153,9 @@ function buildProfessorSessionSubtitle(session, t) {
   const details = [
     t('professor.course.questionCount', { count: (session?.questions || []).length }),
   ];
+  if (session?.anonymous) {
+    details.push(t('professor.course.anonymousSession'));
+  }
   const joinedCount = Array.isArray(session?.joined)
     ? session.joined.length
     : Number(session?.joinedCount || 0);

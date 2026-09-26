@@ -161,21 +161,42 @@ export async function seedUsers(request, options = {}) {
   return result;
 }
 
+async function saveAuthState(page, authStateFile) {
+  await fs.mkdir(AUTH_STATE_DIR, { recursive: true });
+  const state = await page.context().storageState();
+  await fs.writeFile(authStateFile, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
+}
+
 export async function loginViaUi(page, email, password, expectedPathPattern) {
   const authStateFile = authStateFileForEmail(email);
   try {
     const rawState = await fs.readFile(authStateFile, 'utf8');
     const state = JSON.parse(rawState);
-    if (Array.isArray(state.cookies) && state.cookies.length > 0) {
-      await page.context().addCookies(state.cookies);
+    if (!Array.isArray(state.cookies) || state.cookies.length === 0) {
+      throw new Error('No cached auth cookies');
     }
+    await page.context().addCookies(state.cookies);
     const route = routeFromExpectedPath(expectedPathPattern);
     await page.goto(route);
+    // The protected route renders at the requested URL while the app is still
+    // exchanging the refresh cookie, so the URL alone does not prove the
+    // cached session is valid. Refresh tokens rotate on every use, so a saved
+    // cookie goes stale as soon as the browser that saved it refreshes again.
+    // Wait until the app settles on either the signed-in shell or the login form.
+    const accountMenu = page.getByLabel(/open account menu/i);
+    const loginButton = page.getByRole('button', { name: /^Login$/ });
+    await expect(accountMenu.or(loginButton)).toBeVisible();
+    if (!(await accountMenu.isVisible())) {
+      throw new Error('Cached auth state is stale');
+    }
     await expect(page).toHaveURL(expectedPathPattern);
+    // The refresh above rotated the session; keep the saved cookie current.
+    await saveAuthState(page, authStateFile);
     return;
   } catch {
     // Fall back to a real UI login when there is no cached browser state yet or
-    // when the cached state is stale because the in-memory E2E server restarted.
+    // when the cached state is stale (rotated refresh token or restarted server).
+    await page.context().clearCookies();
   }
 
   await page.goto('/login');
@@ -183,9 +204,7 @@ export async function loginViaUi(page, email, password, expectedPathPattern) {
   await page.getByLabel('Password').fill(password);
   await page.getByRole('button', { name: /^Login$/ }).click();
   await expect(page).toHaveURL(expectedPathPattern);
-  await fs.mkdir(AUTH_STATE_DIR, { recursive: true });
-  const state = await page.context().storageState();
-  await fs.writeFile(authStateFile, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
+  await saveAuthState(page, authStateFile);
 }
 
 export async function logoutViaUi(page, expectedPathPattern = /\/login$/) {

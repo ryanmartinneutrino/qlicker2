@@ -21,6 +21,7 @@ STATE_DIR="$SCRIPT_DIR/state"
 K6_IMAGE="${K6_IMAGE:-grafana/k6:latest}"
 K6_NOFILE_LIMIT="${K6_NOFILE_LIMIT:-16384}"
 DEFAULT_SEED_IMAGE="qlicker-load-testing-seed:local"
+SEED_FINGERPRINT_LABEL="org.qlicker.load-testing.seed-fingerprint"
 COMMON_SH="$SCRIPT_DIR/common.sh"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
@@ -59,6 +60,16 @@ BASE_URL="${BASE_URL:-}"
 NUM_STUDENTS="${NUM_STUDENTS:-500}"
 SEED_IMAGE="${SEED_IMAGE:-$DEFAULT_SEED_IMAGE}"
 SESSION_CHAT_ENABLED="${SESSION_CHAT_ENABLED:-true}"
+SCENARIO="${SCENARIO:-live-named}"
+RATE_LIMIT_STATE_FILE="$STATE_DIR/rate-limit-restore.env"
+
+remind_restore_on_failure() {
+  local exit_status=$?
+  if (( exit_status != 0 )) && [[ -f "$RATE_LIMIT_STATE_FILE" ]]; then
+    warn "Load testing stopped while rate limits may be disabled. Run ./run.sh --restore, then ./run.sh --clean."
+  fi
+}
+trap remind_restore_on_failure EXIT
 
 if [[ ! "$K6_NOFILE_LIMIT" =~ ^[0-9]+$ ]] || (( K6_NOFILE_LIMIT < 1024 )); then
   error "K6_NOFILE_LIMIT must be an integer of at least 1024."
@@ -103,7 +114,11 @@ fi
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --students)
+      if [[ $# -lt 2 ]]; then error "--students requires a number"; exit 1; fi
       NUM_STUDENTS="$2"; shift 2 ;;
+    --scenario)
+      if [[ $# -lt 2 ]]; then error "--scenario requires a name"; exit 1; fi
+      SCENARIO="$2"; shift 2 ;;
     --session-chat)
       if [[ $# -lt 2 ]]; then
         error "--session-chat requires a value: on|off"
@@ -132,6 +147,13 @@ while [[ $# -gt 0 ]]; do
       exit 1 ;;
   esac
 done
+
+case "$SCENARIO" in
+  live-named) SCENARIO_FILE="live-session.js" ;;
+  live-anonymous) SCENARIO_FILE="live-anonymous.js" ;;
+  quiz-named|quiz-anonymous) SCENARIO_FILE="quiz-session.js" ;;
+  *) error "Unknown scenario '$SCENARIO'. Use live-named, live-anonymous, quiz-named, or quiz-anonymous."; exit 1 ;;
+esac
 
 is_local_address() {
   local value="$1"
@@ -253,6 +275,13 @@ seed_runner() {
 }
 
 k6_runner() {
+  local scenario_file="${1:-$SCENARIO_FILE}"
+  local -a k6_flags=()
+  if [[ "$scenario_file" == "preflight.js" ]]; then
+    k6_flags=(--quiet --summary-mode=compact)
+  else
+    k6_flags=(--summary-export "/results/summary-${SCENARIO}-${RUN_TIMESTAMP}.json")
+  fi
   local k6_base_url="$BASE_URL"
   if is_local_address "$k6_base_url"; then
     k6_base_url="$(rewrite_localhost_for_docker "$k6_base_url")"
@@ -290,6 +319,7 @@ k6_runner() {
   done
 
   docker run --rm \
+    --user "$(id -u):$(id -g)" \
     --ulimit "nofile=${K6_NOFILE_LIMIT}:${K6_NOFILE_LIMIT}" \
     "${network_args[@]}" \
     --add-host=host.docker.internal:host-gateway \
@@ -304,18 +334,46 @@ k6_runner() {
       --env BASE_URL="$k6_base_url" \
       --env STATE_FILE=/state/state.json \
       "${k6_env[@]}" \
-      /scenarios/live-session.js
+      "${k6_flags[@]}" \
+      "/scenarios/${scenario_file}"
 }
 
 require_seed_image() {
-  if ! docker image inspect "$SEED_IMAGE" >/dev/null 2>&1; then
-    error "Seed image '$SEED_IMAGE' not found."
-    error "Run ./setup.sh to build it."
+  local expected_fingerprint image_fingerprint
+  expected_fingerprint="$(seed_image_fingerprint "$SCRIPT_DIR")"
+  image_fingerprint="$(docker image inspect --format "{{ index .Config.Labels \"$SEED_FINGERPRINT_LABEL\" }}" "$SEED_IMAGE" 2>/dev/null || true)"
+  if [[ "$image_fingerprint" == "$expected_fingerprint" ]]; then
+    return 0
+  fi
+
+  info "Seed image '$SEED_IMAGE' is missing or out of date; rebuilding it from this checkout …"
+  docker build \
+    --label "$SEED_FINGERPRINT_LABEL=$expected_fingerprint" \
+    -t "$SEED_IMAGE" \
+    -f "$SCRIPT_DIR/Dockerfile.seed" \
+    "$SCRIPT_DIR"
+  image_fingerprint="$(docker image inspect --format "{{ index .Config.Labels \"$SEED_FINGERPRINT_LABEL\" }}" "$SEED_IMAGE" 2>/dev/null || true)"
+  if [[ "$image_fingerprint" != "$expected_fingerprint" ]]; then
+    error "The rebuilt seed image does not match this checkout."
     exit 1
   fi
 }
 
 do_prepare() {
+  if [[ -f "$RATE_LIMIT_STATE_FILE" ]]; then
+    error "A rate-limit restore record already exists: $RATE_LIMIT_STATE_FILE. Run --restore first."
+    exit 1
+  fi
+  if [[ "$TARGET_RUNTIME" == "docker" ]]; then
+    # Build before changing the stack, so a missing/stale seed image cannot
+    # leave rate limits disabled when the load test has not even started.
+    require_seed_image
+  fi
+  if [[ ! -f "$TARGET_ENV_FILE" ]]; then error "Target environment file not found: $TARGET_ENV_FILE"; exit 1; fi
+  mkdir -p "$STATE_DIR"
+  local existing_line
+  existing_line="$(grep -m1 '^DISABLE_RATE_LIMITS=' "$TARGET_ENV_FILE" || true)"
+  printf '%s\n' "$existing_line" > "$RATE_LIMIT_STATE_FILE"
   info "Preparing the $TARGET_ENV/$TARGET_RUNTIME stack for load testing …"
   set_boolean_env_var DISABLE_RATE_LIMITS true "$TARGET_ENV_FILE"
   info "Set DISABLE_RATE_LIMITS=true in $TARGET_ENV_FILE"
@@ -331,9 +389,17 @@ do_prepare() {
 
     if [[ "$TARGET_ENV" == "prod" ]]; then
       info "Disabling nginx limit_req directives …"
-      stack_compose exec -T nginx sh -c \
+      if ! stack_compose exec -T nginx sh -c \
         "sed -i 's/^[[:space:]]*limit_req /#limit_req /g' /etc/nginx/conf.d/default.conf && nginx -s reload" \
-        2>/dev/null || warn "Could not modify nginx config (is the prod nginx container running?)."
+        2>/dev/null; then
+        error "Could not disable nginx rate limits; run --restore and check the nginx service."
+        exit 1
+      fi
+      if ! stack_compose exec -T nginx sh -c \
+        "nginx -T 2>/dev/null | grep -Eq '^[[:space:]]*limit_req[[:space:]]'; test \$? -eq 1"; then
+        error "Active Nginx configuration still contains a limit_req rule; run --restore and inspect nginx -T."
+        exit 1
+      fi
     fi
 
     info "Prepare complete ✓"
@@ -348,9 +414,23 @@ do_prepare() {
 }
 
 do_restore() {
+  if [[ ! -f "$RATE_LIMIT_STATE_FILE" ]]; then
+    error "No rate-limit restore record found; the original rate-limit setting is unknown. Check $TARGET_ENV_FILE and the active Nginx config before another load test."
+    exit 1
+  fi
   info "Restoring rate limits on the $TARGET_ENV/$TARGET_RUNTIME stack …"
-  set_boolean_env_var DISABLE_RATE_LIMITS false "$TARGET_ENV_FILE"
-  info "Set DISABLE_RATE_LIMITS=false in $TARGET_ENV_FILE"
+  local original_line
+  original_line="$(cat "$RATE_LIMIT_STATE_FILE")"
+  if [[ -n "$original_line" ]]; then
+    if grep -q '^DISABLE_RATE_LIMITS=' "$TARGET_ENV_FILE"; then
+      sed -i "s|^DISABLE_RATE_LIMITS=.*|${original_line}|" "$TARGET_ENV_FILE"
+    else
+      printf '\n%s\n' "$original_line" >> "$TARGET_ENV_FILE"
+    fi
+  else
+    sed -i '/^DISABLE_RATE_LIMITS=/d' "$TARGET_ENV_FILE"
+  fi
+  info "Restored DISABLE_RATE_LIMITS to its original setting in $TARGET_ENV_FILE"
 
   if [[ "$TARGET_RUNTIME" == "docker" ]]; then
     if [[ -z "$TARGET_COMPOSE_FILE" || ! -f "$TARGET_COMPOSE_FILE" ]]; then
@@ -358,7 +438,7 @@ do_restore() {
       exit 1
     fi
 
-    info "Recreating the server service with rate limits enabled …"
+    info "Recreating the server service with its original rate-limit setting …"
     stack_compose up -d server
 
     if [[ "$TARGET_ENV" == "prod" ]]; then
@@ -366,12 +446,14 @@ do_restore() {
       stack_compose restart nginx
     fi
 
+    rm -f "$RATE_LIMIT_STATE_FILE"
     info "Restore complete ✓"
     return 0
   fi
 
   warn "Native runtime detected."
-  warn "Restart the server process to apply DISABLE_RATE_LIMITS=false."
+  rm -f "$RATE_LIMIT_STATE_FILE"
+  warn "Restart the server process to apply its original rate-limit setting."
   if [[ -x "$STACK_DIR/scripts/qlicker.sh" ]]; then
     warn "If you use qlicker.sh: (cd $STACK_DIR && ./scripts/qlicker.sh restart)"
   fi
@@ -382,8 +464,8 @@ do_seed() {
   check_network_if_needed
   mkdir -p "$STATE_DIR"
 
-  info "Seeding database with $NUM_STUDENTS students …"
-  seed_runner --students "$NUM_STUDENTS"
+  info "Seeding $SCENARIO with $NUM_STUDENTS students …"
+  seed_runner --students "$NUM_STUDENTS" --scenario "$SCENARIO"
   info "Seeding complete ✓"
 
   if [[ ! -f "$STATE_DIR/state.json" ]]; then
@@ -394,24 +476,53 @@ do_seed() {
   info "State file: $STATE_DIR/state.json"
 }
 
+require_prepared_stack() {
+  if [[ "$TARGET_ENV" != "prod" || "$TARGET_RUNTIME" != "docker" ]]; then
+    return 0
+  fi
+  if [[ ! -f "$RATE_LIMIT_STATE_FILE" ]]; then
+    error "Production Docker load tests require --prepare before seeding or testing. No restore record exists at $RATE_LIMIT_STATE_FILE."
+    error "If DISABLE_RATE_LIMITS is already true, inspect the stack and restore it manually before preparing again."
+    return 1
+  fi
+  if ! grep -qx 'DISABLE_RATE_LIMITS=true' "$TARGET_ENV_FILE"; then
+    error "The restore record exists, but DISABLE_RATE_LIMITS=true is missing from $TARGET_ENV_FILE. Run --restore, then --prepare."
+    return 1
+  fi
+}
+
 do_test() {
+  require_prepared_stack
   check_network_if_needed
   if [[ ! -f "$STATE_DIR/state.json" ]]; then
     error "state/state.json not found. Run seeding first: ./run.sh --seed-only"
     exit 1
   fi
 
+  local state_scenario
+  if ! state_scenario="$(sed -n 's/^[[:space:]]*"scenario": "\([^"]*\)".*/\1/p' "$STATE_DIR/state.json" | head -1)" || [[ "$state_scenario" != "$SCENARIO" ]]; then
+    error "The state file does not match scenario '$SCENARIO'. Reseed before testing; the seed image may be stale."
+    exit 1
+  fi
   mkdir -p "$RESULTS_DIR"
-  local timestamp
-  timestamp="$(date +%Y%m%d-%H%M%S)"
-  local result_log="$RESULTS_DIR/k6-${timestamp}.log"
+  RUN_TIMESTAMP="$(date +%Y%m%d-%H%M%S-%N)"
+  local result_log="$RESULTS_DIR/k6-${SCENARIO}-${RUN_TIMESTAMP}.log"
   local session_chat_label="disabled"
   if [[ "$SESSION_CHAT_ENABLED" == "true" ]]; then
     session_chat_label="enabled"
   fi
 
-  info "Running k6 load test against $BASE_URL …"
-  info "Session chat: $session_chat_label"
+  info "Checking the public login path before starting $SCENARIO …"
+  local preflight_log="$RESULTS_DIR/preflight-${SCENARIO}-${RUN_TIMESTAMP}.log"
+  if ! k6_runner preflight.js > "$preflight_log" 2>&1; then
+    cat "$preflight_log"
+    error "Login ingress preflight failed. Check Nginx and any upstream proxy limits before running the load test."
+    error "Preflight log: $preflight_log"
+    return 1
+  fi
+  info "Login ingress preflight passed ✓"
+  info "Running $SCENARIO load test against $BASE_URL …"
+  if [[ "$SCENARIO" == "live-named" ]]; then info "Session chat: $session_chat_label"; fi
   info "Results log: $result_log"
   echo ""
 
@@ -423,10 +534,18 @@ do_test() {
   echo ""
   if [[ $k6_exit -eq 0 ]]; then
     info "Load test PASSED ✓"
+  elif (( k6_exit == 141 )); then
+    warn "Load test FAILED: k6/container exited with SIGPIPE (141). Inspect the log for the underlying cause."
   else
-    warn "Load test FAILED (exit code $k6_exit) — check thresholds in the log above."
+    warn "Load test FAILED (k6/container exit code $k6_exit). Inspect the log and threshold summary."
   fi
   info "Full log saved to: $result_log"
+  local summary_file="$RESULTS_DIR/summary-${SCENARIO}-${RUN_TIMESTAMP}.json"
+  if [[ -f "$summary_file" ]]; then
+    info "Summary saved to: $summary_file"
+  else
+    warn "No summary file was produced; the k6/container process ended before exporting it."
+  fi
 
   return $k6_exit
 }
@@ -459,6 +578,7 @@ case "$ACTION" in
     do_clean
     ;;
   full)
+    require_prepared_stack
     do_seed
     echo ""
     TEST_EXIT=0

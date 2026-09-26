@@ -1,8 +1,8 @@
 # Qlicker Load Testing Suite
 
-Automated load testing for Qlicker live sessions. The suite seeds dedicated
-load-test users/courses/sessions and runs a k6 scenario that follows the real
-interactive classroom flow:
+Automated load testing for named and anonymous interactive sessions and quizzes.
+The suite seeds dedicated users, a course, questions, and one session per run.
+The original named interactive scenario follows the real classroom flow:
 
 - one professor launches and drives the session
 - hundreds of students authenticate, join, keep WebSockets open, refresh live
@@ -15,12 +15,16 @@ interactive classroom flow:
 - question changes, attempt changes, stats visibility, answer reveals, and
   short-answer / numerical stat refreshes are all exercised
 
-The seed and k6 runners still run in Docker, but the target Qlicker stack can
-now be:
+The seed and k6 runners run as Docker images. The target Qlicker stack can be:
 
-- `prod` + `docker`
+- `prod` + `docker` on either a staging or production host, using
+  `production_setup/docker-compose.yml` and its deployed application images
 - `dev` + `docker`
 - `dev` + `native`
+
+Each new seed removes the previous load-test users, course, questions, session,
+and responses from the configured database. `--clean` removes those fixtures
+after the run.
 
 ## Quick Start
 
@@ -63,6 +67,14 @@ It then:
 - writes `load-testing/.env`
 - builds the local seed image (`qlicker-load-testing-seed:local` by default)
 
+`production_setup/update.sh` updates the application images. The load-test
+seed image is built separately. The load runner fingerprints the seed Dockerfile, package files, and
+`seed.mjs`; `--seed-only`, a full run, and `--clean` rebuild a missing or stale
+seed image automatically after a checkout update. On a Docker target,
+`--prepare` checks and rebuilds it before disabling rate limits. `--test-only`
+requires a fixture made for the selected scenario and does not rebuild or
+reseed it.
+
 ### URL Resolution
 
 - `prod`: prefers `ROOT_URL`, then falls back to `https://$DOMAIN`
@@ -77,12 +89,96 @@ an external domain.
 |---------|-------------|
 | `./run.sh` | Seed + run the load test |
 | `./run.sh --students N` | Override the configured student count |
-| `./run.sh --session-chat on|off` | Run the same interactive session with chat enabled or disabled |
+| `./run.sh --scenario NAME` | Choose `live-named` (default), `live-anonymous`, `quiz-named`, or `quiz-anonymous` |
+| `./run.sh --session-chat on|off` | Run `live-named` with chat enabled or disabled |
 | `./run.sh --seed-only` | Seed without running k6 |
-| `./run.sh --test-only` | Run k6 with the existing `state/state.json` |
+| `./run.sh --test-only` | Run k6 with the existing `state/state.json` for the selected scenario |
 | `./run.sh --clean` | Delete load-test fixtures and `state/state.json` |
 | `./run.sh --prepare` | Disable rate limits on the running stack |
-| `./run.sh --restore` | Re-enable rate limits on the running stack |
+| `./run.sh --restore` | Restore the stack’s original rate-limit setting |
+
+## Identical staging and production runs
+
+Both servers use the same `prod` + `docker` load-test configuration and
+`production_setup/docker-compose.yml`. Their `production_setup/.env` files set
+the host-specific image tags, MongoDB connection, and `ROOT_URL`. If
+`load-testing/.env` is already configured with `TARGET_ENV=prod` and
+`TARGET_RUNTIME=docker`, a checkout update does not require rerunning setup.
+Otherwise, run `./setup.sh` and choose `prod` plus `docker` on either host.
+
+1. If a prior test stopped after `--prepare`, run `./run.sh --restore` and
+   `./run.sh --clean` before starting another test. Run these as separate
+   commands; a failed command in an `&&` chain skips the later commands.
+2. Run `./run.sh --prepare`. This checks or rebuilds the load-test seed image
+   before disabling API and Nginx rate limits and recreating the server service.
+   The runner verifies that the active Nginx configuration has no `limit_req`
+   directives. The original API setting is saved in
+   `state/rate-limit-restore.env`.
+3. Run each scenario at the same student count and with the same timing knobs:
+
+   ```bash
+   JOIN_GRACE_S=30 ./run.sh --scenario live-named --students 100
+   JOIN_GRACE_S=30 ./run.sh --scenario live-anonymous --students 100
+   ./run.sh --scenario quiz-named --students 100
+   ./run.sh --scenario quiz-anonymous --students 100
+   ```
+
+   Choose `JOIN_GRACE_S` long enough for the student login wave to complete;
+   keep it identical across comparison runs. Each command reseeds its own
+   fixture. Run `./run.sh --test-only --scenario NAME` only if the current
+   fixture was seeded for that name and has not been consumed by a previous
+   run. Quiz submissions and live session endings make a completed fixture
+   unsuitable for another full pass.
+4. Run `./run.sh --restore` and `./run.sh --clean` as separate commands when
+   testing ends, including after a failed run. Keep result logs and summaries
+   before cleanup. The prod/docker runner refuses a full or test-only run if
+   `--prepare` has not left a restore record and `DISABLE_RATE_LIMITS=true`.
+   `--clean` removes fixtures but keeps the restore record.
+
+If `--restore` reports that its record is missing, it cannot know the previous
+API setting. Check `DISABLE_RATE_LIMITS` in `production_setup/.env` and inspect
+the active Nginx `limit_req` directives before another run. If the API setting
+is still `true`, restore the intended value and recreate the server service;
+restart Nginx if its active rate-limit directives were disabled. Do not run
+`--prepare` again until that state is understood.
+
+Before each main workload, the runner sends twelve empty login requests
+through the configured public `BASE_URL`. They should all reach API validation
+and return 400. A 503 or any other response stops the run before student VUs
+start; the diagnostic is saved in `results/preflight-NAME-TIMESTAMP.log`.
+Check Nginx and any proxy in front of it if the preflight fails. The probe
+uses no account credentials and does not change the application database.
+
+`results/k6-NAME-TIMESTAMP.log` contains the complete k6 output and
+`results/summary-NAME-TIMESTAMP.json` contains machine-readable metrics. Match
+student count, timing knobs, and image versions for baseline and PR runs.
+Compare error rate, p95/p99 HTTP duration, login and join, WebSocket event
+delivery, answer submission, quiz autosave, and final results duration. Run
+`quiz-anonymous` and `live-anonymous` once with three students to confirm that
+result rows remain withheld below four respondents, then with at least four
+students to verify correlated rows appear. A threshold failure or a missing
+summary is a failed run; investigate it before comparing latency. The
+anonymous live workload intentionally refreshes `/live` on relevant WebSocket
+events and is a stress test; the named live workload remains the browser-like
+delta baseline.
+
+Test on the lower-stakes host first, then use the same commands on production.
+`load-testing/.env`, state, and results contain test credentials and remain
+local to each host. Confirm each host's configuration points at its intended
+stack before seeding.
+
+## Workloads
+
+| Scenario | Student journey | Instructor and privacy checks |
+| --- | --- | --- |
+| `live-named` | Join, hold WebSocket, answer five questions, and exercise chat and live deltas | Professor drives visibility, attempts, aggregates, chat, and response delivery |
+| `live-anonymous` | Join, hold WebSocket, and answer five questions | Instructor receives response counts only; final results show one correlated row per respondent after the four-person minimum |
+| `quiz-named` | Load course sessions, open the quiz, autosave five answers, and submit | Final results preserve one row and five answers per student |
+| `quiz-anonymous` | Same quiz journey | Final results show one correlated row per respondent after the four-person minimum, without identities |
+
+The new quiz and anonymous live workloads record success rates, response times,
+answer counts, and final result checks. The original named live workload retains
+its detailed WebSocket and chat metrics.
 
 ## Why the Seed Data Matters
 
@@ -93,8 +189,7 @@ email login is normally blocked for non-admin accounts.
 
 ## Scenario Coverage
 
-The k6 scenario is no longer just a rough login-and-post loop. It now tracks
-the real live-session update path used by the browser:
+The `live-named` scenario tracks the real live-session update path used by the browser:
 
 1. Professor logs in, explicitly selects and hides the first question, and
    starts the session. Every later transition also hides the previous question

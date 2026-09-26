@@ -7,6 +7,7 @@ import {
 import apiClient from '../../api/client';
 import StudentRichTextEditor, { MathPreview } from '../../components/questions/StudentRichTextEditor';
 import BackLinkButton from '../../components/common/BackLinkButton';
+import AnonymousSessionNotice from '../../components/common/AnonymousSessionNotice';
 import SessionChatPanel from '../../components/live/SessionChatPanel';
 import LiveSessionPanelNavigation from '../../components/live/LiveSessionPanelNavigation';
 import WordCloudPanel from '../../components/questions/WordCloudPanel';
@@ -435,6 +436,8 @@ function LiveSessionContent() {
               {t('student.liveSession.enterPasscode')}
             </Typography>
 
+            {session.anonymous ? <AnonymousSessionNotice sx={{ textAlign: 'left' }} /> : null}
+
             {joinError && (
               <Alert severity="error" sx={{ mb: 2 }}>{joinError}</Alert>
             )}
@@ -696,6 +699,8 @@ function LiveSessionContent() {
           )}
         </Box>
       </Box>
+
+      {session.anonymous ? <AnonymousSessionNotice /> : null}
 
       {chatEnabled ? (
         <LiveSessionPanelNavigation

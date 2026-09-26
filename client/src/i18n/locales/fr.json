@@ -867,7 +867,8 @@
       "courseActiveHelp": "Lorsque le cours est actif, les étudiants peuvent y accéder.",
       "aiRequiresAdminAuthorization": "Autorisation administrateur requise",
       "aiHelperHelp": "Activez un assistant IA pour aider à la notation, générer des questions et gérer les séances et les étudiants.",
-      "enrollmentCodeHelp": "C’est le code dont les étudiants ont besoin pour s’inscrire au cours."
+      "enrollmentCodeHelp": "C’est le code dont les étudiants ont besoin pour s’inscrire au cours.",
+      "anonymousSession": "Anonyme"
     },
     "sessionEditor": {
       "sessionSettings": "Paramètres de la séance",
@@ -1000,7 +1001,12 @@
       "applyingTagsToQuestions": "Application des étiquettes…",
       "appliedSessionTagsToQuestions_one": "Les étiquettes de la séance ont été appliquées à 1 question.",
       "appliedSessionTagsToQuestions_other": "Les étiquettes de la séance ont été appliquées à {{count}} questions.",
-      "failedApplySessionTagsToQuestions": "Échec de l’application des étiquettes de la séance aux questions."
+      "failedApplySessionTagsToQuestions": "Échec de l’application des étiquettes de la séance aux questions.",
+      "anonymous": "Réponses anonymes",
+      "anonymousHelp": "Les enseignants voient les réponses mais pas qui les a données. Les étudiants se connectent toujours et ne peuvent répondre qu'une fois. Les sessions anonymes ne sont pas notées et n'apparaissent pas dans le carnet de notes.",
+      "anonymousEnabledNote": "Les réponses et la présence sont enregistrées sans l'identité des étudiants. Cette session ne sera pas notée.",
+      "anonymousNoExtensions": "Les prolongations individuelles ne sont pas disponibles pour les sessions anonymes.",
+      "anonymousLockedNote": "L'anonymat ne peut plus être modifié une fois que des étudiants ont rejoint la session ou répondu."
     },
     "liveSession": {
       "currentQuestion": "Question actuelle",
@@ -1115,7 +1121,8 @@
       "joinTimeUnavailable": "Heure de connexion indisponible",
       "ending": "Fin en cours…",
       "currentJoinCodeAria": "Code d'accès actuel : {{code}}",
-      "pageProgressAria": "Page {{current}} sur {{total}}"
+      "pageProgressAria": "Page {{current}} sur {{total}}",
+      "anonymousStudentsNote": "Cette session est anonyme : les noms des étudiants qui l'ont rejointe ne sont pas affichés."
     },
     "sessionReview": {
       "questions": "Questions",
@@ -1191,7 +1198,24 @@
       "haltingAiResponseSummary": "Arrêt en cours…",
       "aiSummaryHalted": "Résumé IA arrêté. Vous pouvez le générer de nouveau.",
       "aiSummaryFailed": "Échec du résumé IA. {{error}}",
-      "aiSummaryHaltFailed": "Impossible d’arrêter le résumé IA."
+      "aiSummaryHaltFailed": "Impossible d’arrêter le résumé IA.",
+      "respondentLabel": "Répondant {{number}}",
+      "respondent": "Répondant",
+      "respondents": "Répondants",
+      "searchRespondents": "Rechercher des répondants",
+      "anonymousSessionNotice": "Cette session est anonyme. Les répondants sont affichés avec des libellés génériques et la session n'est pas notée.",
+      "anonymousResponsesWithheld": "Les lignes des répondants restent masquées jusqu’à ce qu’au moins {{minimum}} personnes aient répondu à chaque question et tentative ayant des réponses.",
+      "anonymousSmallGroupWarning_one": "Seulement {{count}} étudiant a répondu : ses réponses pourraient être faciles à attribuer.",
+      "anonymousSmallGroupWarning_other": "Seulement {{count}} étudiants ont répondu : leurs réponses pourraient être faciles à attribuer.",
+      "responsesByQuestion": "Réponses par question",
+      "anonymousResponsesHelp": "Les réponses sont affichées sans nom. Les sessions anonymes n'ont ni notes ni commentaires.",
+      "selectQuestion": "Question",
+      "questionNumberLabel": "Question {{number}}",
+      "filterAnswers": "Filtrer les réponses",
+      "noAnswersMatch": "Aucune réponse ne correspond au filtre.",
+      "anonymousResponsesTable": "Réponses anonymes",
+      "response": "Réponse",
+      "correctColumn": "Correcte"
     },
     "secondDesktop": {
       "joinCode": "Code d'inscription",
@@ -2244,7 +2268,8 @@
             "Les quiz sont des fenêtres planifiées pendant lesquelles les étudiants répondent à leur rythme. Utilisez les heures de début, de fin et les prolongations pour les accommodements. Les menus de statut du cours et de l’éditeur contrôlent le même réglage. Choisir En direct ouvre le quiz indépendamment des dates et laisse l’éditeur ouvert, avec un lien vers les résultats en direct. Choisissez le statut basé sur les dates pour suivre le calendrier, ou Terminée pour fermer l’accès général tout en conservant les prolongations individuelles.",
             "Les quiz de pratique conviennent bien à l'étude personnelle ou au renforcement facultatif.",
             "Si une séance dépend des codes d'accès, des groupes ou des statistiques visibles, confirmez ces réglages avant que les étudiants commencent à se joindre.",
-            "Les listes de séances gardent la recherche, les filtres et la pagination dans Rechercher des séances. Lorsqu'une séance interactive est en direct, l'ouverture de sa carte rejoint directement les contrôles en direct; les cartes de quiz en direct ouvrent encore l'éditeur."
+            "Les listes de séances gardent la recherche, les filtres et la pagination dans Rechercher des séances. Lorsqu'une séance interactive est en direct, l'ouverture de sa carte rejoint directement les contrôles en direct; les cartes de quiz en direct ouvrent encore l'éditeur.",
+            "Activez Réponses anonymes dans l'éditeur de session pour les sondages et les évaluations de cours. Les étudiants se connectent toujours et répondent une seule fois à chaque question, mais vous voyez les réponses sous des libellés comme Répondant 1 plutôt que des noms, la vue en direct n'indique que le nombre d'étudiants présents, et la session n'est jamais notée ni ajoutée au carnet de notes. Le réglage est verrouillé dès qu'une personne rejoint la session ou répond, et les très petits groupes restent identifiables par élimination. Les lignes des répondants ne s’affichent qu’après la fin de l’activité et lorsque quatre personnes au moins ont répondu à chaque question et tentative ayant des réponses; une réponse unique ou révélatrice peut encore identifier quelqu’un."
           ]
         },
         {
@@ -2349,7 +2374,8 @@
             "Des diapositives peuvent apparaître entre les questions. Ce sont des pages de contenu; lisez-les attentivement avant de continuer.",
             "Si votre enseignant révèle les statistiques d'un nuage de mots ou d'un histogramme, la vue devrait se mettre à jour automatiquement sans rechargement.",
             "Pour les questions à réponse courte, la liste partagée des réponses peut être affichée ou masquée séparément du nuage de mots; vous pouvez donc voir l'un sans l'autre.",
-            "Faire défiler la page au-dessus d’une réponse numérique ne modifie pas sa valeur et retire le focus du champ pour permettre le défilement. Cliquez dans le champ ou utilisez la touche Tab pour continuer à modifier la réponse."
+            "Faire défiler la page au-dessus d’une réponse numérique ne modifie pas sa valeur et retire le focus du champ pour permettre le défilement. Cliquez dans le champ ou utilisez la touche Tab pour continuer à modifier la réponse.",
+            "Le libellé Anonyme signifie que votre enseignant voit vos réponses sans votre nom. Vous devez toujours vous connecter et ne pouvez répondre qu'une fois à chaque question, vous pourrez revoir vos propres réponses plus tard, et la session n'est pas notée."
           ]
         },
         {
@@ -2664,5 +2690,9 @@
       "downloadArtifact": "Télécharger {{filename}}",
       "artifactUnavailable": "Cet artefact a expiré ou n’est plus disponible. Demandez à l’IA de le générer à nouveau."
     }
+  },
+  "sessionAnonymity": {
+    "chip": "Anonyme",
+    "studentNotice": "Cette session est anonyme. Vous devez toujours vous connecter et ne pouvez répondre qu'une fois à chaque question, mais votre enseignant ne peut pas voir quelles réponses sont les vôtres. Les sessions anonymes ne sont pas notées."
   }
 }

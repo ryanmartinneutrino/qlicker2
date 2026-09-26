@@ -867,7 +867,8 @@
       "courseActiveHelp": "课程处于激活状态时，学生可以访问它。",
       "aiRequiresAdminAuthorization": "需要管理员授权",
       "aiHelperHelp": "启用 AI 助手以协助评分、生成题目以及管理课堂和学生。",
-      "enrollmentCodeHelp": "这是学生注册该课程所需的代码。"
+      "enrollmentCodeHelp": "这是学生注册该课程所需的代码。",
+      "anonymousSession": "匿名"
     },
     "sessionEditor": {
       "sessionSettings": "环节设置",
@@ -1000,7 +1001,12 @@
       "applyingTagsToQuestions": "正在应用标签…",
       "appliedSessionTagsToQuestions_one": "已将环节标签应用到 1 道题目。",
       "appliedSessionTagsToQuestions_other": "已将环节标签应用到 {{count}} 道题目。",
-      "failedApplySessionTagsToQuestions": "将环节标签应用到题目失败。"
+      "failedApplySessionTagsToQuestions": "将环节标签应用到题目失败。",
+      "anonymous": "匿名作答",
+      "anonymousHelp": "教师可以看到作答内容，但看不到作答者。学生仍需登录且只能作答一次。匿名环节不计分，也不会出现在成绩册中。",
+      "anonymousEnabledNote": "作答和出勤记录均不保存学生身份。本环节不会计分。",
+      "anonymousNoExtensions": "匿名活动不支持个人测验延期。",
+      "anonymousLockedNote": "学生加入或作答后，无法再更改匿名设置。"
     },
     "liveSession": {
       "currentQuestion": "当前题目",
@@ -1115,7 +1121,8 @@
       "joinTimeUnavailable": "加入时间不可用",
       "ending": "正在结束…",
       "currentJoinCodeAria": "当前加入码：{{code}}",
-      "pageProgressAria": "第 {{current}}/{{total}} 页"
+      "pageProgressAria": "第 {{current}}/{{total}} 页",
+      "anonymousStudentsNote": "本环节为匿名环节，因此不显示已加入学生的姓名。"
     },
     "sessionReview": {
       "questions": "题目",
@@ -1191,7 +1198,24 @@
       "haltingAiResponseSummary": "正在停止…",
       "aiSummaryHalted": "AI 摘要已停止。您可以重新生成。",
       "aiSummaryFailed": "AI 摘要生成失败。{{error}}",
-      "aiSummaryHaltFailed": "无法停止 AI 摘要。"
+      "aiSummaryHaltFailed": "无法停止 AI 摘要。",
+      "respondentLabel": "作答者 {{number}}",
+      "respondent": "作答者",
+      "respondents": "作答者人数",
+      "searchRespondents": "搜索作答者",
+      "anonymousSessionNotice": "本环节为匿名环节。作答者以通用标签显示，且本环节不计分。",
+      "anonymousResponsesWithheld": "每个已有回答的问题和作答轮次都至少有 {{minimum}} 人回答后，才会显示答题者记录。",
+      "anonymousSmallGroupWarning_one": "只有 {{count}} 名学生作答，其作答可能容易被识别。",
+      "anonymousSmallGroupWarning_other": "只有 {{count}} 名学生作答，其作答可能容易被识别。",
+      "responsesByQuestion": "按题查看作答",
+      "anonymousResponsesHelp": "作答不显示姓名。匿名环节没有分数和反馈。",
+      "selectQuestion": "题目",
+      "questionNumberLabel": "第 {{number}} 题",
+      "filterAnswers": "筛选作答",
+      "noAnswersMatch": "没有符合筛选条件的作答。",
+      "anonymousResponsesTable": "匿名作答",
+      "response": "作答",
+      "correctColumn": "正确"
     },
     "secondDesktop": {
       "joinCode": "加入码",
@@ -2244,7 +2268,8 @@
             "测验是学生按自己的时间安排作答的计划时间窗口。使用开始和结束时间以及延期功能来支持特殊安排。 课程页面和编辑器中的状态菜单控制同一设置。选择“直播中”会立即开放测验，不受日期限制，并保留编辑器页面，可通过链接查看实时结果。选择按日期控制的状态可遵循时间安排；选择“已结束”会关闭一般访问，但保留个人延期权限。",
             "练习测验更像是有引导的演练，非常适合自学或选择性巩固练习。",
             "如果环节依赖口令、分组或可见的统计数据，请在学生开始加入之前确认这些设置。",
-            "环节列表将搜索、筛选和分页功能收纳在“搜索环节”区域内。互动环节直播期间，点击其卡片会直接进入直播控制界面；直播中的测验卡片仍会打开编辑器。"
+            "环节列表将搜索、筛选和分页功能收纳在“搜索环节”区域内。互动环节直播期间，点击其卡片会直接进入直播控制界面；直播中的测验卡片仍会打开编辑器。",
+            "在环节编辑器中开启“匿名作答”，适用于问卷和课程反馈。学生仍需登录且每道题只能作答一次，但你看到的作答以“作答者 1”等标签代替姓名，实时视图只显示加入人数，且该环节不会计分，也不会加入成绩册。一旦有人加入或作答，该设置即被锁定；人数很少的小组仍可能通过排除法被识别。 仅在环节结束且每个已有回答的问题和作答轮次均至少有四人回答后，才会显示答题者记录；独特或自我识别的回答仍可能暴露身份。"
           ]
         },
         {
@@ -2349,7 +2374,8 @@
             "幻灯片可能出现在题目之间。它们是内容页面，因此在继续之前请仔细阅读。",
             "如果您的教师为词云或直方图展示统计数据，视图应该会自动更新，无需刷新。",
             "对于简答题，共享作答列表可以与词云分开显示或隐藏，因此您可能只看到其中一个而看不到另一个。",
-            "在数值答案输入框上滚动时，答案不会改变，输入框会失去焦点，以便页面正常滚动。点击输入框或使用 Tab 键返回输入框，即可继续编辑。"
+            "在数值答案输入框上滚动时，答案不会改变，输入框会失去焦点，以便页面正常滚动。点击输入框或使用 Tab 键返回输入框，即可继续编辑。",
+            "“匿名”标签表示教师看到的是不带你姓名的作答。你仍需登录且每道题只能作答一次，之后可以查看自己的作答，且该环节不计分。"
           ]
         },
         {
@@ -2667,5 +2693,9 @@
       "downloadArtifact": "下载 {{filename}}",
       "artifactUnavailable": "此文件已过期或不再可用。请让 AI 重新生成。"
     }
+  },
+  "sessionAnonymity": {
+    "chip": "匿名",
+    "studentNotice": "本环节为匿名环节。你仍需登录，且每道题只能作答一次，但教师无法看到哪些作答是你的。匿名环节不计分。"
   }
 }

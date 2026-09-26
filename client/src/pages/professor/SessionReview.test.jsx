@@ -345,6 +345,118 @@ describe('SessionReview', () => {
     expect(csvExport.csvContent).toContain(',B,4');
   });
 
+  it('builds anonymous CSV rows without identity, grade, or join columns', () => {
+    const csvExport = buildSessionResultsCsv({
+      anonymous: true,
+      csvQuestionAttempts: [
+        {
+          question: {
+            _id: 'q-1',
+            type: 0,
+            options: [
+              { answer: 'A', plainText: 'A', correct: false },
+              { answer: 'B', plainText: 'B', correct: true },
+            ],
+          },
+          questionNumber: 1,
+          attempts: [1],
+        },
+      ],
+      gradesByStudentId: {},
+      sessionName: 'Course survey',
+      studentResults: [
+        {
+          studentId: 'respondent-1',
+          firstname: 'Respondent 1',
+          lastname: '',
+          email: '',
+          participation: 100,
+          questionResults: [{ questionId: 'q-1', responses: [{ attempt: 1, answer: '1' }] }],
+        },
+      ],
+      visibleStudents: [{ studentId: 'respondent-1', percentCorrectValue: 100 }],
+      t: i18n.t.bind(i18n),
+    });
+
+    const [header, row] = csvExport.csvContent.split('\n');
+    expect(header).toBe('Respondent,Participation,Percent Correct,Q1 Response,Q1 Points');
+    expect(row).toBe('Respondent 1,100%,100%,B,');
+  });
+
+  it('explains when anonymous rows are withheld below the respondent threshold', async () => {
+    const defaultGet = apiClient.get.getMockImplementation();
+    apiClient.get.mockImplementation(async (url) => {
+      if (url === '/sessions/session-1/results') {
+        return { data: {
+          ...buildResultsPayload({ anonymous: true }),
+          studentResults: [],
+          anonymousSummary: {
+            respondentCount: 2, joinedCount: 2, enrolledCount: 10,
+            responsesWithheld: true, minimumRespondents: 4,
+          },
+        } };
+      }
+      return defaultGet(url);
+    });
+
+    renderSessionReview();
+    expect(await screen.findByText(/Respondent rows are hidden until at least 4 people/)).toBeInTheDocument();
+    expect(screen.getByText('Respondents')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: /response data/i }));
+    expect(screen.queryByRole('table', { name: /student results/i })).not.toBeInTheDocument();
+  });
+
+  it('shows anonymous results with respondent labels and a read-only responses tab', async () => {
+    const defaultGet = apiClient.get.getMockImplementation();
+    apiClient.get.mockImplementation(async (url) => {
+      if (url === '/sessions/session-1/results') {
+        const payload = buildResultsPayload({ anonymous: true, joinedCount: 3 });
+        payload.studentResults = payload.studentResults.map((student, index) => ({
+          ...student,
+          studentId: `respondent-${index + 1}`,
+          anonymousIndex: index + 1,
+          firstname: '',
+          lastname: '',
+          email: '',
+          profileImage: '',
+          profileThumbnail: '',
+          joinedAt: null,
+          inSession: true,
+        }));
+        payload.anonymousSummary = { respondentCount: 2, joinedCount: 3, enrolledCount: 10 };
+        return { data: payload };
+      }
+      return defaultGet(url);
+    });
+
+    renderSessionReview();
+
+    expect(await screen.findByText(/This session is anonymous/)).toBeInTheDocument();
+    expect(screen.getByText('Respondents')).toBeInTheDocument();
+    expect(screen.getByText('3/10')).toBeInTheDocument();
+    expect(apiClient.get).not.toHaveBeenCalledWith('/sessions/session-1/grades');
+    expect(screen.queryByRole('tab', { name: /grading/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: /response data/i }));
+    const resultsTable = await screen.findByRole('table', { name: /student results/i });
+    expect(within(resultsTable).getByText('Respondent 1')).toBeInTheDocument();
+    expect(within(resultsTable).getByText('Respondent 2')).toBeInTheDocument();
+    expect(within(resultsTable).queryByText('Grade')).not.toBeInTheDocument();
+    expect(within(resultsTable).queryByText('In Session')).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/search respondents/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: /responses by question/i }));
+    const responsesTable = await screen.findByRole('table', { name: /anonymous responses/i });
+    const rows = within(responsesTable).getAllByRole('row');
+    expect(rows).toHaveLength(3);
+    expect(within(rows[1]).getByText('Respondent 1')).toBeInTheDocument();
+    expect(within(rows[1]).getByText('B')).toBeInTheDocument();
+    expect(within(rows[1]).getByText('Yes')).toBeInTheDocument();
+    expect(within(rows[2]).getByText('A')).toBeInTheDocument();
+    expect(within(rows[2]).getByText('No')).toBeInTheDocument();
+    expect(screen.queryByText('Question navigator')).not.toBeInTheDocument();
+  });
+
   it('opens the student avatar image from the response data tab', async () => {
     renderSessionReview();
 

@@ -126,4 +126,26 @@ describe('Student SessionReview', () => {
     });
     expect(container.textContent).not.toContain('\\(');
   });
+
+  it('tells students when a reviewed session was anonymous', async () => {
+    const defaultGet = apiClient.get.getMockImplementation();
+    apiClient.get.mockImplementation(async (url) => {
+      const response = await defaultGet(url);
+      if (url === '/sessions/session-1/review') {
+        response.data.session = { ...response.data.session, anonymous: true, practiceQuiz: false, studentCreated: false };
+        response.data.grade = null;
+      }
+      return response;
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/student/course/course-1/session/session-1/review']}>
+        <Routes>
+          <Route path="/student/course/:courseId/session/:sessionId/review" element={<SessionReview />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText(/your instructor cannot see which responses are yours/i)).toBeInTheDocument();
+  });
 });

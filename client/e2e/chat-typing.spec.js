@@ -85,8 +85,12 @@ test('course and live-session chat stay responsive while typing', async ({ page,
   await page.getByRole('tab', { name: 'Chat' }).click();
 
   const sessionEditor = page.getByRole('textbox', { name: 'Session chat post editor' });
+  const writePostButton = page.getByRole('button', { name: 'Write a post' });
+  // The chat panel may open with the composer already expanded; wait for the
+  // panel to render before deciding whether the composer needs opening.
+  await expect(sessionEditor.or(writePostButton)).toBeVisible();
   if (!(await sessionEditor.isVisible())) {
-    await page.getByRole('button', { name: 'Write a post' }).click();
+    await writePostButton.click();
   }
   const sessionMessage = 'Session chat remains smooth.';
   await typeAtHumanCadence(sessionEditor, sessionMessage);

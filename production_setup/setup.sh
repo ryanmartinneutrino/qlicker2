@@ -49,6 +49,19 @@ choose_token_value() {
   printf -v "$output_var" '%s' "$selected"
 }
 
+# Settings that setup does not prompt for are carried over from an existing
+# production .env so re-running setup cannot silently reset them. Values
+# sourced from a development .env are not trusted for these; the documented
+# production default is used instead.
+keep_production_value() {
+  local name="$1" default_value="$2"
+  if [ "$LOADED_FROM" = "$ENV_FILE" ] && [[ -v $name ]]; then
+    printf -v "$name" '%s' "${!name}"
+  else
+    printf -v "$name" '%s' "$default_value"
+  fi
+}
+
 is_truthy() {
   case "$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]')" in
     1|y|yes|true|on) return 0 ;;
@@ -598,8 +611,18 @@ fi
 # ---- JWT Secrets ------------------------------------------------------------
 echo ""
 echo "--- JWT Secrets ---"
+keep_production_value ANONYMOUS_SESSION_SECRET ""
+PREVIOUS_JWT_SECRET="${JWT_SECRET:-}"
 choose_token_value "JWT_SECRET" "${JWT_SECRET:-}" JWT_SECRET
 choose_token_value "JWT_REFRESH_SECRET" "${JWT_REFRESH_SECRET:-}" JWT_REFRESH_SECRET
+# Anonymous-session pseudonyms are keyed by JWT_SECRET unless
+# ANONYMOUS_SESSION_SECRET is set. Pin the previous key when rotating so
+# students stay linked to their existing anonymous responses.
+if [ "$LOADED_FROM" = "$ENV_FILE" ] && [ -n "$PREVIOUS_JWT_SECRET" ] \
+  && [ "$JWT_SECRET" != "$PREVIOUS_JWT_SECRET" ] && [ -z "$ANONYMOUS_SESSION_SECRET" ]; then
+  ANONYMOUS_SESSION_SECRET="$PREVIOUS_JWT_SECRET"
+  info "Set ANONYMOUS_SESSION_SECRET to the previous JWT_SECRET so anonymous sessions keep working."
+fi
 
 # ---- Email ------------------------------------------------------------------
 echo ""
@@ -669,6 +692,20 @@ TZ="${TZ:-UTC}"
 info "Ensuring backup directory exists with writable permissions..."
 ensure_backup_directory_permissions "$BACKUP_HOST_PATH"
 
+# ---- Advanced settings (not prompted) ---------------------------------------
+keep_production_value TLS_RELOAD_CHECK_SECONDS 60
+keep_production_value TRUST_PROXY "loopback,linklocal,uniquelocal"
+keep_production_value DISABLE_RATE_LIMITS false
+keep_production_value AI_BACKEND_ALLOW_PRIVATE_HOSTS true
+keep_production_value AI_BACKEND_ALLOWED_PRIVATE_HOSTS ""
+keep_production_value AI_BACKEND_REQUEST_TIMEOUT_MS 300000
+keep_production_value SYSTEM_MONITOR_SAMPLE_INTERVAL_SECONDS 60
+keep_production_value SYSTEM_MONITOR_ACTIVE_WINDOW_MINUTES 15
+keep_production_value SYSTEM_MONITOR_NETWORK_INTERFACES ""
+if is_truthy "$DISABLE_RATE_LIMITS"; then
+  warn "DISABLE_RATE_LIMITS is true (usually left by load testing). Set it to false in .env for normal use."
+fi
+
 # ---- Write .env file --------------------------------------------------------
 echo ""
 info "Writing .env file..."
@@ -685,6 +722,7 @@ DOMAIN=$DOMAIN
 TLS_CERT_PATH=$TLS_CERT_PATH
 TLS_KEY_PATH=$TLS_KEY_PATH
 CERTBOT_AUTORENEW=$CERTBOT_AUTORENEW
+TLS_RELOAD_CHECK_SECONDS=$TLS_RELOAD_CHECK_SECONDS
 
 # Images
 SERVER_IMAGE=$SERVER_IMAGE
@@ -697,6 +735,8 @@ SERVER_REPLICAS=$SERVER_REPLICAS
 # Secrets
 JWT_SECRET=$JWT_SECRET
 JWT_REFRESH_SECRET=$JWT_REFRESH_SECRET
+# Optional key for anonymous-session pseudonyms; empty means JWT_SECRET.
+ANONYMOUS_SESSION_SECRET=$ANONYMOUS_SESSION_SECRET
 
 # Database
 MONGO_INITDB_ROOT_USERNAME=$MONGO_INITDB_ROOT_USERNAME
@@ -725,6 +765,20 @@ ENABLE_API_DOCS=${ENABLE_API_DOCS:-false}
 BACKUP_HOST_PATH=$BACKUP_HOST_PATH
 BACKUP_CHECK_INTERVAL_SECONDS=$BACKUP_CHECK_INTERVAL_SECONDS
 TZ=$TZ
+
+# Reverse proxy and rate limiting
+TRUST_PROXY=$TRUST_PROXY
+DISABLE_RATE_LIMITS=$DISABLE_RATE_LIMITS
+
+# AI backends
+AI_BACKEND_ALLOW_PRIVATE_HOSTS=$AI_BACKEND_ALLOW_PRIVATE_HOSTS
+AI_BACKEND_ALLOWED_PRIVATE_HOSTS=$AI_BACKEND_ALLOWED_PRIVATE_HOSTS
+AI_BACKEND_REQUEST_TIMEOUT_MS=$AI_BACKEND_REQUEST_TIMEOUT_MS
+
+# Host system monitor
+SYSTEM_MONITOR_SAMPLE_INTERVAL_SECONDS=$SYSTEM_MONITOR_SAMPLE_INTERVAL_SECONDS
+SYSTEM_MONITOR_ACTIVE_WINDOW_MINUTES=$SYSTEM_MONITOR_ACTIVE_WINDOW_MINUTES
+SYSTEM_MONITOR_NETWORK_INTERFACES=$SYSTEM_MONITOR_NETWORK_INTERFACES
 EOF
 umask "$ORIGINAL_UMASK"
 chmod 600 "$ENV_FILE" 2>/dev/null || warn "Could not restrict $ENV_FILE to mode 600."

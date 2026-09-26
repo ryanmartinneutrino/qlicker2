@@ -54,6 +54,21 @@ Key concerns:
 - quiz windows and extensions
 - submission and participation tracking
 - join-code lifecycle, chat settings, and multi-select scoring policy
+- anonymity (`anonymous`), which changes how participation is stored
+
+### Anonymous sessions
+
+`anonymous: true` (absent or `false` on existing documents) marks a quiz or interactive session whose stored responses have no direct instructor-visible account identity. Practice and student-created sessions cannot be anonymous. Individual quiz extensions are unavailable because a named access window could identify an answer. The helper `server/src/utils/anonymousSession.js` owns the rules:
+
+- The participant id is `anon_` plus a truncated HMAC-SHA256 of the session id and user id. The key is `ANONYMOUS_SESSION_SECRET`, or `JWT_SECRET` when that is unset. It is stored in `Response.studentUserId`, `Session.joined`, and `Session.submittedQuiz` in place of the user id. The server recomputes it for the signed-in student to find their own responses, enforce one answer per question and attempt, and prevent resubmission. The database alone cannot map it back to a user.
+- No `joinRecords` are written, and `Response.submittedIpAddress` is empty. Anonymous answers and answer timestamps are not cached in the instructor-readable Question document. Exact response times remain in the Response collection for internal ordering, but are omitted from instructor-facing payloads.
+- Live events for joined students are routed by recomputing pseudonyms for the course roster in memory (`resolveSessionParticipantUserIds`); the mapping is never persisted or sent to clients.
+- Instructor payloads replace `joined`, `joinRecords`, and `submittedQuiz` with `joinedCount` and `submittedCount`. Live views and events show counts without individual answer content; final results and AI response tools become available after the session ends. Results keep one `respondent-N` row across questions and attempts, ordered by pseudonym, with no answer timestamps. Student names are not attached to responses, chat posts, or AI tool output.
+- Instructor answer rows are held until the session ends and at least four distinct respondents have answered each question and attempt that has responses. The release check applies to the results API, AI question-response tool, and word-cloud/histogram generation. It leaves the required stable respondent row across questions intact once released.
+- Grades are never created. Anonymous sessions are excluded from the course gradebook, grade edits return `409`, and AI grading is refused.
+- `anonymous` can change only before anyone joins, submits, or responds. A monotonic `Session.participationStarted` marker is claimed before joining or writing an answer; an atomic session update prevents a concurrent mode change. Legacy `joined`, `joinRecords`, `submittedQuiz`, response, and response-tracking fields are also checked. Quiz versus interactive mode is locked after participation in anonymous sessions. Enabling anonymity deletes existing grade rows for the session, which exist only if it had ended with no participation.
+
+Rotating the key used by active anonymous sessions detaches students from their earlier responses: they could answer again, and their own review would appear empty. Set `ANONYMOUS_SESSION_SECRET` to the previous key value before rotating `JWT_SECRET`; `production_setup/setup.sh` does this automatically when it regenerates the secret. A server operator who holds the key and the course roster can recompute the mapping. The design removes direct account linkage from instructor payloads. Correlation across questions is intentional; a unique or self-identifying answer, a small respondent group, or an instructor who controls who can answer may still allow inference. The server operator can recompute pseudonyms using the key and roster.
 
 ### Session status and quiz access
 
@@ -89,7 +104,7 @@ Represents a student's response to a question.
 
 Key concerns:
 
-- who answered
+- who answered (`studentUserId`, a user id or, in anonymous sessions, a per-session pseudonym)
 - which question and session the response belongs to
 - answer data structure by question type
 - attempt handling

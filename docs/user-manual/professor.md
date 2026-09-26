@@ -12,6 +12,7 @@ If this is your first visit, read [Getting started](getting-started.md) first.
 4. [Create and manage groups](#4-create-and-manage-groups)
 5. [Build a reusable question library](#5-build-a-reusable-question-library)
 6. [Create an interactive session](#6-create-an-interactive-session)
+   - [Anonymous surveys](#run-an-anonymous-survey)
 7. [Configure and deliver a quiz](#7-configure-and-deliver-a-quiz)
 8. [Run an interactive class](#8-run-an-interactive-class)
    - [Join codes and attendance](#use-a-join-code-to-control-attendance)
@@ -220,9 +221,28 @@ Use **Set all question points** only after considering ungraded slides and delib
 - **Reviewable** controls whether students can later see review/grades; it is not the same as ending the session.
 - **Join code/passcode** and refresh interval provide controlled entry for live activities.
 - **Multi-select scoring** applies to multi-select questions in the session.
+- **Anonymous responses** hides who gave each answer. See [Run an anonymous survey](#run-an-anonymous-survey).
 - Session tags help organize and apply tags to questions.
 
 Do a student-view rehearsal before a high-stakes activity. Confirm the session appears on the intended tab and that solutions are not exposed early.
+
+### Run an anonymous survey
+
+Use **Anonymous responses** for course feedback, sensitive check-ins, or any interactive session or quiz where students should answer candidly.
+
+1. Create the session. If it is a quiz, configure the quiz window.
+2. In the session editor, turn on **Anonymous responses**. The session card then shows **Anonymous**.
+3. Add questions and run or publish the session as usual.
+
+What changes:
+
+- Students still sign in and can answer each question (or each attempt) only once. A quiz can still be submitted only once. Students see a notice that the session is anonymous and can review their own answers later.
+- During an anonymous live activity, the instructor view shows response counts without individual answers. After the activity ends, review shows answer rows only when at least four people have answered every question and attempt that has responses. Otherwise it shows a count and explains that rows are withheld. The joined-student list, manual admission, and individual quiz extensions are unavailable. Share the live join code if one is required.
+- After the session ends, review shows respondents as **Respondent 1**, **Respondent 2**, and so on, with one row per respondent across questions but without join times or grades. The CSV export uses the same labels. The **Responses by question** tab replaces grading with a read-only list of each respondent's answer and whether it was correct.
+- The session is never graded and does not appear in the course gradebook. AI grading is unavailable, and session chat does not show authors' names.
+- The setting locks once anyone joins, saves an answer, or submits. Anonymous quiz/interactive mode also locks after participation. Remove any individual quiz extensions before enabling anonymity.
+
+Linked rows are needed to correlate survey answers, but a unique or self-identifying answer can expose the rest of that respondent's row. The four-person minimum reduces direct identification by elimination, but does not prevent inference from unique answers or knowledge of who participated. Label numbers do not follow answer order or names.
 
 ## 7. Configure and deliver a quiz
 
@@ -295,6 +315,8 @@ Use this workflow for attendance-controlled interactive sessions: show the code 
 ![Professor Students panel with waiting students, name or email filter, and Admit button](../assets/manuals/professor-session-admission.png)
 
 **Waiting to join** lists enrolled students who have not joined; it is not evidence that they are currently online or actively requesting admission. If a student is missing, check their course enrollment and your filter.
+
+Anonymous sessions have no **Waiting to join** list or manual admission, because admitting someone would show whether they had already joined. Give late students the current code instead.
 
 ### Leaving and rejoining does not require another code
 
@@ -488,6 +510,8 @@ Open the course **Grades** tab, choose **Show Grade Table**, select sessions, an
 6. Confirm the overall percentage and point totals.
 7. Enable reviewability/grade visibility when release is intended.
 8. Export CSV for your external gradebook and inspect the file before importing it elsewhere.
+
+Anonymous sessions have no grades. Once at least four people have answered each answered question and attempt, their review shows respondent labels and a **Responses by question** tab instead of **Grading**. Before then, individual rows are withheld. Anonymous sessions have no gradebook column. See [Run an anonymous survey](#run-an-anonymous-survey).
 
 Changing a question's point value from review triggers a full session recalculation after confirmation. Existing manual marks remain preserved. For the detailed calculation and visibility rules, use the [Grading guide](grading.md).
 

@@ -859,7 +859,8 @@
       "courseActiveHelp": "When th’ course be active, crew can access it.",
       "aiRequiresAdminAuthorization": "Needs the admiral’s authorization",
       "aiHelperHelp": "Enable an AI matey to help grade, make questions, and manage sessions and students.",
-      "enrollmentCodeHelp": "This be the code crew need to enroll in the course."
+      "enrollmentCodeHelp": "This be the code crew need to enroll in the course.",
+      "anonymousSession": "Masked"
     },
     "sessionEditor": {
       "sessionSettings": "Voyage Rigging",
@@ -992,7 +993,12 @@
       "applyingTagsToQuestions": "Applyin' labels…",
       "appliedSessionTagsToQuestions_one": "Applied th' voyage labels to 1 riddle.",
       "appliedSessionTagsToQuestions_other": "Applied th' voyage labels to {{count}} riddles.",
-      "failedApplySessionTagsToQuestions": "Couldn't apply th' voyage labels to th' riddles, arr."
+      "failedApplySessionTagsToQuestions": "Couldn't apply th' voyage labels to th' riddles, arr.",
+      "anonymous": "Masked replies",
+      "anonymousHelp": "Captains see the replies but not who gave 'em. Crew still sign aboard an' can answer but once. Masked voyages earn no plunder an' stay out o' the plunder ledger.",
+      "anonymousEnabledNote": "Replies an' musters be stowed without the crew's names. This voyage won't be scored.",
+      "anonymousNoExtensions": "No one-on-one quiz extensions fer anonymous sessions.",
+      "anonymousLockedNote": "The mask can't be changed once crew have boarded or replied."
     },
     "liveSession": {
       "currentQuestion": "Current riddle",
@@ -1107,7 +1113,8 @@
       "joinTimeUnavailable": "Board time out o' reach",
       "ending": "Dockin'…",
       "currentJoinCodeAria": "Current board code: {{code}}",
-      "pageProgressAria": "Page {{current}} o' {{total}}"
+      "pageProgressAria": "Page {{current}} o' {{total}}",
+      "anonymousStudentsNote": "This voyage be masked, so the names o' crew who boarded be hidden."
     },
     "sessionReview": {
       "questions": "Riddles",
@@ -1183,7 +1190,24 @@
       "haltingAiResponseSummary": "Heavin' to…",
       "aiSummaryHalted": "AI summary be halted. Ye can make it anew.",
       "aiSummaryFailed": "AI summary sank. {{error}}",
-      "aiSummaryHaltFailed": "Could not halt the AI summary."
+      "aiSummaryHaltFailed": "Could not halt the AI summary.",
+      "respondentLabel": "Deckhand {{number}}",
+      "respondent": "Deckhand",
+      "respondents": "Deckhands",
+      "searchRespondents": "Search deckhands",
+      "anonymousSessionNotice": "This voyage be masked. Deckhands be shown with plain labels, an' the voyage earns no plunder.",
+      "anonymousResponsesWithheld": "Respondent rows stay hidden till at least {{minimum}} sailors answer each question and attempt with replies.",
+      "anonymousSmallGroupWarning_one": "Only {{count}} sailor replied, so their answers may be easy to trace.",
+      "anonymousSmallGroupWarning_other": "Only {{count}} sailors replied, so their answers may be easy to trace.",
+      "responsesByQuestion": "Replies by question",
+      "anonymousResponsesHelp": "Replies be shown without names. Masked voyages have no marks nor feedback.",
+      "selectQuestion": "Question",
+      "questionNumberLabel": "Question {{number}}",
+      "filterAnswers": "Filter replies",
+      "noAnswersMatch": "No replies match yer filter.",
+      "anonymousResponsesTable": "Masked replies",
+      "response": "Reply",
+      "correctColumn": "Right"
     },
     "secondDesktop": {
       "joinCode": "Board Code",
@@ -2236,7 +2260,8 @@
             "Reckonings be scheduled windows where crew answer on their own timeline. Use start an' end times plus extensions fer accommodation workflows. Th’ course an’ editor status menus steer th’ same setting. Choose Underway to open th’ quiz regardless o’ dates an’ stay in th’ editor, with a link to live results. Choose date-controlled status to follow th’ schedule, or Docked to close general access while keepin’ individual extensions afloat.",
             "Drill reckonings feel more like guided rehearsal an' be well suited fer self-study or optional reinforcement.",
             "If a voyage depends on secret codes, watches, or in plain sight statistics, confirm those rigging afore crew begin joinin'.",
-            "Voyage lists keep hunt, filters, an' pagination inside Hunt voyages. While an interactive voyage be underway, openin' its card joins th' underway controls directly; underway reckoning cards still open th' editor."
+            "Voyage lists keep hunt, filters, an' pagination inside Hunt voyages. While an interactive voyage be underway, openin' its card joins th' underway controls directly; underway reckoning cards still open th' editor.",
+            "Hoist Masked replies in the voyage editor fer surveys an' course feedback. Crew still sign aboard an' answer each question but once, yet ye see replies under labels like Deckhand 1 instead o' names, the live deck shows only how many boarded, an' the voyage never earns plunder nor lands in the plunder ledger. The settin' locks once anyone boards or replies, an' very small crews can still be found out by elimination. Respondent rows appear only after the voyage ends an' at least four sailors answer each question an' attempt with replies; a tellin' answer can still reveal a sailor."
           ]
         },
         {
@@ -2341,7 +2366,8 @@
             "Slides can appear between riddles. They're content pages, so read 'em carefully afore movin' on.",
             "If yer officer reveals statistics fer a word cloud or histogram, th' view should amend automatically without a freshen.",
             "Fer short-answer riddles, th' shared reply list can be revealed or stowed away separately from th' word cloud, so ye may see one without th' other.",
-            "Scroll o’er a numerical answer and its value stays put, matey. The input loses focus so the page can sail along. Click or tab back into the field to keep editing."
+            "Scroll o’er a numerical answer and its value stays put, matey. The input loses focus so the page can sail along. Click or tab back into the field to keep editing.",
+            "A Masked label means yer captain sees yer replies without yer name. Ye still sign aboard an' can answer each question but once, ye can review yer own replies later, an' the voyage earns no plunder."
           ]
         },
         {
@@ -2671,5 +2697,9 @@
       "downloadArtifact": "Download {{filename}}",
       "artifactUnavailable": "This artifact be expired or lost to the depths. Ask the AI to make it anew."
     }
+  },
+  "sessionAnonymity": {
+    "chip": "Masked",
+    "studentNotice": "This voyage be masked. Ye still sign aboard an' can answer each question but once, yet yer captain can't see which replies be yers. Masked voyages earn no plunder."
   }
 }

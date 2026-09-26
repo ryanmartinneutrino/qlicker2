@@ -52,6 +52,17 @@ Session payloads expose `quizHasActiveExtensions`, `activeExtensionsCount`, and 
 
 Publishing `reviewable: true` through `PATCH /sessions/:id`, `PATCH /sessions/:id/reviewable`, or `POST /sessions/:id/end` recalculates automatic grades, including existing grade rows, and preserves manual overrides. The grading summary reports outstanding manual grading.
 
+## Anonymous sessions
+
+`POST /api/v1/courses/:courseId/sessions` and `PATCH /api/v1/sessions/:id` accept `anonymous: boolean`. It returns `400` for practice sessions or when enabling anonymity with existing individual quiz extensions. A PATCH that changes anonymity or an anonymous session's quiz/interactive mode after participation returns `409`. The participation check and setting update are atomic. Session export, import, and copy keep the flag. Storage rules are described in the [data model](developer/data-model.md#anonymous-sessions).
+
+For anonymous sessions:
+
+- Instructor session payloads have `joinedCount` and `submittedCount` instead of `joined`, `joinRecords`, and `submittedQuiz`. `GET /sessions/:id/live` ignores `includeStudentNames` and `includeJoinedStudents`. The `session:participant-joined` event carries only `joinedCount` and `anonymous: true`. Anonymous live response events and snapshots carry counts without individual answers or exact answer times. The final results endpoint returns `409` until the anonymous session ends. Individual quiz extensions return `400` for anonymous quizzes. Word-cloud and histogram generation return `409` until the final anonymous answer rows are eligible for release.
+- `GET /sessions/:id/results` lists respondents only. Each row has `studentId: "respondent-N"`, `anonymousIndex`, and empty name, email, and photo fields. Response entries contain answer content without timestamps or IP addresses. The response adds `anonymousSummary: { respondentCount, joinedCount, enrolledCount }`. Until at least four distinct respondents have answered every question and attempt with responses, `studentResults` and `chatPosts` are empty and `anonymousSummary` includes `responsesWithheld: true` and `minimumRespondents: 4`. Chat posts have no author names.
+- `POST /sessions/:id/join/:studentId` (manual admission) returns `400`, because its result would show whether a named student had joined.
+- Students use the same quiz, live, and review endpoints; their own responses are found through the session pseudonym.
+
 ## Question copies and ordering
 
 `POST /questions/:id/copy-to-session` always creates a fresh question ID. `POST /sessions/:sessionId/questions` attaches a newly created question belonging to that session if it is not yet listed; otherwise it copies the source. Library insertion uses the explicit copy endpoint. Session copies and practice-question selection also create independent question documents. `PATCH /sessions/:sessionId/questions/order` rejects duplicate IDs and newly added references to questions belonging outside the session with HTTP 400.
@@ -131,6 +142,6 @@ For authentication, SSO, uploads, AI URL policy, grading, or WebSocket changes, 
 
 ## Grading readiness
 
-`GET /api/v1/sessions/:id/grades` reads existing grades without creating missing rows. Instructor responses include `gradingLockReason`: `not-ended`, `extensions`, `missing-grades`, or `null`. Active and upcoming extensions prevent grading even when the stored session status is `done`.
+`GET /api/v1/sessions/:id/grades` reads existing grades without creating missing rows. Instructor responses include `gradingLockReason`: `not-ended`, `extensions`, `missing-grades`, `anonymous`, or `null`. Anonymous sessions always return `anonymous: true` with no grades, reject grade edits, recalculation, and AI grading with `409`, and are excluded from `GET /courses/:courseId/grades`. Active and upcoming extensions prevent grading even when the stored session status is `done`.
 
 `POST /api/v1/sessions/:id/grades/recalculate` with `{ "missingOnly": true }` explicitly creates missing grade items. Recalculation, manual mark/value updates (including bulk updates and resetting automatic scoring), and starting AI grading return `409` until the session and all extension windows have ended. Existing instructor authorization checks still apply. Grade reads derive pending manual work from current responses; a confirmed manual zero remains graded.

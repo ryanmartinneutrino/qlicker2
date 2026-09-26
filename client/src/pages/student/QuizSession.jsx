@@ -21,6 +21,7 @@ import apiClient, { getUsableAccessToken } from '../../api/client';
 import { closeWebSocketQuietly } from '../../utils/liveSocket';
 import StudentRichTextEditor, { MathPreview } from '../../components/questions/StudentRichTextEditor';
 import BackLinkButton from '../../components/common/BackLinkButton';
+import AnonymousSessionNotice from '../../components/common/AnonymousSessionNotice';
 import {
   QUESTION_TYPES,
   TYPE_COLORS,
@@ -563,6 +564,8 @@ export default function QuizSession() {
         <Chip label={practiceQuiz ? t('student.quiz.practiceQuizLabel') : t('student.quiz.quizLabel')} color={practiceQuiz ? 'info' : 'primary'} size="small" />
         <Chip label={t('student.quiz.answeredCount', { answered: answeredCount, total: answerableQuestionCount })} variant="outlined" size="small" />
       </Box>
+
+      {session.anonymous ? <AnonymousSessionNotice /> : null}
 
       <Paper variant="outlined" sx={{ p: 1.5, mb: 2 }}>
         <FormControlLabel

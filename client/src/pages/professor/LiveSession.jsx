@@ -15,6 +15,7 @@ import {
   ExpandMore as ExpandMoreIcon,
   Replay as AttemptIcon,
   Refresh as RefreshIcon,
+  VisibilityOff as VisibilityOffIcon,
   Search as SearchIcon,
 } from '@mui/icons-material';
 import apiClient from '../../api/client';
@@ -1092,6 +1093,7 @@ function LiveSessionContent() {
   const allResponses = liveData?.allResponses || [];
   const responseCount = liveData?.responseCount ?? allResponses.length;
   const joinedCount = session?.joinedCount ?? (session?.joined?.length || 0);
+  const anonymousSession = !!session?.anonymous;
   const joinedStudents = Array.isArray(session?.joinedStudents) ? session.joinedStudents : [];
   const enrolledStudents = Array.isArray(session?.enrolledStudents) ? session.enrolledStudents : [];
   const sortedJoinedStudents = useMemo(() => [...joinedStudents].sort((a, b) => {
@@ -1836,6 +1838,10 @@ function LiveSessionContent() {
                   }}>
                     {t('professor.liveSession.selectQuestionToViewResponses')}
                   </Typography>
+                ) : anonymousSession ? (
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                    {t('professor.liveSession.respondedSummary', { responded: responseCount, total: joinedCount })}
+                  </Typography>
                 ) : responseStats?.type === 'distribution' ? (
                   <Typography variant="body2" sx={{
                     color: "text.secondary"
@@ -1865,7 +1871,7 @@ function LiveSessionContent() {
                     />
                     <ShortAnswerList
                       responses={responseStats.answers || allResponses}
-                      showStudentNames
+                      showStudentNames={!anonymousSession}
                     />
                   </>
                 ) : responseStats?.type === 'numerical' ? (
@@ -1879,13 +1885,13 @@ function LiveSessionContent() {
                     <NumericalStats stats={responseStats} />
                     <ShortAnswerList
                       responses={responseStats.answers || allResponses}
-                      showStudentNames
+                      showStudentNames={!anonymousSession}
                     />
                   </>
                 ) : allResponses.length > 0 ? (
                   <ShortAnswerList
                     responses={allResponses}
-                    showStudentNames
+                    showStudentNames={!anonymousSession}
                   />
                 ) : (
                   <Typography variant="body2" sx={{
@@ -1935,7 +1941,13 @@ function LiveSessionContent() {
               {t('professor.liveSession.studentsInSession', { count: joinedCount })}
             </Typography>
 
-            {session.joinCodeEnabled ? (
+            {anonymousSession ? (
+              <Alert severity="info" icon={<VisibilityOffIcon fontSize="inherit" />}>
+                {t('professor.liveSession.anonymousStudentsNote')}
+              </Alert>
+            ) : null}
+
+            {!anonymousSession && session.joinCodeEnabled ? (
               <Box sx={{ mb: 2 }}>
                 <Button
                   color="inherit"
@@ -2033,7 +2045,7 @@ function LiveSessionContent() {
               </Box>
             ) : null}
 
-            {sortedJoinedStudents.length === 0 ? (
+            {anonymousSession ? null : sortedJoinedStudents.length === 0 ? (
               <Typography variant="body2" sx={{
                 color: "text.secondary"
               }}>

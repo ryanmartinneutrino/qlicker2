@@ -838,6 +838,7 @@ export default function StudentCourseDetail() {
                         />
                       )}
                       {s.practiceQuiz && <Chip label={t('student.course.practice')} size="small" variant="outlined" sx={COMPACT_CHIP_SX} />}
+                      {s.anonymous && <Chip label={t('sessionAnonymity.chip')} size="small" variant="outlined" color="info" sx={COMPACT_CHIP_SX} />}
                       {action.label && (
                         <Chip
                           label={t(action.label)}
@@ -918,6 +919,9 @@ export default function StudentCourseDetail() {
                   badges={(
                     <>
                       <SessionStatusChip status={session.status} />
+                      {session.anonymous ? (
+                        <Chip label={t('sessionAnonymity.chip')} size="small" variant="outlined" color="info" sx={COMPACT_CHIP_SX} />
+                      ) : null}
                       {action.label ? (
                         <Chip
                           label={t(action.label)}

@@ -332,6 +332,69 @@ describe('SessionEditor inline close behavior', () => {
     expect(await screen.findByRole('combobox', { name: 'professor.sessionEditor.status' })).toHaveTextContent('sessionStatus.ended');
   });
 
+  it('saves the anonymous setting and locks it once students have joined', async () => {
+    apiClientMock.patch.mockImplementation(async (_url, updates) => ({
+      data: { session: { _id: 'session-1', status: 'hidden', questions: ['q1'], anonymous: !!updates.anonymous } },
+    }));
+    const { unmount } = render(<SessionEditor />);
+
+    const anonymousSwitch = await screen.findByLabelText('professor.sessionEditor.anonymous');
+    expect(anonymousSwitch).not.toBeChecked();
+    expect(anonymousSwitch).toBeEnabled();
+    fireEvent.click(anonymousSwitch);
+    await waitFor(() => {
+      expect(apiClientMock.patch).toHaveBeenCalledWith('/sessions/session-1', { anonymous: true });
+    });
+    expect(await screen.findByText('professor.sessionEditor.anonymousEnabledNote')).toBeInTheDocument();
+    expect(screen.getByLabelText('professor.sessionEditor.practiceQuiz')).toBeDisabled();
+    unmount();
+
+    const originalGet = apiClientMock.get.getMockImplementation();
+    apiClientMock.get.mockImplementation(async (url) => {
+      const response = await originalGet(url);
+      if (url === '/sessions/session-1') {
+        response.data.session = { ...response.data.session, anonymous: true, joinedCount: 4 };
+      }
+      return response;
+    });
+    render(<SessionEditor />);
+    const lockedSwitch = await screen.findByLabelText('professor.sessionEditor.anonymous');
+    expect(lockedSwitch).toBeChecked();
+    expect(lockedSwitch).toBeDisabled();
+    expect(screen.getByText(/professor\.sessionEditor\.anonymousLockedNote/)).toBeInTheDocument();
+  });
+
+  it('keeps individual extensions and anonymous mode mutually exclusive in the editor', async () => {
+    const originalGet = apiClientMock.get.getMockImplementation();
+    apiClientMock.get.mockImplementation(async (url) => {
+      const response = await originalGet(url);
+      if (url === '/sessions/session-1') {
+        response.data.session = {
+          ...response.data.session,
+          quiz: true,
+          quizExtensions: [{ userId: 'student-1', quizStart: '2026-09-25T10:00:00Z', quizEnd: '2026-09-25T11:00:00Z' }],
+        };
+      }
+      return response;
+    });
+    const { unmount } = render(<SessionEditor />);
+    expect(await screen.findByLabelText('professor.sessionEditor.anonymous')).toBeDisabled();
+    expect(screen.getByText('professor.sessionEditor.anonymousNoExtensions')).toBeInTheDocument();
+    unmount();
+
+    apiClientMock.get.mockImplementation(async (url) => {
+      const response = await originalGet(url);
+      if (url === '/sessions/session-1') {
+        response.data.session = { ...response.data.session, quiz: true, anonymous: true, quizExtensions: [] };
+      }
+      return response;
+    });
+    render(<SessionEditor />);
+    expect(await screen.findByLabelText('professor.sessionEditor.anonymous')).toBeChecked();
+    expect(screen.queryByRole('button', { name: 'professor.sessionEditor.manageExtensions' })).not.toBeInTheDocument();
+    expect(screen.getByText('professor.sessionEditor.anonymousNoExtensions')).toBeInTheDocument();
+  });
+
   it('refreshes server status at the exact schedule boundaries while the editor stays open', async () => {
     vi.useFakeTimers();
     const now = new Date('2026-09-16T12:00:00.000Z').getTime();
