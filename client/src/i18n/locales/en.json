@@ -61,7 +61,8 @@
     "option": "Option {{letter}}",
     "ta": "TA",
     "redirecting": "Redirecting…",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "rowsPerPage": "Rows per page"
   },
   "autoSave": {
     "errorNotSaved": "Changes could not be saved. Your last change was not recorded.",
@@ -868,7 +869,11 @@
       "aiRequiresAdminAuthorization": "Requires admin authorization",
       "aiHelperHelp": "Enable an AI assistant to help with grading, generate questions, manage sessions and students.",
       "enrollmentCodeHelp": "This is the code students need to enroll in the course.",
-      "anonymousSession": "Anonymous"
+      "anonymousSession": "Anonymous",
+      "allowSharedActivities": "Allow activities to be shared by code",
+      "allowSharedActivitiesHelp": "Off by default. Turning this off revokes existing activity codes and outside access.",
+      "searchSessionsPlaceholder": "Search by session name",
+      "noSessionsMatchFilters": "No sessions match the current filters."
     },
     "sessionEditor": {
       "sessionSettings": "Session Settings",
@@ -1006,7 +1011,26 @@
       "anonymousHelp": "Instructors see the answers but not who gave them. Students still sign in and can answer only once. Anonymous sessions are not graded and do not appear in the gradebook.",
       "anonymousEnabledNote": "Responses and attendance are stored without student identities. This session will not be graded.",
       "anonymousNoExtensions": "Individual quiz extensions are unavailable for anonymous sessions.",
-      "anonymousLockedNote": "Anonymity cannot be changed after students have joined or responded."
+      "anonymousLockedNote": "Anonymity cannot be changed after students have joined or responded.",
+      "activityCodeTitle": "Share by activity code",
+      "activityCodeHelp": "People with a code can open only this activity without joining the course. Anyone with an account can use the code. Responses are never graded, and anonymous answers become visible only after at least four people answer each question and attempt. Unique answers may still identify someone.",
+      "activityCodeExpires": "Code expires {{date}}",
+      "activityCodeLabel": "Activity code",
+      "generateActivityCode": "Generate code",
+      "rotateActivityCode": "Regenerate code",
+      "disableActivityCode": "Disable code",
+      "activityCodeError": "Could not change activity sharing.",
+      "activityUngraded": "This activity will remain ungraded even after code access is disabled.",
+      "removeExtensionsBeforeSharing": "Remove individual quiz extensions before generating an activity code.",
+      "sharedNoExtensions": "Individual quiz extensions are unavailable after this activity has been shared by code.",
+      "courseSharingDisabled": "Enable activity-code sharing in the course settings first.",
+      "allowActivityCodeAccess": "Allow access by activity code",
+      "disableActivityCodeHelp": "Turning this off revokes this code and all outside access. This activity stays ungraded.",
+      "activityCodeUnavailable": "This code cannot be displayed. Regenerate it to show a new persistent code.",
+      "sessionName": "Session name",
+      "tags": "Session tags",
+      "tagsPlaceholder": "Add a topic tag",
+      "tagsHelp": "Use tags that describe the specific topic covered by this session and its questions."
     },
     "liveSession": {
       "currentQuestion": "Current question",
@@ -1286,7 +1310,11 @@
       "enrollSuccess": "Successfully enrolled in course",
       "failedEnroll": "Failed to enroll",
       "inactiveCourseCannotEnroll": "This course is inactive and cannot be joined right now.",
-      "failedLoadCourses": "Failed to load courses"
+      "failedLoadCourses": "Failed to load courses",
+      "enterJoinCode": "Enter a code",
+      "courseOrActivityCode": "Course or activity code",
+      "courseOrActivityCodeHelp": "Enter a course enrollment code or an activity code from your instructor.",
+      "continueWithCode": "Continue"
     },
     "course": {
       "lectures": "Lectures",
@@ -1900,11 +1928,11 @@
       "questionSelection": "Questions for AI grading",
       "includeQuestion": "Include question {{question}} in AI grading",
       "clickQuestionToEdit": "Click this row to edit its rubric",
-      "notEligible": "This question cannot be graded by AI"
-      ,"guidanceMissing": "Guidance required before grading"
-      ,"clearLog": "Clear log",
-      "logRunAt": "Run started: {{timestamp}}"
-      ,"inappropriateResponses": "Flagged inappropriate responses",
+      "notEligible": "This question cannot be graded by AI",
+      "guidanceMissing": "Guidance required before grading",
+      "clearLog": "Clear log",
+      "logRunAt": "Run started: {{timestamp}}",
+      "inappropriateResponses": "Flagged inappropriate responses",
       "noInappropriateResponses": "No inappropriate responses were flagged."
     }
   },
@@ -2060,7 +2088,8 @@
     "groupMembersTitle": "{{category}} — {{group}}",
     "uncategorizedGroup": "Uncategorized",
     "removeFromCourse": "Remove from course",
-    "confirmRemove": "Confirm Remove"
+    "confirmRemove": "Confirm Remove",
+    "noStudentsMatch": "No students match the current search."
   },
   "video": {
     "title": "Video Chat",
@@ -2316,7 +2345,8 @@
             "Practice quizzes feel more like guided rehearsal and are well suited for self-study or optional reinforcement.",
             "If a session depends on passcodes, groups, or visible statistics, confirm those settings before students begin joining.",
             "Session lists keep search, filters, and pagination inside Search sessions. While an interactive session is live, opening its card joins the live controls directly; live quiz cards still open the editor.",
-            "Turn on Anonymous responses in the session editor for surveys and course feedback. Students still sign in and answer each question once, but you see answers under labels such as Respondent 1 instead of names, the live view shows only how many students joined, and the session is never graded or added to the gradebook. The setting locks once anyone joins or answers, and very small groups can still be identified by elimination. Respondent rows appear only after the activity ends and at least four people have answered every question and attempt with responses; unique or self-identifying answers may still reveal someone."
+            "Turn on Anonymous responses in the session editor for surveys and course feedback. Students still sign in and answer each question once, but you see answers under labels such as Respondent 1 instead of names, the live view shows only how many students joined, and the session is never graded or added to the gradebook. The setting locks once anyone joins or answers, and very small groups can still be identified by elimination. Respondent rows appear only after the activity ends and at least four people have answered every question and attempt with responses; unique or self-identifying answers may still reveal someone.",
+            "Use the session switch to turn sharing on or off; the active code remains visible after a refresh and can be regenerated. First enable activity-code sharing in Course settings; it is off by default. Turning it off revokes existing codes and outside access. Remove individual quiz extensions before sharing; they remain unavailable after sharing. To invite signed-in people outside the course, create a quiz or live session in the course and generate an S- activity code in its editor. Copy it when shown; regenerating stops new use of the old code, and disabling revokes outside access. The activity is permanently ungraded for everyone. Choose named or anonymous responses before anyone redeems the code; anonymous respondent rows appear only after the activity ends and four people answer every question and attempt. Unique answers may still reveal someone. The rotating live join code still applies when enabled."
           ]
         },
         {
@@ -2403,7 +2433,8 @@
             "Session lists keep search, filters, and pagination inside a collapsible Search sessions area so you can expand controls only when you need them.",
             "If your institution requires verified email or SSO, finish that setup first before assuming the enrollment code is wrong.",
             "You usually only need the join code once per course. After it works, the course stays on your dashboard until you are removed or the course is archived for your account.",
-            "Watch the badge on your avatar in the app bar for active notifications, then open Notifications from the account menu to read or dismiss them."
+            "Watch the badge on your avatar in the app bar for active notifications, then open Notifications from the account menu to read or dismiss them.",
+            "Enter an S- activity code in the dashboard's code form to open one quiz or live session without joining its course. A live session may also require its rotating join code. Code-accessible activities have no grades. Anonymous answers stay linked across questions under one respondent label and are shown to the instructor only after the activity ends and four people answer each question and attempt; a unique answer may still reveal you."
           ],
           "screenshot": {
             "variant": "studentCourse",

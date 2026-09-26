@@ -902,6 +902,7 @@ export default async function aiRoutes(app) {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
     const session = await instructorSession(course, request.params.sessionId, reply); if (!session) return undefined;
     if (session.anonymous) return reply.code(409).send({ error: 'Conflict', message: 'Anonymous sessions do not have grades' });
+    if (session.activityEverShared) return reply.code(409).send({ error: 'Conflict', message: 'Code-accessible activities do not have grades' });
     const gradingLockReason = getSessionGradingLockReason(session);
     if (gradingLockReason) return reply.code(409).send({ error: 'Conflict', message: gradingLockReason === 'extensions'
       ? 'Grading is locked until all quiz extensions have expired or been removed'

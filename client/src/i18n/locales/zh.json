@@ -61,7 +61,8 @@
     "option": "选项 {{letter}}",
     "ta": "TA",
     "redirecting": "正在跳转…",
-    "confirm": "确认"
+    "confirm": "确认",
+    "rowsPerPage": "每页行数"
   },
   "autoSave": {
     "errorNotSaved": "更改未能保存。您的最新更改未被记录。",
@@ -868,7 +869,11 @@
       "aiRequiresAdminAuthorization": "需要管理员授权",
       "aiHelperHelp": "启用 AI 助手以协助评分、生成题目以及管理课堂和学生。",
       "enrollmentCodeHelp": "这是学生注册该课程所需的代码。",
-      "anonymousSession": "匿名"
+      "anonymousSession": "匿名",
+      "allowSharedActivities": "允许通过代码共享活动",
+      "allowSharedActivitiesHelp": "默认关闭。关闭后，现有活动代码和课程外访问权限均会撤销。",
+      "searchSessionsPlaceholder": "按活动名称搜索",
+      "noSessionsMatchFilters": "没有符合当前筛选条件的活动。"
     },
     "sessionEditor": {
       "sessionSettings": "环节设置",
@@ -1006,7 +1011,26 @@
       "anonymousHelp": "教师可以看到作答内容，但看不到作答者。学生仍需登录且只能作答一次。匿名环节不计分，也不会出现在成绩册中。",
       "anonymousEnabledNote": "作答和出勤记录均不保存学生身份。本环节不会计分。",
       "anonymousNoExtensions": "匿名活动不支持个人测验延期。",
-      "anonymousLockedNote": "学生加入或作答后，无法再更改匿名设置。"
+      "anonymousLockedNote": "学生加入或作答后，无法再更改匿名设置。",
+      "activityCodeTitle": "通过活动代码分享",
+      "activityCodeHelp": "持有代码的用户无需加入课程即可仅打开此活动。任何有账户的人都可以使用此代码。回答不计成绩。每道题及每次作答至少有四人回答后，匿名回答才会显示。独特的回答仍可能暴露身份。",
+      "activityCodeExpires": "代码于 {{date}} 过期",
+      "activityCodeLabel": "活动代码",
+      "generateActivityCode": "生成代码",
+      "rotateActivityCode": "重新生成代码",
+      "disableActivityCode": "停用代码",
+      "activityCodeError": "无法更改活动分享设置。",
+      "activityUngraded": "即使停用代码，此活动也不会计入成绩。",
+      "removeExtensionsBeforeSharing": "生成活动代码前，请移除单独设置的测验延期。",
+      "sharedNoExtensions": "此活动通过代码共享后，不能再设置单独的测验延期。",
+      "courseSharingDisabled": "请先在课程设置中启用活动代码共享。",
+      "allowActivityCodeAccess": "允许通过活动代码访问",
+      "disableActivityCodeHelp": "关闭后，此代码和所有课程外访问权限均会撤销。此活动仍不计分。",
+      "activityCodeUnavailable": "无法显示此代码。请重新生成可持续显示的新代码。",
+      "sessionName": "活动名称",
+      "tags": "活动标签",
+      "tagsPlaceholder": "添加主题标签",
+      "tagsHelp": "使用标签描述此活动及其问题涉及的具体主题。"
     },
     "liveSession": {
       "currentQuestion": "当前题目",
@@ -1286,7 +1310,11 @@
       "enrollSuccess": "已成功注册课程",
       "failedEnroll": "注册失败",
       "inactiveCourseCannotEnroll": "此课程未启用，目前无法加入。",
-      "failedLoadCourses": "加载课程失败"
+      "failedLoadCourses": "加载课程失败",
+      "enterJoinCode": "输入代码",
+      "courseOrActivityCode": "课程或活动代码",
+      "courseOrActivityCodeHelp": "输入教师提供的课程注册码或活动代码。",
+      "continueWithCode": "继续"
     },
     "course": {
       "lectures": "课堂",
@@ -2013,7 +2041,8 @@
     "groupMembersTitle": "{{category}} — {{group}}",
     "uncategorizedGroup": "未分类",
     "removeFromCourse": "从课程中移除",
-    "confirmRemove": "确认移除"
+    "confirmRemove": "确认移除",
+    "noStudentsMatch": "没有符合当前搜索条件的学生。"
   },
   "video": {
     "title": "视频聊天",
@@ -2269,7 +2298,8 @@
             "练习测验更像是有引导的演练，非常适合自学或选择性巩固练习。",
             "如果环节依赖口令、分组或可见的统计数据，请在学生开始加入之前确认这些设置。",
             "环节列表将搜索、筛选和分页功能收纳在“搜索环节”区域内。互动环节直播期间，点击其卡片会直接进入直播控制界面；直播中的测验卡片仍会打开编辑器。",
-            "在环节编辑器中开启“匿名作答”，适用于问卷和课程反馈。学生仍需登录且每道题只能作答一次，但你看到的作答以“作答者 1”等标签代替姓名，实时视图只显示加入人数，且该环节不会计分，也不会加入成绩册。一旦有人加入或作答，该设置即被锁定；人数很少的小组仍可能通过排除法被识别。 仅在环节结束且每个已有回答的问题和作答轮次均至少有四人回答后，才会显示答题者记录；独特或自我识别的回答仍可能暴露身份。"
+            "在环节编辑器中开启“匿名作答”，适用于问卷和课程反馈。学生仍需登录且每道题只能作答一次，但你看到的作答以“作答者 1”等标签代替姓名，实时视图只显示加入人数，且该环节不会计分，也不会加入成绩册。一旦有人加入或作答，该设置即被锁定；人数很少的小组仍可能通过排除法被识别。 仅在环节结束且每个已有回答的问题和作答轮次均至少有四人回答后，才会显示答题者记录；独特或自我识别的回答仍可能暴露身份。",
+            "使用活动开关启用或关闭共享；刷新页面后仍可查看当前代码，也可以重新生成。请先在课程设置中启用活动代码共享；此设置默认关闭。关闭后，现有代码和课程外访问权限均会撤销。共享前请移除单独的测验延期；共享后也不能再设置延期。要邀请课程外已登录的用户，请在课程中创建测验或实时活动，并在编辑器中生成 S- 活动代码。出现时立即复制；重新生成会阻止新人使用旧代码，停用会撤销外部访问。所有人的此活动都永久不计成绩。首次兑换前选择实名或匿名回答。活动结束且每道题的每次作答至少有四人回答后，匿名行才会显示。独特的回答仍可能暴露身份。启用轮换实时加入代码时仍须输入该代码。"
           ]
         },
         {
@@ -2356,7 +2386,8 @@
             "环节列表将搜索、筛选和分页功能收纳在一个可折叠的“搜索环节”区域中，方便您仅在需要时展开控件。",
             "如果您的机构要求已验证邮箱或 SSO，请先完成该设置，再判断是否是注册码有误。",
             "每门课程通常只需输入一次加入码。成功后，该课程会一直保留在您的仪表板上，直到您被移除或该课程对您的账户被归档。",
-            "留意应用栏中您头像上的活动通知徽章，然后从账户菜单打开“通知”以阅读或关闭它们。"
+            "留意应用栏中您头像上的活动通知徽章，然后从账户菜单打开“通知”以阅读或关闭它们。",
+            "在仪表板的代码表单中输入 S- 活动代码，无需加入课程即可打开一个测验或实时活动。实时活动也可能要求轮换加入代码。这些活动不计成绩。匿名回答会以同一标签关联不同题目，只有在活动结束且每道题的每次作答至少有四人回答后才向教师显示；独特回答仍可能暴露您的身份。"
           ],
           "screenshot": {
             "variant": "studentCourse",

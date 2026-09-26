@@ -44,6 +44,16 @@ The dashboard lists your courses and highlights activities that are live now. Us
 
 You normally enroll only once. The course stays on the dashboard until the instructor/admin removes you or the course is no longer available to your account.
 
+### Open an activity without joining its course
+
+1. Sign in and select **Enroll in Course** on the dashboard to open the shared code form.
+2. Enter the activity code beginning with `S-`, then select **Continue**. The activity opens directly; your account is not enrolled in its course.
+3. Take the quiz or join the interactive session as usual. A live activity may also ask for its separate rotating six-digit join code.
+
+An activity code opens only its own quiz or live session. It can be used by multiple people, but your account can submit a quiz only once and answer each live question/attempt only once. If the activity code expires after you have used it, you can still enter it again while your access remains enabled. The instructor can disable sharing, which immediately removes outside access. Outside participants cannot use that course's roster, gradebook, or chat. They do not get session chat.
+
+Code-accessible activities are ungraded for everyone, including enrolled students. They can be named or anonymous. Anonymous responses are correlated across questions under one respondent label, but the instructor sees the answer rows only after the activity ends and at least four people have answered every question and attempt with responses. A distinctive answer may still reveal who wrote it.
+
 ### If enrollment fails
 
 - Re-enter the current code; an instructor can regenerate it, making an older code invalid.

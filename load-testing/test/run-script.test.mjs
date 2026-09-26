@@ -82,6 +82,23 @@ test('prod/docker routes an anonymous quiz to the configured host', async (t) =>
   assert.ok(args.includes('BASE_URL=https://staging.example.com'));
 });
 
+test('prod/docker routes external live and quiz scenarios to the right k6 scripts', async (t) => {
+  for (const [scenario, script] of [
+    ['live-external-named', 'live-anonymous.js'],
+    ['live-external-anonymous', 'live-anonymous.js'],
+    ['quiz-external-named', 'quiz-session.js'],
+    ['quiz-external-anonymous', 'quiz-session.js'],
+  ]) {
+    const { root, argsFile } = await fixture(t, { runtime: 'docker', scenario });
+    await fs.writeFile(path.join(root, 'state/rate-limit-restore.env'), 'DISABLE_RATE_LIMITS=false\n');
+    await fs.writeFile(path.join(root, 'production_setup/.env'), 'DISABLE_RATE_LIMITS=true\n');
+    const result = run(root, argsFile, '--scenario', scenario, '--test-only');
+    assert.equal(result.status, 0, `${scenario}: ${result.stderr || result.stdout}`);
+    const args = (await fs.readFile(argsFile, 'utf8')).trim().split('\n');
+    assert.equal(args.at(-1), `/scenarios/${script}`);
+  }
+});
+
 test('test-only rejects a fixture from a different scenario', async (t) => {
   const { root, argsFile } = await fixture(t, { scenario: 'quiz-named' });
   await fs.writeFile(path.join(root, 'state/rate-limit-restore.env'), 'DISABLE_RATE_LIMITS=false\n');

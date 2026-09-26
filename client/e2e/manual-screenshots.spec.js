@@ -292,6 +292,8 @@ test('capture current user-manual screenshots', async ({ browser, request }) => 
   await professorPage.getByRole('tab', { name: /^Course Settings$/i }).click();
   await expect(professorPage.getByText(new RegExp(course.enrollmentCode))).toBeVisible();
   await capture(professorPage, 'professor-course-settings.png');
+  await professorPage.getByLabel('Allow activities to be shared by code').click();
+  await expect(professorPage.getByLabel('Allow activities to be shared by code')).toBeChecked();
   await professorPage.getByRole('tab', { name: /^Course Chat/i }).click();
   await expect(professorPage.getByText(/facilitated diffusion differs from active transport/i)).toBeVisible();
   await capture(professorPage, 'professor-course-chat.png');
@@ -307,6 +309,8 @@ test('capture current user-manual screenshots', async ({ browser, request }) => 
   await capture(professorPage, 'professor-groups.png');
   await professorPage.goto(`/prof/course/${course._id}/session/${interactive._id}`);
   await expect(professorPage.getByText('Cell Structure Check-in').first()).toBeVisible();
+  await professorPage.getByLabel('Allow access by activity code').click();
+  await expect(professorPage.getByRole('textbox', { name: 'Activity code' })).toHaveValue(/^S-[A-HJ-NP-Z2-9]{10}$/);
   await capture(professorPage, 'session-editor.png');
 
   await professorPage.goto(`/prof/course/${course._id}`);

@@ -212,7 +212,15 @@ export default function StudentDashboard() {
     if (!enrollCode.trim()) return;
     setEnrolling(true);
     try {
-      await apiClient.post('/courses/enroll', { enrollmentCode: enrollCode.trim() });
+      const code = enrollCode.trim();
+      if (/^S-/i.test(code)) {
+        const { data } = await apiClient.post('/activity-codes/redeem', { code });
+        setEnrollOpen(false);
+        setEnrollCode('');
+        navigate(`/activity/${data.courseId}/session/${data.sessionId}/${data.quiz ? 'quiz' : 'live'}`);
+        return;
+      }
+      await apiClient.post('/courses/enroll', { enrollmentCode: code });
       setEnrollOpen(false);
       setEnrollCode('');
       await Promise.all([fetchCourses(), fetchTaCourses(), fetchLiveSessions()]);
@@ -392,7 +400,7 @@ export default function StudentDashboard() {
 
       {/* Enroll Dialog */}
       <Dialog open={enrollOpen} onClose={() => setEnrollOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>{t('student.dashboard.enrollInCourse')}</DialogTitle>
+        <DialogTitle>{t('student.dashboard.enterJoinCode')}</DialogTitle>
         <Box
           component="form"
           onSubmit={(event) => {
@@ -407,10 +415,10 @@ export default function StudentDashboard() {
                 color: "text.secondary",
                 mb: 2
               }}>
-              {t('student.dashboard.enrollmentCodeMessage')}
+              {t('student.dashboard.courseOrActivityCodeHelp')}
             </Typography>
             <TextField
-              label={t('student.dashboard.enrollmentCode')}
+              label={t('student.dashboard.courseOrActivityCode')}
               value={enrollCode}
               onChange={(e) => setEnrollCode(e.target.value)}
               fullWidth
@@ -420,7 +428,7 @@ export default function StudentDashboard() {
           <DialogActions>
             <Button onClick={() => setEnrollOpen(false)}>{t('common.cancel')}</Button>
             <Button type="submit" variant="contained" disabled={enrolling || !enrollCode.trim()}>
-              {enrolling ? t('student.dashboard.enrolling') : t('student.dashboard.enroll')}
+              {enrolling ? t('student.dashboard.enrolling') : t('student.dashboard.continueWithCode')}
             </Button>
           </DialogActions>
         </Box>

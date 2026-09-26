@@ -59,6 +59,7 @@ export default function AnonymousResponsesPanel({
   questions = [],
   studentResults = [],
   getResponseCorrectness = null,
+  anonymous = true,
 }) {
   const { t } = useTranslation();
   const [selectedQuestionId, setSelectedQuestionId] = useState('');
@@ -80,14 +81,14 @@ export default function AnonymousResponsesPanel({
       const summary = buildResponseSummary(activeQuestion, response, t('grades.questionPanel.noAnswer'));
       return [{
         key: String(student.studentId),
-        label: student.firstname,
+        label: anonymous ? student.firstname : [student.firstname, student.lastname].filter(Boolean).join(' ') || student.email,
         summary,
         correct: typeof getResponseCorrectness === 'function'
           ? getResponseCorrectness(activeQuestion, response)
           : null,
       }];
     });
-  }, [activeQuestion, getResponseCorrectness, studentResults, t]);
+  }, [activeQuestion, anonymous, getResponseCorrectness, studentResults, t]);
 
   const filteredRows = useMemo(() => {
     const query = answerQuery.trim().toLowerCase();
@@ -104,7 +105,7 @@ export default function AnonymousResponsesPanel({
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       <Alert severity="info" icon={<VisibilityOffIcon fontSize="inherit" />}>
-        {t('professor.sessionReview.anonymousResponsesHelp')}
+        {anonymous ? t('professor.sessionReview.anonymousResponsesHelp') : t('professor.sessionEditor.activityUngraded')}
       </Alert>
 
       <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -163,7 +164,7 @@ export default function AnonymousResponsesPanel({
             <TableHead>
               <TableRow>
                 <TableCell component="th" scope="col" sx={{ fontWeight: 700, width: 160 }}>
-                  {t('professor.sessionReview.respondent')}
+                  {anonymous ? t('professor.sessionReview.respondent') : t('professor.sessionReview.name')}
                 </TableCell>
                 <TableCell component="th" scope="col" sx={{ fontWeight: 700 }}>
                   {t('professor.sessionReview.response')}

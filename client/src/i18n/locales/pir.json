@@ -61,7 +61,8 @@
     "option": "Choice {{letter}}",
     "ta": "TA",
     "redirecting": "Redirectin'…",
-    "confirm": "Aye, Confirm"
+    "confirm": "Aye, Confirm",
+    "rowsPerPage": "Rows per page"
   },
   "autoSave": {
     "errorNotSaved": "Changes couldn't be stowed away. Yer last change wasn't recorded, arr.",
@@ -344,7 +345,11 @@
       "range6Hours": "6 hours aboard",
       "range24Hours": "24 hours aboard",
       "range7Days": "7 days aboard",
-      "monitorStatus": { "healthy": "Keepin' watch", "stale": "Old tidings", "unavailable": "Watch not rigged" },
+      "monitorStatus": {
+        "healthy": "Keepin' watch",
+        "stale": "Old tidings",
+        "unavailable": "Watch not rigged"
+      },
       "monitorUnavailableHelp": "Nary a system sample. Start th' system-monitor service and check its MongoDB link.",
       "monitorStaleHelp": "Th' latest sample be old. Check th' system-monitor events and container's condition.",
       "cpu": "CPU engines",
@@ -380,7 +385,11 @@
       "event": "Happenin'",
       "collector": "Lookout",
       "noMonitorEvents": "Nary a watch event in th' past 7 days.",
-      "eventLevel": { "info": "Tidings", "warning": "Look sharp", "error": "Trouble aboard" }
+      "eventLevel": {
+        "info": "Tidings",
+        "warning": "Look sharp",
+        "error": "Trouble aboard"
+      }
     },
     "settings": {
       "restrictDomain": "Restrict missive domain",
@@ -860,7 +869,11 @@
       "aiRequiresAdminAuthorization": "Needs the admiral’s authorization",
       "aiHelperHelp": "Enable an AI matey to help grade, make questions, and manage sessions and students.",
       "enrollmentCodeHelp": "This be the code crew need to enroll in the course.",
-      "anonymousSession": "Masked"
+      "anonymousSession": "Masked",
+      "allowSharedActivities": "Let mates share activities by code",
+      "allowSharedActivitiesHelp": "Off by default. Turnin’ this off scuttles old codes and outside access.",
+      "searchSessionsPlaceholder": "Search by voyage name",
+      "noSessionsMatchFilters": "No voyages match yer filters."
     },
     "sessionEditor": {
       "sessionSettings": "Voyage Rigging",
@@ -998,7 +1011,26 @@
       "anonymousHelp": "Captains see the replies but not who gave 'em. Crew still sign aboard an' can answer but once. Masked voyages earn no plunder an' stay out o' the plunder ledger.",
       "anonymousEnabledNote": "Replies an' musters be stowed without the crew's names. This voyage won't be scored.",
       "anonymousNoExtensions": "No one-on-one quiz extensions fer anonymous sessions.",
-      "anonymousLockedNote": "The mask can't be changed once crew have boarded or replied."
+      "anonymousLockedNote": "The mask can't be changed once crew have boarded or replied.",
+      "activityCodeTitle": "Share by activity code",
+      "activityCodeHelp": "Mateys with the code may open only this activity without boarding the course. Any matey with an account may use it. Answers earn no marks. Anonymous answers appear only after four mateys answer each question and attempt. A unique answer may still reveal its author.",
+      "activityCodeExpires": "Code expires {{date}}",
+      "activityCodeLabel": "Activity code",
+      "generateActivityCode": "Make code",
+      "rotateActivityCode": "Make new code",
+      "disableActivityCode": "Disable code",
+      "activityCodeError": "Could not change activity sharing.",
+      "activityUngraded": "This activity stays ungraded after the code is disabled.",
+      "removeExtensionsBeforeSharing": "Clear each matey’s extra quiz time afore ye forge an activity code.",
+      "sharedNoExtensions": "No matey gets extra quiz time once this activity has been shared by code.",
+      "courseSharingDisabled": "Enable code sharing in the course settings first, matey.",
+      "allowActivityCodeAccess": "Let mates aboard with an activity code",
+      "disableActivityCodeHelp": "Turnin’ this off scuttles the code and all outside access. This activity stays ungraded.",
+      "activityCodeUnavailable": "This code be hidden fer good. Forge a new one to keep it in sight.",
+      "sessionName": "Voyage name",
+      "tags": "Voyage tags",
+      "tagsPlaceholder": "Add a topic tag",
+      "tagsHelp": "Use tags that tell what topic this voyage and its questions cover, matey."
     },
     "liveSession": {
       "currentQuestion": "Current riddle",
@@ -1278,7 +1310,11 @@
       "enrollSuccess": "Successfully signed aboard in ship",
       "failedEnroll": "Couldn't sign aboard, arr.",
       "inactiveCourseCannotEnroll": "This ship be mothballed an' can't be boarded right now, arr.",
-      "failedLoadCourses": "Couldn't load ships, arr."
+      "failedLoadCourses": "Couldn't load ships, arr.",
+      "enterJoinCode": "Enter a code, matey",
+      "courseOrActivityCode": "Course or activity code",
+      "courseOrActivityCodeHelp": "Enter a course boarding code or an activity code from yer officer.",
+      "continueWithCode": "Sail on"
     },
     "course": {
       "lectures": "Sermons",
@@ -2005,7 +2041,8 @@
     "groupMembersTitle": "{{category}} — {{group}}",
     "uncategorizedGroup": "Unclassed",
     "removeFromCourse": "Toss from ship",
-    "confirmRemove": "Confirm Toss"
+    "confirmRemove": "Confirm Toss",
+    "noStudentsMatch": "No students match yer search."
   },
   "video": {
     "title": "Video Parley",
@@ -2261,7 +2298,8 @@
             "Drill reckonings feel more like guided rehearsal an' be well suited fer self-study or optional reinforcement.",
             "If a voyage depends on secret codes, watches, or in plain sight statistics, confirm those rigging afore crew begin joinin'.",
             "Voyage lists keep hunt, filters, an' pagination inside Hunt voyages. While an interactive voyage be underway, openin' its card joins th' underway controls directly; underway reckoning cards still open th' editor.",
-            "Hoist Masked replies in the voyage editor fer surveys an' course feedback. Crew still sign aboard an' answer each question but once, yet ye see replies under labels like Deckhand 1 instead o' names, the live deck shows only how many boarded, an' the voyage never earns plunder nor lands in the plunder ledger. The settin' locks once anyone boards or replies, an' very small crews can still be found out by elimination. Respondent rows appear only after the voyage ends an' at least four sailors answer each question an' attempt with replies; a tellin' answer can still reveal a sailor."
+            "Hoist Masked replies in the voyage editor fer surveys an' course feedback. Crew still sign aboard an' answer each question but once, yet ye see replies under labels like Deckhand 1 instead o' names, the live deck shows only how many boarded, an' the voyage never earns plunder nor lands in the plunder ledger. The settin' locks once anyone boards or replies, an' very small crews can still be found out by elimination. Respondent rows appear only after the voyage ends an' at least four sailors answer each question an' attempt with replies; a tellin' answer can still reveal a sailor.",
+            "Use the voyage switch to open or close sharing; the live code stays in sight after a refresh and can be forged anew. First enable code sharing in course settings, matey; it starts off. Turnin’ it off scuttles old codes and outside access. Clear individual quiz extensions afore sharing; they stay gone thereafter. To invite signed-in mateys outside yer ship, make a quiz or live voyage in the course and forge an S- activity code in the editor. Copy it at once; a new code bars new use of the old one, and disabling it revokes outside entry. No matey earns marks. Choose named or masked replies before the first code use. Masked rows appear only after the voyage ends and four mateys answer each riddle and attempt. A rare answer may still reveal a matey. The rotating live boarding code still applies when enabled."
           ]
         },
         {
@@ -2348,7 +2386,8 @@
             "Voyage lists keep hunt, filters, an' pagination inside a collapsible Hunt voyages area so ye can expand controls only when ye need 'em.",
             "If yer institution requires vouched fer missive or SSO, finish that setup first afore assumin' th' boarding code be wrong.",
             "Ye usually only need th' board code once per ship. After it works, th' ship stays on yer quarterdeck until ye're removed or th' ship be buried fer yer account.",
-            "Watch th' badge on yer avatar in th' app bar fer afloat bulletins, then open Bulletins from th' account menu to read or wave off 'em."
+            "Watch th' badge on yer avatar in th' app bar fer afloat bulletins, then open Bulletins from th' account menu to read or wave off 'em.",
+            "Enter an S- activity code in yer dashboard code form to open one quiz or live voyage without boarding its course. A live voyage may also demand its rotating boarding code. These activities earn no marks. Masked answers stay tied across riddles under one label and reach the officer only after the voyage ends and four mateys answer each riddle and attempt; a rare reply may still reveal ye."
           ],
           "screenshot": {
             "variant": "studentCourse",

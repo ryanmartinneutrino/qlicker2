@@ -12,29 +12,35 @@ const API = `${__ENV.BASE_URL || 'http://localhost:3001'}/api/v1`;
 const WS_URL = (__ENV.BASE_URL || 'http://localhost:3001').replace(/^http/, 'ws') + '/ws';
 const sessionId = state.session.id;
 const questions = state.questions || [];
+const external = !!state.session.external;
+const anonymous = !!state.session.anonymous;
+const metricPrefix = external ? 'external_live' : 'anonymous';
 const answerWindowSeconds = Math.max(5, Number(__ENV.ANSWER_WINDOW_S ?? 20));
 const joinGraceSeconds = Math.max(5, Number(__ENV.JOIN_GRACE_S ?? 15));
 const answerJitterMs = Math.max(0, Number(__ENV.RESPONSE_JITTER_MS ?? 2000));
 const loginSpreadSeconds = Math.max(0, Number(__ENV.STUDENT_LOGIN_SPREAD_S ?? 12));
 const maxSessionMs = (joinGraceSeconds + questions.length * (answerWindowSeconds + 3) + 60) * 1000;
 
-if (state.session.quiz || !state.session.anonymous) {
-  throw new Error('The anonymous live scenario requires an anonymous interactive fixture');
+if (state.session.quiz || (!anonymous && !external)) {
+  throw new Error('The live scenario requires an anonymous or external interactive fixture');
 }
 
-const joinDuration = new Trend('anonymous_join_duration', true);
-const respondDuration = new Trend('anonymous_respond_duration', true);
-const liveRefreshDuration = new Trend('anonymous_live_refresh_duration', true);
-const eventDeliveryDuration = new Trend('anonymous_event_delivery_duration', true);
-const resultsDuration = new Trend('anonymous_results_duration', true);
-const joinSuccess = new Rate('anonymous_join_success');
-const respondSuccess = new Rate('anonymous_respond_success');
-const privacySuccess = new Rate('anonymous_privacy_success');
-const wsSuccess = new Rate('anonymous_ws_success');
-const resultsSuccess = new Rate('anonymous_results_success');
-const completedStudents = new Counter('anonymous_completed_students');
-const submittedAnswers = new Counter('anonymous_submitted_answers');
-const instructorResponseEvents = new Counter('anonymous_instructor_response_events');
+const joinDuration = new Trend(`${metricPrefix}_join_duration`, true);
+const respondDuration = new Trend(`${metricPrefix}_respond_duration`, true);
+const liveRefreshDuration = new Trend(`${metricPrefix}_live_refresh_duration`, true);
+const eventDeliveryDuration = new Trend(`${metricPrefix}_event_delivery_duration`, true);
+const resultsDuration = new Trend(`${metricPrefix}_results_duration`, true);
+const joinSuccess = new Rate(`${metricPrefix}_join_success`);
+const respondSuccess = new Rate(`${metricPrefix}_respond_success`);
+const privacySuccess = new Rate(`${metricPrefix}_privacy_success`);
+const wsSuccess = new Rate(`${metricPrefix}_ws_success`);
+const resultsSuccess = new Rate(`${metricPrefix}_results_success`);
+const completedStudents = new Counter(`${metricPrefix}_completed_students`);
+const submittedAnswers = new Counter(`${metricPrefix}_submitted_answers`);
+const instructorResponseEvents = new Counter(`${metricPrefix}_instructor_response_events`);
+const redeemDuration = new Trend('external_live_redeem_duration', true);
+const redeemSuccess = new Rate('external_live_redeem_success');
+const ungradedSuccess = new Rate('external_live_ungraded_success');
 
 export const options = {
   scenarios: {
@@ -47,18 +53,23 @@ export const options = {
   },
   thresholds: {
     http_req_failed: [{ threshold: 'rate==0', abortOnFail: true }],
-    anonymous_join_success: ['rate==1'],
-    anonymous_respond_success: ['rate==1'],
-    anonymous_privacy_success: ['rate==1'],
-    anonymous_ws_success: ['rate==1'],
-    anonymous_results_success: ['rate==1'],
-    anonymous_completed_students: [`count==${students.length}`],
-    anonymous_submitted_answers: [`count==${students.length * questions.length}`],
-    anonymous_instructor_response_events: [`count==${students.length * questions.length}`],
-    anonymous_join_duration: ['p(95)<3000'],
-    anonymous_respond_duration: ['p(95)<3000'],
-    anonymous_event_delivery_duration: ['p(99)<3000'],
-    anonymous_results_duration: ['p(95)<3000'],
+    ...(external ? {
+      external_live_redeem_success: ['rate==1'],
+      external_live_ungraded_success: ['rate==1'],
+      external_live_redeem_duration: ['p(95)<3000'],
+    } : {}),
+    [`${metricPrefix}_join_success`]: ['rate==1'],
+    [`${metricPrefix}_respond_success`]: ['rate==1'],
+    [`${metricPrefix}_privacy_success`]: ['rate==1'],
+    [`${metricPrefix}_ws_success`]: ['rate==1'],
+    [`${metricPrefix}_results_success`]: ['rate==1'],
+    [`${metricPrefix}_completed_students`]: [`count==${students.length}`],
+    [`${metricPrefix}_submitted_answers`]: [`count==${students.length * questions.length}`],
+    [`${metricPrefix}_instructor_response_events`]: [`count==${students.length * questions.length}`],
+    [`${metricPrefix}_join_duration`]: ['p(95)<3000'],
+    [`${metricPrefix}_respond_duration`]: ['p(95)<3000'],
+    [`${metricPrefix}_event_delivery_duration`]: ['p(99)<3000'],
+    [`${metricPrefix}_results_duration`]: ['p(95)<3000'],
   },
 };
 
@@ -131,9 +142,9 @@ export function professorFlow() {
     const snapshot = live(token);
     const privateSnapshot = !!snapshot
       && snapshot.responseCount === students.length
-      && Array.isArray(snapshot.allResponses)
-      && snapshot.allResponses.length === 0
-      && snapshot.responseStats == null;
+      && (!anonymous || (Array.isArray(snapshot.allResponses)
+        && snapshot.allResponses.length === 0
+        && snapshot.responseStats == null));
     privacySuccess.add(privateSnapshot);
     check(snapshot, { 'instructor sees count only after question': () => privateSnapshot });
     professorAction('PATCH', '/question-visibility', token, { hidden: false, stats: true, correct: false });
@@ -144,7 +155,7 @@ export function professorFlow() {
   const results = request('GET', `/sessions/${sessionId}/results`, token, undefined, 'anonymous_final_results');
   resultsDuration.add(results.timings.duration);
   const payload = body(results);
-  const expectedRows = students.length < 4 ? 0 : students.length;
+  const expectedRows = anonymous && students.length < 4 ? 0 : students.length;
   const serialized = JSON.stringify(payload);
   const rows = payload.studentResults || [];
   const answersCorrelate = rows.length === 0 || rows.every((row) =>
@@ -153,9 +164,15 @@ export function professorFlow() {
   const okay = results.status === 200
     && rows.length === expectedRows
     && answersCorrelate
-    && !serialized.includes('anon_')
-    && !serialized.includes(students[0].id)
-    && !serialized.includes(students[0].email);
+    && (!anonymous || (!serialized.includes('anon_')
+      && !serialized.includes(students[0].id)
+      && !serialized.includes(students[0].email)));
+  if (external) {
+    const grades = request('GET', `/sessions/${sessionId}/grades`, token, undefined, 'external_live_ungraded');
+    const noGrades = grades.status === 200 && (body(grades).grades || []).length === 0;
+    ungradedSuccess.add(noGrades);
+    check(grades, { 'shared live session has no grades': () => noGrades });
+  }
   resultsSuccess.add(okay);
   check(results, { 'final anonymous rows are private and complete': () => okay });
 }
@@ -175,9 +192,9 @@ export function observerFlow() {
       if (String(data.sessionId || '') !== String(sessionId)) return;
       if (message.event === 'session:response-added') {
         instructorResponseEvents.add(1);
-        const privateEvent = data.response == null
+        const privateEvent = !anonymous || (data.response == null
           && data.responseStats == null
-          && data.responseSubmittedAt == null;
+          && data.responseSubmittedAt == null);
         privacySuccess.add(privateEvent);
         const emittedAt = Date.parse(data.emittedAt || '');
         if (Number.isFinite(emittedAt)) eventDeliveryDuration.add(Math.max(0, Date.now() - emittedAt));
@@ -199,6 +216,18 @@ export function studentFlow() {
   if (!token) {
     joinSuccess.add(false);
     return;
+  }
+  if (external) {
+    const redeemed = request('POST', '/activity-codes/redeem', token, {
+      code: state.session.activityCode,
+    }, 'external_live_redeem');
+    redeemDuration.add(redeemed.timings.duration);
+    const accepted = redeemed.status === 200 && body(redeemed).sessionId === sessionId;
+    redeemSuccess.add(accepted);
+    if (!accepted) {
+      console.error(`Live code redemption failed for participant ${index + 1}: ${redeemed.status}`);
+      return;
+    }
   }
   live(token);
   let joined = false;
@@ -251,7 +280,7 @@ export function studentFlow() {
       const data = message?.data || {};
       if (String(data.sessionId || '') !== String(sessionId)) return;
       if (message.event === 'session:response-added') {
-        privacySuccess.add(data.response == null && data.responseStats == null && data.responseSubmittedAt == null);
+        privacySuccess.add(!anonymous || (data.response == null && data.responseStats == null && data.responseSubmittedAt == null));
       }
       if (message.event === 'session:question-changed'
         || message.event === 'session:visibility-changed'

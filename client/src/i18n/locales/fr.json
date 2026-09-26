@@ -61,7 +61,8 @@
     "option": "Option {{letter}}",
     "ta": "AC",
     "redirecting": "Redirection…",
-    "confirm": "Confirmer"
+    "confirm": "Confirmer",
+    "rowsPerPage": "Lignes par page"
   },
   "autoSave": {
     "errorNotSaved": "Les modifications n'ont pas pu être enregistrées. Votre dernière modification n'a pas été enregistrée.",
@@ -868,7 +869,11 @@
       "aiRequiresAdminAuthorization": "Autorisation administrateur requise",
       "aiHelperHelp": "Activez un assistant IA pour aider à la notation, générer des questions et gérer les séances et les étudiants.",
       "enrollmentCodeHelp": "C’est le code dont les étudiants ont besoin pour s’inscrire au cours.",
-      "anonymousSession": "Anonyme"
+      "anonymousSession": "Anonyme",
+      "allowSharedActivities": "Autoriser le partage des activités par code",
+      "allowSharedActivitiesHelp": "Désactivé par défaut. Le désactiver révoque les codes existants et l’accès externe.",
+      "searchSessionsPlaceholder": "Rechercher par nom de séance",
+      "noSessionsMatchFilters": "Aucune séance ne correspond aux filtres actuels."
     },
     "sessionEditor": {
       "sessionSettings": "Paramètres de la séance",
@@ -1006,7 +1011,26 @@
       "anonymousHelp": "Les enseignants voient les réponses mais pas qui les a données. Les étudiants se connectent toujours et ne peuvent répondre qu'une fois. Les sessions anonymes ne sont pas notées et n'apparaissent pas dans le carnet de notes.",
       "anonymousEnabledNote": "Les réponses et la présence sont enregistrées sans l'identité des étudiants. Cette session ne sera pas notée.",
       "anonymousNoExtensions": "Les prolongations individuelles ne sont pas disponibles pour les sessions anonymes.",
-      "anonymousLockedNote": "L'anonymat ne peut plus être modifié une fois que des étudiants ont rejoint la session ou répondu."
+      "anonymousLockedNote": "L'anonymat ne peut plus être modifié une fois que des étudiants ont rejoint la session ou répondu.",
+      "activityCodeTitle": "Partager avec un code d’activité",
+      "activityCodeHelp": "Les personnes ayant le code peuvent ouvrir uniquement cette activité sans rejoindre le cours. Toute personne ayant un compte peut utiliser le code. Les réponses ne sont jamais notées. Les réponses anonymes ne sont visibles qu’après au moins quatre réponses à chaque question et tentative. Une réponse particulière peut néanmoins identifier son auteur.",
+      "activityCodeExpires": "Le code expire le {{date}}",
+      "activityCodeLabel": "Code d’activité",
+      "generateActivityCode": "Générer un code",
+      "rotateActivityCode": "Regénérer le code",
+      "disableActivityCode": "Désactiver le code",
+      "activityCodeError": "Impossible de modifier le partage de l’activité.",
+      "activityUngraded": "Cette activité restera sans note même après la désactivation du code.",
+      "removeExtensionsBeforeSharing": "Supprimez les prolongations individuelles du quiz avant de générer un code d’activité.",
+      "sharedNoExtensions": "Les prolongations individuelles du quiz ne sont plus disponibles après le partage de cette activité par code.",
+      "courseSharingDisabled": "Activez d’abord le partage par code dans les paramètres du cours.",
+      "allowActivityCodeAccess": "Autoriser l’accès par code d’activité",
+      "disableActivityCodeHelp": "La désactivation révoque ce code et tout accès externe. Cette activité reste sans note.",
+      "activityCodeUnavailable": "Ce code ne peut pas être affiché. Régénérez-le pour afficher un nouveau code permanent.",
+      "sessionName": "Nom de la séance",
+      "tags": "Étiquettes de la séance",
+      "tagsPlaceholder": "Ajouter une étiquette de sujet",
+      "tagsHelp": "Utilisez des étiquettes décrivant le sujet précis de cette séance et de ses questions."
     },
     "liveSession": {
       "currentQuestion": "Question actuelle",
@@ -1286,7 +1310,11 @@
       "enrollSuccess": "Inscription au cours réussie",
       "failedEnroll": "Échec de l'inscription",
       "inactiveCourseCannotEnroll": "Ce cours est inactif et ne peut pas être rejoint pour le moment.",
-      "failedLoadCourses": "Échec du chargement des cours"
+      "failedLoadCourses": "Échec du chargement des cours",
+      "enterJoinCode": "Entrer un code",
+      "courseOrActivityCode": "Code de cours ou d’activité",
+      "courseOrActivityCodeHelp": "Entrez un code d’inscription au cours ou un code d’activité fourni par votre enseignant.",
+      "continueWithCode": "Continuer"
     },
     "course": {
       "lectures": "Cours magistraux",
@@ -2013,7 +2041,8 @@
     "groupMembersTitle": "{{category}} — {{group}}",
     "uncategorizedGroup": "Sans catégorie",
     "removeFromCourse": "Retirer du cours",
-    "confirmRemove": "Confirmer le retrait"
+    "confirmRemove": "Confirmer le retrait",
+    "noStudentsMatch": "Aucun étudiant ne correspond à la recherche actuelle."
   },
   "video": {
     "title": "Chat vidéo",
@@ -2269,7 +2298,8 @@
             "Les quiz de pratique conviennent bien à l'étude personnelle ou au renforcement facultatif.",
             "Si une séance dépend des codes d'accès, des groupes ou des statistiques visibles, confirmez ces réglages avant que les étudiants commencent à se joindre.",
             "Les listes de séances gardent la recherche, les filtres et la pagination dans Rechercher des séances. Lorsqu'une séance interactive est en direct, l'ouverture de sa carte rejoint directement les contrôles en direct; les cartes de quiz en direct ouvrent encore l'éditeur.",
-            "Activez Réponses anonymes dans l'éditeur de session pour les sondages et les évaluations de cours. Les étudiants se connectent toujours et répondent une seule fois à chaque question, mais vous voyez les réponses sous des libellés comme Répondant 1 plutôt que des noms, la vue en direct n'indique que le nombre d'étudiants présents, et la session n'est jamais notée ni ajoutée au carnet de notes. Le réglage est verrouillé dès qu'une personne rejoint la session ou répond, et les très petits groupes restent identifiables par élimination. Les lignes des répondants ne s’affichent qu’après la fin de l’activité et lorsque quatre personnes au moins ont répondu à chaque question et tentative ayant des réponses; une réponse unique ou révélatrice peut encore identifier quelqu’un."
+            "Activez Réponses anonymes dans l'éditeur de session pour les sondages et les évaluations de cours. Les étudiants se connectent toujours et répondent une seule fois à chaque question, mais vous voyez les réponses sous des libellés comme Répondant 1 plutôt que des noms, la vue en direct n'indique que le nombre d'étudiants présents, et la session n'est jamais notée ni ajoutée au carnet de notes. Le réglage est verrouillé dès qu'une personne rejoint la session ou répond, et les très petits groupes restent identifiables par élimination. Les lignes des répondants ne s’affichent qu’après la fin de l’activité et lorsque quatre personnes au moins ont répondu à chaque question et tentative ayant des réponses; une réponse unique ou révélatrice peut encore identifier quelqu’un.",
+            "Utilisez l’interrupteur de la séance pour activer ou désactiver le partage; le code actif reste visible après actualisation et peut être régénéré. Activez d’abord le partage par code dans les paramètres du cours; il est désactivé par défaut. Le désactiver révoque les codes existants et l’accès externe. Supprimez les prolongations individuelles avant le partage; elles restent indisponibles ensuite. Pour inviter des personnes connectées hors du cours, créez un quiz ou une séance en direct dans le cours, puis générez un code d’activité S- dans l’éditeur. Copiez-le aussitôt; le renouveler bloque les nouveaux accès avec l’ancien code et le désactiver retire l’accès externe. L’activité reste sans note pour tous. Choisissez des réponses nominatives ou anonymes avant le premier accès. Les lignes anonymes ne sont visibles qu’après la fin et quatre réponses à chaque question et tentative. Une réponse particulière peut encore identifier son auteur. Le code tournant de la séance reste requis s’il est activé."
           ]
         },
         {
@@ -2356,7 +2386,8 @@
             "Les listes de séances gardent la recherche, les filtres et la pagination dans une zone Rechercher des séances repliable afin que vous n'ouvriez les contrôles que lorsque nécessaire.",
             "Si votre établissement exige une vérification d'e-mail ou un SSO, terminez cette configuration avant de supposer que le code d'inscription est mauvais.",
             "En général, vous n'avez besoin du code d'inscription qu'une seule fois par cours. Une fois accepté, le cours reste sur votre tableau de bord jusqu'à ce que vous en soyez retiré ou qu'il soit archivé pour votre compte.",
-            "Surveillez l’indicateur sur votre avatar dans la barre d’application pour repérer les notifications actives, puis ouvrez Notifications dans le menu du compte pour les lire ou les rejeter."
+            "Surveillez l’indicateur sur votre avatar dans la barre d’application pour repérer les notifications actives, puis ouvrez Notifications dans le menu du compte pour les lire ou les rejeter.",
+            "Entrez un code d’activité S- dans le formulaire du tableau de bord pour ouvrir un quiz ou une séance sans rejoindre le cours. Une séance en direct peut aussi demander son code tournant. Ces activités ne sont pas notées. Les réponses anonymes restent liées entre questions sous un même libellé et ne sont montrées à l’enseignant qu’après la fin et quatre réponses à chaque question et tentative; une réponse particulière peut encore vous identifier."
           ],
           "screenshot": {
             "variant": "studentCourse",

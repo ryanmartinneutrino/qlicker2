@@ -1,6 +1,6 @@
 # Qlicker Load Testing Suite
 
-Automated load testing for named and anonymous interactive sessions and quizzes.
+Automated load testing for named and anonymous interactive sessions and quizzes, including activities opened by code by people outside the course.
 The suite seeds dedicated users, a course, questions, and one session per run.
 The original named interactive scenario follows the real classroom flow:
 
@@ -89,7 +89,7 @@ an external domain.
 |---------|-------------|
 | `./run.sh` | Seed + run the load test |
 | `./run.sh --students N` | Override the configured student count |
-| `./run.sh --scenario NAME` | Choose `live-named` (default), `live-anonymous`, `quiz-named`, or `quiz-anonymous` |
+| `./run.sh --scenario NAME` | Choose `live-named` (default), `live-anonymous`, `quiz-named`, `quiz-anonymous`, `live-external-named`, `live-external-anonymous`, `quiz-external-named`, or `quiz-external-anonymous` |
 | `./run.sh --session-chat on|off` | Run `live-named` with chat enabled or disabled |
 | `./run.sh --seed-only` | Seed without running k6 |
 | `./run.sh --test-only` | Run k6 with the existing `state/state.json` for the selected scenario |
@@ -121,11 +121,15 @@ Otherwise, run `./setup.sh` and choose `prod` plus `docker` on either host.
    JOIN_GRACE_S=30 ./run.sh --scenario live-anonymous --students 100
    ./run.sh --scenario quiz-named --students 100
    ./run.sh --scenario quiz-anonymous --students 100
+   JOIN_GRACE_S=30 ./run.sh --scenario live-external-named --students 100
+   JOIN_GRACE_S=30 ./run.sh --scenario live-external-anonymous --students 100
+   ./run.sh --scenario quiz-external-named --students 100
+   ./run.sh --scenario quiz-external-anonymous --students 100
    ```
 
    Choose `JOIN_GRACE_S` long enough for the student login wave to complete;
    keep it identical across comparison runs. Each command reseeds its own
-   fixture. Run `./run.sh --test-only --scenario NAME` only if the current
+   fixture. The external variants seed students outside the course, redeem the activity code, and check ungraded results and live delivery. Run `./run.sh --test-only --scenario NAME` only if the current
    fixture was seeded for that name and has not been consumed by a previous
    run. Quiz submissions and live session endings make a completed fixture
    unsuitable for another full pass.

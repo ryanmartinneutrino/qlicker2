@@ -180,7 +180,7 @@ export async function runAiGradingJob(jobId) {
       Settings.findById('settings').lean(),
     ]);
     if (!course || !session) throw new Error('The AI grading course or session is no longer available');
-    if (getSessionGradingLockReason(session)) throw new Error('Grading is locked until the session and all extensions have ended');
+    if (session.activityEverShared || getSessionGradingLockReason(session)) throw new Error('Grading is locked until the session and all extensions have ended');
     const selected = resolveModel(course, settings || {}, job.backendId, job.modelId);
     if (!selected) throw new Error('No available AI model is selected for this course');
     const selectedQuestionIds = new Set(job.questionIds.map(String));
@@ -267,7 +267,7 @@ export async function runAiGradingJob(jobId) {
         }
         await assertJobRunning(job._id, controller.signal);
         const currentSession = await Session.findById(job.sessionId).lean();
-        if (getSessionGradingLockReason(currentSession)) throw new Error('Grading was locked because the session or an extension reopened');
+        if (currentSession.activityEverShared || getSessionGradingLockReason(currentSession)) throw new Error('Grading was locked because the session or an extension reopened');
         grade.marks[markIndex].points = result.points;
         grade.marks[markIndex].feedback = result.feedback;
         // Empty-answer zeros are automatic placeholders, so reopening the quiz

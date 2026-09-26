@@ -66,8 +66,10 @@ function getGradeIdentityFilter(grade) {
 }
 
 function ensureSessionEndedForGrading(session, reply) {
-  if (session?.anonymous) {
-    reply.code(409).send({ error: 'Conflict', message: 'Anonymous sessions do not have grades' });
+  if (session?.anonymous || session?.activityEverShared) {
+    reply.code(409).send({ error: 'Conflict', message: session?.anonymous
+      ? 'Anonymous sessions do not have grades'
+      : 'Code-accessible activities do not have grades' });
     return false;
   }
   const reason = getSessionGradingLockReason(session);
@@ -348,13 +350,13 @@ export default async function gradeRoutes(app) {
         ? { sessionId: String(session._id), courseId: String(course._id) }
         : studentVisibleGradeQuery(course._id, session._id, request.user);
 
-      if (session.anonymous) {
+      if (session.anonymous || session.activityEverShared) {
         return {
           sessionId: String(session._id),
           courseId: String(course._id),
           instructorView,
-          anonymous: true,
-          ...(instructorView ? { gradingLockReason: 'anonymous' } : {}),
+          anonymous: !!session.anonymous,
+          ...(instructorView ? { gradingLockReason: session.anonymous ? 'anonymous' : 'code-accessible' } : {}),
           grades: [],
         };
       }
@@ -758,7 +760,7 @@ export default async function gradeRoutes(app) {
       const requestedStudentId = normalizeAnswerValue(request.query?.studentId);
 
       // Anonymous sessions are never graded and stay out of the gradebook.
-      const sessionQuery = { courseId: String(course._id), anonymous: { $ne: true } };
+      const sessionQuery = { courseId: String(course._id), anonymous: { $ne: true }, activityEverShared: { $ne: true } };
       if (requestedSessionIds.length > 0) {
         sessionQuery._id = { $in: requestedSessionIds };
       }

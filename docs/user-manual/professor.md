@@ -244,6 +244,14 @@ What changes:
 
 Linked rows are needed to correlate survey answers, but a unique or self-identifying answer can expose the rest of that respondent's row. The four-person minimum reduces direct identification by elimination, but does not prevent inference from unique answers or knowledge of who participated. Label numbers do not follow answer order or names.
 
+### Share a quiz or live activity outside the course
+
+In **Course settings**, turn on **Allow activities to be shared by code**; it is off by default. Turning it off later revokes all codes and outside access for that course. Create the activity inside the course, add its questions, and set its normal quiz window or live settings. In the session editor, switch on **Allow access by activity code** to generate a code beginning with `S-` followed by ten letters or digits. The current code stays visible to course instructors after a refresh. You can regenerate it to stop new people using the old code while retaining existing participants, or switch sharing off to revoke the code and all outside grants. Codes expire for new participants after 30 days by default; a participant who already redeemed a code can still re-enter it until sharing is disabled. The separate rotating six-digit live join code remains in force when **Require Passcode** is on.
+
+The code admits signed-in people to this activity only. It does not enroll them in your course or give them course roster, gradebook, chat, or question-library access. Outside participants cannot use session chat. You can choose named or anonymous responses before anyone redeems the code or participates. Once someone redeems it, the anonymity choice is locked. Anonymous responses retain one respondent row across questions and are released only after the activity ends and at least four people answer every question and attempt with responses. Unique answers can still identify a respondent.
+
+**A code-accessible activity is permanently ungraded for everyone**, including students already enrolled in the course. You cannot enable sharing while grade rows or individual quiz extensions exist. Individual quiz extensions stay unavailable after a code is issued, even if sharing is later disabled. Its responses remain available for session review and CSV export; named activities show participant identities there, while anonymous activities show respondent labels. The activity stays outside the gradebook even if sharing is later disabled. Practice quizzes and student-created sessions cannot be shared by activity code.
+
 ## 7. Configure and deliver a quiz
 
 Create a session, enable quiz mode, and configure its window. A normal quiz is student-paced during the availability period; a practice quiz is intended for lower-stakes rehearsal.
