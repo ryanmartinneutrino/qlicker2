@@ -234,9 +234,12 @@ describe('outside activity participation', () => {
       expect(review.json().grade).toBeNull();
       const gradebook = await authenticatedRequest(app, 'GET', `/api/v1/courses/${course._id}/grades`, { token: professorToken });
       expect(gradebook.statusCode).toBe(200);
-      expect(JSON.stringify(gradebook.json())).not.toContain(session._id);
+      if (anonymous) expect(JSON.stringify(gradebook.json())).not.toContain(session._id);
+      else expect(gradebook.json().sessions.some((entry) => entry._id === session._id)).toBe(true);
+      expect(gradebook.json().rows).toHaveLength(0);
       const recalculate = await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/grades/recalculate`, { token: professorToken, payload: {} });
-      expect(recalculate.statusCode).toBe(409);
+      expect(recalculate.statusCode).toBe(anonymous ? 409 : 200);
+      expect(await Grade.countDocuments({ sessionId: session._id })).toBe(0);
       expect((await authenticatedRequest(app, 'GET', `/api/v1/courses/${course._id}`, { token: outsiderToken })).statusCode).toBe(403);
     });
 
@@ -330,12 +333,86 @@ describe('shared activity safeguards', () => {
     expect((await authenticatedRequest(app, 'PATCH', extensionUrl, { token: professorToken, payload: extensionPayload })).statusCode).toBe(409);
   });
 
-  it('refuses sharing when the session already has grades', async () => {
+  it('refuses sharing when the session already has guest grades', async () => {
     const { professorToken, outsider, course, session } = await fixture();
     await Grade.create({ userId: outsider._id, sessionId: session._id, courseId: course._id });
     expect((await issue(session._id, professorToken)).statusCode).toBe(409);
     expect((await Session.findById(session._id).lean()).activityEverShared).toBe(false);
     expect(await ActivityShare.countDocuments({ sessionId: session._id })).toBe(0);
+  });
+
+  it('keeps enrolled grades while tracking a named guest without a grade row', async () => {
+    const context = await fixture();
+    const { professorToken, outsider, outsiderToken, course, session } = context;
+    const enrolled = await createTestUser({ email: 'share-enrolled@example.com', roles: ['student'] });
+    const enrolledToken = await getAuthToken(app, enrolled);
+    await Course.updateOne({ _id: course._id }, { $addToSet: { students: enrolled._id } });
+    const question = await Question.create({
+      type: 0, creator: context.professor._id, sessionId: session._id, courseId: course._id,
+      content: '<p>Choose one</p>', plainText: 'Choose one',
+      options: [{ content: 'Yes', correct: true }, { content: 'No', correct: false }],
+      sessionOptions: { hidden: false, attempts: [{ number: 1, closed: false }] },
+    });
+    await Session.updateOne({ _id: session._id }, { $set: {
+      questions: [question._id], status: 'visible', reviewable: true,
+      quizStart: new Date(Date.now() - 60_000), quizEnd: new Date(Date.now() + 600_000),
+    } });
+    const initialGrade = await Grade.create({ userId: enrolled._id, sessionId: session._id, courseId: course._id });
+    expect((await issue(session._id, professorToken)).statusCode).toBe(200);
+    const code = (await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/activity-share`, { token: professorToken })).json().code;
+    expect((await redeem(code, outsiderToken)).statusCode).toBe(200);
+    expect((await redeem(code, enrolledToken)).statusCode).toBe(200);
+    expect((await ActivityGrant.findOne({ sessionId: session._id, userId: enrolled._id }).lean()).guestAtRedemption).toBe(false);
+    for (const token of [enrolledToken, outsiderToken]) {
+      expect((await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${session._id}/quiz-response`, {
+        token, payload: { questionId: question._id, answer: '0' },
+      })).statusCode).toBe(200);
+      expect((await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/submit`, { token })).statusCode).toBe(200);
+    }
+    await Session.updateOne({ _id: session._id }, { $set: { status: 'done' } });
+    const recalculate = await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/grades/recalculate`, {
+      token: professorToken, payload: {},
+    });
+    expect(recalculate.statusCode).toBe(200);
+    expect(await Grade.countDocuments({ sessionId: session._id, userId: outsider._id })).toBe(0);
+    expect(await Grade.countDocuments({ sessionId: session._id, userId: enrolled._id })).toBe(1);
+    const currentGrade = await Grade.findById(initialGrade._id).lean();
+    expect(currentGrade.marks).toHaveLength(1);
+    const results = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/results`, { token: professorToken });
+    expect(results.statusCode).toBe(200);
+    expect(results.json().studentResults.find((row) => row.studentId === outsider._id)?.guest).toBe(true);
+    expect(results.json().studentResults.find((row) => row.studentId === enrolled._id)?.guest).toBe(false);
+    const grades = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/grades`, { token: professorToken });
+    expect(grades.json().grades.map((grade) => grade.userId)).toEqual([enrolled._id]);
+    const gradebook = await authenticatedRequest(app, 'GET', `/api/v1/courses/${course._id}/grades`, { token: professorToken });
+    expect(gradebook.json().rows.some((row) => row.student.studentId === enrolled._id)).toBe(true);
+    expect(gradebook.json().rows.some((row) => row.student.studentId === outsider._id)).toBe(false);
+    const studentReview = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/review`, { token: enrolledToken });
+    expect(studentReview.json().grade).not.toBeNull();
+    const guestReview = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/review`, { token: outsiderToken });
+    expect(guestReview.json().grade).toBeNull();
+  });
+
+  it('does not retroactively grade a guest who enrolls after code redemption', async () => {
+    const { professorToken, outsiderToken, outsider, course, session } = await fixture();
+    const code = (await issue(session._id, professorToken)).json().code;
+    expect((await redeem(code, outsiderToken)).statusCode).toBe(200);
+    expect((await ActivityGrant.findOne({ sessionId: session._id, userId: outsider._id }).lean()).guestAtRedemption).toBe(true);
+    await Course.updateOne({ _id: course._id }, { $addToSet: { students: outsider._id } });
+    await Session.updateOne({ _id: session._id }, { $set: { status: 'done', reviewable: true } });
+    const recalculated = await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/grades/recalculate`, {
+      token: professorToken, payload: {},
+    });
+    expect(recalculated.statusCode).toBe(200);
+    expect(await Grade.countDocuments({ sessionId: session._id, userId: outsider._id })).toBe(0);
+    const results = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/results`, { token: professorToken });
+    expect(results.json().studentResults.find((row) => row.studentId === outsider._id)?.guest).toBe(true);
+    const grades = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/grades`, { token: professorToken });
+    expect(grades.json().grades).toHaveLength(0);
+    const gradebook = await authenticatedRequest(app, 'GET', `/api/v1/courses/${course._id}/grades`, { token: professorToken });
+    const guestGradebookRow = gradebook.json().rows.find((row) => row.student.studentId === outsider._id);
+    expect(guestGradebookRow?.grades.find((grade) => grade.sessionId === session._id)?.notApplicable).toBe(true);
+    expect(guestGradebookRow?.avgParticipation).toBeNull();
   });
 
   it('keeps an existing grant usable after code expiry without admitting new people', async () => {

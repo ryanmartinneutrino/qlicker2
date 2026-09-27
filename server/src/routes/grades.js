@@ -1,9 +1,11 @@
+import ActivityGrant from '../models/ActivityGrant.js';
 import Course from '../models/Course.js';
 import Grade from '../models/Grade.js';
 import Question from '../models/Question.js';
 import Response from '../models/Response.js';
 import Session from '../models/Session.js';
 import User from '../models/User.js';
+import { getActivityGuestUserIds } from '../services/activityAccess.js';
 import {
   getStudentSessionReviewRestriction,
   isCourseInstructorOrAdmin as isInstructorOrAdmin,
@@ -66,10 +68,8 @@ function getGradeIdentityFilter(grade) {
 }
 
 function ensureSessionEndedForGrading(session, reply) {
-  if (session?.anonymous || session?.activityEverShared) {
-    reply.code(409).send({ error: 'Conflict', message: session?.anonymous
-      ? 'Anonymous sessions do not have grades'
-      : 'Code-accessible activities do not have grades' });
+  if (session?.anonymous) {
+    reply.code(409).send({ error: 'Conflict', message: 'Anonymous sessions do not have grades' });
     return false;
   }
   const reason = getSessionGradingLockReason(session);
@@ -346,22 +346,31 @@ export default async function gradeRoutes(app) {
         }
       }
 
-      const gradeQuery = instructorView
-        ? { sessionId: String(session._id), courseId: String(course._id) }
-        : studentVisibleGradeQuery(course._id, session._id, request.user);
-
-      if (session.anonymous || session.activityEverShared) {
+      if (session.anonymous) {
         return {
           sessionId: String(session._id),
           courseId: String(course._id),
           instructorView,
           anonymous: !!session.anonymous,
-          ...(instructorView ? { gradingLockReason: session.anonymous ? 'anonymous' : 'code-accessible' } : {}),
+          ...(instructorView ? { gradingLockReason: 'anonymous' } : {}),
           grades: [],
         };
       }
 
-      let grades = await normalizeGradesManualGradingState(await Grade.find(gradeQuery).lean());
+      const sharedGuestIds = session.activityEverShared
+        ? await getActivityGuestUserIds(session._id)
+        : new Set();
+      const eligibleStudents = session.activityEverShared
+        ? (course.students || []).filter((id) => !sharedGuestIds.has(String(id)))
+        : [];
+      const gradeQuery = instructorView
+        ? { sessionId: String(session._id), courseId: String(course._id),
+          ...(session.activityEverShared ? { userId: { $in: eligibleStudents } } : {}) }
+        : studentVisibleGradeQuery(course._id, session._id, request.user);
+
+      let grades = !instructorView && sharedGuestIds.has(String(request.user.userId))
+        ? []
+        : await normalizeGradesManualGradingState(await Grade.find(gradeQuery).lean());
       if (!instructorView) grades = grades.map(sanitizeStudentVisibleGrade);
 
       return {
@@ -760,7 +769,7 @@ export default async function gradeRoutes(app) {
       const requestedStudentId = normalizeAnswerValue(request.query?.studentId);
 
       // Anonymous sessions are never graded and stay out of the gradebook.
-      const sessionQuery = { courseId: String(course._id), anonymous: { $ne: true }, activityEverShared: { $ne: true } };
+      const sessionQuery = { courseId: String(course._id), anonymous: { $ne: true } };
       if (requestedSessionIds.length > 0) {
         sessionQuery._id = { $in: requestedSessionIds };
       }
@@ -772,7 +781,7 @@ export default async function gradeRoutes(app) {
       }
 
       const sessions = await Session.find(sessionQuery)
-        .select('_id name status date quizStart quizEnd quizExtensions createdAt reviewable quiz practiceQuiz questions joined submittedQuiz')
+        .select('_id name status date quizStart quizEnd quizExtensions createdAt reviewable quiz practiceQuiz questions joined submittedQuiz activityEverShared')
         .lean();
 
       sessions.sort((a, b) => {
@@ -812,7 +821,8 @@ export default async function gradeRoutes(app) {
         gradeQuery.visibleToStudents = true;
       }
 
-      const [grades, students, ungradedSummaryBySessionId, questions] = await Promise.all([
+      const sharedSessionIds = sessions.filter((session) => session.activityEverShared).map((session) => String(session._id));
+      const [grades, students, ungradedSummaryBySessionId, questions, guestGrants] = await Promise.all([
         sessionIds.length > 0
           ? Grade.find(gradeQuery).lean()
           : Promise.resolve([]),
@@ -823,7 +833,12 @@ export default async function gradeRoutes(app) {
         uniqueQuestionIds.length > 0
           ? Question.find({ _id: { $in: uniqueQuestionIds } }).select('_id type').lean()
           : Promise.resolve([]),
+        sharedSessionIds.length > 0
+          ? ActivityGrant.find({ sessionId: { $in: sharedSessionIds }, guestAtRedemption: true })
+            .select('sessionId userId').lean()
+          : Promise.resolve([]),
       ]);
+      const guestGrantKeys = new Set(guestGrants.map((grant) => `${String(grant.userId)}::${String(grant.sessionId)}`));
 
       const questionTypeByQuestionId = new Map();
       questions.forEach((question) => {
@@ -864,6 +879,7 @@ export default async function gradeRoutes(app) {
           const grade = gradeByStudentAndSession.get(key);
           const submitted = Array.isArray(session?.submittedQuiz) && session.submittedQuiz.includes(studentId);
 
+          if (guestGrantKeys.has(key)) return { sessionId, notApplicable: true };
           if (grade) {
             return {
               ...grade,
@@ -895,9 +911,10 @@ export default async function gradeRoutes(app) {
           };
         });
 
-        const avgParticipation = gradeEntries.length > 0
-          ? Math.round((gradeEntries.reduce((sum, grade) => sum + toFiniteNumber(grade.participation, 0), 0) / gradeEntries.length) * 10) / 10
-          : 0;
+        const applicableGrades = gradeEntries.filter((grade) => !grade.notApplicable);
+        const avgParticipation = applicableGrades.length > 0
+          ? Math.round((applicableGrades.reduce((sum, grade) => sum + toFiniteNumber(grade.participation, 0), 0) / applicableGrades.length) * 10) / 10
+          : gradeEntries.some((grade) => grade.notApplicable) ? null : 0;
 
         return {
           student: {

@@ -457,6 +457,37 @@ describe('SessionReview', () => {
     expect(screen.queryByText('Question navigator')).not.toBeInTheDocument();
   });
 
+  it('grades enrolled students and shows guest answers without grade controls in a shared named activity', async () => {
+    const defaultGet = apiClient.get.getMockImplementation();
+    apiClient.get.mockImplementation(async (url) => {
+      if (url === '/sessions/session-1/results') {
+        const payload = buildResultsPayload({ activityEverShared: true });
+        payload.studentResults[0].guest = false;
+        payload.studentResults[1].guest = true;
+        return { data: payload };
+      }
+      if (url === '/sessions/session-1/grades') {
+        return { data: { grades: [{
+          _id: 'grade-1', userId: 'student-1', value: 87.5,
+          marks: [{ questionId: 'q-1', points: 4, outOf: 5, needsGrading: false }],
+        }] } };
+      }
+      return defaultGet(url);
+    });
+
+    renderSessionReview();
+    expect(await screen.findByText(/Enrolled students can receive grades/)).toBeInTheDocument();
+    expect(apiClient.get).toHaveBeenCalledWith('/sessions/session-1/grades');
+    fireEvent.click(screen.getByRole('tab', { name: /response data/i }));
+    const resultsTable = await screen.findByRole('table', { name: /student results/i });
+    const guestRow = within(resultsTable).getByText('Grace Hopper').closest('tr');
+    expect(within(guestRow).getByText('Guest')).toBeInTheDocument();
+    expect(within(guestRow).getByText('No grade')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: /grading/i }));
+    expect(await screen.findByText('Guest responses')).toBeInTheDocument();
+    expect(screen.getByText(/Guests do not receive grades/)).toBeInTheDocument();
+  });
+
   it('opens the student avatar image from the response data tab', async () => {
     renderSessionReview();
 

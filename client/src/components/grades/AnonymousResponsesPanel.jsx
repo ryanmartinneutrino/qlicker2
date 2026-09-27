@@ -51,9 +51,9 @@ function RichContent({ html, fallback, allowVideoEmbeds = false }) {
 }
 
 /**
- * Read-only, per-question view of responses in an anonymous session.
- * Respondents are identified only by the generic labels in `studentResults`,
- * and there are no marks or feedback because anonymous sessions are not graded.
+ * Read-only, per-question view for anonymous respondents or named guests.
+ * Anonymous respondents use generic labels; guests retain their names.
+ * Neither group has grade items or feedback controls.
  */
 export default function AnonymousResponsesPanel({
   questions = [],
@@ -105,7 +105,7 @@ export default function AnonymousResponsesPanel({
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       <Alert severity="info" icon={<VisibilityOffIcon fontSize="inherit" />}>
-        {anonymous ? t('professor.sessionReview.anonymousResponsesHelp') : t('professor.sessionEditor.activityUngraded')}
+        {anonymous ? t('professor.sessionReview.anonymousResponsesHelp') : t('professor.sessionReview.guestResponsesHelp')}
       </Alert>
 
       <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>

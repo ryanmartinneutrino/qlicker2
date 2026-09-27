@@ -871,7 +871,7 @@
       "enrollmentCodeHelp": "This is the code students need to enroll in the course.",
       "anonymousSession": "Anonymous",
       "allowSharedActivities": "Allow activities to be shared by code",
-      "allowSharedActivitiesHelp": "Off by default. Turning this off revokes existing activity codes and outside access.",
+      "allowSharedActivitiesHelp": "Allows quizzes and interactive sessions in this course to be shared by code with signed-in people who are not enrolled. Turning this off revokes outside access.",
       "searchSessionsPlaceholder": "Search by session name",
       "noSessionsMatchFilters": "No sessions match the current filters."
     },
@@ -1013,19 +1013,20 @@
       "anonymousNoExtensions": "Individual quiz extensions are unavailable for anonymous sessions.",
       "anonymousLockedNote": "Anonymity cannot be changed after students have joined or responded.",
       "activityCodeTitle": "Share by activity code",
-      "activityCodeHelp": "People with a code can open only this activity without joining the course. Anyone with an account can use the code. Responses are never graded, and anonymous answers become visible only after at least four people answer each question and attempt. Unique answers may still identify someone.",
+      "activityCodeHelp": "Signed-in people with this code can open only this activity without joining the course. In a named activity, enrolled students can receive grades; guests have tracked responses but no grades. An anonymous activity works as a survey: nobody receives a grade, and answer rows appear only after at least four people answer each question and attempt. Unique answers may still identify someone.",
+      "sharedNamedGradingInfo": "Enrolled students can receive grades. Guests can respond, but receive no grades or course gradebook entries.",
+      "sharedAnonymousSurveyInfo": "Anonymous sharing creates a survey: responses stay linked across questions, and nobody receives a grade. Answer rows appear only after at least four people answer each question and attempt.",
       "activityCodeExpires": "Code expires {{date}}",
       "activityCodeLabel": "Activity code",
       "generateActivityCode": "Generate code",
       "rotateActivityCode": "Regenerate code",
       "disableActivityCode": "Disable code",
       "activityCodeError": "Could not change activity sharing.",
-      "activityUngraded": "This activity will remain ungraded even after code access is disabled.",
       "removeExtensionsBeforeSharing": "Remove individual quiz extensions before generating an activity code.",
       "sharedNoExtensions": "Individual quiz extensions are unavailable after this activity has been shared by code.",
       "courseSharingDisabled": "Enable activity-code sharing in the course settings first.",
       "allowActivityCodeAccess": "Allow access by activity code",
-      "disableActivityCodeHelp": "Turning this off revokes this code and all outside access. This activity stays ungraded.",
+      "disableActivityCodeHelp": "Turning this off revokes this code and all outside access. Enrolled students retain their grade eligibility in a named activity.",
       "activityCodeUnavailable": "This code cannot be displayed. Regenerate it to show a new persistent code.",
       "sessionName": "Session name",
       "tags": "Session tags",
@@ -1157,6 +1158,10 @@
       "name": "Name",
       "email": "Email",
       "grade": "Grade",
+      "guest": "Guest",
+      "guestNoGrade": "No grade",
+      "guestResponses": "Guest responses",
+      "guestResponsesHelp": "Guest answers are tracked here for review. Guests do not receive grades.",
       "participation": "Participation",
       "noQuestions": "This session has no questions.",
       "noResults": "No student results available.",
@@ -1781,6 +1786,7 @@
       "noAutoConflicts": "No auto-gradeable conflicts to apply.",
       "appliedAutoPartial": "Applied automatic marks where supported. {{count}} conflict(s) require manual handling.",
       "avgParticipation": "Avg. Participation",
+      "notApplicable": "Not applicable",
       "firstName": "First name",
       "lastName": "Last name",
       "all": "All",
@@ -2346,7 +2352,7 @@
             "If a session depends on passcodes, groups, or visible statistics, confirm those settings before students begin joining.",
             "Session lists keep search, filters, and pagination inside Search sessions. While an interactive session is live, opening its card joins the live controls directly; live quiz cards still open the editor.",
             "Turn on Anonymous responses in the session editor for surveys and course feedback. Students still sign in and answer each question once, but you see answers under labels such as Respondent 1 instead of names, the live view shows only how many students joined, and the session is never graded or added to the gradebook. The setting locks once anyone joins or answers, and very small groups can still be identified by elimination. Respondent rows appear only after the activity ends and at least four people have answered every question and attempt with responses; unique or self-identifying answers may still reveal someone.",
-            "Use the session switch to turn sharing on or off; the active code remains visible after a refresh and can be regenerated. First enable activity-code sharing in Course settings; it is off by default. Turning it off revokes existing codes and outside access. Remove individual quiz extensions before sharing; they remain unavailable after sharing. To invite signed-in people outside the course, create a quiz or live session in the course and generate an S- activity code in its editor. Copy it when shown; regenerating stops new use of the old code, and disabling revokes outside access. The activity is permanently ungraded for everyone. Choose named or anonymous responses before anyone redeems the code; anonymous respondent rows appear only after the activity ends and four people answer every question and attempt. Unique answers may still reveal someone. The rotating live join code still applies when enabled."
+            "Use the session switch to turn sharing on or off; the active code remains visible after a refresh and can be regenerated. First enable activity-code sharing in Course settings; it is off by default. Turning it off revokes existing codes and outside access. Remove individual quiz extensions before sharing; they remain unavailable after sharing. To invite signed-in people outside the course, create a quiz or live session in the course and generate an S- activity code in its editor. Copy it when shown; regenerating stops new use of the old code, and disabling revokes outside access. In a named activity, enrolled students can receive grades; guests have tracked responses but no grade items. Turn on anonymity for a survey with no grade items for anyone. Choose named or anonymous responses before anyone redeems the code; anonymous respondent rows appear only after the activity ends and four people answer every question and attempt. Unique answers may still reveal someone. The rotating live join code still applies when enabled."
           ]
         },
         {
@@ -2434,7 +2440,7 @@
             "If your institution requires verified email or SSO, finish that setup first before assuming the enrollment code is wrong.",
             "You usually only need the join code once per course. After it works, the course stays on your dashboard until you are removed or the course is archived for your account.",
             "Watch the badge on your avatar in the app bar for active notifications, then open Notifications from the account menu to read or dismiss them.",
-            "Enter an S- activity code in the dashboard's code form to open one quiz or live session without joining its course. A live session may also require its rotating join code. Code-accessible activities have no grades. Anonymous answers stay linked across questions under one respondent label and are shown to the instructor only after the activity ends and four people answer each question and attempt; a unique answer may still reveal you."
+            "Enter an S- activity code in the dashboard's code form to open one quiz or live session without joining its course. A live session may also require its rotating join code. If you are not enrolled in the course, your responses are tracked but you receive no grade. Enrolled students can receive grades in named activities; anonymous activities have no grades. Anonymous answers stay linked across questions under one respondent label and are shown to the instructor only after the activity ends and four people answer each question and attempt; a unique answer may still reveal you."
           ],
           "screenshot": {
             "variant": "studentCourse",

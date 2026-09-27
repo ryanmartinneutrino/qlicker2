@@ -1,6 +1,6 @@
 # Plan: session access by activity code
 
-Status: the draft follow-up PR implements signed-in code access for quiz and live activities, the dashboard entry, response tracking, WebSocket delivery, and the ungraded contract. Final staging and multi-replica load testing remain.
+Status: the draft follow-up PR implements signed-in code access for quiz and live activities, the dashboard entry, response tracking, WebSocket delivery, and enrolled-only grading for named activities. Final staging and multi-replica load testing remain.
 
 ## Goal and product contract
 
@@ -27,7 +27,7 @@ Generate activity codes from a random seed and a server-secret HMAC into ten cha
 - Centralize the participant decision as course membership **or** a valid activity grant. Apply it consistently to session metadata, quiz read/autosave/submit, live read/join/respond, own-response review, question images, and any session chat that is deliberately enabled. Keep instructor authorization based on course ownership/instructor membership; possession of a code never grants authoring or results access.
 - Return a small activity-specific course header to outside participants, not the full course object or course-level endpoints. Audit every route and WebSocket event that currently assumes `isCourseMember` or uses `course.students`.
 - For anonymous activities, derive the same per-session pseudonym from the signed-in account regardless of whether entry was by enrollment or grant. Keep final respondent rows stable across questions. Never put account IDs into `Session.joined`, `submittedQuiz`, `Response.studentUserId`, instructor payloads, or downloadable results for anonymous sessions.
-- For named outside participants, define a session results identity record limited to that activity. A code-accessible activity is ungraded for everyone, including enrolled course students. Do not create or expose course gradebook rows, automatic marks, manual grading, AI grading, or grade recalculation for that activity. A later scored/certified outside-quiz feature would need its own grading contract.
+- For named outside participants, define a session results identity record limited to that activity. Keep their answers available to the instructor but do not create grade rows for them. Enrolled course students retain automatic and manual grading, AI grading, and course gradebook entries. Anonymous activities have no grade rows for anyone.
 
 ## Toggle rules and participation boundary
 
@@ -62,7 +62,7 @@ The server is authoritative. Before the first grant is redeemed or any join, ans
 
 1. Completed in merged PR #46: anonymous-session privacy and toggle guards, the four-respondent release minimum for every answered question and attempt, and stable cross-question respondent rows.
 2. Add sharing models, code generation/redemption, grant checks, rate limits, and route schemas in a focused backend change. The absence of an `ActivityShare` means course-only access. Test legacy sessions and course codes unchanged. This foundation is implemented in the draft PR and grants are accepted by session participant routes.
-3. Enforce the ungraded contract for every participant in a code-accessible activity, including enrolled students; reject enabling sharing on a session with existing grades. Extend quiz and review routes, then add the dashboard code dispatch and activity route. Signed-in outside quizzes/surveys in both named and anonymous mode are implemented in the draft PR.
+3. Enforce enrolled-only grading for a named code-accessible activity, and no grading for an anonymous one. Permit existing enrolled grades when sharing a named activity, but reject guest grades and individual extensions. Extend quiz and review routes, then add the dashboard code dispatch and activity route. Signed-in outside quizzes/surveys in both named and anonymous mode are implemented in the draft PR.
 4. Live joins, targeted WebSocket delivery, and presentation behavior are implemented. Outside session chat is disabled; measure classroom-scale fan-out and test multiple replicas on staging.
 5. Update all locales, user manuals, API/data-model docs, and real screenshots. Roll out behind the sharing flag; no migration of existing enrollment or response records is required. Complete final staging tests before merge.
 
@@ -72,8 +72,8 @@ The server is authoritative. Before the first grant is redeemed or any join, ans
 - Verify that a code grants exactly one session, never course membership or other sessions, and that an outsider cannot read course rosters, grades, chat, AI tools, or question libraries through the grant. Uploaded image URLs currently use an authenticated, non-course-scoped read route; verify this pre-existing behavior separately and do not treat a grant as permission to enumerate uploads.
 - Exercise first redemption/join/autosave/submit concurrently with anonymity, delivery-mode, and extension changes. Test retries, duplicate requests, code rotation, revocation, and expired windows.
 - Compare instructor HTTP, WebSocket, AI, CSV, and question-authoring payloads for anonymous sessions. Confirm stable respondent rows after release and no real IDs, exact answer times, or per-person extension paths.
-- Run existing ordinary session/quiz, course enrollment, gradebook, and course chat suites; verify code-accessible sessions never create grade rows for enrolled or outside participants. Add browser flows for code redemption and live delivery with and without Redis. Use the load test for the new recipient resolution path.
+- Run existing ordinary session/quiz, course enrollment, gradebook, and course chat suites; verify named shared sessions grade enrolled students without grading guests, while anonymous sessions never create grade rows. Add browser flows for code redemption and live delivery with and without Redis. Use the load test for the new recipient resolution path.
 
 ## PR scope decision
 
-The access-by-code work touches authorization, navigation, and WebSocket delivery. This draft follow-up PR starts from the merged anonymous-session work and includes code issuance, grants, quiz/live access, the ungraded contract, dashboard entry, privacy checks, and live fan-out. Keep it in draft until final staging testing confirms the multi-replica recipient path and ordinary course flows.
+The access-by-code work touches authorization, navigation, and WebSocket delivery. This draft follow-up PR starts from the merged anonymous-session work and includes code issuance, grants, quiz/live access, mixed grading for named activities, dashboard entry, privacy checks, and live fan-out. Keep it in draft until final staging testing confirms the multi-replica recipient path and ordinary course flows.

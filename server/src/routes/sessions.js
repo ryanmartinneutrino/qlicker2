@@ -14,7 +14,7 @@ import {
   isStudentOwnedSession,
   studentVisibleGradeQuery,
 } from '../utils/courseAccess.js';
-import { hasSessionParticipantAccess, getActivityRecipientUserIds } from '../services/activityAccess.js';
+import { hasSessionParticipantAccess, getActivityRecipientUserIds, getActivityGuestUserIds } from '../services/activityAccess.js';
 import { copySessionToCourse } from '../services/sessionCopy.js';
 import { copyQuestionToSession } from '../services/questionCopy.js';
 import {
@@ -4093,7 +4093,7 @@ export default async function sessionRoutes(app) {
 
       if (!isStudentOwner && updates.status && updates.status !== 'done') updates.reviewable = false;
 
-      if (!isStudentOwner && updates.reviewable === true && !session.reviewable && !nextAnonymous && !session.activityEverShared) {
+      if (!isStudentOwner && updates.reviewable === true && !session.reviewable && !nextAnonymous) {
         const nonAutoGradeable = await getNonAutoGradeableQuestions(session);
         const ungradedNonAuto = await filterToActuallyUngradedQuestions(nonAutoGradeable, session._id);
         if (ungradedNonAuto.length > 0 && !request.body.acknowledgeNonAutoGradeable) {
@@ -4366,8 +4366,8 @@ export default async function sessionRoutes(app) {
           }
         }
 
-        const [nonAutoGradeable, noResponseQuestions] = isAnonymousSession(session) || session.activityEverShared
-          // Anonymous or code-accessible sessions are never graded, so grading warnings do not apply.
+        const [nonAutoGradeable, noResponseQuestions] = isAnonymousSession(session)
+          // Anonymous sessions are never graded, so grading warnings do not apply.
           ? [[], []]
           : await Promise.all([
             getNonAutoGradeableQuestions(session),
@@ -4935,7 +4935,10 @@ export default async function sessionRoutes(app) {
 
       let feedbackSummary = getDefaultFeedbackSummary();
       let studentGrade = null;
-      if (!isInstrOrAdmin && !normalizedSession.activityEverShared) {
+      const redeemedAsGuest = !isInstrOrAdmin && normalizedSession.activityEverShared
+        && (await getActivityGuestUserIds(normalizedSession._id)).has(String(request.user.userId));
+      if (!isInstrOrAdmin && !normalizedSession.anonymous && !redeemedAsGuest
+        && (course.students || []).some((id) => String(id) === String(request.user.userId))) {
         const grade = await Grade.findOne(
           studentVisibleGradeQuery(course._id, normalizedSession._id, request.user)
         ).select('value participation points outOf needsGrading feedbackSeenAt marks').lean();
@@ -7839,6 +7842,9 @@ export default async function sessionRoutes(app) {
       const anonymousSession = isAnonymousSession(session);
       const joinedUserIds = new Set((session.joined || []).map((id) => String(id)).filter(Boolean));
       const courseStudentIds = new Set((course.students || []).map((id) => String(id)).filter(Boolean));
+      const activityGuestIds = session.activityEverShared && !anonymousSession
+        ? await getActivityGuestUserIds(session._id)
+        : new Set();
       if (anonymousSession) {
         const respondentIdsByQuestionAttempt = new Map();
         allResponses.forEach((response) => {
@@ -7986,6 +7992,7 @@ export default async function sessionRoutes(app) {
 
         return {
           studentId,
+          guest: !!session.activityEverShared && (!courseStudentIds.has(String(studentId)) || activityGuestIds.has(String(studentId))),
           firstname,
           lastname,
           email,

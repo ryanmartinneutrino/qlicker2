@@ -40,7 +40,7 @@ const submittedAnswers = new Counter(`${metricPrefix}_submitted_answers`);
 const instructorResponseEvents = new Counter(`${metricPrefix}_instructor_response_events`);
 const redeemDuration = new Trend('external_live_redeem_duration', true);
 const redeemSuccess = new Rate('external_live_redeem_success');
-const ungradedSuccess = new Rate('external_live_ungraded_success');
+const gradeContractSuccess = new Rate('external_live_grade_contract_success');
 
 export const options = {
   scenarios: {
@@ -55,7 +55,7 @@ export const options = {
     http_req_failed: [{ threshold: 'rate==0', abortOnFail: true }],
     ...(external ? {
       external_live_redeem_success: ['rate==1'],
-      external_live_ungraded_success: ['rate==1'],
+      external_live_grade_contract_success: ['rate==1'],
       external_live_redeem_duration: ['p(95)<3000'],
     } : {}),
     [`${metricPrefix}_join_success`]: ['rate==1'],
@@ -168,10 +168,16 @@ export function professorFlow() {
       && !serialized.includes(students[0].id)
       && !serialized.includes(students[0].email)));
   if (external) {
-    const grades = request('GET', `/sessions/${sessionId}/grades`, token, undefined, 'external_live_ungraded');
-    const noGrades = grades.status === 200 && (body(grades).grades || []).length === 0;
-    ungradedSuccess.add(noGrades);
-    check(grades, { 'shared live session has no grades': () => noGrades });
+    const grades = request('GET', `/sessions/${sessionId}/grades`, token, undefined, 'external_live_grades');
+    const gradeRows = body(grades).grades || [];
+    const enrolledIds = new Set(students.filter((student) => student.enrolled).map((student) => student.id));
+    const gradesMatchRoster = grades.status === 200
+      && gradeRows.length === (anonymous ? 0 : enrolledIds.size)
+      && gradeRows.every((grade) => enrolledIds.has(grade.userId));
+    const resultsMatchRoster = anonymous || rows.every((row) => row.guest === !enrolledIds.has(row.studentId));
+    const contractOk = gradesMatchRoster && resultsMatchRoster;
+    gradeContractSuccess.add(contractOk);
+    check(grades, { 'shared live activity grades only enrolled students': () => contractOk });
   }
   resultsSuccess.add(okay);
   check(results, { 'final anonymous rows are private and complete': () => okay });

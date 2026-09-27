@@ -13,6 +13,7 @@ import AiResponseSummary from '../models/AiResponseSummary.js';
 import Course from '../models/Course.js';
 import Grade from '../models/Grade.js';
 import { getSessionGradingLockReason } from '../services/grading.js';
+import { getActivityGuestUserIds } from '../services/activityAccess.js';
 import Session from '../models/Session.js';
 import { getOrCreateSettingsDocument } from '../utils/settingsSingleton.js';
 import { isCourseInstructorOrAdmin, resolveCourseAiAudience } from '../utils/courseAccess.js';
@@ -902,12 +903,16 @@ export default async function aiRoutes(app) {
     const course = await instructorCourse(request, reply); if (!course) return undefined;
     const session = await instructorSession(course, request.params.sessionId, reply); if (!session) return undefined;
     if (session.anonymous) return reply.code(409).send({ error: 'Conflict', message: 'Anonymous sessions do not have grades' });
-    if (session.activityEverShared) return reply.code(409).send({ error: 'Conflict', message: 'Code-accessible activities do not have grades' });
     const gradingLockReason = getSessionGradingLockReason(session);
     if (gradingLockReason) return reply.code(409).send({ error: 'Conflict', message: gradingLockReason === 'extensions'
       ? 'Grading is locked until all quiz extensions have expired or been removed'
       : 'Session must be in Ended state before grading' });
-    if (!await Grade.exists({ sessionId: session._id, courseId: course._id })) {
+    const guestIds = session.activityEverShared ? await getActivityGuestUserIds(session._id) : new Set();
+    const eligibleStudents = session.activityEverShared
+      ? (course.students || []).filter((id) => !guestIds.has(String(id)))
+      : [];
+    if (!await Grade.exists({ sessionId: session._id, courseId: course._id,
+      ...(session.activityEverShared ? { userId: { $in: eligibleStudents } } : {}) })) {
       return reply.code(409).send({ error: 'Conflict', message: 'Create grade items before grading' });
     }
     const settings = await getOrCreateSettingsDocument({ lean: true }); const policy = coursePolicy(settings, course._id);

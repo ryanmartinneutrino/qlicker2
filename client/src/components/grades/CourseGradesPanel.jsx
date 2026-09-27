@@ -1193,13 +1193,13 @@ export default function CourseGradesPanel({
         escapeCsvCell(row?.student?.lastname || ''),
         escapeCsvCell(row?.student?.firstname || ''),
         escapeCsvCell(row?.student?.email || ''),
-        escapeCsvCell(formatPercent(row?.avgParticipation || 0)),
+        escapeCsvCell(row?.avgParticipation === null ? '' : formatPercent(row?.avgParticipation || 0)),
       ];
 
       exportSessions.forEach((session) => {
         const grade = row?.gradeBySession?.[session._id];
-        line.push(escapeCsvCell(formatPercent(grade?.value || 0)));
-        line.push(escapeCsvCell(formatPercent(grade?.participation || 0)));
+        line.push(escapeCsvCell(grade?.notApplicable ? '' : formatPercent(grade?.value || 0)));
+        line.push(escapeCsvCell(grade?.notApplicable ? '' : formatPercent(grade?.participation || 0)));
       });
 
       return line.join(',');
@@ -2322,11 +2322,17 @@ export default function CourseGradesPanel({
                           />
                         </TableCell>
                         <TableCell sx={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.student.email}</TableCell>
-                        <TableCell>{formatPercent(row.avgParticipation)}%</TableCell>
+                        <TableCell>{row.avgParticipation === null
+                          ? t('grades.coursePanel.notApplicable')
+                          : `${formatPercent(row.avgParticipation)}%`}</TableCell>
                         {visibleSessions.map((session) => {
                           const grade = row.gradeBySession?.[session._id];
-                          const markLabel = `${formatPercent(grade?.value || 0)}%`;
-                          const participationLabel = `${formatPercent(grade?.participation || 0)}%`;
+                          const markLabel = grade?.notApplicable
+                            ? t('grades.coursePanel.notApplicable')
+                            : `${formatPercent(grade?.value || 0)}%`;
+                          const participationLabel = grade?.notApplicable
+                            ? t('grades.coursePanel.notApplicable')
+                            : `${formatPercent(grade?.participation || 0)}%`;
                           return (
                             <Fragment key={`${row.student.studentId}-${session._id}`}>
                               <TableCell>

@@ -69,6 +69,12 @@ export async function getActivityRecipientUserIds(session, course = null) {
   return grants.map((grant) => String(grant.userId));
 }
 
+export async function getActivityGuestUserIds(sessionId) {
+  const grants = await ActivityGrant.find({ sessionId: String(sessionId), guestAtRedemption: true })
+    .select('userId').lean();
+  return new Set(grants.map((grant) => String(grant.userId)));
+}
+
 export async function hasActivityGrant(sessionId, userId) {
   const share = await ActivityShare.findOne({ sessionId, enabled: true })
     .select('accessEpoch').lean();
@@ -95,7 +101,7 @@ export async function redeemActivityCode(rawCode, userId) {
     .select('_id name courseId quiz practiceQuiz studentCreated anonymous participationStarted')
     .lean();
   if (!session || session.practiceQuiz || session.studentCreated) return null;
-  const course = await Course.findById(session.courseId).select('inactive allowSharedActivities').lean();
+  const course = await Course.findById(session.courseId).select('inactive allowSharedActivities students').lean();
   if (!course || course.inactive || !course.allowSharedActivities) return null;
 
   // This claim races safely with an instructor changing identity mode: the
@@ -115,7 +121,10 @@ export async function redeemActivityCode(rawCode, userId) {
   try {
     await ActivityGrant.updateOne(
       grantFilter,
-      { $max: { accessEpoch: share.accessEpoch }, $setOnInsert: { createdAt: now } },
+      { $max: { accessEpoch: share.accessEpoch }, $setOnInsert: {
+        createdAt: now,
+        guestAtRedemption: !(course.students || []).some((id) => String(id) === String(userId)),
+      } },
       { upsert: true, setDefaultsOnInsert: true }
     );
   } catch (error) {

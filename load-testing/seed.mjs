@@ -401,6 +401,11 @@ async function seed(numStudents, scenario) {
   const studentIds = studentDocs.map((s) => s._id);
 
   // --- Course ---
+  const anonymous = scenario.endsWith('-anonymous');
+  const enrolledStudentIds = external && !anonymous
+    ? studentIds.filter((_, index) => index % 2 === 0)
+    : external ? [] : studentIds;
+  const enrolledStudentIdSet = new Set(enrolledStudentIds);
   const enrollmentCode = crypto.randomBytes(4).toString('hex').toUpperCase();
   const course = await Course.create({
     name: `Load Test Course (${numStudents} students)`,
@@ -410,7 +415,7 @@ async function seed(numStudents, scenario) {
     semester: 'Load Test',
     owner: professor._id,
     instructors: [professor._id],
-    students: external ? [] : studentIds,
+    students: enrolledStudentIds,
     allowSharedActivities: external,
     enrollmentCode,
     tags: [{
@@ -452,7 +457,6 @@ async function seed(numStudents, scenario) {
 
   // --- Session ---
   const isQuiz = scenario.startsWith('quiz-');
-  const anonymous = scenario.endsWith('-anonymous');
   const session = await Session.create({
     name: `Load Test Session (${scenario})`,
     description: `${LOAD_TEST_TAG} generated fixture`,
@@ -502,6 +506,7 @@ async function seed(numStudents, scenario) {
   const students = studentDocs.map((s, i) => ({
     email: `loadtest-student${i + 1}@example.com`,
     id: s._id,
+    enrolled: enrolledStudentIdSet.has(s._id),
   }));
 
   return {

@@ -25,7 +25,7 @@ const submitDuration = new Trend('quiz_submit_duration', true);
 const resultsDuration = new Trend('quiz_results_duration', true);
 const courseListSuccess = new Rate('quiz_course_list_success');
 const redeemSuccess = new Rate('quiz_redeem_success');
-const ungradedSuccess = new Rate('quiz_ungraded_success');
+const gradeContractSuccess = new Rate('quiz_grade_contract_success');
 const openSuccess = new Rate('quiz_open_success');
 const autosaveSuccess = new Rate('quiz_autosave_success');
 const submitSuccess = new Rate('quiz_submit_success');
@@ -45,7 +45,7 @@ export const options = {
   },
   thresholds: {
     http_req_failed: [{ threshold: 'rate==0', abortOnFail: true }],
-    ...(external ? { quiz_redeem_success: ['rate==1'], quiz_ungraded_success: ['rate==1'] }
+    ...(external ? { quiz_redeem_success: ['rate==1'], quiz_grade_contract_success: ['rate==1'] }
       : { quiz_course_list_success: ['rate==1'] }),
     quiz_open_success: ['rate==1'],
     quiz_autosave_success: ['rate==1'],
@@ -192,9 +192,15 @@ export function teardown() {
   check(results, { 'final quiz results match participants and privacy mode': () => ok });
   if (!ok) console.error(`Quiz results failed: status ${results.status}, rows ${rows.length}, expected ${expectedRows}`);
   if (external) {
-    const grades = request('GET', `/sessions/${sessionId}/grades`, token, undefined, 'quiz_ungraded');
-    const noGrades = grades.status === 200 && (body(grades).grades || []).length === 0;
-    ungradedSuccess.add(noGrades);
-    check(grades, { 'shared quiz has no grades': () => noGrades });
+    const grades = request('GET', `/sessions/${sessionId}/grades`, token, undefined, 'quiz_grades');
+    const gradeRows = body(grades).grades || [];
+    const enrolledIds = new Set(students.filter((student) => student.enrolled).map((student) => student.id));
+    const gradesMatchRoster = grades.status === 200
+      && gradeRows.length === (anonymous ? 0 : enrolledIds.size)
+      && gradeRows.every((grade) => enrolledIds.has(grade.userId));
+    const resultsMatchRoster = anonymous || rows.every((row) => row.guest === !enrolledIds.has(row.studentId));
+    const contractOk = gradesMatchRoster && resultsMatchRoster;
+    gradeContractSuccess.add(contractOk);
+    check(grades, { 'shared quiz grades only enrolled students': () => contractOk });
   }
 }

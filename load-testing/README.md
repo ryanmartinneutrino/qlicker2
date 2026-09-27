@@ -129,7 +129,7 @@ Otherwise, run `./setup.sh` and choose `prod` plus `docker` on either host.
 
    Choose `JOIN_GRACE_S` long enough for the student login wave to complete;
    keep it identical across comparison runs. Each command reseeds its own
-   fixture. The external variants seed students outside the course, redeem the activity code, and check ungraded results and live delivery. Run `./run.sh --test-only --scenario NAME` only if the current
+   fixture. The external named quiz variant enrolls half the participants and verifies that only they receive grade rows; the remaining participants redeem the code as guests. Anonymous variants remain ungraded for everyone. All external variants check code redemption, response tracking, and live delivery. Run `./run.sh --test-only --scenario NAME` only if the current
    fixture was seeded for that name and has not been consumed by a previous
    run. Quiz submissions and live session endings make a completed fixture
    unsuitable for another full pass.

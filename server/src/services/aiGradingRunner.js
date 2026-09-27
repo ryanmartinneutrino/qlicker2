@@ -13,6 +13,7 @@ import {
   startAiGradingLogRun,
 } from './aiLogs.js';
 import { getSessionGradingLockReason, normalizeGradesManualGradingState, recomputeGradeAggregates, responseHasContent } from './grading.js';
+import { getActivityGuestUserIds } from './activityAccess.js';
 
 const activeJobs = new Map();
 const HALTED_NOTE = 'AI grading was halted by an instructor.';
@@ -180,7 +181,7 @@ export async function runAiGradingJob(jobId) {
       Settings.findById('settings').lean(),
     ]);
     if (!course || !session) throw new Error('The AI grading course or session is no longer available');
-    if (session.activityEverShared || getSessionGradingLockReason(session)) throw new Error('Grading is locked until the session and all extensions have ended');
+    if (session.anonymous || getSessionGradingLockReason(session)) throw new Error('Grading is locked until the session and all extensions have ended');
     const selected = resolveModel(course, settings || {}, job.backendId, job.modelId);
     if (!selected) throw new Error('No available AI model is selected for this course');
     const selectedQuestionIds = new Set(job.questionIds.map(String));
@@ -194,7 +195,12 @@ export async function runAiGradingJob(jobId) {
         ? [{ ...question, sessionQuestionNumber: sessionIndex + 1 }]
         : [];
     });
-    const grades = await Grade.find({ sessionId: job.sessionId, courseId: job.courseId });
+    const guestIds = session.activityEverShared ? await getActivityGuestUserIds(session._id) : new Set();
+    const eligibleStudents = session.activityEverShared
+      ? (course.students || []).filter((id) => !guestIds.has(String(id)))
+      : [];
+    const grades = await Grade.find({ sessionId: job.sessionId, courseId: job.courseId,
+      ...(session.activityEverShared ? { userId: { $in: eligibleStudents } } : {}) });
     const normalizedGrades = await normalizeGradesManualGradingState(grades.map((grade) => grade.toObject()));
     grades.forEach((grade, index) => { grade.marks = normalizedGrades[index].marks; });
     const users = await User.find({ _id: { $in: grades.map((grade) => grade.userId) } }).lean();
@@ -267,7 +273,7 @@ export async function runAiGradingJob(jobId) {
         }
         await assertJobRunning(job._id, controller.signal);
         const currentSession = await Session.findById(job.sessionId).lean();
-        if (currentSession.activityEverShared || getSessionGradingLockReason(currentSession)) throw new Error('Grading was locked because the session or an extension reopened');
+        if (currentSession?.anonymous || getSessionGradingLockReason(currentSession)) throw new Error('Grading was locked because the session or an extension reopened');
         grade.marks[markIndex].points = result.points;
         grade.marks[markIndex].feedback = result.feedback;
         // Empty-answer zeros are automatic placeholders, so reopening the quiz

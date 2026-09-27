@@ -82,8 +82,14 @@ export default async function activityAccessRoutes(app) {
     if (expiresAt.getTime() <= now || expiresAt.getTime() > now + 365 * 24 * 60 * 60 * 1000) {
       return reply.code(400).send({ error: 'Bad Request', message: 'Expiry must be within the next year' });
     }
-    if (await Grade.exists({ sessionId: context.session._id })) {
-      return reply.code(409).send({ error: 'Conflict', message: 'Remove existing grades before sharing this activity' });
+    if (context.session.anonymous && await Grade.exists({ sessionId: context.session._id })) {
+      return reply.code(409).send({ error: 'Conflict', message: 'Remove existing grades before sharing this anonymous activity' });
+    }
+    if (!context.session.anonymous && await Grade.exists({
+      sessionId: context.session._id,
+      userId: { $nin: context.course.students || [] },
+    })) {
+      return reply.code(409).send({ error: 'Conflict', message: 'Remove existing grades for people outside the course before sharing this activity' });
     }
     if (await AiGradingJob.exists({ sessionId: context.session._id, status: { $in: ['queued', 'running'] } })) {
       return reply.code(409).send({ error: 'Conflict', message: 'Wait for AI grading to finish before sharing this activity' });

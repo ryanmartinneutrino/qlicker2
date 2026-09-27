@@ -1703,7 +1703,7 @@ export default function SessionEditor() {
             </Box>}
             {!course?.allowSharedActivities && <Typography variant="body2" color="text.secondary">{t('professor.sessionEditor.courseSharingDisabled')}</Typography>}
             {extensionDrafts.length > 0 && <Typography variant="body2" color="text.secondary">{t('professor.sessionEditor.removeExtensionsBeforeSharing')}</Typography>}
-            {session?.activityEverShared && <Alert severity="info">{t('professor.sessionEditor.activityUngraded')}</Alert>}
+            {activityShare.enabled && <Alert severity="info">{t(anonymous ? 'professor.sessionEditor.sharedAnonymousSurveyInfo' : 'professor.sessionEditor.sharedNamedGradingInfo')}</Alert>}
           </Paper>
 
           {/* Join code settings (for interactive sessions only) */}
