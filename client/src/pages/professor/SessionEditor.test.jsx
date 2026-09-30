@@ -410,6 +410,8 @@ describe('SessionEditor inline close behavior', () => {
     };
     let view = await renderWith({ allowSharedActivities: false });
     expect(await screen.findByLabelText('professor.sessionEditor.allowActivityCodeAccess')).toBeDisabled();
+    fireEvent.mouseOver(screen.getByLabelText('professor.sessionEditor.activityCodeTitle'));
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('professor.sessionEditor.activityCodeHelp');
     expect(screen.getByText('professor.sessionEditor.courseSharingDisabled')).toBeInTheDocument();
     view.unmount();
 
@@ -439,13 +441,46 @@ describe('SessionEditor inline close behavior', () => {
     render(<SessionEditor />);
     const shareSwitch = await screen.findByLabelText('professor.sessionEditor.allowActivityCodeAccess');
     await waitFor(() => expect(shareSwitch).toBeChecked());
-    expect(screen.getByRole('textbox', { name: 'professor.sessionEditor.activityCodeLabel' })).toHaveValue('S-ABCDEFGHJK');
+    expect(screen.getByTestId('activity-share-code')).toHaveTextContent('S-ABCDEFGHJK');
     expect(screen.getByRole('button', { name: 'professor.sessionEditor.rotateActivityCode' })).toBeInTheDocument();
     fireEvent.click(shareSwitch);
     await waitFor(() => expect(apiClientMock.delete).toHaveBeenCalledWith('/sessions/session-1/activity-share'));
     await waitFor(() => expect(shareSwitch).not.toBeChecked());
-    expect(screen.queryByRole('textbox', { name: 'professor.sessionEditor.activityCodeLabel' })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('activity-share-code')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'professor.sessionEditor.rotateActivityCode' })).not.toBeInTheDocument();
+  });
+
+  it('uses explicit regeneration only for the Regenerate button', async () => {
+    const originalGet = apiClientMock.get.getMockImplementation();
+    let enabled = true;
+    let code = 'S-ABCDEFGHJK';
+    apiClientMock.get.mockImplementation(async (url) => {
+      if (url === '/sessions/session-1/activity-share') {
+        return { data: { enabled, code: enabled ? code : null, expiresAt: enabled ? '2026-10-20T12:00:00.000Z' : null } };
+      }
+      const response = await originalGet(url);
+      if (url === '/courses/course-1') response.data.course.allowSharedActivities = true;
+      return response;
+    });
+    apiClientMock.post.mockImplementation(async (url, payload) => {
+      expect(url).toBe('/sessions/session-1/activity-share');
+      if (payload.regenerate) code = 'S-HJKLMNPQRS';
+      enabled = true;
+      return { data: { code, expiresAt: '2026-10-20T12:00:00.000Z' } };
+    });
+    apiClientMock.delete.mockImplementation(async () => { enabled = false; return { data: { enabled: false } }; });
+    render(<SessionEditor />);
+    const shareSwitch = await screen.findByLabelText('professor.sessionEditor.allowActivityCodeAccess');
+    await waitFor(() => expect(shareSwitch).toBeChecked());
+
+    fireEvent.click(screen.getByRole('button', { name: 'professor.sessionEditor.rotateActivityCode' }));
+    await waitFor(() => expect(apiClientMock.post).toHaveBeenCalledWith('/sessions/session-1/activity-share', { regenerate: true }));
+    await waitFor(() => expect(screen.getByTestId('activity-share-code')).toHaveTextContent(code));
+    fireEvent.click(shareSwitch);
+    await waitFor(() => expect(shareSwitch).not.toBeChecked());
+    fireEvent.click(shareSwitch);
+    await waitFor(() => expect(apiClientMock.post).toHaveBeenLastCalledWith('/sessions/session-1/activity-share', {}));
+    await waitFor(() => expect(screen.getByTestId('activity-share-code')).toHaveTextContent(code));
   });
 
   it('refreshes server status at the exact schedule boundaries while the editor stays open', async () => {

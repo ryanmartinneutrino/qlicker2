@@ -55,7 +55,7 @@ export default async function activityAccessRoutes(app) {
       params: sessionParams,
       body: {
         type: 'object',
-        properties: { expiresAt: { type: 'string', format: 'date-time' } },
+        properties: { expiresAt: { type: 'string', format: 'date-time' }, regenerate: { type: 'boolean' } },
         additionalProperties: false,
       },
       response: {
@@ -101,7 +101,7 @@ export default async function activityAccessRoutes(app) {
     if (!updated.matchedCount) {
       return reply.code(409).send({ error: 'Conflict', message: 'Remove individual quiz extensions before sharing this activity' });
     }
-    const issued = await issueActivityCode(context.session._id, expiresAt);
+    const issued = await issueActivityCode(context.session._id, expiresAt, { regenerate: request.body?.regenerate === true });
     // A course switch can be turned off while issuance is in flight. Fail
     // closed and revoke this code before returning it to the instructor.
     const stillAllowed = await Course.exists({ _id: context.course._id, allowSharedActivities: true, inactive: { $ne: true } });

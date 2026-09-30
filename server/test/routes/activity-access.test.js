@@ -109,10 +109,53 @@ describe('activity code foundation', () => {
     expect(status.json().enabled).toBe(true);
     expect(status.json().code).toBeNull();
     expect((await redeem(legacyCode, outsiderToken)).statusCode).toBe(200);
-    const replacement = (await issue(session._id, professorToken)).json().code;
+    const replacement = (await issue(session._id, professorToken, { regenerate: true })).json().code;
     expect(replacement).toMatch(/^S-[A-HJ-NP-Z2-9]{10}$/);
     const updated = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/activity-share`, { token: professorToken });
     expect(updated.json().code).toBe(replacement);
+  });
+
+  it('creates a code on first enable, reuses it after disabling, and accepts only the enabled code', async () => {
+    const { professorToken, outsiderToken, session } = await fixture();
+    const first = await issue(session._id, professorToken);
+    expect(first.statusCode).toBe(200);
+    const firstCode = first.json().code;
+    expect(firstCode).toMatch(/^S-[A-HJ-NP-Z2-9]{10}$/);
+    expect((await issue(session._id, professorToken)).json().code).toBe(firstCode);
+    expect(await ActivityShare.countDocuments({ sessionId: session._id })).toBe(1);
+
+    const disabled = await authenticatedRequest(app, 'DELETE', `/api/v1/sessions/${session._id}/activity-share`, {
+      token: professorToken,
+    });
+    expect(disabled.statusCode).toBe(200);
+    expect((await ActivityShare.findOne({ sessionId: session._id }).lean()).enabled).toBe(false);
+    expect((await redeem(firstCode, outsiderToken)).statusCode).toBe(404);
+    const disabledStatus = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/activity-share`, {
+      token: professorToken,
+    });
+    expect(disabledStatus.json()).toEqual({ enabled: false, code: null, expiresAt: null });
+
+    const reenabled = await issue(session._id, professorToken);
+    expect(reenabled.statusCode).toBe(200);
+    expect(reenabled.json().code).toBe(firstCode);
+    expect((await redeem(firstCode, outsiderToken)).statusCode).toBe(200);
+    expect(await ActivityShare.countDocuments({ sessionId: session._id })).toBe(1);
+
+    const regenerated = await issue(session._id, professorToken, { regenerate: true });
+    expect(regenerated.statusCode).toBe(200);
+    expect(regenerated.json().code).not.toBe(firstCode);
+    expect((await redeem(firstCode, outsiderToken)).statusCode).toBe(404);
+    expect((await redeem(regenerated.json().code, outsiderToken)).statusCode).toBe(200);
+  });
+
+  it('concurrent first enables expose the same single code', async () => {
+    const { professorToken, session } = await fixture();
+    const issued = await Promise.all([
+      issue(session._id, professorToken), issue(session._id, professorToken), issue(session._id, professorToken),
+    ]);
+    expect(issued.every((response) => response.statusCode === 200)).toBe(true);
+    expect(new Set(issued.map((response) => response.json().code)).size).toBe(1);
+    expect(await ActivityShare.countDocuments({ sessionId: session._id })).toBe(1);
   });
 
   it('handles concurrent redemption as one grant', async () => {
@@ -132,7 +175,7 @@ describe('activity code foundation', () => {
     const { hasActivityGrant } = await import('../../src/services/activityAccess.js');
     expect(await hasActivityGrant(session._id, outsider._id)).toBe(true);
 
-    const secondCode = (await issue(session._id, professorToken)).json().code;
+    const secondCode = (await issue(session._id, professorToken, { regenerate: true })).json().code;
     expect(secondCode).not.toBe(firstCode);
     expect((await redeem(firstCode, outsiderToken)).statusCode).toBe(404);
     expect((await redeem(secondCode, outsiderToken)).statusCode).toBe(200);
@@ -145,6 +188,7 @@ describe('activity code foundation', () => {
     expect(await hasActivityGrant(session._id, outsider._id)).toBe(false);
     expect((await redeem(secondCode, outsiderToken)).statusCode).toBe(404);
     const replacementCode = (await issue(session._id, professorToken)).json().code;
+    expect(replacementCode).toBe(secondCode);
     expect(await hasActivityGrant(session._id, outsider._id)).toBe(false);
     expect((await redeem(replacementCode, outsiderToken)).statusCode).toBe(200);
     expect(await hasActivityGrant(session._id, outsider._id)).toBe(true);
@@ -311,7 +355,7 @@ describe('shared activity safeguards', () => {
       token: professorToken, payload: { allowSharedActivities: true },
     })).statusCode).toBe(200);
     expect((await redeem(code, outsiderToken)).statusCode).toBe(404);
-    expect((await issue(session._id, professorToken)).statusCode).toBe(200);
+    expect((await issue(session._id, professorToken)).json().code).toBe(code);
   });
 
   it('rejects existing extensions when sharing and blocks new extensions even after sharing is disabled', async () => {

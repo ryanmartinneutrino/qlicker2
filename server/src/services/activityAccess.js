@@ -30,24 +30,56 @@ export function makeActivityCode() {
   return { seed, code: deriveActivityCode(seed) };
 }
 
-export function getDisplayActivityCode(share) {
-  if (!share?.enabled || !share.codeSeed) return null;
+function getStoredActivityCode(share) {
+  if (!share?.codeSeed) return null;
   const code = deriveActivityCode(share.codeSeed);
   return code && hashActivityCode(code) === share.codeHash ? code : null;
 }
 
-export async function issueActivityCode(sessionId, expiresAt) {
-  const { seed, code } = makeActivityCode();
-  const now = new Date();
-  const share = await ActivityShare.findOneAndUpdate(
-    { sessionId },
-    {
-      $set: { codeHash: hashActivityCode(code), codeSeed: seed, enabled: true, expiresAt, updatedAt: now },
-      $setOnInsert: { createdAt: now },
-    },
-    { upsert: true, returnDocument: 'after', runValidators: true }
-  ).lean();
-  return { code, share };
+export function getDisplayActivityCode(share) {
+  return share?.enabled ? getStoredActivityCode(share) : null;
+}
+
+export async function issueActivityCode(sessionId, expiresAt, { regenerate = false } = {}) {
+  // Only an explicit regeneration replaces a recoverable code. Conditional
+  // updates prevent an enable request from restoring a code rotated meanwhile.
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const existing = await ActivityShare.findOne({ sessionId }).lean();
+    const storedCode = !regenerate && getStoredActivityCode(existing);
+    if (storedCode) {
+      const share = await ActivityShare.findOneAndUpdate(
+        { _id: existing._id, codeHash: existing.codeHash },
+        { $set: { enabled: true, expiresAt, updatedAt: new Date() } },
+        { returnDocument: 'after', runValidators: true }
+      ).lean();
+      if (share) return { code: storedCode, share };
+      continue;
+    }
+
+    const { seed, code } = makeActivityCode();
+    const now = new Date();
+    if (existing) {
+      const share = await ActivityShare.findOneAndUpdate(
+        { _id: existing._id, codeHash: existing.codeHash },
+        { $set: { codeHash: hashActivityCode(code), codeSeed: seed, enabled: true, expiresAt, updatedAt: now } },
+        { returnDocument: 'after', runValidators: true }
+      ).lean();
+      if (share) return { code, share };
+      continue;
+    }
+
+    try {
+      const share = await ActivityShare.create({
+        sessionId, codeHash: hashActivityCode(code), codeSeed: seed,
+        enabled: true, expiresAt, createdAt: now, updatedAt: now,
+      });
+      return { code, share: share.toObject() };
+    } catch (error) {
+      if (error?.code !== 11000) throw error;
+      // Another request created this session's share (or hit a code collision).
+    }
+  }
+  throw new Error('Activity code changed concurrently; retry the request');
 }
 
 export async function hasSessionParticipantAccess(course, session, user) {
