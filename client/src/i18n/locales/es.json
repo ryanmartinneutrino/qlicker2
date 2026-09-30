@@ -1013,7 +1013,7 @@
       "anonymousNoExtensions": "Las prórrogas individuales no están disponibles para las sesiones anónimas.",
       "anonymousLockedNote": "El anonimato no se puede cambiar después de que los estudiantes se hayan unido o hayan respondido.",
       "activityCodeTitle": "Compartir mediante código de actividad",
-      "activityCodeHelp": "Quien tenga una cuenta y el código puede abrir solo esta actividad sin unirse al curso. En una actividad identificada, los estudiantes inscritos pueden recibir calificaciones; las respuestas de invitados se registran sin calificación. Una actividad anónima funciona como encuesta: nadie recibe calificación y las filas aparecen solo tras cuatro respuestas por pregunta e intento. Una respuesta singular aún puede identificar a alguien.",
+      "activityCodeHelp": "Los usuarios que hayan iniciado sesión pueden acceder a esta actividad con el código sin inscribirse en el curso. Los estudiantes inscritos pueden recibir calificaciones; las respuestas de los invitados se registran sin calificarse. Si las respuestas también se anonimizan, la actividad puede funcionar como una encuesta, sin calificaciones para nadie.",
       "sharedNamedGradingInfo": "Los estudiantes inscritos pueden recibir calificaciones. Las respuestas de invitados se registran, pero no generan calificaciones ni entradas en el libro de notas.",
       "sharedAnonymousSurveyInfo": "Compartir de forma anónima crea una encuesta: las respuestas se vinculan entre preguntas y nadie recibe calificación. Las filas aparecen solo tras cuatro respuestas por pregunta e intento.",
       "activityCodeExpires": "El código caduca el {{date}}",

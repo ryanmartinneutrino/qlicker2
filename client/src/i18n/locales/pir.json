@@ -1013,7 +1013,7 @@
       "anonymousNoExtensions": "No one-on-one quiz extensions fer anonymous sessions.",
       "anonymousLockedNote": "The mask can't be changed once crew have boarded or replied.",
       "activityCodeTitle": "Share by activity code",
-      "activityCodeHelp": "Signed-in mateys with the code may open only this activity without boarding the course. In named voyages, enrolled mateys may earn marks; guest replies are tracked but earn none. A masked voyage serves as a survey: nobody earns marks, and answer rows appear only after four mateys answer each riddle and attempt. A rare answer may still reveal its author.",
+      "activityCodeHelp": "Signed-in mateys with this code can join this activity without boarding the course. Enrolled mateys may earn marks; guest replies are tracked without marks. If replies are also anonymized, the activity can serve as a survey, with no marks for any matey.",
       "sharedNamedGradingInfo": "Enrolled mateys may earn marks. Guests may answer, but get no marks or course gradebook entries.",
       "sharedAnonymousSurveyInfo": "Masked sharing makes a survey: replies stay linked across riddles and nobody earns marks. Answer rows appear after four mateys answer each riddle and attempt.",
       "activityCodeExpires": "Code expires {{date}}",

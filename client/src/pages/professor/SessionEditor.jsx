@@ -1671,13 +1671,7 @@ export default function SessionEditor() {
               label={(
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                   <Typography variant="body2">{t('professor.sessionEditor.allowActivityCodeAccess')}</Typography>
-                  <Tooltip arrow title={(
-                    <Stack spacing={1}>
-                      <span>{t('professor.sessionEditor.activityCodeHelp')}</span>
-                      <span>{t(anonymous ? 'professor.sessionEditor.sharedAnonymousSurveyInfo' : 'professor.sessionEditor.sharedNamedGradingInfo')}</span>
-                      <span>{t('professor.sessionEditor.disableActivityCodeHelp')}</span>
-                    </Stack>
-                  )}>
+                  <Tooltip arrow title={t('professor.sessionEditor.activityCodeHelp')}>
                     <InfoOutlinedIcon fontSize="small" color="action" tabIndex={0}
                       aria-label={t('professor.sessionEditor.activityCodeTitle')} />
                   </Tooltip>

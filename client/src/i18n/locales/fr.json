@@ -1013,7 +1013,7 @@
       "anonymousNoExtensions": "Les prolongations individuelles ne sont pas disponibles pour les sessions anonymes.",
       "anonymousLockedNote": "L'anonymat ne peut plus être modifié une fois que des étudiants ont rejoint la session ou répondu.",
       "activityCodeTitle": "Partager avec un code d’activité",
-      "activityCodeHelp": "Les personnes connectées disposant du code peuvent ouvrir uniquement cette activité sans rejoindre le cours. Dans une activité nominative, les étudiants inscrits peuvent recevoir des notes; les invités ont des réponses suivies mais aucune note. Une activité anonyme sert de sondage : personne ne reçoit de note et les lignes de réponses n’apparaissent qu’après quatre réponses par question et tentative. Une réponse particulière peut identifier son auteur.",
+      "activityCodeHelp": "Les utilisateurs connectés disposant de ce code peuvent accéder à cette activité sans s’inscrire au cours. Les étudiants inscrits peuvent recevoir des notes ; les réponses des invités sont enregistrées sans être notées. Si les réponses sont aussi anonymisées, l’activité peut servir de sondage, sans notes pour personne.",
       "sharedNamedGradingInfo": "Les étudiants inscrits peuvent recevoir des notes. Les invités peuvent répondre, mais ne reçoivent ni note ni entrée dans le carnet de notes.",
       "sharedAnonymousSurveyInfo": "Le partage anonyme crée un sondage : les réponses restent liées entre questions et personne ne reçoit de note. Les lignes n’apparaissent qu’après quatre réponses par question et tentative.",
       "activityCodeExpires": "Le code expire le {{date}}",

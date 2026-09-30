@@ -1013,7 +1013,7 @@
       "anonymousNoExtensions": "Individual quiz extensions are unavailable for anonymous sessions.",
       "anonymousLockedNote": "Anonymity cannot be changed after students have joined or responded.",
       "activityCodeTitle": "Share by activity code",
-      "activityCodeHelp": "Signed-in people with this code can open only this activity without joining the course. In a named activity, enrolled students can receive grades; guests have tracked responses but no grades. An anonymous activity works as a survey: nobody receives a grade, and answer rows appear only after at least four people answer each question and attempt. Unique answers may still identify someone.",
+      "activityCodeHelp": "Signed-in users with this code can access this activity without enrolling in the course. Enrolled students can receive grades; guest responses are tracked without grades. If responses are also anonymized, the activity can function like a survey, with no grades for anyone.",
       "sharedNamedGradingInfo": "Enrolled students can receive grades. Guests can respond, but receive no grades or course gradebook entries.",
       "sharedAnonymousSurveyInfo": "Anonymous sharing creates a survey: responses stay linked across questions, and nobody receives a grade. Answer rows appear only after at least four people answer each question and attempt.",
       "activityCodeExpires": "Code expires {{date}}",

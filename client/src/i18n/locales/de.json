@@ -1013,7 +1013,7 @@
       "anonymousNoExtensions": "Individuelle Quizverlängerungen sind für anonyme Sitzungen nicht verfügbar.",
       "anonymousLockedNote": "Die Anonymität kann nicht mehr geändert werden, nachdem Studierende beigetreten sind oder geantwortet haben.",
       "activityCodeTitle": "Mit Aktivitätscode teilen",
-      "activityCodeHelp": "Angemeldete Personen mit dem Code können nur diese Aktivität ohne Kursbeitritt öffnen. Bei namentlichen Aktivitäten können eingeschriebene Studierende Noten erhalten; Antworten von Gästen werden erfasst, aber nicht benotet. Eine anonyme Aktivität dient als Umfrage: Niemand erhält eine Note und Antwortzeilen erscheinen erst nach vier Antworten je Frage und Versuch. Eindeutige Antworten können Personen dennoch erkennbar machen.",
+      "activityCodeHelp": "Angemeldete Nutzer können mit diesem Code an der Aktivität teilnehmen, ohne sich in den Kurs einzuschreiben. Eingeschriebene Studierende können Noten erhalten; Antworten von Gästen werden ohne Benotung erfasst. Werden die Antworten auch anonymisiert, kann die Aktivität als Umfrage dienen, bei der niemand eine Note erhält.",
       "sharedNamedGradingInfo": "Eingeschriebene Studierende können Noten erhalten. Antworten von Gästen werden erfasst, aber ohne Note oder Eintrag im Kursnotenbuch.",
       "sharedAnonymousSurveyInfo": "Anonyme Freigabe erstellt eine Umfrage: Antworten bleiben über Fragen hinweg verbunden und niemand erhält eine Note. Antwortzeilen erscheinen erst nach vier Antworten je Frage und Versuch.",
       "activityCodeExpires": "Code läuft am {{date}} ab",
