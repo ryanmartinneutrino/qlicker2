@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import Session from '../models/Session.js';
 import Course from '../models/Course.js';
+import ActivityGrant from '../models/ActivityGrant.js';
 import Grade from '../models/Grade.js';
 import LiveSessionTelemetry from '../models/LiveSessionTelemetry.js';
 import Post from '../models/Post.js';
@@ -14,6 +15,7 @@ import {
   isStudentOwnedSession,
   studentVisibleGradeQuery,
 } from '../utils/courseAccess.js';
+import { hasSessionParticipantAccess, getActivityRecipientUserIds, getActivityGuestUserIds } from '../services/activityAccess.js';
 import { copySessionToCourse } from '../services/sessionCopy.js';
 import { copyQuestionToSession } from '../services/questionCopy.js';
 import {
@@ -919,7 +921,16 @@ function formatUserDisplayName(user) {
   return user?.emails?.[0]?.address || user?.email || 'Unknown Student';
 }
 
-function serializeLiveStudent(user, { joinedAt = null } = {}) {
+function participantRoles(user, course, guest = false) {
+  const userId = String(user?._id || '');
+  return {
+    participantRole: (course?.instructors || []).some((id) => String(id) === userId)
+      ? 'instructor' : guest ? 'guest' : 'student',
+    isProfessor: (user?.profile?.roles || []).includes('professor'),
+  };
+}
+
+function serializeLiveStudent(user, { joinedAt = null, course, guest = false } = {}) {
   const userId = normalizeAnswerValue(user?._id);
   return {
     _id: userId,
@@ -929,6 +940,7 @@ function serializeLiveStudent(user, { joinedAt = null } = {}) {
     profileImage: normalizeAnswerValue(user?.profile?.profileImage),
     profileThumbnail: normalizeAnswerValue(user?.profile?.profileThumbnail),
     displayName: formatUserDisplayName(user),
+    ...(course ? participantRoles(user, course, guest) : {}),
     joinedAt,
   };
 }
@@ -2709,7 +2721,7 @@ async function incrementSessionResponseTracking(session, questionId) {
   return hydrateSingleSessionResponseTracking(session);
 }
 
-function buildSessionForUser(session, user, { instructorView = false } = {}) {
+function buildSessionForUser(session, user, { instructorView = false, outsideActivity = false } = {}) {
   const normalized = { ...(session || {}) };
   const runtime = getQuizRuntimeState(normalized, {
     userId: user?.userId,
@@ -2746,6 +2758,15 @@ function buildSessionForUser(session, user, { instructorView = false } = {}) {
     delete normalized.joinRecords;
     delete normalized.joined;
     delete normalized.currentJoinCode;
+  }
+  if (outsideActivity) {
+    delete normalized.quizExtensions;
+    delete normalized.creator;
+    delete normalized.activeExtensionsCount;
+    delete normalized.quizHasActiveExtensions;
+    delete normalized.quizHasRemainingExtensions;
+    delete normalized.userHasActiveQuizExtension;
+    delete normalized.userHasUpcomingQuizExtension;
   }
   delete normalized.questionResponseCounts;
   // AI logs are stored separately and are always instructor-only. Remove any
@@ -2837,13 +2858,24 @@ function sendToStudents(app, course, event, payload) {
   sendToUsersById(app, course.students || [], event, payload);
 }
 
-function sendToJoinedStudents(app, course, session, event, payload) {
+async function sendToJoinedStudents(app, course, session, event, payload) {
   if (!session) return;
-  // Anonymous sessions store pseudonyms in joined; resolve them against the
-  // roster in memory so events still reach only joined students.
+  // Ordinary course sessions keep their existing zero-query fanout path.
+  let grantIds = [];
+  if (session.activityAccessEnabled) {
+    try { grantIds = await getActivityRecipientUserIds(session, course); }
+    catch (error) {
+      app.log?.warn?.({ err: error }, 'Failed to resolve activity recipients');
+      return;
+    }
+  }
+  const eligibleIds = [...(course?.students || []), ...grantIds];
+  const eligibleIdSet = new Set(eligibleIds.map(String));
   const recipients = isAnonymousSession(session)
-    ? resolveSessionParticipantUserIds(session, session.joined || [], course?.students || [])
-    : session.joined || [];
+    ? resolveSessionParticipantUserIds(session, session.joined || [], eligibleIds)
+    : session.activityEverShared
+      ? (session.joined || []).filter((id) => eligibleIdSet.has(String(id)))
+      : session.joined || [];
   sendToUsersById(app, recipients, event, payload);
 }
 
@@ -2866,12 +2898,19 @@ function sendToUser(app, userId, event, payload) {
 }
 
 /** Delta: session metadata changed (name/description/reviewable/extensions/etc). */
+function sendToActivityRecipients(app, sessionId, event, payload) {
+  void Session.findById(sessionId).select('activityAccessEnabled courseId').lean().then(async (session) => {
+    if (!session?.activityAccessEnabled) return;
+    const recipients = await getActivityRecipientUserIds({ ...session, _id: sessionId });
+    sendToUsersById(app, recipients, event, payload);
+  }).catch((error) => app.log?.warn?.({ err: error }, 'Failed to broadcast activity event'));
+}
+
 function notifySessionMetadataChanged(app, course, sessionId) {
   if (!sessionId) return;
-  sendToCourseMembers(app, course, 'session:metadata-changed', {
-    courseId: String(course._id),
-    sessionId: String(sessionId),
-  });
+  const payload = { courseId: String(course._id), sessionId: String(sessionId) };
+  sendToCourseMembers(app, course, 'session:metadata-changed', payload);
+  sendToActivityRecipients(app, sessionId, 'session:metadata-changed', payload);
 }
 
 /** Delta: new response submitted. Students only receive it when live stats are visible and they are joined. */
@@ -2936,7 +2975,7 @@ async function notifyResponseAdded(app, course, session, data, { includeStudents
     ...(instructorResponse ? { response: instructorResponse } : {}),
   });
   if (includeStudents) {
-    sendToJoinedStudents(app, course, session, 'session:response-added', {
+    await sendToJoinedStudents(app, course, session, 'session:response-added', {
       ...payload,
       ...(studentStats ? { responseStats: studentStats } : {}),
       ...(studentResponse ? { response: studentResponse } : {}),
@@ -3055,11 +3094,15 @@ async function notifyQuestionChanged(app, course, session, question, data) {
   });
 
   // Ids here are participant ids: user ids, or pseudonyms in anonymous sessions.
-  const participantUserIds = buildParticipantUserIdMap(session, course?.students || []);
+  const grantIds = session.activityAccessEnabled ? await getActivityRecipientUserIds(session, course) : [];
+  const eligibleIds = [...(course?.students || []), ...grantIds];
+  const eligibleIdSet = new Set(eligibleIds.map(String));
+  const participantUserIds = buildParticipantUserIdMap(session, eligibleIds);
   const toUserId = (participantId) => (
     participantUserIds ? (participantUserIds.get(participantId) || '') : participantId
   );
-  const joinedStudentIds = [...new Set((session.joined || []).map((id) => String(id)).filter(Boolean))];
+  const joinedStudentIds = [...new Set((session.joined || []).map((id) => String(id)).filter(Boolean))]
+    .filter((id) => !session.activityEverShared || isAnonymousSession(session) || eligibleIdSet.has(id));
   const joinedStudentIdSet = new Set(joinedStudentIds);
   const studentsWithoutResponse = joinedStudentIds
     .filter((id) => !responseByStudentId.has(id))
@@ -3107,7 +3150,7 @@ async function notifyVisibilityChanged(app, course, session, question) {
     ...buildStudentLiveQuestionSnapshot(question, {}, { responseStats, anonymous: isAnonymousSession(session) }),
   };
   sendToInstructors(app, course, 'session:visibility-changed', { ...instructorPayload, audience });
-  sendToJoinedStudents(app, course, session, 'session:visibility-changed', audience);
+  await sendToJoinedStudents(app, course, session, 'session:visibility-changed', audience);
 }
 
 function notifyVisualizationUpdated(app, course, session, question, event, fieldName, value) {
@@ -3120,7 +3163,7 @@ function notifyVisualizationUpdated(app, course, session, question, event, field
   sendToInstructors(app, course, event, { ...basePayload, [fieldName]: value });
 
   const visibleToStudents = !!question?.sessionOptions?.stats && !!value?.visible;
-  sendToJoinedStudents(app, course, session, event, {
+  void sendToJoinedStudents(app, course, session, event, {
     ...basePayload,
     [fieldName]: visibleToStudents ? value : null,
   });
@@ -3129,6 +3172,9 @@ function notifyVisualizationUpdated(app, course, session, question, event, field
 /** Delta: session started or ended. */
 function notifyStatusChanged(app, course, sessionId, data) {
   if (!sessionId) return;
+  sendToActivityRecipients(app, sessionId, 'session:status-changed', {
+    courseId: String(course._id), sessionId: String(sessionId), ...data,
+  });
   sendToCourseMembers(app, course, 'session:status-changed', {
     courseId: String(course._id),
     sessionId: String(sessionId),
@@ -3153,7 +3199,7 @@ function getCurrentAttempt(question) {
 /** Delta: current attempt opened/closed/reset on the live question. */
 function notifyAttemptChanged(app, course, sessionId, question, data = {}) {
   if (!sessionId || !question?._id) return;
-  sendToCourseMembers(app, course, 'session:attempt-changed', {
+  const payload = {
     courseId: String(course._id),
     sessionId: String(sessionId),
     questionId: String(question._id),
@@ -3162,7 +3208,9 @@ function notifyAttemptChanged(app, course, sessionId, question, data = {}) {
     correct: !!question?.sessionOptions?.correct,
     resetResponses: false,
     ...data,
-  });
+  };
+  sendToCourseMembers(app, course, 'session:attempt-changed', payload);
+  sendToActivityRecipients(app, sessionId, 'session:attempt-changed', payload);
 }
 
 /** Delta: student submitted a quiz. Target only the submitting user for dashboard/session refresh. */
@@ -3207,6 +3255,13 @@ function notifyJoinCodeChanged(app, course, session) {
     ...basePayload,
     ...buildJoinCodePayload(session),
   });
+  if (session.activityAccessEnabled) {
+    void getActivityRecipientUserIds(session, course).then((recipients) => {
+      sendToUsersById(app, recipients, 'session:join-code-changed', {
+        ...basePayload, ...buildJoinCodePayload(session),
+      });
+    }).catch((error) => app.log?.warn?.({ err: error }, 'Failed to broadcast activity join code'));
+  }
   sendToInstructors(app, course, 'session:join-code-changed', {
     ...basePayload,
     ...buildJoinCodePayload(session, { includeInstructorFields: true }),
@@ -3905,7 +3960,7 @@ export default async function sessionRoutes(app) {
         return reply.code(404).send({ error: 'Not Found', message: 'Course not found' });
       }
 
-      if (!isCourseMember(course, request.user)) {
+      if (!await hasSessionParticipantAccess(course, session, request.user)) {
         return reply.code(403).send({ error: 'Forbidden', message: 'Not a member of this course' });
       }
 
@@ -3931,6 +3986,7 @@ export default async function sessionRoutes(app) {
       return {
         session: buildSessionForUser(normalizedSession, request.user, {
           instructorView: isInstrOrAdmin,
+          outsideActivity: !isCourseMember(course, request.user),
         }),
       };
     }
@@ -4526,6 +4582,9 @@ export default async function sessionRoutes(app) {
       if (session.anonymous && request.body.extensions.length > 0) {
         return reply.code(400).send({ error: 'Bad Request', message: 'Anonymous quizzes cannot have individual extensions' });
       }
+      if (session.activityEverShared && request.body.extensions.length > 0) {
+        return reply.code(409).send({ error: 'Conflict', message: 'Code-accessible quizzes cannot have individual extensions' });
+      }
 
       const baseQuizStart = toDateOrNull(session.quizStart);
       const baseQuizEnd = toDateOrNull(session.quizEnd);
@@ -4575,7 +4634,7 @@ export default async function sessionRoutes(app) {
       const updated = await Session.findOneAndUpdate(
         {
           _id: request.params.id,
-          ...(normalizedExtensions.length > 0 ? { anonymous: { $ne: true } } : {}),
+          ...(normalizedExtensions.length > 0 ? { anonymous: { $ne: true }, activityEverShared: { $ne: true } } : {}),
         },
         { $set: { quizExtensions: normalizedExtensions, ...(hasRemainingExtensions ? { reviewable: false } : {}) } },
         { returnDocument: 'after' }
@@ -4830,7 +4889,7 @@ export default async function sessionRoutes(app) {
         return reply.code(404).send({ error: 'Not Found', message: 'Course not found' });
       }
 
-      if (!isCourseMember(course, request.user)) {
+      if (!await hasSessionParticipantAccess(course, session, request.user)) {
         return reply.code(403).send({ error: 'Forbidden', message: 'Not a member of this course' });
       }
 
@@ -4887,7 +4946,10 @@ export default async function sessionRoutes(app) {
 
       let feedbackSummary = getDefaultFeedbackSummary();
       let studentGrade = null;
-      if (!isInstrOrAdmin) {
+      const redeemedAsGuest = !isInstrOrAdmin && normalizedSession.activityEverShared
+        && (await getActivityGuestUserIds(normalizedSession._id)).has(String(request.user.userId));
+      if (!isInstrOrAdmin && !normalizedSession.anonymous && !redeemedAsGuest
+        && (course.students || []).some((id) => String(id) === String(request.user.userId))) {
         const grade = await Grade.findOne(
           studentVisibleGradeQuery(course._id, normalizedSession._id, request.user)
         ).select('value participation points outOf needsGrading feedbackSeenAt marks').lean();
@@ -4986,7 +5048,7 @@ export default async function sessionRoutes(app) {
         return reply.code(404).send({ error: 'Not Found', message: 'Course not found' });
       }
 
-      if (!isCourseMember(course, request.user)) {
+      if (!await hasSessionParticipantAccess(course, sessionDoc, request.user)) {
         return reply.code(403).send({ error: 'Forbidden', message: 'Not a member of this course' });
       }
 
@@ -5103,7 +5165,9 @@ export default async function sessionRoutes(app) {
       const allAnswered = answerableQuestionIds.every((questionId) => answeredQuestionIds.has(String(questionId)));
 
       return {
-        session: buildSessionForUser(normalizedSession, request.user, { instructorView: false }),
+        session: buildSessionForUser(normalizedSession, request.user, {
+          instructorView: false, outsideActivity: !isCourseMember(course, request.user),
+        }),
         questions: questionPayload,
         responses: latestResponseByQuestionId,
         allAnswered,
@@ -5130,7 +5194,7 @@ export default async function sessionRoutes(app) {
         return reply.code(404).send({ error: 'Not Found', message: 'Course not found' });
       }
 
-      if (!isCourseMember(course, request.user)) {
+      if (!await hasSessionParticipantAccess(course, sessionDoc, request.user)) {
         return reply.code(403).send({ error: 'Forbidden', message: 'Not a member of this course' });
       }
 
@@ -5259,7 +5323,7 @@ export default async function sessionRoutes(app) {
         return reply.code(404).send({ error: 'Not Found', message: 'Course not found' });
       }
 
-      if (!isCourseMember(course, request.user)) {
+      if (!await hasSessionParticipantAccess(course, sessionDoc, request.user)) {
         return reply.code(403).send({ error: 'Forbidden', message: 'Not a member of this course' });
       }
 
@@ -5344,7 +5408,7 @@ export default async function sessionRoutes(app) {
         return reply.code(404).send({ error: 'Not Found', message: 'Course not found' });
       }
 
-      if (!isCourseMember(course, request.user)) {
+      if (!await hasSessionParticipantAccess(course, sessionDoc, request.user)) {
         return reply.code(403).send({ error: 'Forbidden', message: 'Not a member of this course' });
       }
 
@@ -5447,7 +5511,9 @@ export default async function sessionRoutes(app) {
 
       return {
         success: true,
-        session: updated ? buildSessionForUser(updated.toObject(), request.user, { instructorView: false }) : undefined,
+        session: updated ? buildSessionForUser(updated.toObject(), request.user, {
+          instructorView: false, outsideActivity: !isCourseMember(course, request.user),
+        }) : undefined,
       };
     }
   );
@@ -5486,7 +5552,7 @@ export default async function sessionRoutes(app) {
         return reply.code(404).send({ error: 'Not Found', message: 'Course not found' });
       }
 
-      if (!isCourseMember(course, request.user)) {
+      if (!await hasSessionParticipantAccess(course, session, request.user)) {
         return reply.code(403).send({ error: 'Forbidden', message: 'Not a member of this course' });
       }
 
@@ -5568,18 +5634,13 @@ export default async function sessionRoutes(app) {
         .select('_id profile emails email')
         .lean();
 
+      const enrolled = (course.students || []).some((id) => String(id) === String(userId));
+      const guest = !enrolled || (!!session.activityEverShared && !!await ActivityGrant.exists({
+        sessionId: session._id, userId, guestAtRedemption: true,
+      }));
       notifyParticipantJoined(app, course, request.params.id, {
         joinedCount,
-        joinedStudent: {
-          _id: userId,
-          firstname: normalizeAnswerValue(joinedUser?.profile?.firstname),
-          lastname: normalizeAnswerValue(joinedUser?.profile?.lastname),
-          email: normalizeAnswerValue(joinedUser?.emails?.[0]?.address || joinedUser?.email),
-          profileImage: normalizeAnswerValue(joinedUser?.profile?.profileImage),
-          profileThumbnail: normalizeAnswerValue(joinedUser?.profile?.profileThumbnail),
-          displayName: formatUserDisplayName(joinedUser),
-          joinedAt: now,
-        },
+        joinedStudent: serializeLiveStudent({ ...joinedUser, _id: userId }, { joinedAt: now, course, guest }),
       });
 
       return { success: true, alreadyJoined: false };
@@ -5705,7 +5766,10 @@ export default async function sessionRoutes(app) {
         });
       }
 
-      const joinedStudent = serializeLiveStudent(student, { joinedAt: now });
+      const guest = !!session.activityEverShared && !!await ActivityGrant.exists({
+        sessionId: session._id, userId: studentId, guestAtRedemption: true,
+      });
+      const joinedStudent = serializeLiveStudent(student, { joinedAt: now, course, guest });
       const participantPayload = {
         joinedCount: Array.isArray(updatedSession?.joined)
           ? updatedSession.joined.length
@@ -5743,7 +5807,7 @@ export default async function sessionRoutes(app) {
         return reply.code(404).send({ error: 'Not Found', message: 'Course not found' });
       }
 
-      if (!isCourseMember(course, request.user)) {
+      if (!await hasSessionParticipantAccess(course, session, request.user)) {
         return reply.code(403).send({ error: 'Forbidden', message: 'Not a member of this course' });
       }
 
@@ -5888,6 +5952,10 @@ export default async function sessionRoutes(app) {
       if (includeJoinedStudents) {
         const joinedIds = [...new Set((session.joined || []).map((id) => String(id)).filter(Boolean))];
         const enrolledIds = [...new Set((course.students || []).map((id) => String(id)).filter(Boolean))];
+        const enrolledIdSet = new Set(enrolledIds);
+        // Load guest status once when an instructor opens the roster, never per response.
+        const activityGuestIds = session.activityEverShared
+          ? await getActivityGuestUserIds(session._id) : new Set();
         const rosterIds = [...new Set([...joinedIds, ...enrolledIds])];
         const rosterUsers = rosterIds.length > 0
           ? await User.find({ _id: { $in: rosterIds } })
@@ -5912,6 +5980,7 @@ export default async function sessionRoutes(app) {
           const user = rosterUserMap.get(studentId);
           return serializeLiveStudent({ ...user, _id: studentId }, {
             joinedAt: latestJoinByStudentId.get(studentId) || null,
+            course, guest: !enrolledIdSet.has(studentId) || activityGuestIds.has(studentId),
           });
         }).sort((a, b) => {
           const lastCmp = a.lastname.localeCompare(b.lastname);
@@ -5925,7 +5994,7 @@ export default async function sessionRoutes(app) {
           .map((studentId) => serializeLiveStudent({
             ...rosterUserMap.get(studentId),
             _id: studentId,
-          }))
+          }, { course, guest: activityGuestIds.has(studentId) }))
           .sort((a, b) => {
             const lastCmp = a.lastname.localeCompare(b.lastname);
             if (lastCmp !== 0) return lastCmp;
@@ -5975,8 +6044,8 @@ export default async function sessionRoutes(app) {
             anonymous: anonymousSession,
             joinCodeActive: session.joinCodeActive,
             joinCodeEnabled: session.joinCodeEnabled,
-            chatEnabled: session.chatEnabled,
-            richTextChatEnabled: isRichTextChatEnabled(session),
+            chatEnabled: isCourseMember(course, request.user) && session.chatEnabled,
+            richTextChatEnabled: isCourseMember(course, request.user) && isRichTextChatEnabled(session),
           },
         currentQuestion: null,
         currentAttempt,
@@ -6121,7 +6190,7 @@ export default async function sessionRoutes(app) {
         return reply.code(404).send({ error: 'Not Found', message: 'Course not found' });
       }
 
-      if (!isCourseMember(course, request.user)) {
+      if (!await hasSessionParticipantAccess(course, session, request.user)) {
         return reply.code(403).send({ error: 'Forbidden', message: 'Not a member of this course' });
       }
 
@@ -6228,7 +6297,7 @@ export default async function sessionRoutes(app) {
       if (!course) {
         return reply.code(404).send({ error: 'Not Found', message: 'Course not found' });
       }
-      if (!isCourseMember(course, request.user)) {
+      if (!await hasSessionParticipantAccess(course, session, request.user)) {
         return reply.code(403).send({ error: 'Forbidden', message: 'Not a member of this course' });
       }
 
@@ -7787,6 +7856,9 @@ export default async function sessionRoutes(app) {
       const anonymousSession = isAnonymousSession(session);
       const joinedUserIds = new Set((session.joined || []).map((id) => String(id)).filter(Boolean));
       const courseStudentIds = new Set((course.students || []).map((id) => String(id)).filter(Boolean));
+      const activityGuestIds = session.activityEverShared && !anonymousSession
+        ? await getActivityGuestUserIds(session._id)
+        : new Set();
       if (anonymousSession) {
         const respondentIdsByQuestionAttempt = new Map();
         allResponses.forEach((response) => {
@@ -7934,6 +8006,8 @@ export default async function sessionRoutes(app) {
 
         return {
           studentId,
+          guest: !!session.activityEverShared && (!courseStudentIds.has(String(studentId)) || activityGuestIds.has(String(studentId))),
+          ...participantRoles({ ...student, _id: studentId }, course, !courseStudentIds.has(String(studentId)) || activityGuestIds.has(String(studentId))),
           firstname,
           lastname,
           email,

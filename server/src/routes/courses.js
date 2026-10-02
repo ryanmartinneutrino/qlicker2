@@ -1,3 +1,4 @@
+import ActivityShare from '../models/ActivityShare.js';
 import Course from '../models/Course.js';
 import Session from '../models/Session.js';
 import User from '../models/User.js';
@@ -56,6 +57,7 @@ const createCourseSchema = {
       inactive: { type: 'boolean' },
       requireVerified: { type: 'boolean' },
       allowStudentQuestions: { type: 'boolean' },
+      allowSharedActivities: { type: 'boolean' },
       quizTimeFormat: { type: 'string', enum: ['inherit', '24h', '12h'] },
       courseChatEnabled: { type: 'boolean' },
       courseChatRetentionDays: { type: 'integer', minimum: 1, maximum: 365 },
@@ -87,6 +89,7 @@ const updateCourseSchema = {
       inactive: { type: 'boolean' },
       requireVerified: { type: 'boolean' },
       allowStudentQuestions: { type: 'boolean' },
+      allowSharedActivities: { type: 'boolean' },
       quizTimeFormat: { type: 'string', enum: ['inherit', '24h', '12h'] },
       courseChatEnabled: { type: 'boolean' },
       courseChatRetentionDays: { type: 'integer', minimum: 1, maximum: 365 },
@@ -147,6 +150,7 @@ export default async function courseRoutes(app) {
         inactive,
         requireVerified,
         allowStudentQuestions,
+        allowSharedActivities,
         quizTimeFormat,
         courseChatEnabled,
         courseChatRetentionDays,
@@ -167,6 +171,7 @@ export default async function courseRoutes(app) {
         inactive: inactive === undefined ? undefined : !!inactive,
         requireVerified: requireVerified === undefined ? undefined : !!requireVerified,
         allowStudentQuestions: allowStudentQuestions === undefined ? undefined : !!allowStudentQuestions,
+        allowSharedActivities: allowSharedActivities === undefined ? undefined : !!allowSharedActivities,
         quizTimeFormat: quizTimeFormat === undefined ? undefined : quizTimeFormat,
         courseChatEnabled: courseChatEnabled === undefined ? undefined : !!courseChatEnabled,
         courseChatRetentionDays: courseChatRetentionDays === undefined ? undefined : courseChatRetentionDays,
@@ -423,7 +428,7 @@ export default async function courseRoutes(app) {
         return reply.code(403).send({ error: 'Forbidden', message: 'Insufficient permissions' });
       }
 
-      const allowed = ['name', 'deptCode', 'courseNumber', 'section', 'semester', 'inactive', 'requireVerified', 'allowStudentQuestions', 'quizTimeFormat', 'courseChatEnabled', 'courseChatRetentionDays', 'tags'];
+      const allowed = ['name', 'deptCode', 'courseNumber', 'section', 'semester', 'inactive', 'requireVerified', 'allowStudentQuestions', 'allowSharedActivities', 'quizTimeFormat', 'courseChatEnabled', 'courseChatRetentionDays', 'tags'];
       const updates = {};
       for (const key of allowed) {
         if (request.body[key] !== undefined) {
@@ -460,6 +465,23 @@ export default async function courseRoutes(app) {
         { $set: updates },
         { returnDocument: 'after' }
       );
+
+      if (updates.allowSharedActivities === false) {
+        // Turning off sharing revokes every outside grant, including when the
+        // setting is later re-enabled. Existing course members keep access.
+        const sharedSessionIds = await Session.find({ courseId: String(course._id), activityAccessEnabled: true })
+          .distinct('_id');
+        if (sharedSessionIds.length > 0) {
+          await ActivityShare.updateMany(
+            { sessionId: { $in: sharedSessionIds } },
+            { $set: { enabled: false, updatedAt: new Date() }, $inc: { accessEpoch: 1 } }
+          );
+          await Session.updateMany(
+            { _id: { $in: sharedSessionIds } },
+            { $set: { activityAccessEnabled: false } }
+          );
+        }
+      }
 
       const result = updated.toObject();
       result.aiApiTokenSet = String(result.aiApiToken || '').trim().length > 0;

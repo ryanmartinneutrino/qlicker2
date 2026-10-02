@@ -4,6 +4,7 @@ import Question from '../models/Question.js';
 import Response from '../models/Response.js';
 import Session from '../models/Session.js';
 import User from '../models/User.js';
+import { getActivityGuestUserIds } from './activityAccess.js';
 
 export const QUESTION_TYPES = {
   MULTIPLE_CHOICE: 0,
@@ -798,6 +799,9 @@ export async function recalculateSessionGrades({
       },
     };
   }
+  const activityGuestIds = session.activityEverShared
+    ? await getActivityGuestUserIds(normalizedSessionId)
+    : new Set();
   const sessionQuestionIds = Array.isArray(session.questions) ? session.questions.map((id) => String(id)) : [];
 
   const [questionDocs, responseDocs, existingGradeDocs, studentDocs] = await Promise.all([
@@ -858,7 +862,13 @@ export async function recalculateSessionGrades({
   });
 
   const joinedSet = new Set((session.joined || []).map((userId) => String(userId)).filter(Boolean));
-  const joinedCount = joinedSet.size;
+  const courseStudentIds = Array.isArray(course.students)
+    ? course.students.map((studentId) => String(studentId)).filter((id) => !activityGuestIds.has(id))
+    : [];
+  const courseStudentSet = new Set(courseStudentIds);
+  const joinedCount = session.activityEverShared
+    ? [...joinedSet].filter((studentId) => courseStudentSet.has(studentId)).length
+    : joinedSet.size;
 
   const msScoringMethod = getSessionMsScoringMethod(session);
   const visibleFlag = visibleToStudents !== null && visibleToStudents !== undefined
@@ -874,7 +884,7 @@ export async function recalculateSessionGrades({
     const uniqueResponders = new Set(
       questionResponses
         .map((response) => getResponseStudentId(response))
-        .filter(Boolean)
+        .filter((studentId) => studentId && (!session.activityEverShared || courseStudentSet.has(studentId)))
     );
 
     const defaultOutOf = getQuestionPoints(question);
@@ -919,9 +929,7 @@ export async function recalculateSessionGrades({
     .filter(([, grades]) => grades.length > 1)
     .map(([studentId]) => studentId);
 
-  const courseStudentIds = Array.isArray(course.students) ? course.students.map((studentId) => String(studentId)) : [];
-  const courseStudentSet = new Set(courseStudentIds);
-  const supplementalStudentIds = [...new Set([
+  const supplementalStudentIds = session.activityEverShared ? [] : [...new Set([
     ...joinedSet,
     ...responderUserIds,
     ...existingGradesByStudentId.keys(),

@@ -22,9 +22,8 @@ async function fixture(t, { runtime = 'native', baseUrl = 'https://qlicker.examp
     fs.writeFile(path.join(root, 'package.json'), '{}\n'),
     fs.writeFile(path.join(root, 'package-lock.json'), '{}\n'),
     fs.writeFile(path.join(root, 'seed.mjs'), 'console.log(\"seed\")\n'),
-    fs.writeFile(path.join(root, 'state/state.json'), JSON.stringify({ session: { scenario } }, null, 2)),
+    fs.writeFile(path.join(root, 'state/state.json'), JSON.stringify({ session: { scenario, enrolledPercent: scenario.endsWith('-anonymous') ? 0 : 50 } }, null, 2)),
     fs.writeFile(path.join(root, 'scenarios/live-session.js'), ''),
-    fs.writeFile(path.join(root, 'scenarios/live-anonymous.js'), ''),
     fs.writeFile(path.join(root, 'scenarios/quiz-session.js'), ''),
     fs.writeFile(path.join(root, 'production_setup/docker-compose.yml'), 'services: {}\n'),
     fs.writeFile(path.join(root, 'production_setup/.env'), 'DISABLE_RATE_LIMITS=false\n'),
@@ -80,6 +79,23 @@ test('prod/docker routes an anonymous quiz to the configured host', async (t) =>
   assert.ok(args.includes('--summary-export'));
   assert.ok(args.some((arg) => arg.includes('/results/summary-quiz-anonymous-')));
   assert.ok(args.includes('BASE_URL=https://staging.example.com'));
+});
+
+test('prod/docker routes external live and quiz scenarios to the right k6 scripts', async (t) => {
+  for (const [scenario, script] of [
+    ['live-external-named', 'live-session.js'],
+    ['live-external-anonymous', 'live-session.js'],
+    ['quiz-external-named', 'quiz-session.js'],
+    ['quiz-external-anonymous', 'quiz-session.js'],
+  ]) {
+    const { root, argsFile } = await fixture(t, { runtime: 'docker', scenario });
+    await fs.writeFile(path.join(root, 'state/rate-limit-restore.env'), 'DISABLE_RATE_LIMITS=false\n');
+    await fs.writeFile(path.join(root, 'production_setup/.env'), 'DISABLE_RATE_LIMITS=true\n');
+    const result = run(root, argsFile, '--scenario', scenario, '--test-only');
+    assert.equal(result.status, 0, `${scenario}: ${result.stderr || result.stdout}`);
+    const args = (await fs.readFile(argsFile, 'utf8')).trim().split('\n');
+    assert.equal(args.at(-1), `/scenarios/${script}`);
+  }
 });
 
 test('test-only rejects a fixture from a different scenario', async (t) => {
@@ -250,4 +266,34 @@ exit 0
   assert.match(result.stdout, /SIGPIPE \(141\)/);
   assert.match(result.stdout, /No summary file was produced/);
   assert.doesNotMatch(result.stdout, /Summary saved to:/);
+});
+
+
+test('shared live comparisons preserve the enrolled mix and live-stat setting in Docker', async (t) => {
+  for (const percent of [0, 50, 100]) {
+    const { root, argsFile } = await fixture(t, { scenario: 'live-external-named' });
+    await fs.writeFile(path.join(root, 'state/state.json'), JSON.stringify({ session: {
+      scenario: 'live-external-named', enrolledPercent: percent,
+    } }, null, 2));
+    await fs.appendFile(path.join(root, '.env'), '\nLIVE_STATS_DURING_ANSWERS=true\n');
+    const result = run(root, argsFile, '--test-only', '--scenario', 'live-external-named', '--enrolled-percent', String(percent));
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const args = (await fs.readFile(argsFile, 'utf8')).trim().split('\n');
+    assert.ok(args.includes(`ENROLLED_PERCENT=${percent}`));
+    assert.ok(args.includes('LIVE_STATS_DURING_ANSWERS=true'));
+    assert.ok(args.includes('SESSION_CHAT_ENABLED=false'));
+    assert.ok(args.some((arg) => arg.includes(`summary-live-external-named-enrolled-${percent}-live-stats-`)));
+  }
+});
+
+test('rejects invalid participant mixes and mismatched fixtures before invoking Docker', async (t) => {
+  for (const percent of ['-1', '101', '1.5', 'abc', '100']) {
+    const { root, argsFile } = await fixture(t, { scenario: 'live-external-named' });
+    const result = run(root, argsFile, '--test-only', '--scenario', 'live-external-named', '--enrolled-percent', percent);
+    assert.notEqual(result.status, 0);
+    await assert.rejects(fs.access(argsFile));
+  }
+  const { root, argsFile } = await fixture(t);
+  assert.notEqual(run(root, argsFile, '--test-only', '--enrolled-percent', '50').status, 0);
+  await assert.rejects(fs.access(argsFile));
 });

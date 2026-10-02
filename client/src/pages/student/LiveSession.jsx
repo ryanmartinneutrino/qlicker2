@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo, useLayoutEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   Box, Typography, Button, Paper, Alert, CircularProgress, Chip,
   TextField, Radio, RadioGroup, FormControlLabel, Checkbox, FormGroup,
@@ -32,6 +32,8 @@ import {
 import useLiveSessionData from '../../hooks/useLiveSessionData';
 import { formatToleranceValue } from '../../utils/numericalFormatting';
 import { sortResponsesNewestFirst } from '../../utils/responses';
+import { useAuth } from '../../contexts/AuthContext';
+import { getDashboardPath } from '../../utils/dashboard';
 
 // ---------------------------------------------------------------------------
 // Constants & helpers
@@ -126,8 +128,11 @@ function RichContent({ html, fallback, allowVideoEmbeds = false }) {
 function LiveSessionContent() {
   const { courseId, sessionId } = useParams();
   const navigate = useNavigate();
+  const isOutsideActivity = useLocation().pathname.startsWith('/activity/');
+  const { user } = useAuth();
+  const dashboardPath = getDashboardPath(user);
   const { t, i18n } = useTranslation();
-  const courseBackLink = `/student/course/${courseId}`;
+  const courseBackLink = isOutsideActivity ? dashboardPath : `/student/course/${courseId}`;
 
   // Join state
   const [joinCode, setJoinCode] = useState('');
@@ -388,7 +393,7 @@ function LiveSessionContent() {
     return (
         <Box sx={{ p: 3, maxWidth: 600, mx: 'auto' }}>
           <Alert severity="error" sx={{ mb: 2 }}>{error || t('student.liveSession.sessionNotFound')}</Alert>
-          <BackLinkButton variant="outlined" label={t('student.liveSession.backToCourse')} onClick={() => navigate(courseBackLink)} />
+          <BackLinkButton variant="outlined" label={t(isOutsideActivity ? 'common.backToDashboard' : 'student.liveSession.backToCourse')} onClick={() => navigate(courseBackLink)} />
         </Box>
       );
   }
@@ -403,7 +408,7 @@ function LiveSessionContent() {
           <Alert severity="info" sx={{ mb: 3, justifyContent: 'center' }}>
             {t('student.liveSession.sessionEnded')}
           </Alert>
-          <BackLinkButton variant="outlined" label={t('student.liveSession.backToCourse')} onClick={() => navigate(courseBackLink)} />
+          <BackLinkButton variant="outlined" label={t(isOutsideActivity ? 'common.backToDashboard' : 'student.liveSession.backToCourse')} onClick={() => navigate(courseBackLink)} />
         </Box>
       );
   }
@@ -419,7 +424,7 @@ function LiveSessionContent() {
           <Box sx={{ p: 3, maxWidth: 400, mx: 'auto', textAlign: 'center' }}>
             <BackLinkButton
               variant="outlined"
-              label={t('student.liveSession.backToCourse')}
+              label={t(isOutsideActivity ? 'common.backToDashboard' : 'student.liveSession.backToCourse')}
               onClick={() => navigate(courseBackLink)}
               sx={{ mb: 2 }}
             />
@@ -492,7 +497,7 @@ function LiveSessionContent() {
       <Box sx={{ p: 4, maxWidth: 600, mx: 'auto', textAlign: 'center' }}>
         <BackLinkButton
           variant="outlined"
-          label={t('student.liveSession.backToCourse')}
+          label={t(isOutsideActivity ? 'common.backToDashboard' : 'student.liveSession.backToCourse')}
           onClick={() => navigate(courseBackLink)}
           sx={{ mb: 2 }}
         />
@@ -523,7 +528,7 @@ function LiveSessionContent() {
         {joinError ? (
           <>
             <Alert severity="error" sx={{ mb: 2 }}>{joinError}</Alert>
-            <BackLinkButton variant="outlined" label={t('student.liveSession.backToCourse')} onClick={() => navigate(courseBackLink)} />
+            <BackLinkButton variant="outlined" label={t(isOutsideActivity ? 'common.backToDashboard' : 'student.liveSession.backToCourse')} onClick={() => navigate(courseBackLink)} />
           </>
         ) : (
           <>
@@ -549,7 +554,7 @@ function LiveSessionContent() {
         <Box sx={{ p: 4, maxWidth: 600, mx: 'auto', textAlign: 'center' }}>
           <BackLinkButton
             variant="outlined"
-            label={t('student.liveSession.backToCourse')}
+            label={t(isOutsideActivity ? 'common.backToDashboard' : 'student.liveSession.backToCourse')}
             onClick={() => navigate(courseBackLink)}
             sx={{ mb: 2 }}
           />
@@ -596,7 +601,7 @@ function LiveSessionContent() {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, flexWrap: 'wrap' }}>
           <BackLinkButton
             variant="outlined"
-            label={t('student.liveSession.backToCourse')}
+            label={t(isOutsideActivity ? 'common.backToDashboard' : 'student.liveSession.backToCourse')}
             onClick={() => navigate(courseBackLink)}
             sx={{ flexShrink: 0 }}
           />
@@ -663,7 +668,7 @@ function LiveSessionContent() {
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, flexWrap: 'wrap' }}>
         <BackLinkButton
           variant="outlined"
-          label={t('student.liveSession.backToCourse')}
+          label={t(isOutsideActivity ? 'common.backToDashboard' : 'student.liveSession.backToCourse')}
           onClick={() => navigate(courseBackLink)}
           sx={{ flexShrink: 0 }}
         />

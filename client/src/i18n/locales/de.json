@@ -1,5 +1,12 @@
 {
   "common": {
+    "backToDashboard": "Zurück zur Übersicht",
+    "participantRoles": {
+      "student": "Studierende",
+      "guest": "Gast",
+      "instructor": "Kursleitung",
+      "professor": "Lehrende"
+    },
     "appName": "Qlicker",
     "loading": "Wird geladen…",
     "cancel": "Abbrechen",
@@ -61,7 +68,8 @@
     "option": "Option {{letter}}",
     "ta": "Tutor",
     "redirecting": "Weiterleitung…",
-    "confirm": "Bestätigen"
+    "confirm": "Bestätigen",
+    "rowsPerPage": "Zeilen pro Seite"
   },
   "autoSave": {
     "errorNotSaved": "Änderungen konnten nicht gespeichert werden. Ihre letzte Änderung wurde nicht übernommen.",
@@ -868,7 +876,11 @@
       "aiRequiresAdminAuthorization": "Erfordert eine Administratorfreigabe",
       "aiHelperHelp": "Aktivieren Sie einen KI-Assistenten, der beim Bewerten, Erstellen von Fragen und Verwalten von Sitzungen und Studierenden hilft.",
       "enrollmentCodeHelp": "Dies ist der Code, den Studierende benötigen, um sich für den Kurs anzumelden.",
-      "anonymousSession": "Anonym"
+      "anonymousSession": "Anonym",
+      "allowSharedActivities": "Aktivitäten per Code teilen erlauben",
+      "allowSharedActivitiesHelp": "Erlaubt, Quizze und interaktive Sitzungen dieses Kurses per Code mit angemeldeten Personen ohne Kurseinschreibung zu teilen. Beim Ausschalten wird deren Zugriff widerrufen.",
+      "searchSessionsPlaceholder": "Nach Sitzungsname suchen",
+      "noSessionsMatchFilters": "Keine Sitzungen entsprechen den aktuellen Filtern."
     },
     "sessionEditor": {
       "sessionSettings": "Sitzungseinstellungen",
@@ -1006,7 +1018,27 @@
       "anonymousHelp": "Lehrende sehen die Antworten, aber nicht, wer sie gegeben hat. Studierende melden sich weiterhin an und können nur einmal antworten. Anonyme Sitzungen werden nicht bewertet und erscheinen nicht im Notenbuch.",
       "anonymousEnabledNote": "Antworten und Teilnahme werden ohne Identität der Studierenden gespeichert. Diese Sitzung wird nicht bewertet.",
       "anonymousNoExtensions": "Individuelle Quizverlängerungen sind für anonyme Sitzungen nicht verfügbar.",
-      "anonymousLockedNote": "Die Anonymität kann nicht mehr geändert werden, nachdem Studierende beigetreten sind oder geantwortet haben."
+      "anonymousLockedNote": "Die Anonymität kann nicht mehr geändert werden, nachdem Studierende beigetreten sind oder geantwortet haben.",
+      "activityCodeTitle": "Mit Aktivitätscode teilen",
+      "activityCodeHelp": "Angemeldete Nutzer können mit diesem Code an der Aktivität teilnehmen, ohne sich in den Kurs einzuschreiben. Eingeschriebene Studierende können Noten erhalten; Antworten von Gästen werden ohne Benotung erfasst. Werden die Antworten auch anonymisiert, kann die Aktivität als Umfrage dienen, bei der niemand eine Note erhält.",
+      "sharedNamedGradingInfo": "Eingeschriebene Studierende können Noten erhalten. Antworten von Gästen werden erfasst, aber ohne Note oder Eintrag im Kursnotenbuch.",
+      "sharedAnonymousSurveyInfo": "Anonyme Freigabe erstellt eine Umfrage: Antworten bleiben über Fragen hinweg verbunden und niemand erhält eine Note. Antwortzeilen erscheinen erst nach vier Antworten je Frage und Versuch.",
+      "activityCodeExpires": "Code läuft am {{date}} ab",
+      "activityCodeLabel": "Aktivitätscode",
+      "generateActivityCode": "Code erzeugen",
+      "rotateActivityCode": "Code neu erzeugen",
+      "disableActivityCode": "Code deaktivieren",
+      "activityCodeError": "Die Freigabe der Aktivität konnte nicht geändert werden.",
+      "removeExtensionsBeforeSharing": "Entfernen Sie individuelle Quizverlängerungen, bevor Sie einen Aktivitätscode erstellen.",
+      "sharedNoExtensions": "Individuelle Quizverlängerungen sind nicht mehr verfügbar, nachdem diese Aktivität per Code geteilt wurde.",
+      "courseSharingDisabled": "Aktivieren Sie zuerst die Freigabe per Code in den Kurseinstellungen.",
+      "allowActivityCodeAccess": "Diese Aktivität außerhalb des Kurses teilen",
+      "disableActivityCodeHelp": "Beim Ausschalten wird der gespeicherte Code unbrauchbar und der externe Zugriff widerrufen. Beim erneuten Einschalten gilt derselbe Code wieder. Code neu erstellen ersetzt ihn und macht den alten ungültig. Eingeschriebene Studierende können in einer namentlichen Aktivität weiterhin benotet werden.",
+      "activityCodeUnavailable": "Dieser Code kann nicht angezeigt werden. Erstellen Sie ihn neu, um einen dauerhaft sichtbaren Code zu erhalten.",
+      "sessionName": "Name der Sitzung",
+      "tags": "Sitzungs-Tags",
+      "tagsPlaceholder": "Themen-Tag hinzufügen",
+      "tagsHelp": "Verwenden Sie Tags, die das konkrete Thema dieser Sitzung und ihrer Fragen beschreiben."
     },
     "liveSession": {
       "currentQuestion": "Aktuelle Frage",
@@ -1133,6 +1165,10 @@
       "name": "Name",
       "email": "E-Mail",
       "grade": "Note",
+      "guest": "Gast",
+      "guestNoGrade": "Keine Note",
+      "guestResponses": "Antworten von Gästen",
+      "guestResponsesHelp": "Antworten von Gästen werden hier zur Einsicht erfasst. Gäste erhalten keine Noten.",
       "participation": "Teilnahme",
       "noQuestions": "Diese Sitzung hat keine Fragen.",
       "noResults": "Keine Studierenden-Ergebnisse verfügbar.",
@@ -1276,6 +1312,13 @@
     "dashboard": {
       "myCourses": "Meine Kurse",
       "enrollInCourse": "In Kurs einschreiben",
+      "joinActivity": "Aktivität beitreten",
+      "activityCode": "Aktivitätscode",
+      "activityCodeHelp": "Geben Sie einen Aktivitätscode ein, der mit S- beginnt, um ein Quiz oder eine interaktive Sitzung ohne Kurseinschreibung zu öffnen.",
+      "activityCodeRequired": "Geben Sie einen Aktivitätscode ein, der mit S- beginnt.",
+      "activityCodeUseJoin": "Dies ist ein Aktivitätscode. Verwenden Sie Aktivität beitreten.",
+      "failedJoinActivity": "Beitritt zur Aktivität fehlgeschlagen.",
+      "joiningActivity": "Aktivität wird geöffnet…",
       "noCoursesYet": "Noch keine Kurse",
       "enrollMessage": "Verwenden Sie einen Einschreibungscode von Ihrem Dozenten, um einem Kurs beizutreten.",
       "section": "Abschnitt: {{section}}",
@@ -1286,7 +1329,11 @@
       "enrollSuccess": "Erfolgreich in den Kurs eingeschrieben",
       "failedEnroll": "Einschreibung fehlgeschlagen",
       "inactiveCourseCannotEnroll": "Dieser Kurs ist inaktiv und kann derzeit nicht beigetreten werden.",
-      "failedLoadCourses": "Kurse konnten nicht geladen werden"
+      "failedLoadCourses": "Kurse konnten nicht geladen werden",
+      "enterJoinCode": "Code eingeben",
+      "courseOrActivityCode": "Kurs- oder Aktivitätscode",
+      "courseOrActivityCodeHelp": "Geben Sie einen Kurseinschreibecode oder einen Aktivitätscode Ihrer Lehrkraft ein.",
+      "continueWithCode": "Weiter"
     },
     "course": {
       "lectures": "Vorlesungen",
@@ -1753,6 +1800,7 @@
       "noAutoConflicts": "Keine automatisch bewertbaren Konflikte zum Anwenden.",
       "appliedAutoPartial": "Automatische Noten angewendet, wo möglich. {{count}} Konflikt(e) erfordern manuelle Bearbeitung.",
       "avgParticipation": "Durchschn. Teilnahme",
+      "notApplicable": "Nicht zutreffend",
       "firstName": "Vorname",
       "lastName": "Nachname",
       "all": "Alle",
@@ -2013,7 +2061,8 @@
     "groupMembersTitle": "{{category}} — {{group}}",
     "uncategorizedGroup": "Nicht kategorisiert",
     "removeFromCourse": "Aus dem Kurs entfernen",
-    "confirmRemove": "Entfernen bestätigen"
+    "confirmRemove": "Entfernen bestätigen",
+    "noStudentsMatch": "Keine Studierenden entsprechen der aktuellen Suche."
   },
   "video": {
     "title": "Video-Chat",
@@ -2269,7 +2318,8 @@
             "Übungsquizze fühlen sich eher wie angeleitetes Üben an und eignen sich gut für Selbststudium oder optionale Vertiefung.",
             "Wenn eine Sitzung von Passcodes, Gruppen oder sichtbaren Statistiken abhängt, bestätigen Sie diese Einstellungen, bevor Studierende beitreten.",
             "Sitzungslisten halten Suche, Filter und Seitennavigation in „Sitzungen suchen“. Während eine interaktive Sitzung live ist, öffnet das Anklicken ihrer Karte direkt die Live-Steuerung; Live-Quiz-Karten öffnen weiterhin den Editor.",
-            "Aktivieren Sie im Sitzungseditor Anonyme Antworten für Umfragen und Kursfeedback. Studierende melden sich weiterhin an und beantworten jede Frage nur einmal, aber Sie sehen die Antworten unter Bezeichnungen wie Teilnehmende Person 1 statt unter Namen, die Live-Ansicht zeigt nur die Anzahl der Beigetretenen, und die Sitzung wird nie bewertet oder ins Notenbuch übernommen. Die Einstellung wird gesperrt, sobald jemand beitritt oder antwortet, und sehr kleine Gruppen lassen sich weiterhin durch Ausschluss identifizieren. Antwortzeilen erscheinen erst nach dem Ende der Sitzung und wenn mindestens vier Personen jede Frage und jeden Versuch mit Antworten beantwortet haben; eindeutige oder selbstidentifizierende Antworten können dennoch Rückschlüsse auf Personen zulassen."
+            "Aktivieren Sie im Sitzungseditor Anonyme Antworten für Umfragen und Kursfeedback. Studierende melden sich weiterhin an und beantworten jede Frage nur einmal, aber Sie sehen die Antworten unter Bezeichnungen wie Teilnehmende Person 1 statt unter Namen, die Live-Ansicht zeigt nur die Anzahl der Beigetretenen, und die Sitzung wird nie bewertet oder ins Notenbuch übernommen. Die Einstellung wird gesperrt, sobald jemand beitritt oder antwortet, und sehr kleine Gruppen lassen sich weiterhin durch Ausschluss identifizieren. Antwortzeilen erscheinen erst nach dem Ende der Sitzung und wenn mindestens vier Personen jede Frage und jeden Versuch mit Antworten beantwortet haben; eindeutige oder selbstidentifizierende Antworten können dennoch Rückschlüsse auf Personen zulassen.",
+            "Schalten Sie die Freigabe mit dem Sitzungsschalter ein oder aus; der aktive Code bleibt nach dem Neuladen sichtbar und kann neu erstellt werden. Aktivieren Sie zuerst die Freigabe per Code in den Kurseinstellungen; sie ist standardmäßig aus. Beim Ausschalten werden bestehende Codes und externer Zugriff widerrufen. Entfernen Sie individuelle Quizverlängerungen vor der Freigabe; danach bleiben sie nicht verfügbar. Um angemeldete Personen außerhalb des Kurses einzuladen, erstellen Sie ein Quiz oder eine Live-Sitzung im Kurs und erzeugen im Editor einen S-Aktivitätscode. Kopieren Sie ihn sofort. Ein neuer Code sperrt neue Zugriffe mit dem alten; Deaktivieren entzieht externen Zugriff. Erneutes Einschalten verwendet denselben Code; nur das Neuerstellen ersetzt ihn. Bei namentlichen Aktivitäten können eingeschriebene Studierende Noten erhalten; Antworten von Gästen werden erfasst, aber nicht benotet. Aktivieren Sie Anonymität für eine Umfrage ohne Noten für alle. Wählen Sie namentliche oder anonyme Antworten vor der ersten Einlösung. Anonyme Zeilen erscheinen erst nach dem Ende und vier Antworten je Frage und Versuch. Eindeutige Antworten können Personen dennoch erkennbar machen. Der rotierende Live-Code bleibt bei Aktivierung erforderlich."
           ]
         },
         {
@@ -2356,7 +2406,8 @@
             "Sitzungslisten halten Suche, Filter und Seitennavigation in einem ausklappbaren Bereich „Sitzungen suchen“, sodass Sie die Steuerung nur bei Bedarf erweitern können.",
             "Wenn Ihre Einrichtung eine verifizierte E-Mail-Adresse oder SSO erfordert, schließen Sie diese Einrichtung zuerst ab, bevor Sie annehmen, dass der Einschreibungscode falsch ist.",
             "Sie benötigen den Beitrittscode normalerweise nur einmal pro Kurs. Nachdem er funktioniert hat, bleibt der Kurs auf Ihrem Dashboard, bis Sie entfernt werden oder der Kurs für Ihr Konto archiviert wird.",
-            "Achten Sie auf das Abzeichen an Ihrem Avatar in der App-Leiste für aktive Benachrichtigungen und öffnen Sie dann „Benachrichtigungen“ im Kontomenü, um sie zu lesen oder zu schließen."
+            "Achten Sie auf das Abzeichen an Ihrem Avatar in der App-Leiste für aktive Benachrichtigungen und öffnen Sie dann „Benachrichtigungen“ im Kontomenü, um sie zu lesen oder zu schließen.",
+            "Wählen Sie im Dashboard Aktivität beitreten und geben Sie einen S-Code ein, um ein Quiz oder eine Live-Sitzung ohne Kurseinschreibung zu öffnen. Live-Sitzungen können zusätzlich ihren rotierenden Code verlangen. Ohne Kurseinschreibung werden Ihre Antworten erfasst, Sie erhalten aber keine Note. Eingeschriebene Studierende können bei namentlichen Aktivitäten Noten erhalten; anonyme Aktivitäten bleiben unbenotet. Anonyme Antworten bleiben über Fragen hinweg unter einer Kennung verbunden und erscheinen erst nach dem Ende und vier Antworten je Frage und Versuch; eine eindeutige Antwort kann Sie trotzdem erkennbar machen."
           ],
           "screenshot": {
             "variant": "studentCourse",
