@@ -6,7 +6,7 @@
  *   • 1 admin user
  *   • 1 professor user
  *   • N student users  (default 500)
- *   • 1 course with enrolled students (ordinary) or no student enrollment (external)
+ *   • 1 course with enrolled students and a configurable share of outside participants
  *   • 1 session with 5 questions (MC, MS, TF, SA, NU)
  *
  * Usage:
@@ -326,6 +326,14 @@ async function main() {
     process.exit(1);
   }
 
+  const enrolledIndex = args.indexOf('--enrolled-percent');
+  const defaultPercent = scenario.includes('-external-') ? (scenario.endsWith('-anonymous') ? 0 : 50) : 100;
+  const enrolledPercent = enrolledIndex < 0 ? defaultPercent : Number(args[enrolledIndex + 1]);
+  if (!Number.isInteger(enrolledPercent) || enrolledPercent < 0 || enrolledPercent > 100
+    || (!scenario.includes('-external-') && enrolledPercent !== 100)) {
+    throw new Error('--enrolled-percent must be 0–100 (100 for ordinary sessions)');
+  }
+
   const mongoUrl = process.env.MONGO_URL || 'mongodb://localhost:27017/qlicker';
   console.log('Connecting to the configured load-test MongoDB …');
   await connectWithRetry(mongoUrl);
@@ -340,7 +348,7 @@ async function main() {
   }
 
   console.log(`Seeding ${numStudents} students + professor + admin …`);
-  const state = await seed(numStudents, scenario);
+  const state = await seed(numStudents, scenario, enrolledPercent);
 
   fs.writeFileSync(STATE_PATH, JSON.stringify(state, null, 2));
   console.log(`State written to ${STATE_PATH}`);
@@ -353,7 +361,7 @@ async function main() {
 const LOAD_TEST_TAG = '__loadtest__';
 const PASSWORD = 'LoadTest1!';
 
-async function seed(numStudents, scenario) {
+async function seed(numStudents, scenario, enrolledPercent) {
   // Clean any previous run first
   await cleanup();
 
@@ -402,9 +410,7 @@ async function seed(numStudents, scenario) {
 
   // --- Course ---
   const anonymous = scenario.endsWith('-anonymous');
-  const enrolledStudentIds = external && !anonymous
-    ? studentIds.filter((_, index) => index % 2 === 0)
-    : external ? [] : studentIds;
+  const enrolledStudentIds = studentIds.slice(0, Math.round(numStudents * enrolledPercent / 100));
   const enrolledStudentIdSet = new Set(enrolledStudentIds);
   const enrollmentCode = crypto.randomBytes(4).toString('hex').toUpperCase();
   const course = await Course.create({
@@ -515,7 +521,7 @@ async function seed(numStudents, scenario) {
     professor: { email: 'loadtest-prof@example.com', id: professor._id },
     students,
     course: { id: course._id, enrollmentCode },
-    session: { id: session._id, scenario, anonymous, quiz: isQuiz, external, activityCode },
+    session: { id: session._id, scenario, anonymous, quiz: isQuiz, external, activityCode, enrolledPercent },
     questions: questionIds.map((id, i) => ({
       id,
       type: QUESTIONS[i].type,

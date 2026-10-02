@@ -1,5 +1,12 @@
 {
   "common": {
+    "backToDashboard": "Volver al panel",
+    "participantRoles": {
+      "student": "Estudiante",
+      "guest": "Invitado",
+      "instructor": "Instructor",
+      "professor": "Profesor"
+    },
     "appName": "Qlicker",
     "loading": "Cargando…",
     "cancel": "Cancelar",
@@ -1305,6 +1312,13 @@
     "dashboard": {
       "myCourses": "Mis cursos",
       "enrollInCourse": "Inscribirse en un curso",
+      "joinActivity": "Unirse a una actividad",
+      "activityCode": "Código de actividad",
+      "activityCodeHelp": "Introduce un código de actividad que empiece por S- para abrir un cuestionario o una sesión interactiva sin inscribirte en el curso.",
+      "activityCodeRequired": "Introduce un código de actividad que empiece por S-.",
+      "activityCodeUseJoin": "Este es un código de actividad. Usa Unirse a una actividad.",
+      "failedJoinActivity": "No se pudo acceder a la actividad.",
+      "joiningActivity": "Accediendo a la actividad…",
       "noCoursesYet": "Aún no hay cursos",
       "enrollMessage": "Use un código de inscripción de su instructor para unirse a un curso.",
       "section": "Sección: {{section}}",
@@ -2393,7 +2407,7 @@
             "Si su institución requiere correo verificado o SSO, complete primero esa configuración antes de suponer que el código de inscripción es incorrecto.",
             "Por lo general, solo necesita el código de acceso una vez por curso. Después de que funcione, el curso permanece en su panel hasta que se le quite o el curso se archive para su cuenta.",
             "Observe la insignia en su avatar en la barra de la aplicación para ver notificaciones activas, y luego abra Notificaciones desde el menú de la cuenta para leerlas o descartarlas.",
-            "Introduce un código de actividad S- en el formulario del panel para abrir un cuestionario o sesión sin unirte al curso. Una sesión en directo puede pedir también su código rotativo. Si no estás inscrito en el curso, se registran tus respuestas pero no recibes calificación. Los estudiantes inscritos pueden recibir notas en actividades identificadas; las actividades anónimas no tienen notas. Las respuestas anónimas se vinculan entre preguntas bajo una etiqueta y solo se muestran al instructor al terminar y con cuatro respuestas por pregunta e intento; una respuesta singular aún puede identificarte."
+            "Selecciona Unirse a una actividad en el panel e introduce un código S- para abrir un cuestionario o una sesión sin inscribirte en el curso. Una sesión en directo puede pedir también su código rotativo. Si no estás inscrito en el curso, se registran tus respuestas pero no recibes calificación. Los estudiantes inscritos pueden recibir notas en actividades identificadas; las actividades anónimas no tienen notas. Las respuestas anónimas se vinculan entre preguntas bajo una etiqueta y solo se muestran al instructor al terminar y con cuatro respuestas por pregunta e intento; una respuesta singular aún puede identificarte."
           ],
           "screenshot": {
             "variant": "studentCourse",

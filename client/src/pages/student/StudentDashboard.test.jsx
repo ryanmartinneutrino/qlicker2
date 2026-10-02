@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import StudentDashboard from './StudentDashboard';
@@ -83,9 +83,9 @@ describe('StudentDashboard', () => {
     expect(fetchAllCoursesMock).not.toHaveBeenCalledWith(apiClientMock, { view: 'instructor' }, expect.anything());
   });
 
-  it('redeems activity codes from the existing code form without enrolling', async () => {
+  it.each([true, false])('joins an activity without enrolling (quiz=%s)', async (quiz) => {
     apiClientMock.post.mockResolvedValue({ data: {
-      sessionId: 'session-1', courseId: 'course-1', quiz: true,
+      sessionId: 'session-1', courseId: 'course-1', quiz,
     } });
     function Location() {
       const location = useLocation();
@@ -95,16 +95,16 @@ describe('StudentDashboard', () => {
       <MemoryRouter initialEntries={['/student']}>
         <Routes>
           <Route path="/student" element={<StudentDashboard />} />
-          <Route path="/activity/:courseId/session/:sessionId/quiz" element={<Location />} />
+          <Route path="/activity/:courseId/session/:sessionId/:mode" element={<Location />} />
         </Routes>
       </MemoryRouter>
     );
-    fireEvent.click(await screen.findByRole('button', { name: 'student.dashboard.enrollInCourse' }));
-    fireEvent.change(screen.getByRole('textbox', { name: 'student.dashboard.courseOrActivityCode' }), {
+    fireEvent.click(await screen.findByRole('button', { name: 'student.dashboard.joinActivity' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'student.dashboard.activityCode' }), {
       target: { value: 's-' + 'A'.repeat(40) },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'student.dashboard.continueWithCode' }));
-    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/activity/course-1/session/session-1/quiz'));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'student.dashboard.joinActivity' }));
+    await waitFor(() => expect(screen.getByTestId('location').textContent).toBe(`/activity/course-1/session/session-1/${quiz ? 'quiz' : 'live'}`));
     expect(apiClientMock.post).toHaveBeenCalledWith('/activity-codes/redeem', { code: 's-' + 'A'.repeat(40) });
     expect(apiClientMock.post).not.toHaveBeenCalledWith('/courses/enroll', expect.anything());
   });
@@ -113,12 +113,38 @@ describe('StudentDashboard', () => {
     apiClientMock.post.mockResolvedValue({ data: {} });
     renderDashboard();
     fireEvent.click(await screen.findByRole('button', { name: 'student.dashboard.enrollInCourse' }));
-    fireEvent.change(screen.getByRole('textbox', { name: 'student.dashboard.courseOrActivityCode' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'student.dashboard.enrollmentCode' }), {
       target: { value: 'ABC123' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'student.dashboard.continueWithCode' }));
+    fireEvent.click(screen.getByRole('button', { name: 'student.dashboard.enroll' }));
     await waitFor(() => expect(apiClientMock.post).toHaveBeenCalledWith('/courses/enroll', { enrollmentCode: 'ABC123' }));
     expect(apiClientMock.post).not.toHaveBeenCalledWith('/activity-codes/redeem', expect.anything());
+  });
+
+  it('does not redeem an activity code through course enrollment', async () => {
+    renderDashboard();
+    fireEvent.click(await screen.findByRole('button', { name: 'student.dashboard.enrollInCourse' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'student.dashboard.enrollmentCode' }), { target: { value: 'S-ABCDEFGHJK' } });
+    fireEvent.click(screen.getByRole('button', { name: 'student.dashboard.enroll' }));
+    expect(await screen.findByText('student.dashboard.activityCodeUseJoin')).toBeVisible();
+    expect(apiClientMock.post).not.toHaveBeenCalled();
+  });
+
+  it('does not enroll a course code through activity joining and lets the user correct it', async () => {
+    apiClientMock.post.mockRejectedValue({ response: { data: { message: 'Activity unavailable' } } });
+    renderDashboard();
+    fireEvent.click(await screen.findByRole('button', { name: 'student.dashboard.joinActivity' }));
+    const dialog = within(screen.getByRole('dialog'));
+    const code = dialog.getByRole('textbox', { name: 'student.dashboard.activityCode' });
+    fireEvent.change(code, { target: { value: 'ABC123' } });
+    fireEvent.click(dialog.getByRole('button', { name: 'student.dashboard.joinActivity' }));
+    expect(await screen.findByText('student.dashboard.activityCodeRequired')).toBeVisible();
+    expect(apiClientMock.post).not.toHaveBeenCalled();
+    fireEvent.change(code, { target: { value: 'S-ABCDEFGHJK' } });
+    fireEvent.click(dialog.getByRole('button', { name: 'student.dashboard.joinActivity' }));
+    expect(await screen.findByText('Activity unavailable')).toBeVisible();
+    expect(apiClientMock.post).toHaveBeenCalledWith('/activity-codes/redeem', { code: 'S-ABCDEFGHJK' });
+    expect(apiClientMock.post).not.toHaveBeenCalledWith('/courses/enroll', expect.anything());
   });
 
   it('fetches instructor courses when the user has instructor-course access', async () => {

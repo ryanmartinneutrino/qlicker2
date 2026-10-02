@@ -308,6 +308,14 @@ describe('outside activity participation', () => {
         token: outsiderToken, payload: { joinCode: '123456' },
       });
       expect(joined.statusCode).toBe(200);
+      const roster = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/live?includeJoinedStudents=true`, { token: professorToken });
+      if (anonymous) {
+        expect(roster.json().session.joinedStudents || []).toEqual([]);
+        expect(JSON.stringify(roster.json())).not.toContain('participantRole');
+      } else {
+        expect(roster.json().session.joinedStudents[0]).toMatchObject({ participantRole: 'guest', isProfessor: false });
+      }
+
       await Question.updateOne({ _id: question._id }, { $set: { 'sessionOptions.stats': true } });
       const sendSpy = vi.spyOn(app, 'wsSendToUsers');
       const answered = await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/respond`, {
@@ -383,6 +391,36 @@ describe('shared activity safeguards', () => {
     expect((await issue(session._id, professorToken)).statusCode).toBe(409);
     expect((await Session.findById(session._id).lean()).activityEverShared).toBe(false);
     expect(await ActivityShare.countDocuments({ sessionId: session._id })).toBe(0);
+  });
+
+  it('labels enrolled students and guest professors consistently in joins, rosters, and results', async () => {
+    const { professorToken, outsider, outsiderToken, course, session } = await fixture({ quiz: false });
+    const enrolled = await createTestUser({ email: 'roster-enrolled@example.com', roles: ['student'] });
+    const visitor = await createTestUser({ email: 'roster-professor@example.com', roles: ['professor'] });
+    const enrolledToken = await getAuthToken(app, enrolled);
+    const visitorToken = await getAuthToken(app, visitor);
+    await Course.updateOne({ _id: course._id }, { $addToSet: { students: enrolled._id } });
+    await Session.updateOne({ _id: session._id }, { $set: { status: 'running' } });
+    const code = (await issue(session._id, professorToken)).json().code;
+    for (const token of [outsiderToken, visitorToken]) expect((await redeem(code, token)).statusCode).toBe(200);
+    const sendSpy = vi.spyOn(app, 'wsSendToUsers');
+    for (const token of [outsiderToken, visitorToken, enrolledToken]) {
+      expect((await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/join`, { token, payload: {} })).statusCode).toBe(200);
+    }
+    const joins = sendSpy.mock.calls.filter(([, event]) => event === 'session:participant-joined').map(([, , payload]) => payload.joinedStudent);
+    expect(joins.find((row) => row._id === enrolled._id)).toMatchObject({ participantRole: 'student', isProfessor: false });
+    expect(joins.find((row) => row._id === visitor._id)).toMatchObject({ participantRole: 'guest', isProfessor: true });
+    // Later enrollment does not change this activity's guest/grade status.
+    await Course.updateOne({ _id: course._id }, { $addToSet: { students: outsider._id } });
+    const roster = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/live?includeJoinedStudents=true`, { token: professorToken });
+    expect(roster.statusCode).toBe(200);
+    const joined = roster.json().session.joinedStudents;
+    expect(joined.find((row) => row._id === outsider._id).participantRole).toBe('guest');
+    expect(joined.find((row) => row._id === visitor._id)).toMatchObject({ participantRole: 'guest', isProfessor: true });
+    const results = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/results`, { token: professorToken });
+    expect(results.statusCode).toBe(200);
+    expect(results.json().studentResults.find((row) => row.studentId === enrolled._id)).toMatchObject({ participantRole: 'student' });
+    expect(results.json().studentResults.find((row) => row.studentId === visitor._id)).toMatchObject({ participantRole: 'guest', isProfessor: true, guest: true });
   });
 
   it('keeps enrolled grades while tracking a named guest without a grade row', async () => {
@@ -510,6 +548,9 @@ describe('shared activity safeguards', () => {
     expect(released.json().studentResults).toHaveLength(4);
     for (const row of released.json().studentResults) {
       expect(row.studentId).toMatch(/^respondent-[1-4]$/);
+      expect(row).not.toHaveProperty('participantRole');
+      expect(row).not.toHaveProperty('isProfessor');
+      expect(row).not.toHaveProperty('guest');
       expect(row.questionResults).toHaveLength(2);
       expect(row.questionResults.every((entry) => entry.responses.length === 1)).toBe(true);
     }

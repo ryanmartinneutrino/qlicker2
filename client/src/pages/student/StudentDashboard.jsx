@@ -20,6 +20,7 @@ import {
   sortStudentSessions,
 } from '../../utils/studentSessions';
 import SessionListCard from '../../components/common/SessionListCard';
+import JoinActivityButton from '../../components/common/JoinActivityButton';
 
 const INACTIVE_COURSE_ERROR_CODE = 'COURSE_INACTIVE';
 
@@ -210,16 +211,13 @@ export default function StudentDashboard() {
 
   const handleEnroll = async () => {
     if (!enrollCode.trim()) return;
+    if (/^S-/i.test(enrollCode.trim())) {
+      setMsg({ severity: 'error', text: t('student.dashboard.activityCodeUseJoin') });
+      return;
+    }
     setEnrolling(true);
     try {
       const code = enrollCode.trim();
-      if (/^S-/i.test(code)) {
-        const { data } = await apiClient.post('/activity-codes/redeem', { code });
-        setEnrollOpen(false);
-        setEnrollCode('');
-        navigate(`/activity/${data.courseId}/session/${data.sessionId}/${data.quiz ? 'quiz' : 'live'}`);
-        return;
-      }
       await apiClient.post('/courses/enroll', { enrollmentCode: code });
       setEnrollOpen(false);
       setEnrollCode('');
@@ -323,9 +321,12 @@ export default function StudentDashboard() {
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
         <Typography variant="h4">{t('student.dashboard.myCourses')}</Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setEnrollOpen(true)}>
-          {t('student.dashboard.enrollInCourse')}
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setEnrollOpen(true)}>
+            {t('student.dashboard.enrollInCourse')}
+          </Button>
+          <JoinActivityButton />
+        </Box>
       </Box>
 
       {visibleLiveSessions.length > 0 && (
@@ -400,7 +401,7 @@ export default function StudentDashboard() {
 
       {/* Enroll Dialog */}
       <Dialog open={enrollOpen} onClose={() => setEnrollOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>{t('student.dashboard.enterJoinCode')}</DialogTitle>
+        <DialogTitle>{t('student.dashboard.enrollInCourse')}</DialogTitle>
         <Box
           component="form"
           onSubmit={(event) => {
@@ -415,10 +416,10 @@ export default function StudentDashboard() {
                 color: "text.secondary",
                 mb: 2
               }}>
-              {t('student.dashboard.courseOrActivityCodeHelp')}
+              {t('student.dashboard.enrollmentCodeMessage')}
             </Typography>
             <TextField
-              label={t('student.dashboard.courseOrActivityCode')}
+              label={t('student.dashboard.enrollmentCode')}
               value={enrollCode}
               onChange={(e) => setEnrollCode(e.target.value)}
               fullWidth
@@ -428,7 +429,7 @@ export default function StudentDashboard() {
           <DialogActions>
             <Button onClick={() => setEnrollOpen(false)}>{t('common.cancel')}</Button>
             <Button type="submit" variant="contained" disabled={enrolling || !enrollCode.trim()}>
-              {enrolling ? t('student.dashboard.enrolling') : t('student.dashboard.continueWithCode')}
+              {enrolling ? t('student.dashboard.enrolling') : t('student.dashboard.enroll')}
             </Button>
           </DialogActions>
         </Box>

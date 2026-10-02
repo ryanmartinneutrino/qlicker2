@@ -38,7 +38,7 @@ The dashboard lists your courses and highlights activities that are live now. Us
 ### Enroll in a course
 
 1. Get the current enrollment code from the instructor.
-2. Enter it exactly in the enrollment field on your dashboard.
+2. Select **Enroll in Course** on your dashboard and enter the enrollment code.
 3. Submit the code.
 4. Open the new course card and confirm the course name, number, section, and semester.
 
@@ -46,9 +46,9 @@ You normally enroll only once. The course stays on the dashboard until the instr
 
 ### Open an activity without joining its course
 
-1. Sign in and select **Enroll in Course** on the dashboard to open the shared code form.
-2. Enter the activity code beginning with `S-`, then select **Continue**. The activity opens directly; your account is not enrolled in its course.
-3. Take the quiz or join the interactive session as usual. A live activity may also ask for its separate rotating six-digit join code.
+1. Sign in and select **Join activity** on the dashboard.
+2. Enter the activity code beginning with `S-`, then select **Join activity**. The activity opens directly; your account is not enrolled in its course.
+3. Take the quiz or join the interactive session as usual. **Back to dashboard** returns you to your home page. A live activity may also ask for its separate rotating six-digit join code.
 
 An activity code opens only its own quiz or live session. It can be used by multiple people, but your account can submit a quiz only once and answer each live question/attempt only once. If the activity code expires after you have used it, you can still enter it again while your access remains enabled. The instructor can disable sharing, which immediately removes outside access. If sharing is enabled again with the same code, enter that code again to regain access. Outside participants cannot use that course's roster, gradebook, or chat. They do not get session chat.
 

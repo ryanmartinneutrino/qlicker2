@@ -1861,7 +1861,6 @@ export default function SessionReview() {
                                 nameVariant="body2"
                                 nameWeight={600}
                               />
-                              {student.guest && <Chip size="small" label={t('professor.sessionReview.guest')} />}
                             </Box>
                           )}
                         </TableCell>

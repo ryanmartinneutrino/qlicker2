@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import {
   addInstructorToCourseViaApi, addQuestionToSessionViaApi, apiJson,
   createCourseViaApi, createQuestionViaApi, createSessionViaApi, loginViaUi,
-  patchSessionViaApi, seedUsers,
+  patchSessionViaApi, seedUsers, expectNoCriticalAccessibilityViolations,
 } from './helpers.js';
 
 test('course opt-in and session switch expose a persistent code for an outside quiz', async ({ page, browser, request }) => {
@@ -61,11 +61,14 @@ test('course opt-in and session switch expose a persistent code for an outside q
   try {
     const studentPage = await studentContext.newPage();
     await loginViaUi(studentPage, student.email, student.password, /\/student$/);
-    await studentPage.getByRole('button', { name: 'Enroll in Course' }).first().click();
-    await studentPage.getByRole('textbox', { name: 'Course or activity code' }).fill(regeneratedCode);
-    await studentPage.getByRole('button', { name: 'Continue' }).click();
+    await studentPage.getByRole('button', { name: 'Join activity' }).first().click();
+    await expect(studentPage.getByRole('dialog').getByText(/starting with S-/)).toBeVisible();
+    await studentPage.getByRole('textbox', { name: 'Activity code' }).fill(regeneratedCode);
+    await studentPage.getByRole('dialog').getByRole('button', { name: 'Join activity' }).click();
     await expect(studentPage).toHaveURL(new RegExp(`/activity/${course._id}/session/${quiz._id}/quiz`));
     await expect(studentPage.getByText('Outside quiz question')).toBeVisible();
+    await studentPage.getByRole('button', { name: 'Back to dashboard' }).click();
+    await expect(studentPage).toHaveURL(/\/student$/);
 
     await sharing.click();
     await expect(sharing).not.toBeChecked();
@@ -76,4 +79,36 @@ test('course opt-in and session switch expose a persistent code for an outside q
   } finally {
     await studentContext.close();
   }
+});
+
+
+test('a guest professor joins from a separate accessible activity dialog and returns to their dashboard', async ({ page, request }) => {
+  const { admin, professor } = await seedUsers(request);
+  const course = await createCourseViaApi(request, admin.token);
+  await apiJson(request, 'PATCH', `/courses/${course._id}`, { token: admin.token, payload: { allowSharedActivities: true } });
+  const quiz = await createSessionViaApi(request, admin.token, course._id, {
+    name: 'Guest professor quiz', quiz: true,
+    quizStart: new Date(Date.now() - 60_000).toISOString(),
+    quizEnd: new Date(Date.now() + 3_600_000).toISOString(),
+  });
+  const question = await createQuestionViaApi(request, admin.token, {
+    sessionId: quiz._id, courseId: course._id, content: 'Guest professor question',
+  });
+  await addQuestionToSessionViaApi(request, admin.token, quiz._id, question._id);
+  await patchSessionViaApi(request, admin.token, quiz._id, { status: 'visible' });
+  const issued = await apiJson(request, 'POST', `/sessions/${quiz._id}/activity-share`, { token: admin.token, payload: {} });
+  expect(issued.response.status()).toBe(200);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await loginViaUi(page, professor.email, professor.password, /\/prof$/);
+  await expect(page.getByRole('button', { name: 'Enroll in a Course as a Student' })).toBeVisible();
+  await page.getByRole('button', { name: 'Join activity' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByText(/starting with S-/)).toBeVisible();
+  await expectNoCriticalAccessibilityViolations(page);
+  await dialog.getByRole('textbox', { name: 'Activity code' }).fill(issued.body.code);
+  await dialog.getByRole('button', { name: 'Join activity' }).click();
+  await expect(page).toHaveURL(new RegExp(`/activity/${course._id}/session/${quiz._id}/quiz`));
+  await expect(page.getByText('Guest professor question')).toBeVisible();
+  await page.getByRole('button', { name: 'Back to dashboard' }).click();
+  await expect(page).toHaveURL(/\/prof$/);
 });

@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import Session from '../models/Session.js';
 import Course from '../models/Course.js';
+import ActivityGrant from '../models/ActivityGrant.js';
 import Grade from '../models/Grade.js';
 import LiveSessionTelemetry from '../models/LiveSessionTelemetry.js';
 import Post from '../models/Post.js';
@@ -920,7 +921,16 @@ function formatUserDisplayName(user) {
   return user?.emails?.[0]?.address || user?.email || 'Unknown Student';
 }
 
-function serializeLiveStudent(user, { joinedAt = null } = {}) {
+function participantRoles(user, course, guest = false) {
+  const userId = String(user?._id || '');
+  return {
+    participantRole: (course?.instructors || []).some((id) => String(id) === userId)
+      ? 'instructor' : guest ? 'guest' : 'student',
+    isProfessor: (user?.profile?.roles || []).includes('professor'),
+  };
+}
+
+function serializeLiveStudent(user, { joinedAt = null, course, guest = false } = {}) {
   const userId = normalizeAnswerValue(user?._id);
   return {
     _id: userId,
@@ -930,6 +940,7 @@ function serializeLiveStudent(user, { joinedAt = null } = {}) {
     profileImage: normalizeAnswerValue(user?.profile?.profileImage),
     profileThumbnail: normalizeAnswerValue(user?.profile?.profileThumbnail),
     displayName: formatUserDisplayName(user),
+    ...(course ? participantRoles(user, course, guest) : {}),
     joinedAt,
   };
 }
@@ -5623,18 +5634,13 @@ export default async function sessionRoutes(app) {
         .select('_id profile emails email')
         .lean();
 
+      const enrolled = (course.students || []).some((id) => String(id) === String(userId));
+      const guest = !enrolled || (!!session.activityEverShared && !!await ActivityGrant.exists({
+        sessionId: session._id, userId, guestAtRedemption: true,
+      }));
       notifyParticipantJoined(app, course, request.params.id, {
         joinedCount,
-        joinedStudent: {
-          _id: userId,
-          firstname: normalizeAnswerValue(joinedUser?.profile?.firstname),
-          lastname: normalizeAnswerValue(joinedUser?.profile?.lastname),
-          email: normalizeAnswerValue(joinedUser?.emails?.[0]?.address || joinedUser?.email),
-          profileImage: normalizeAnswerValue(joinedUser?.profile?.profileImage),
-          profileThumbnail: normalizeAnswerValue(joinedUser?.profile?.profileThumbnail),
-          displayName: formatUserDisplayName(joinedUser),
-          joinedAt: now,
-        },
+        joinedStudent: serializeLiveStudent({ ...joinedUser, _id: userId }, { joinedAt: now, course, guest }),
       });
 
       return { success: true, alreadyJoined: false };
@@ -5760,7 +5766,10 @@ export default async function sessionRoutes(app) {
         });
       }
 
-      const joinedStudent = serializeLiveStudent(student, { joinedAt: now });
+      const guest = !!session.activityEverShared && !!await ActivityGrant.exists({
+        sessionId: session._id, userId: studentId, guestAtRedemption: true,
+      });
+      const joinedStudent = serializeLiveStudent(student, { joinedAt: now, course, guest });
       const participantPayload = {
         joinedCount: Array.isArray(updatedSession?.joined)
           ? updatedSession.joined.length
@@ -5943,6 +5952,10 @@ export default async function sessionRoutes(app) {
       if (includeJoinedStudents) {
         const joinedIds = [...new Set((session.joined || []).map((id) => String(id)).filter(Boolean))];
         const enrolledIds = [...new Set((course.students || []).map((id) => String(id)).filter(Boolean))];
+        const enrolledIdSet = new Set(enrolledIds);
+        // Load guest status once when an instructor opens the roster, never per response.
+        const activityGuestIds = session.activityEverShared
+          ? await getActivityGuestUserIds(session._id) : new Set();
         const rosterIds = [...new Set([...joinedIds, ...enrolledIds])];
         const rosterUsers = rosterIds.length > 0
           ? await User.find({ _id: { $in: rosterIds } })
@@ -5967,6 +5980,7 @@ export default async function sessionRoutes(app) {
           const user = rosterUserMap.get(studentId);
           return serializeLiveStudent({ ...user, _id: studentId }, {
             joinedAt: latestJoinByStudentId.get(studentId) || null,
+            course, guest: !enrolledIdSet.has(studentId) || activityGuestIds.has(studentId),
           });
         }).sort((a, b) => {
           const lastCmp = a.lastname.localeCompare(b.lastname);
@@ -5980,7 +5994,7 @@ export default async function sessionRoutes(app) {
           .map((studentId) => serializeLiveStudent({
             ...rosterUserMap.get(studentId),
             _id: studentId,
-          }))
+          }, { course, guest: activityGuestIds.has(studentId) }))
           .sort((a, b) => {
             const lastCmp = a.lastname.localeCompare(b.lastname);
             if (lastCmp !== 0) return lastCmp;
@@ -7993,6 +8007,7 @@ export default async function sessionRoutes(app) {
         return {
           studentId,
           guest: !!session.activityEverShared && (!courseStudentIds.has(String(studentId)) || activityGuestIds.has(String(studentId))),
+          ...participantRoles({ ...student, _id: studentId }, course, !courseStudentIds.has(String(studentId)) || activityGuestIds.has(String(studentId))),
           firstname,
           lastname,
           email,

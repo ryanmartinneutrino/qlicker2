@@ -14,6 +14,9 @@ const liveSessionMocks = vi.hoisted(() => ({
   scheduleUiSyncMeasurement: vi.fn(),
 }));
 
+const authState = vi.hoisted(() => ({ user: { profile: { roles: ['student'] } } }));
+vi.mock('../../contexts/AuthContext', () => ({ useAuth: () => authState }));
+
 vi.mock('../../api/client', () => ({
   default: {
     get: vi.fn(),
@@ -45,6 +48,7 @@ vi.mock('../../hooks/useLiveSessionTelemetry', () => ({
 describe('Student LiveSession', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    authState.user.profile.roles = ['student'];
     websocketState.lastEvent = null;
     i18n.changeLanguage('en');
 
@@ -431,4 +435,20 @@ describe('Student LiveSession', () => {
     expect(await screen.findByText('The first option is correct.')).toBeInTheDocument();
     expect(apiClient.get).toHaveBeenCalledTimes(1);
   });
+  it.each([['student', '/student'], ['professor', '/prof']])('returns an activity participant to the %s dashboard', async (role, destination) => {
+    authState.user.profile.roles = [role];
+    render(
+      <MemoryRouter initialEntries={['/activity/course-1/session/session-1/live']}>
+        <Routes>
+          <Route path="/activity/:courseId/session/:sessionId/live" element={<LiveSession />} />
+          <Route path={destination} element={<div>Participant dashboard</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+    const back = await screen.findByRole('button', { name: 'Back to dashboard' });
+    expect(screen.queryByRole('button', { name: 'Back to Course' })).not.toBeInTheDocument();
+    fireEvent.click(back);
+    expect(await screen.findByText('Participant dashboard')).toBeInTheDocument();
+  });
+
 });

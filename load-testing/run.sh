@@ -5,6 +5,8 @@
 # Commands:
 #   ./run.sh                     Seed the database + run the k6 load test
 #   ./run.sh --students N        Override the configured number of students
+#   ./run.sh --enrolled-percent N Set enrolled share for external activities (0–100)
+#   ./run.sh --scenario NAME      Choose a live or quiz workload
 #   ./run.sh --session-chat MODE Run with session chat enabled or disabled
 #   ./run.sh --seed-only         Seed without running k6
 #   ./run.sh --test-only         Run k6 without reseeding
@@ -59,7 +61,9 @@ MONGO_URL="${MONGO_URL:-}"
 BASE_URL="${BASE_URL:-}"
 NUM_STUDENTS="${NUM_STUDENTS:-500}"
 SEED_IMAGE="${SEED_IMAGE:-$DEFAULT_SEED_IMAGE}"
-SESSION_CHAT_ENABLED="${SESSION_CHAT_ENABLED:-true}"
+SESSION_CHAT_ENABLED="${SESSION_CHAT_ENABLED:-}"
+ENROLLED_PERCENT="${ENROLLED_PERCENT:-}"
+LIVE_STATS_DURING_ANSWERS="${LIVE_STATS_DURING_ANSWERS:-false}"
 SCENARIO="${SCENARIO:-live-named}"
 RATE_LIMIT_STATE_FILE="$STATE_DIR/rate-limit-restore.env"
 
@@ -106,7 +110,7 @@ normalize_boolean_flag() {
   esac
 }
 
-if ! SESSION_CHAT_ENABLED="$(normalize_boolean_flag "$SESSION_CHAT_ENABLED")"; then
+if [[ -n "$SESSION_CHAT_ENABLED" ]] && ! SESSION_CHAT_ENABLED="$(normalize_boolean_flag "$SESSION_CHAT_ENABLED")"; then
   error "SESSION_CHAT_ENABLED must be one of: true/false, on/off, enabled/disabled."
   exit 1
 fi
@@ -116,6 +120,9 @@ while [[ $# -gt 0 ]]; do
     --students)
       if [[ $# -lt 2 ]]; then error "--students requires a number"; exit 1; fi
       NUM_STUDENTS="$2"; shift 2 ;;
+    --enrolled-percent)
+      if [[ $# -lt 2 ]]; then error "--enrolled-percent requires an integer from 0 to 100"; exit 1; fi
+      ENROLLED_PERCENT="$2"; shift 2 ;;
     --scenario)
       if [[ $# -lt 2 ]]; then error "--scenario requires a name"; exit 1; fi
       SCENARIO="$2"; shift 2 ;;
@@ -149,11 +156,40 @@ while [[ $# -gt 0 ]]; do
 done
 
 case "$SCENARIO" in
-  live-named) SCENARIO_FILE="live-session.js" ;;
-  live-anonymous|live-external-named|live-external-anonymous) SCENARIO_FILE="live-anonymous.js" ;;
+  live-named|live-anonymous|live-external-named|live-external-anonymous) SCENARIO_FILE="live-session.js" ;;
   quiz-named|quiz-anonymous|quiz-external-named|quiz-external-anonymous) SCENARIO_FILE="quiz-session.js" ;;
   *) error "Unknown scenario '$SCENARIO'. Use live-named, live-anonymous, quiz-named, quiz-anonymous, or their live/quiz external named/anonymous variants."; exit 1 ;;
 esac
+
+if [[ -z "$SESSION_CHAT_ENABLED" ]]; then
+  if [[ "$SCENARIO" == "live-named" ]]; then SESSION_CHAT_ENABLED=true; else SESSION_CHAT_ENABLED=false; fi
+fi
+if [[ "$SCENARIO" == live-* && "$SCENARIO" != "live-named" && "$SESSION_CHAT_ENABLED" == true ]]; then
+  error "Shared and anonymous live comparisons require --session-chat off. Use the same setting for the baseline."
+  exit 1
+fi
+if ! LIVE_STATS_DURING_ANSWERS="$(normalize_boolean_flag "$LIVE_STATS_DURING_ANSWERS")"; then
+  error "LIVE_STATS_DURING_ANSWERS must be true or false."
+  exit 1
+fi
+if [[ -z "$ENROLLED_PERCENT" ]]; then
+  case "$SCENARIO" in
+    *-external-named) ENROLLED_PERCENT=50 ;;
+    *-external-anonymous) ENROLLED_PERCENT=0 ;;
+    *) ENROLLED_PERCENT=100 ;;
+  esac
+fi
+if [[ ! "$ENROLLED_PERCENT" =~ ^(0|[1-9][0-9]?|100)$ ]]; then
+  error "--enrolled-percent must be an integer from 0 to 100."
+  exit 1
+fi
+if [[ "$SCENARIO" != *-external-* && "$ENROLLED_PERCENT" != 100 ]]; then
+  error "Only external scenarios support guests; use --enrolled-percent 100 for ordinary sessions."
+  exit 1
+fi
+RUN_LABEL="$SCENARIO"
+if [[ "$SCENARIO" == *-external-* ]]; then RUN_LABEL="${SCENARIO}-enrolled-${ENROLLED_PERCENT}"; fi
+if [[ "$LIVE_STATS_DURING_ANSWERS" == true ]]; then RUN_LABEL="${RUN_LABEL}-live-stats"; fi
 
 is_local_address() {
   local value="$1"
@@ -280,7 +316,7 @@ k6_runner() {
   if [[ "$scenario_file" == "preflight.js" ]]; then
     k6_flags=(--quiet --summary-mode=compact)
   else
-    k6_flags=(--summary-export "/results/summary-${SCENARIO}-${RUN_TIMESTAMP}.json")
+    k6_flags=(--summary-export "/results/summary-${RUN_LABEL}-${RUN_TIMESTAMP}.json")
   fi
   local k6_base_url="$BASE_URL"
   if is_local_address "$k6_base_url"; then
@@ -297,6 +333,8 @@ k6_runner() {
   local pass_through_key=""
   for pass_through_key in \
     SESSION_CHAT_ENABLED \
+    ENROLLED_PERCENT \
+    LIVE_STATS_DURING_ANSWERS \
     ANSWER_WINDOW_S \
     STATS_PAUSE_S \
     CORRECT_PAUSE_S \
@@ -465,7 +503,7 @@ do_seed() {
   mkdir -p "$STATE_DIR"
 
   info "Seeding $SCENARIO with $NUM_STUDENTS students …"
-  seed_runner --students "$NUM_STUDENTS" --scenario "$SCENARIO"
+  seed_runner --students "$NUM_STUDENTS" --scenario "$SCENARIO" --enrolled-percent "$ENROLLED_PERCENT"
   info "Seeding complete ✓"
 
   if [[ ! -f "$STATE_DIR/state.json" ]]; then
@@ -504,16 +542,24 @@ do_test() {
     error "The state file does not match scenario '$SCENARIO'. Reseed before testing; the seed image may be stale."
     exit 1
   fi
+  if [[ "$SCENARIO" == *-external-* ]]; then
+    local state_percent
+    state_percent="$(sed -n 's/^[[:space:]]*"enrolledPercent": \([0-9]*\).*/\1/p' "$STATE_DIR/state.json" | head -1)"
+    if [[ "$state_percent" != "$ENROLLED_PERCENT" ]]; then
+      error "The fixture does not match enrolled percentage $ENROLLED_PERCENT. Reseed with --enrolled-percent $ENROLLED_PERCENT; the seed image may be stale."
+      exit 1
+    fi
+  fi
   mkdir -p "$RESULTS_DIR"
   RUN_TIMESTAMP="$(date +%Y%m%d-%H%M%S-%N)"
-  local result_log="$RESULTS_DIR/k6-${SCENARIO}-${RUN_TIMESTAMP}.log"
+  local result_log="$RESULTS_DIR/k6-${RUN_LABEL}-${RUN_TIMESTAMP}.log"
   local session_chat_label="disabled"
   if [[ "$SESSION_CHAT_ENABLED" == "true" ]]; then
     session_chat_label="enabled"
   fi
 
   info "Checking the public login path before starting $SCENARIO …"
-  local preflight_log="$RESULTS_DIR/preflight-${SCENARIO}-${RUN_TIMESTAMP}.log"
+  local preflight_log="$RESULTS_DIR/preflight-${RUN_LABEL}-${RUN_TIMESTAMP}.log"
   if ! k6_runner preflight.js > "$preflight_log" 2>&1; then
     cat "$preflight_log"
     error "Login ingress preflight failed. Check Nginx and any upstream proxy limits before running the load test."
@@ -522,7 +568,7 @@ do_test() {
   fi
   info "Login ingress preflight passed ✓"
   info "Running $SCENARIO load test against $BASE_URL …"
-  if [[ "$SCENARIO" == "live-named" ]]; then info "Session chat: $session_chat_label"; fi
+  info "Enrolled participants: ${ENROLLED_PERCENT}%; session chat: $session_chat_label; stats during answers: $LIVE_STATS_DURING_ANSWERS"
   info "Results log: $result_log"
   echo ""
 
@@ -540,7 +586,7 @@ do_test() {
     warn "Load test FAILED (k6/container exit code $k6_exit). Inspect the log and threshold summary."
   fi
   info "Full log saved to: $result_log"
-  local summary_file="$RESULTS_DIR/summary-${SCENARIO}-${RUN_TIMESTAMP}.json"
+  local summary_file="$RESULTS_DIR/summary-${RUN_LABEL}-${RUN_TIMESTAMP}.json"
   if [[ -f "$summary_file" ]]; then
     info "Summary saved to: $summary_file"
   else

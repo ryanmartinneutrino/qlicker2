@@ -1,5 +1,12 @@
 {
   "common": {
+    "backToDashboard": "Back to yer dashboard",
+    "participantRoles": {
+      "student": "Student",
+      "guest": "Guest",
+      "instructor": "Instructor",
+      "professor": "Professor"
+    },
     "appName": "Qlicker",
     "loading": "Loadin'…",
     "cancel": "Belay That",
@@ -1305,6 +1312,13 @@
     "dashboard": {
       "myCourses": "Me Ships",
       "enrollInCourse": "Sign aboard in Ship",
+      "joinActivity": "Join a voyage",
+      "activityCode": "Voyage code",
+      "activityCodeHelp": "Enter a voyage code starting with S- to open a quiz or live voyage without boarding its course.",
+      "activityCodeRequired": "Enter a voyage code beginning with S-.",
+      "activityCodeUseJoin": "That be a voyage code. Use Join a voyage instead.",
+      "failedJoinActivity": "Could not board the voyage.",
+      "joiningActivity": "Boarding the voyage…",
       "noCoursesYet": "Nary any ships yet",
       "enrollMessage": "Use a boarding code from yer officer to board a ship.",
       "section": "Berth: {{section}}",
@@ -2393,7 +2407,7 @@
             "If yer institution requires vouched fer missive or SSO, finish that setup first afore assumin' th' boarding code be wrong.",
             "Ye usually only need th' board code once per ship. After it works, th' ship stays on yer quarterdeck until ye're removed or th' ship be buried fer yer account.",
             "Watch th' badge on yer avatar in th' app bar fer afloat bulletins, then open Bulletins from th' account menu to read or wave off 'em.",
-            "Enter an S- activity code in yer dashboard code form to open one quiz or live voyage without boarding its course. A live voyage may also demand its rotating boarding code. If ye have not boarded the course, yer replies be tracked but ye earn no marks. Enrolled mateys may earn marks in named voyages; masked voyages have no marks. Masked answers stay tied across riddles under one label and reach the officer only after the voyage ends and four mateys answer each riddle and attempt; a rare reply may still reveal ye."
+            "Choose Join a voyage on yer dashboard and enter an S- code to open a quiz or live voyage without boarding its course. A live voyage may also demand its rotating boarding code. If ye have not boarded the course, yer replies be tracked but ye earn no marks. Enrolled mateys may earn marks in named voyages; masked voyages have no marks. Masked answers stay tied across riddles under one label and reach the officer only after the voyage ends and four mateys answer each riddle and attempt; a rare reply may still reveal ye."
           ],
           "screenshot": {
             "variant": "studentCourse",

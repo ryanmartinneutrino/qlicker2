@@ -1,6 +1,6 @@
 # Plan: session access by activity code
 
-Status: the draft follow-up PR implements signed-in code access for quiz and live activities, the dashboard entry, response tracking, WebSocket delivery, and enrolled-only grading for named activities. Final staging and multi-replica load testing remain.
+Status: the draft follow-up PR implements signed-in code access for quiz and live activities, separate dashboard actions for course enrollment and activity joining, response tracking, WebSocket delivery, and enrolled-only grading for named activities. Final staging and multi-replica load testing remain.
 
 ## Goal and product contract
 

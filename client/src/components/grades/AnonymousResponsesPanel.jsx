@@ -25,6 +25,7 @@ import {
 import { prepareRichTextInput, renderKatexInElement } from '../questions/richTextUtils';
 import { getLatestResponse } from '../../utils/responses';
 import { buildResponseSummary } from './SessionQuestionGradingPanel';
+import ParticipantRoleBadges from '../common/ParticipantRoleBadges';
 
 const richContentSx = {
   '& p': { my: 0.5 },
@@ -81,6 +82,7 @@ export default function AnonymousResponsesPanel({
       const summary = buildResponseSummary(activeQuestion, response, t('grades.questionPanel.noAnswer'));
       return [{
         key: String(student.studentId),
+        participant: student,
         label: anonymous ? student.firstname : [student.firstname, student.lastname].filter(Boolean).join(' ') || student.email,
         summary,
         correct: typeof getResponseCorrectness === 'function'
@@ -179,6 +181,7 @@ export default function AnonymousResponsesPanel({
                 <TableRow key={row.key}>
                   <TableCell component="th" scope="row">
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>{row.label}</Typography>
+                    {!anonymous && <ParticipantRoleBadges participant={row.participant} />}
                   </TableCell>
                   <TableCell>
                     {row.summary.richHtml

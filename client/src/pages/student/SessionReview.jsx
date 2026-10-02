@@ -29,6 +29,8 @@ import BackLinkButton from '../../components/common/BackLinkButton';
 import AnonymousSessionNotice from '../../components/common/AnonymousSessionNotice';
 import { useTranslation } from 'react-i18next';
 import { prepareRichTextInput, renderKatexInElement } from '../../components/questions/richTextUtils';
+import { useAuth } from '../../contexts/AuthContext';
+import { getDashboardPath } from '../../utils/dashboard';
 
 /* ------------------------------------------------------------------ */
 /*  Shared rich-text / image display styles                           */
@@ -555,10 +557,12 @@ export default function SessionReview() {
   const { t } = useTranslation();
   const { courseId, sessionId } = useParams();
   const isOutsideActivity = useLocation().pathname.startsWith('/activity/');
+  const { user } = useAuth();
+  const dashboardPath = getDashboardPath(user);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const requestedReturnTab = parseCourseTab(searchParams.get('returnTab'));
-  const fallbackCourseBackLink = isOutsideActivity ? '/student' : requestedReturnTab === 0
+  const fallbackCourseBackLink = isOutsideActivity ? dashboardPath : requestedReturnTab === 0
     ? `/student/course/${courseId}`
     : `/student/course/${courseId}?tab=${requestedReturnTab}`;
 
@@ -744,7 +748,7 @@ export default function SessionReview() {
         <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
         <BackLinkButton
           variant="outlined"
-          label={t('student.sessionReview.backToCourse')}
+          label={t(isOutsideActivity ? 'common.backToDashboard' : 'student.sessionReview.backToCourse')}
           onClick={() => navigate(fallbackCourseBackLink)}
         />
       </Box>
@@ -755,7 +759,7 @@ export default function SessionReview() {
   const resolvedReturnTab = session && (session.quiz || session.practiceQuiz)
     ? (session.studentCreated ? 2 : 1)
     : requestedReturnTab;
-  const courseBackLink = isOutsideActivity ? '/student' : resolvedReturnTab === 0
+  const courseBackLink = isOutsideActivity ? dashboardPath : resolvedReturnTab === 0
     ? `/student/course/${courseId}`
     : `/student/course/${courseId}?tab=${resolvedReturnTab}`;
   const currentQ = questions[questionIdx];
@@ -774,7 +778,7 @@ export default function SessionReview() {
       {/* Header */}
       <Box sx={{ mb: 2 }}>
         <BackLinkButton
-          label={t('student.sessionReview.backToCourse')}
+          label={t(isOutsideActivity ? 'common.backToDashboard' : 'student.sessionReview.backToCourse')}
           onClick={() => navigate(courseBackLink)}
           sx={{ mb: 1 }}
         />

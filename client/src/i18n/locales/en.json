@@ -1,5 +1,12 @@
 {
   "common": {
+    "backToDashboard": "Back to dashboard",
+    "participantRoles": {
+      "student": "Student",
+      "guest": "Guest",
+      "instructor": "Instructor",
+      "professor": "Professor"
+    },
     "appName": "Qlicker",
     "loading": "Loading…",
     "cancel": "Cancel",
@@ -1305,6 +1312,13 @@
     "dashboard": {
       "myCourses": "My Courses",
       "enrollInCourse": "Enroll in Course",
+      "joinActivity": "Join activity",
+      "activityCode": "Activity code",
+      "activityCodeHelp": "Enter an activity code starting with S- to open a quiz or interactive session without enrolling in its course.",
+      "activityCodeRequired": "Enter an activity code beginning with S-.",
+      "activityCodeUseJoin": "This is an activity code. Use Join activity instead.",
+      "failedJoinActivity": "Could not join the activity.",
+      "joiningActivity": "Joining activity…",
       "noCoursesYet": "No courses yet",
       "enrollMessage": "Use an enrollment code from your instructor to join a course.",
       "section": "Section: {{section}}",
@@ -2440,7 +2454,7 @@
             "If your institution requires verified email or SSO, finish that setup first before assuming the enrollment code is wrong.",
             "You usually only need the join code once per course. After it works, the course stays on your dashboard until you are removed or the course is archived for your account.",
             "Watch the badge on your avatar in the app bar for active notifications, then open Notifications from the account menu to read or dismiss them.",
-            "Enter an S- activity code in the dashboard's code form to open one quiz or live session without joining its course. A live session may also require its rotating join code. If you are not enrolled in the course, your responses are tracked but you receive no grade. Enrolled students can receive grades in named activities; anonymous activities have no grades. Anonymous answers stay linked across questions under one respondent label and are shown to the instructor only after the activity ends and four people answer each question and attempt; a unique answer may still reveal you."
+            "Choose Join activity on the dashboard and enter an S- activity code to open a quiz or live session without enrolling in its course. A live session may also require its rotating join code. If you are not enrolled in the course, your responses are tracked but you receive no grade. Enrolled students can receive grades in named activities; anonymous activities have no grades. Anonymous answers stay linked across questions under one respondent label and are shown to the instructor only after the activity ends and four people answer each question and attempt; a unique answer may still reveal you."
           ],
           "screenshot": {
             "variant": "studentCourse",

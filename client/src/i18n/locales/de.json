@@ -1,5 +1,12 @@
 {
   "common": {
+    "backToDashboard": "Zurück zur Übersicht",
+    "participantRoles": {
+      "student": "Studierende",
+      "guest": "Gast",
+      "instructor": "Kursleitung",
+      "professor": "Lehrende"
+    },
     "appName": "Qlicker",
     "loading": "Wird geladen…",
     "cancel": "Abbrechen",
@@ -1305,6 +1312,13 @@
     "dashboard": {
       "myCourses": "Meine Kurse",
       "enrollInCourse": "In Kurs einschreiben",
+      "joinActivity": "Aktivität beitreten",
+      "activityCode": "Aktivitätscode",
+      "activityCodeHelp": "Geben Sie einen Aktivitätscode ein, der mit S- beginnt, um ein Quiz oder eine interaktive Sitzung ohne Kurseinschreibung zu öffnen.",
+      "activityCodeRequired": "Geben Sie einen Aktivitätscode ein, der mit S- beginnt.",
+      "activityCodeUseJoin": "Dies ist ein Aktivitätscode. Verwenden Sie Aktivität beitreten.",
+      "failedJoinActivity": "Beitritt zur Aktivität fehlgeschlagen.",
+      "joiningActivity": "Aktivität wird geöffnet…",
       "noCoursesYet": "Noch keine Kurse",
       "enrollMessage": "Verwenden Sie einen Einschreibungscode von Ihrem Dozenten, um einem Kurs beizutreten.",
       "section": "Abschnitt: {{section}}",
@@ -2393,7 +2407,7 @@
             "Wenn Ihre Einrichtung eine verifizierte E-Mail-Adresse oder SSO erfordert, schließen Sie diese Einrichtung zuerst ab, bevor Sie annehmen, dass der Einschreibungscode falsch ist.",
             "Sie benötigen den Beitrittscode normalerweise nur einmal pro Kurs. Nachdem er funktioniert hat, bleibt der Kurs auf Ihrem Dashboard, bis Sie entfernt werden oder der Kurs für Ihr Konto archiviert wird.",
             "Achten Sie auf das Abzeichen an Ihrem Avatar in der App-Leiste für aktive Benachrichtigungen und öffnen Sie dann „Benachrichtigungen“ im Kontomenü, um sie zu lesen oder zu schließen.",
-            "Geben Sie einen S-Aktivitätscode im Codeformular des Dashboards ein, um ein Quiz oder eine Live-Sitzung ohne Kursbeitritt zu öffnen. Live-Sitzungen können zusätzlich ihren rotierenden Code verlangen. Ohne Kurseinschreibung werden Ihre Antworten erfasst, Sie erhalten aber keine Note. Eingeschriebene Studierende können bei namentlichen Aktivitäten Noten erhalten; anonyme Aktivitäten bleiben unbenotet. Anonyme Antworten bleiben über Fragen hinweg unter einer Kennung verbunden und erscheinen erst nach dem Ende und vier Antworten je Frage und Versuch; eine eindeutige Antwort kann Sie trotzdem erkennbar machen."
+            "Wählen Sie im Dashboard Aktivität beitreten und geben Sie einen S-Code ein, um ein Quiz oder eine Live-Sitzung ohne Kurseinschreibung zu öffnen. Live-Sitzungen können zusätzlich ihren rotierenden Code verlangen. Ohne Kurseinschreibung werden Ihre Antworten erfasst, Sie erhalten aber keine Note. Eingeschriebene Studierende können bei namentlichen Aktivitäten Noten erhalten; anonyme Aktivitäten bleiben unbenotet. Anonyme Antworten bleiben über Fragen hinweg unter einer Kennung verbunden und erscheinen erst nach dem Ende und vier Antworten je Frage und Versuch; eine eindeutige Antwort kann Sie trotzdem erkennbar machen."
           ],
           "screenshot": {
             "variant": "studentCourse",

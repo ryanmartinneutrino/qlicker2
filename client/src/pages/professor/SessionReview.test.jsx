@@ -462,8 +462,8 @@ describe('SessionReview', () => {
     apiClient.get.mockImplementation(async (url) => {
       if (url === '/sessions/session-1/results') {
         const payload = buildResultsPayload({ activityEverShared: true });
-        payload.studentResults[0].guest = false;
-        payload.studentResults[1].guest = true;
+        Object.assign(payload.studentResults[0], { guest: false, participantRole: 'student', isProfessor: false });
+        Object.assign(payload.studentResults[1], { guest: true, participantRole: 'guest', isProfessor: true });
         return { data: payload };
       }
       if (url === '/sessions/session-1/grades') {
@@ -482,6 +482,9 @@ describe('SessionReview', () => {
     const resultsTable = await screen.findByRole('table', { name: /student results/i });
     const guestRow = within(resultsTable).getByText('Grace Hopper').closest('tr');
     expect(within(guestRow).getByText('Guest')).toBeInTheDocument();
+    expect(within(guestRow).getByText('Professor')).toBeInTheDocument();
+    const enrolledRow = within(resultsTable).getByText('Ada Lovelace').closest('tr');
+    expect(within(enrolledRow).getByText('Student')).toBeInTheDocument();
     expect(within(guestRow).getByText('No grade')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: /grading/i }));
     expect(await screen.findByText('Guest responses')).toBeInTheDocument();

@@ -1,5 +1,12 @@
 {
   "common": {
+    "backToDashboard": "Retour au tableau de bord",
+    "participantRoles": {
+      "student": "Étudiant",
+      "guest": "Invité",
+      "instructor": "Enseignant du cours",
+      "professor": "Professeur"
+    },
     "appName": "Qlicker",
     "loading": "Chargement…",
     "cancel": "Annuler",
@@ -1305,6 +1312,13 @@
     "dashboard": {
       "myCourses": "Mes cours",
       "enrollInCourse": "S'inscrire à un cours",
+      "joinActivity": "Rejoindre une activité",
+      "activityCode": "Code d’activité",
+      "activityCodeHelp": "Entrez un code d’activité commençant par S- pour ouvrir un quiz ou une séance interactive sans vous inscrire au cours.",
+      "activityCodeRequired": "Entrez un code d’activité commençant par S-.",
+      "activityCodeUseJoin": "Il s’agit d’un code d’activité. Utilisez Rejoindre une activité.",
+      "failedJoinActivity": "Impossible de rejoindre l’activité.",
+      "joiningActivity": "Connexion à l’activité…",
       "noCoursesYet": "Aucun cours pour l'instant",
       "enrollMessage": "Utilisez un code d'inscription de votre enseignant pour rejoindre un cours.",
       "section": "Section : {{section}}",
@@ -2393,7 +2407,7 @@
             "Si votre établissement exige une vérification d'e-mail ou un SSO, terminez cette configuration avant de supposer que le code d'inscription est mauvais.",
             "En général, vous n'avez besoin du code d'inscription qu'une seule fois par cours. Une fois accepté, le cours reste sur votre tableau de bord jusqu'à ce que vous en soyez retiré ou qu'il soit archivé pour votre compte.",
             "Surveillez l’indicateur sur votre avatar dans la barre d’application pour repérer les notifications actives, puis ouvrez Notifications dans le menu du compte pour les lire ou les rejeter.",
-            "Entrez un code d’activité S- dans le formulaire du tableau de bord pour ouvrir un quiz ou une séance sans rejoindre le cours. Une séance en direct peut aussi demander son code tournant. Si vous n’êtes pas inscrit au cours, vos réponses sont suivies mais vous ne recevez pas de note. Les étudiants inscrits peuvent être notés dans une activité nominative; une activité anonyme n’a pas de notes. Les réponses anonymes restent liées entre questions sous un même libellé et ne sont montrées à l’enseignant qu’après la fin et quatre réponses à chaque question et tentative; une réponse particulière peut encore vous identifier."
+            "Choisissez Rejoindre une activité sur le tableau de bord et entrez un code S- pour ouvrir un quiz ou une séance sans vous inscrire au cours. Une séance en direct peut aussi demander son code tournant. Si vous n’êtes pas inscrit au cours, vos réponses sont suivies mais vous ne recevez pas de note. Les étudiants inscrits peuvent être notés dans une activité nominative; une activité anonyme n’a pas de notes. Les réponses anonymes restent liées entre questions sous un même libellé et ne sont montrées à l’enseignant qu’après la fin et quatre réponses à chaque question et tentative; une réponse particulière peut encore vous identifier."
           ],
           "screenshot": {
             "variant": "studentCourse",

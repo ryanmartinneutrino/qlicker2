@@ -1,5 +1,12 @@
 {
   "common": {
+    "backToDashboard": "Torna al pannello",
+    "participantRoles": {
+      "student": "Studente",
+      "guest": "Ospite",
+      "instructor": "Docente del corso",
+      "professor": "Docente"
+    },
     "appName": "Qlicker",
     "loading": "Caricamento…",
     "cancel": "Annulla",
@@ -1305,6 +1312,13 @@
     "dashboard": {
       "myCourses": "I miei corsi",
       "enrollInCourse": "Iscriviti a un corso",
+      "joinActivity": "Partecipa a un’attività",
+      "activityCode": "Codice attività",
+      "activityCodeHelp": "Inserisci un codice attività che inizi con S- per aprire un quiz o una sessione interattiva senza iscriverti al corso.",
+      "activityCodeRequired": "Inserisci un codice attività che inizi con S-.",
+      "activityCodeUseJoin": "Questo è un codice attività. Usa Partecipa a un’attività.",
+      "failedJoinActivity": "Impossibile accedere all’attività.",
+      "joiningActivity": "Accesso all’attività…",
       "noCoursesYet": "Ancora nessun corso",
       "enrollMessage": "Usa un codice di iscrizione fornito dal tuo docente per unirti a un corso.",
       "section": "Sezione: {{section}}",
@@ -2393,7 +2407,7 @@
             "Se la tua istituzione richiede email verificata o SSO, completa prima questa configurazione prima di supporre che il codice di iscrizione sia sbagliato.",
             "Di solito ti serve il codice di iscrizione solo una volta per corso. Una volta funzionante, il corso resta sulla tua dashboard finché non vieni rimosso o il corso viene archiviato per il tuo account.",
             "Tieni d'occhio l'indicatore sul tuo avatar nella barra dell'applicazione per le notifiche attive, poi apri Notifiche dal menu account per leggerle o chiuderle.",
-            "Inserisci un codice attività S- nel modulo del pannello per aprire un quiz o una sessione senza iscriverti al corso. Una sessione dal vivo può richiedere anche il codice rotante. Se non sei iscritto al corso, le tue risposte vengono registrate ma non ricevi un voto. Gli iscritti possono ricevere voti nelle attività con nome; le attività anonime non hanno voti. Le risposte anonime restano collegate tra domande sotto un’unica etichetta e compaiono per il docente solo dopo la fine e quattro risposte a ogni domanda e tentativo; una risposta particolare può identificarti."
+            "Scegli Partecipa a un’attività nel pannello e inserisci un codice S- per aprire un quiz o una sessione senza iscriverti al corso. Una sessione dal vivo può richiedere anche il codice rotante. Se non sei iscritto al corso, le tue risposte vengono registrate ma non ricevi un voto. Gli iscritti possono ricevere voti nelle attività con nome; le attività anonime non hanno voti. Le risposte anonime restano collegate tra domande sotto un’unica etichetta e compaiono per il docente solo dopo la fine e quattro risposte a ogni domanda e tentativo; una risposta particolare può identificarti."
           ],
           "screenshot": {
             "variant": "studentCourse",
