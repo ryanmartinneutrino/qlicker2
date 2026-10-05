@@ -1,7 +1,6 @@
 import crypto from 'crypto';
 import Session from '../models/Session.js';
 import Course from '../models/Course.js';
-import ActivityGrant from '../models/ActivityGrant.js';
 import Grade from '../models/Grade.js';
 import LiveSessionTelemetry from '../models/LiveSessionTelemetry.js';
 import Post from '../models/Post.js';
@@ -15,7 +14,7 @@ import {
   isStudentOwnedSession,
   studentVisibleGradeQuery,
 } from '../utils/courseAccess.js';
-import { hasSessionParticipantAccess, getActivityRecipientUserIds, getActivityGuestUserIds } from '../services/activityAccess.js';
+import { hasSessionParticipantAccess, getActivityRecipientUserIds } from '../services/activityAccess.js';
 import { copySessionToCourse } from '../services/sessionCopy.js';
 import { copyQuestionToSession } from '../services/questionCopy.js';
 import {
@@ -4946,9 +4945,7 @@ export default async function sessionRoutes(app) {
 
       let feedbackSummary = getDefaultFeedbackSummary();
       let studentGrade = null;
-      const redeemedAsGuest = !isInstrOrAdmin && normalizedSession.activityEverShared
-        && (await getActivityGuestUserIds(normalizedSession._id)).has(String(request.user.userId));
-      if (!isInstrOrAdmin && !normalizedSession.anonymous && !redeemedAsGuest
+      if (!isInstrOrAdmin && !normalizedSession.anonymous
         && (course.students || []).some((id) => String(id) === String(request.user.userId))) {
         const grade = await Grade.findOne(
           studentVisibleGradeQuery(course._id, normalizedSession._id, request.user)
@@ -5635,9 +5632,7 @@ export default async function sessionRoutes(app) {
         .lean();
 
       const enrolled = (course.students || []).some((id) => String(id) === String(userId));
-      const guest = !enrolled || (!!session.activityEverShared && !!await ActivityGrant.exists({
-        sessionId: session._id, userId, guestAtRedemption: true,
-      }));
+      const guest = !enrolled;
       notifyParticipantJoined(app, course, request.params.id, {
         joinedCount,
         joinedStudent: serializeLiveStudent({ ...joinedUser, _id: userId }, { joinedAt: now, course, guest }),
@@ -5766,10 +5761,7 @@ export default async function sessionRoutes(app) {
         });
       }
 
-      const guest = !!session.activityEverShared && !!await ActivityGrant.exists({
-        sessionId: session._id, userId: studentId, guestAtRedemption: true,
-      });
-      const joinedStudent = serializeLiveStudent(student, { joinedAt: now, course, guest });
+      const joinedStudent = serializeLiveStudent(student, { joinedAt: now, course });
       const participantPayload = {
         joinedCount: Array.isArray(updatedSession?.joined)
           ? updatedSession.joined.length
@@ -5953,9 +5945,6 @@ export default async function sessionRoutes(app) {
         const joinedIds = [...new Set((session.joined || []).map((id) => String(id)).filter(Boolean))];
         const enrolledIds = [...new Set((course.students || []).map((id) => String(id)).filter(Boolean))];
         const enrolledIdSet = new Set(enrolledIds);
-        // Load guest status once when an instructor opens the roster, never per response.
-        const activityGuestIds = session.activityEverShared
-          ? await getActivityGuestUserIds(session._id) : new Set();
         const rosterIds = [...new Set([...joinedIds, ...enrolledIds])];
         const rosterUsers = rosterIds.length > 0
           ? await User.find({ _id: { $in: rosterIds } })
@@ -5980,7 +5969,7 @@ export default async function sessionRoutes(app) {
           const user = rosterUserMap.get(studentId);
           return serializeLiveStudent({ ...user, _id: studentId }, {
             joinedAt: latestJoinByStudentId.get(studentId) || null,
-            course, guest: !enrolledIdSet.has(studentId) || activityGuestIds.has(studentId),
+            course, guest: !enrolledIdSet.has(studentId),
           });
         }).sort((a, b) => {
           const lastCmp = a.lastname.localeCompare(b.lastname);
@@ -5994,7 +5983,7 @@ export default async function sessionRoutes(app) {
           .map((studentId) => serializeLiveStudent({
             ...rosterUserMap.get(studentId),
             _id: studentId,
-          }, { course, guest: activityGuestIds.has(studentId) }))
+          }, { course }))
           .sort((a, b) => {
             const lastCmp = a.lastname.localeCompare(b.lastname);
             if (lastCmp !== 0) return lastCmp;
@@ -7856,9 +7845,6 @@ export default async function sessionRoutes(app) {
       const anonymousSession = isAnonymousSession(session);
       const joinedUserIds = new Set((session.joined || []).map((id) => String(id)).filter(Boolean));
       const courseStudentIds = new Set((course.students || []).map((id) => String(id)).filter(Boolean));
-      const activityGuestIds = session.activityEverShared && !anonymousSession
-        ? await getActivityGuestUserIds(session._id)
-        : new Set();
       if (anonymousSession) {
         const respondentIdsByQuestionAttempt = new Map();
         allResponses.forEach((response) => {
@@ -8006,8 +7992,8 @@ export default async function sessionRoutes(app) {
 
         return {
           studentId,
-          guest: !!session.activityEverShared && (!courseStudentIds.has(String(studentId)) || activityGuestIds.has(String(studentId))),
-          ...participantRoles({ ...student, _id: studentId }, course, !courseStudentIds.has(String(studentId)) || activityGuestIds.has(String(studentId))),
+          guest: !!session.activityEverShared && (!courseStudentIds.has(String(studentId))),
+          ...participantRoles({ ...student, _id: studentId }, course, !courseStudentIds.has(String(studentId))),
           firstname,
           lastname,
           email,

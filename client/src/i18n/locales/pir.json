@@ -1251,7 +1251,8 @@
       "noAnswersMatch": "No replies match yer filter.",
       "anonymousResponsesTable": "Masked replies",
       "response": "Reply",
-      "correctColumn": "Right"
+      "correctColumn": "Right",
+      "unsavedSummaryInstructionWarning": "Save or cancel yer order edits before generatin’ the summary."
     },
     "secondDesktop": {
       "joinCode": "Board Code",
@@ -2346,7 +2347,8 @@
             "Th' results tab now shows each crew member's actual voyage ledger afore turnout, an' clickin' a crew member's avatar in th' Crew tab opens th' larger dossier photo.",
             "Ledger detail dialogs now label riddle rows with both number an' type, such as Q1(MC) or Q2(SA), an' spotlight rows that still need gradin' while ignorin' adrift zero-doubloon gradin' flags.",
             "Crew get a bulletin when ye proclaim new holler, so use short, actionable remarks that tell 'em what to revisit.",
-            "If watch structures mattered durin' th' activity, compare th' recap an' gradin' data with th' ship watches so ye can spot uneven turnout patterns."
+            "If watch structures mattered durin' th' activity, compare th' recap an' gradin' data with th' ship watches so ye can spot uneven turnout patterns.",
+            "Joinin’ a course fills missin’ marks for finished activities, includin’ answers saved as a guest. Missed work earns zero with no reckonin’ needed; written answers may need reckonin’. Existing marks and feedback stay aboard. Anonymous activities stay ungraded."
           ],
           "success": "Professors can open th' crew member manual from th' switcher above to preview th' learner workflow afore class."
         },
@@ -2372,7 +2374,8 @@
             "In Session Review, make an AI response summary fer one riddle with a model an' saved order. Ye can watch, halt, remake, an' view it without changin' grades.",
             "In Gradin', use th' AI Gradin' Assistant only after savin' separate grade an' learner-feedback orders. Inspect progress, report, log, points, an' feedback before revealin' results.",
             "Keep an' copy reusable gradin', feedback, an' summary orders in AI Settings.",
-            "Learner AI Chat be a separate flag. Pick student-approved models, a default, guidance, an' a smaller tool-round limit; learners see only visible or reviewable course stores an' their own grades."
+            "Learner AI Chat be a separate flag. Pick student-approved models, a default, guidance, an' a smaller tool-round limit; learners see only visible or reviewable course stores an' their own grades.",
+            "Save yer edited summary orders before generatin’. The chosen orders steer the language, focus, and format at every summary stage."
           ],
           "warning": "AI tales may be incomplete or false. Check made content, summaries, grades, feedback, dates, an' proposed deeds before trustin' them."
         },
@@ -2407,7 +2410,8 @@
             "If yer institution requires vouched fer missive or SSO, finish that setup first afore assumin' th' boarding code be wrong.",
             "Ye usually only need th' board code once per ship. After it works, th' ship stays on yer quarterdeck until ye're removed or th' ship be buried fer yer account.",
             "Watch th' badge on yer avatar in th' app bar fer afloat bulletins, then open Bulletins from th' account menu to read or wave off 'em.",
-            "Choose Join a voyage on yer dashboard and enter an S- code to open a quiz or live voyage without boarding its course. A live voyage may also demand its rotating boarding code. If ye have not boarded the course, yer replies be tracked but ye earn no marks. Enrolled mateys may earn marks in named voyages; masked voyages have no marks. Masked answers stay tied across riddles under one label and reach the officer only after the voyage ends and four mateys answer each riddle and attempt; a rare reply may still reveal ye."
+            "Choose Join a voyage on yer dashboard and enter an S- code to open a quiz or live voyage without boarding its course. A live voyage may also demand its rotating boarding code. If ye have not boarded the course, yer replies be tracked but ye earn no marks. Enrolled mateys may earn marks in named voyages; masked voyages have no marks. Masked answers stay tied across riddles under one label and reach the officer only after the voyage ends and four mateys answer each riddle and attempt; a rare reply may still reveal ye.",
+            "Joinin’ a course fills missin’ marks for finished activities, includin’ answers saved as a guest. Missed work earns zero with no reckonin’ needed; written answers may need reckonin’. Existing marks and feedback stay aboard. Anonymous activities stay ungraded."
           ],
           "screenshot": {
             "variant": "studentCourse",

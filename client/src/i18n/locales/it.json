@@ -1251,7 +1251,8 @@
       "noAnswersMatch": "Nessuna risposta corrisponde al filtro.",
       "anonymousResponsesTable": "Risposte anonime",
       "response": "Risposta",
-      "correctColumn": "Corretta"
+      "correctColumn": "Corretta",
+      "unsavedSummaryInstructionWarning": "Salva o annulla le modifiche alle istruzioni prima di generare il riepilogo."
     },
     "secondDesktop": {
       "joinCode": "Codice di accesso",
@@ -2346,7 +2347,8 @@
             "La scheda dei risultati mostra ora il voto reale di ciascuno studente prima della partecipazione, e cliccare sull'avatar di uno studente nella scheda Studenti apre la foto del profilo ingrandita.",
             "Le finestre di dettaglio dei voti ora etichettano le righe delle domande con numero e tipo, ad esempio D1(SM) o D2(RB), ed evidenziano visivamente le righe ancora da valutare ignorando i vecchi indicatori di valutazione su domande a zero punti.",
             "Gli studenti ricevono una notifica quando pubblichi un nuovo feedback, quindi usa commenti brevi e concreti che dicano loro cosa rivedere.",
-            "Se le strutture dei gruppi erano rilevanti durante l'attività, confronta i dati di revisione e valutazione con i gruppi del corso per individuare schemi di partecipazione irregolari."
+            "Se le strutture dei gruppi erano rilevanti durante l'attività, confronta i dati di revisione e valutazione con i gruppi del corso per individuare schemi di partecipazione irregolari.",
+            "L’iscrizione crea i voti mancanti per le attività concluse del corso, anche dalle risposte salvate come ospite. Le attività non svolte ricevono zero senza richiedere correzione; le risposte scritte possono richiederla. I voti e i commenti esistenti vengono conservati. Le attività anonime restano senza voto."
           ],
           "success": "I docenti possono aprire la guida studente dal selettore qui sopra per vedere in anteprima il flusso dello studente prima della lezione."
         },
@@ -2372,7 +2374,8 @@
             "In Revisione sessione genera un riepilogo IA delle risposte per una domanda scegliendo un modello e un'istruzione salvata. Puoi monitorare, interrompere, rigenerare e visualizzare il risultato senza cambiare i voti.",
             "Nella scheda Valutazione usa l'assistente IA solo dopo aver salvato istruzioni separate per valutazione e feedback. Controlla avanzamento, rapporto, registro, punti e commenti prima della pubblicazione.",
             "Gestisci e copia istruzioni riutilizzabili per valutazione, feedback e riepilogo nelle Impostazioni IA.",
-            "La Chat IA per studenti è un'opzione separata. Scegli modelli consentiti, predefinito, indicazioni e limite dei turni; gli studenti accedono solo ai dati visibili o revisionabili e ai propri voti."
+            "La Chat IA per studenti è un'opzione separata. Scegli modelli consentiti, predefinito, indicazioni e limite dei turni; gli studenti accedono solo ai dati visibili o revisionabili e ai propri voti.",
+            "Salva le istruzioni di riepilogo modificate prima di generarlo. Le istruzioni selezionate determinano lingua, argomento e formato di ogni fase del riepilogo."
           ],
           "warning": "I risultati dell'IA possono essere incompleti o errati. Verifica contenuti, riepiloghi, voti, feedback, date e azioni proposte."
         },
@@ -2407,7 +2410,8 @@
             "Se la tua istituzione richiede email verificata o SSO, completa prima questa configurazione prima di supporre che il codice di iscrizione sia sbagliato.",
             "Di solito ti serve il codice di iscrizione solo una volta per corso. Una volta funzionante, il corso resta sulla tua dashboard finché non vieni rimosso o il corso viene archiviato per il tuo account.",
             "Tieni d'occhio l'indicatore sul tuo avatar nella barra dell'applicazione per le notifiche attive, poi apri Notifiche dal menu account per leggerle o chiuderle.",
-            "Scegli Partecipa a un’attività nel pannello e inserisci un codice S- per aprire un quiz o una sessione senza iscriverti al corso. Una sessione dal vivo può richiedere anche il codice rotante. Se non sei iscritto al corso, le tue risposte vengono registrate ma non ricevi un voto. Gli iscritti possono ricevere voti nelle attività con nome; le attività anonime non hanno voti. Le risposte anonime restano collegate tra domande sotto un’unica etichetta e compaiono per il docente solo dopo la fine e quattro risposte a ogni domanda e tentativo; una risposta particolare può identificarti."
+            "Scegli Partecipa a un’attività nel pannello e inserisci un codice S- per aprire un quiz o una sessione senza iscriverti al corso. Una sessione dal vivo può richiedere anche il codice rotante. Se non sei iscritto al corso, le tue risposte vengono registrate ma non ricevi un voto. Gli iscritti possono ricevere voti nelle attività con nome; le attività anonime non hanno voti. Le risposte anonime restano collegate tra domande sotto un’unica etichetta e compaiono per il docente solo dopo la fine e quattro risposte a ogni domanda e tentativo; una risposta particolare può identificarti.",
+            "L’iscrizione crea i voti mancanti per le attività concluse del corso, anche dalle risposte salvate come ospite. Le attività non svolte ricevono zero senza richiedere correzione; le risposte scritte possono richiederla. I voti e i commenti esistenti vengono conservati. Le attività anonime restano senza voto."
           ],
           "screenshot": {
             "variant": "studentCourse",

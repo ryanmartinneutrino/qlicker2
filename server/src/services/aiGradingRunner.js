@@ -13,7 +13,6 @@ import {
   startAiGradingLogRun,
 } from './aiLogs.js';
 import { getSessionGradingLockReason, normalizeGradesManualGradingState, recomputeGradeAggregates, responseHasContent } from './grading.js';
-import { getActivityGuestUserIds } from './activityAccess.js';
 
 const activeJobs = new Map();
 const HALTED_NOTE = 'AI grading was halted by an instructor.';
@@ -195,9 +194,8 @@ export async function runAiGradingJob(jobId) {
         ? [{ ...question, sessionQuestionNumber: sessionIndex + 1 }]
         : [];
     });
-    const guestIds = session.activityEverShared ? await getActivityGuestUserIds(session._id) : new Set();
     const eligibleStudents = session.activityEverShared
-      ? (course.students || []).filter((id) => !guestIds.has(String(id)))
+      ? (course.students || [])
       : [];
     const grades = await Grade.find({ sessionId: job.sessionId, courseId: job.courseId,
       ...(session.activityEverShared ? { userId: { $in: eligibleStudents } } : {}) });

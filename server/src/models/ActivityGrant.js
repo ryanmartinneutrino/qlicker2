@@ -6,6 +6,7 @@ const ActivityGrantSchema = new mongoose.Schema({
   sessionId: { type: String, required: true },
   userId: { type: String, required: true },
   accessEpoch: { type: Number, required: true, default: 0 },
+  // Historical fact only; current course membership determines grading eligibility.
   guestAtRedemption: { type: Boolean, required: true, default: false },
   createdAt: { type: Date, default: Date.now },
 }, { collection: 'activityGrants', timestamps: false });

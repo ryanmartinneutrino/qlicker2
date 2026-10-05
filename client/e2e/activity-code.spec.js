@@ -82,7 +82,7 @@ test('course opt-in and session switch expose a persistent code for an outside q
 });
 
 
-test('a guest professor joins from a separate accessible activity dialog and returns to their dashboard', async ({ page, request }) => {
+test('a guest professor completes a quiz and later enrolls without losing their responses', async ({ page, request }) => {
   const { admin, professor } = await seedUsers(request);
   const course = await createCourseViaApi(request, admin.token);
   await apiJson(request, 'PATCH', `/courses/${course._id}`, { token: admin.token, payload: { allowSharedActivities: true } });
@@ -109,6 +109,30 @@ test('a guest professor joins from a separate accessible activity dialog and ret
   await dialog.getByRole('button', { name: 'Join activity' }).click();
   await expect(page).toHaveURL(new RegExp(`/activity/${course._id}/session/${quiz._id}/quiz`));
   await expect(page.getByText('Guest professor question')).toBeVisible();
-  await page.getByRole('button', { name: 'Back to dashboard' }).click();
+  await page.getByRole('radio').nth(1).check();
+  const submitted = page.waitForResponse((response) => response.url().endsWith(`/sessions/${quiz._id}/submit`) && response.request().method() === 'POST');
+  await page.getByRole('button', { name: /Submit quiz/i }).click();
+  expect((await submitted).status()).toBe(200);
   await expect(page).toHaveURL(/\/prof$/);
+  await patchSessionViaApi(request, admin.token, quiz._id, { status: 'done', reviewable: true });
+  const before = await apiJson(request, 'GET', `/sessions/${quiz._id}/results`, { token: admin.token });
+  const beforeRow = before.body.studentResults.find((row) => row.studentId === professor.user._id);
+  expect(beforeRow.guest).toBe(true);
+  const beforeGrades = await apiJson(request, 'GET', `/sessions/${quiz._id}/grades`, { token: admin.token });
+  expect(beforeGrades.body.grades).toHaveLength(0);
+  await page.getByRole('button', { name: 'Enroll in a Course as a Student' }).click();
+  await page.getByRole('textbox', { name: /Enrollment Code/i }).fill(course.enrollmentCode);
+  const enrollment = page.waitForResponse((response) => response.url().endsWith('/courses/enroll') && response.request().method() === 'POST');
+  await page.getByRole('dialog').getByRole('button', { name: /^Enroll$/i }).click();
+  expect((await enrollment).status()).toBe(200);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  const after = await apiJson(request, 'GET', `/sessions/${quiz._id}/results`, { token: admin.token });
+  const afterRow = after.body.studentResults.find((row) => row.studentId === professor.user._id);
+  expect(afterRow).toMatchObject({ guest: false, participantRole: 'student', isProfessor: true });
+  expect(afterRow.questionResults).toEqual(beforeRow.questionResults);
+  const grades = await apiJson(request, 'GET', `/sessions/${quiz._id}/grades`, { token: professor.token });
+  expect(grades.response.status()).toBe(200);
+  expect(grades.body.grades).toHaveLength(1);
+  expect(grades.body.grades[0]).toMatchObject({ value: 100, needsGrading: false });
+
 });

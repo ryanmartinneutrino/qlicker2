@@ -2,6 +2,7 @@ import ActivityShare from '../models/ActivityShare.js';
 import Course from '../models/Course.js';
 import Session from '../models/Session.js';
 import User from '../models/User.js';
+import { createMissingEnrollmentGrades } from '../services/grading.js';
 import { normalizeTags } from '../services/questionImportExport.js';
 import { emailRegex } from '../utils/email.js';
 import { escapeForRegex } from '../utils/regex.js';
@@ -582,6 +583,7 @@ export default async function courseRoutes(app) {
       }
 
       if ((course.students || []).includes(userId)) {
+        await createMissingEnrollmentGrades({ courseId: course._id, userId });
         return reply.code(409).send({ error: 'Conflict', message: 'Already enrolled in this course' });
       }
 
@@ -594,6 +596,7 @@ export default async function courseRoutes(app) {
       });
 
       invalidateAccessCache(userId);
+      await createMissingEnrollmentGrades({ courseId: course._id, userId });
 
       return { course };
     }
@@ -670,8 +673,8 @@ export default async function courseRoutes(app) {
       }
 
       const studentRoles = student.profile?.roles || [];
-      if (studentRoles.includes('professor') || studentRoles.includes('admin')) {
-        return reply.code(403).send({ error: 'Forbidden', message: "Professors and admins can't enroll as students" });
+      if (studentRoles.includes('admin')) {
+        return reply.code(403).send({ error: 'Forbidden', message: "Admins cannot be added as students" });
       }
 
       const studentId = String(student._id);
@@ -680,6 +683,7 @@ export default async function courseRoutes(app) {
       }
 
       if ((course.students || []).includes(studentId)) {
+        await createMissingEnrollmentGrades({ courseId: course._id, userId: studentId });
         return reply.code(409).send({ error: 'Conflict', message: 'Student already enrolled' });
       }
 
@@ -692,6 +696,7 @@ export default async function courseRoutes(app) {
       });
 
       invalidateAccessCache(studentId);
+      await createMissingEnrollmentGrades({ courseId: course._id, userId: studentId });
 
       return { success: true };
     }

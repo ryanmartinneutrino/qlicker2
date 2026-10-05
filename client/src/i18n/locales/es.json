@@ -1251,7 +1251,8 @@
       "noAnswersMatch": "Ninguna respuesta coincide con el filtro.",
       "anonymousResponsesTable": "Respuestas anónimas",
       "response": "Respuesta",
-      "correctColumn": "Correcta"
+      "correctColumn": "Correcta",
+      "unsavedSummaryInstructionWarning": "Guarde o cancele los cambios en las instrucciones antes de generar el resumen."
     },
     "secondDesktop": {
       "joinCode": "Código de acceso",
@@ -2346,7 +2347,8 @@
             "La pestaña de resultados ahora muestra la calificación real de la sesión de cada estudiante antes de la participación, y hacer clic en el avatar de un estudiante en la pestaña Estudiantes abre la foto de perfil más grande.",
             "Los diálogos de detalle de calificación ahora etiquetan las filas de preguntas con el número y el tipo, como P1(OM) o P2(RC), y resaltan visualmente las filas que aún requieren calificación mientras ignoran los indicadores obsoletos de calificación en cero puntos.",
             "Los estudiantes reciben una notificación cuando usted publica nueva retroalimentación, así que use comentarios breves y accionables que les digan qué repasar.",
-            "Si las estructuras de grupo importaron durante la actividad, compare los datos de revisión y calificación con los grupos del curso para detectar patrones desiguales de participación."
+            "Si las estructuras de grupo importaron durante la actividad, compare los datos de revisión y calificación con los grupos del curso para detectar patrones desiguales de participación.",
+            "Al inscribirse, se crean las calificaciones que faltan para las actividades finalizadas del curso, incluidas las respuestas guardadas como invitado. Las actividades no realizadas reciben cero sin necesitar corrección; las respuestas escritas pueden necesitarla. Se conservan las calificaciones y los comentarios existentes. Las actividades anónimas siguen sin calificarse."
           ],
           "success": "Los profesores pueden abrir el manual del estudiante desde el selector de arriba para previsualizar el flujo de trabajo del estudiante antes de la clase."
         },
@@ -2372,7 +2374,8 @@
             "En Revisión de sesión, genere un resumen de respuestas con IA para una pregunta usando un modelo y una instrucción guardada. Puede supervisarlo, detenerlo, repetirlo y verlo sin cambiar calificaciones.",
             "En Calificación, use el asistente de calificación con IA solo después de guardar instrucciones separadas de evaluación y retroalimentación. Revise el progreso, informe, registro, puntos y comentarios antes de publicarlos.",
             "Administre y copie instrucciones reutilizables de calificación, retroalimentación y resumen en Configuración de IA.",
-            "El Chat de IA para estudiantes se habilita por separado. Elija modelos permitidos, un valor predeterminado, orientación y límite de turnos; los estudiantes solo acceden a datos visibles o revisables y a sus propias calificaciones."
+            "El Chat de IA para estudiantes se habilita por separado. Elija modelos permitidos, un valor predeterminado, orientación y límite de turnos; los estudiantes solo acceden a datos visibles o revisables y a sus propias calificaciones.",
+            "Guarde las instrucciones de resumen modificadas antes de generarlo. Las instrucciones seleccionadas determinan el idioma, el enfoque y el formato de cada etapa del resumen."
           ],
           "warning": "La IA puede producir resultados incompletos o incorrectos. Verifique contenido, resúmenes, notas, comentarios, fechas y acciones propuestas."
         },
@@ -2407,7 +2410,8 @@
             "Si su institución requiere correo verificado o SSO, complete primero esa configuración antes de suponer que el código de inscripción es incorrecto.",
             "Por lo general, solo necesita el código de acceso una vez por curso. Después de que funcione, el curso permanece en su panel hasta que se le quite o el curso se archive para su cuenta.",
             "Observe la insignia en su avatar en la barra de la aplicación para ver notificaciones activas, y luego abra Notificaciones desde el menú de la cuenta para leerlas o descartarlas.",
-            "Selecciona Unirse a una actividad en el panel e introduce un código S- para abrir un cuestionario o una sesión sin inscribirte en el curso. Una sesión en directo puede pedir también su código rotativo. Si no estás inscrito en el curso, se registran tus respuestas pero no recibes calificación. Los estudiantes inscritos pueden recibir notas en actividades identificadas; las actividades anónimas no tienen notas. Las respuestas anónimas se vinculan entre preguntas bajo una etiqueta y solo se muestran al instructor al terminar y con cuatro respuestas por pregunta e intento; una respuesta singular aún puede identificarte."
+            "Selecciona Unirse a una actividad en el panel e introduce un código S- para abrir un cuestionario o una sesión sin inscribirte en el curso. Una sesión en directo puede pedir también su código rotativo. Si no estás inscrito en el curso, se registran tus respuestas pero no recibes calificación. Los estudiantes inscritos pueden recibir notas en actividades identificadas; las actividades anónimas no tienen notas. Las respuestas anónimas se vinculan entre preguntas bajo una etiqueta y solo se muestran al instructor al terminar y con cuatro respuestas por pregunta e intento; una respuesta singular aún puede identificarte.",
+            "Al inscribirse, se crean las calificaciones que faltan para las actividades finalizadas del curso, incluidas las respuestas guardadas como invitado. Las actividades no realizadas reciben cero sin necesitar corrección; las respuestas escritas pueden necesitarla. Se conservan las calificaciones y los comentarios existentes. Las actividades anónimas siguen sin calificarse."
           ],
           "screenshot": {
             "variant": "studentCourse",

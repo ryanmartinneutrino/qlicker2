@@ -1,11 +1,9 @@
-import ActivityGrant from '../models/ActivityGrant.js';
 import Course from '../models/Course.js';
 import Grade from '../models/Grade.js';
 import Question from '../models/Question.js';
 import Response from '../models/Response.js';
 import Session from '../models/Session.js';
 import User from '../models/User.js';
-import { getActivityGuestUserIds } from '../services/activityAccess.js';
 import {
   getStudentSessionReviewRestriction,
   isCourseInstructorOrAdmin as isInstructorOrAdmin,
@@ -357,20 +355,15 @@ export default async function gradeRoutes(app) {
         };
       }
 
-      const sharedGuestIds = session.activityEverShared
-        ? await getActivityGuestUserIds(session._id)
-        : new Set();
       const eligibleStudents = session.activityEverShared
-        ? (course.students || []).filter((id) => !sharedGuestIds.has(String(id)))
+        ? (course.students || [])
         : [];
       const gradeQuery = instructorView
         ? { sessionId: String(session._id), courseId: String(course._id),
           ...(session.activityEverShared ? { userId: { $in: eligibleStudents } } : {}) }
         : studentVisibleGradeQuery(course._id, session._id, request.user);
 
-      let grades = !instructorView && sharedGuestIds.has(String(request.user.userId))
-        ? []
-        : await normalizeGradesManualGradingState(await Grade.find(gradeQuery).lean());
+      let grades = await normalizeGradesManualGradingState(await Grade.find(gradeQuery).lean());
       if (!instructorView) grades = grades.map(sanitizeStudentVisibleGrade);
 
       return {
@@ -821,8 +814,7 @@ export default async function gradeRoutes(app) {
         gradeQuery.visibleToStudents = true;
       }
 
-      const sharedSessionIds = sessions.filter((session) => session.activityEverShared).map((session) => String(session._id));
-      const [grades, students, ungradedSummaryBySessionId, questions, guestGrants] = await Promise.all([
+      const [grades, students, ungradedSummaryBySessionId, questions] = await Promise.all([
         sessionIds.length > 0
           ? Grade.find(gradeQuery).lean()
           : Promise.resolve([]),
@@ -833,12 +825,7 @@ export default async function gradeRoutes(app) {
         uniqueQuestionIds.length > 0
           ? Question.find({ _id: { $in: uniqueQuestionIds } }).select('_id type').lean()
           : Promise.resolve([]),
-        sharedSessionIds.length > 0
-          ? ActivityGrant.find({ sessionId: { $in: sharedSessionIds }, guestAtRedemption: true })
-            .select('sessionId userId').lean()
-          : Promise.resolve([]),
       ]);
-      const guestGrantKeys = new Set(guestGrants.map((grant) => `${String(grant.userId)}::${String(grant.sessionId)}`));
 
       const questionTypeByQuestionId = new Map();
       questions.forEach((question) => {
@@ -879,7 +866,6 @@ export default async function gradeRoutes(app) {
           const grade = gradeByStudentAndSession.get(key);
           const submitted = Array.isArray(session?.submittedQuiz) && session.submittedQuiz.includes(studentId);
 
-          if (guestGrantKeys.has(key)) return { sessionId, notApplicable: true };
           if (grade) {
             return {
               ...grade,

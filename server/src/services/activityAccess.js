@@ -101,12 +101,6 @@ export async function getActivityRecipientUserIds(session, course = null) {
   return grants.map((grant) => String(grant.userId));
 }
 
-export async function getActivityGuestUserIds(sessionId) {
-  const grants = await ActivityGrant.find({ sessionId: String(sessionId), guestAtRedemption: true })
-    .select('userId').lean();
-  return new Set(grants.map((grant) => String(grant.userId)));
-}
-
 export async function hasActivityGrant(sessionId, userId) {
   const share = await ActivityShare.findOne({ sessionId, enabled: true })
     .select('accessEpoch').lean();

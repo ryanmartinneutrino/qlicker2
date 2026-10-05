@@ -1251,7 +1251,8 @@
       "noAnswersMatch": "Keine Antworten entsprechen dem Filter.",
       "anonymousResponsesTable": "Anonyme Antworten",
       "response": "Antwort",
-      "correctColumn": "Richtig"
+      "correctColumn": "Richtig",
+      "unsavedSummaryInstructionWarning": "Speichern oder verwerfen Sie Ihre Änderungen an den Anweisungen, bevor Sie die Zusammenfassung erstellen."
     },
     "secondDesktop": {
       "joinCode": "Beitrittscode",
@@ -2346,7 +2347,8 @@
             "Der Ergebnis-Tab zeigt jetzt die tatsächliche Sitzungsnote jedes Studierenden vor der Teilnahme, und ein Klick auf den Avatar eines Studierenden im Tab „Studierende“ öffnet das größere Profilfoto.",
             "Notendetail-Dialoge kennzeichnen Fragenzeilen jetzt mit Nummer und Typ, z. B. F1(MC) oder F2(FA), und heben Zeilen visuell hervor, die noch benotet werden müssen, während veraltete Null-Punkte-Benotungsmarkierungen ignoriert werden.",
             "Studierende erhalten eine Benachrichtigung, wenn Sie neues Feedback veröffentlichen. Verwenden Sie daher kurze, umsetzbare Kommentare, die ihnen sagen, was sie wiederholen sollten.",
-            "Wenn Gruppenstrukturen während der Aktivität relevant waren, vergleichen Sie die Überprüfungs- und Benotungsdaten mit den Kursgruppen, um ungleichmäßige Teilnahmemuster zu erkennen."
+            "Wenn Gruppenstrukturen während der Aktivität relevant waren, vergleichen Sie die Überprüfungs- und Benotungsdaten mit den Kursgruppen, um ungleichmäßige Teilnahmemuster zu erkennen.",
+            "Bei der Einschreibung werden fehlende Noten für abgeschlossene Kursaktivitäten erstellt, auch aus gespeicherten Gastantworten. Versäumte Aufgaben erhalten null Punkte ohne Bewertungsbedarf; schriftliche Antworten müssen eventuell bewertet werden. Vorhandene Noten und Rückmeldungen bleiben erhalten. Anonyme Aktivitäten bleiben unbenotet."
           ],
           "success": "Professoren können das Studierenden-Handbuch über den Umschalter oben öffnen, um den Lernenden-Ablauf vor dem Unterricht in der Vorschau anzuzeigen."
         },
@@ -2372,7 +2374,8 @@
             "Erstellen Sie in der Sitzungsübersicht für einzelne Fragen KI-Antwortzusammenfassungen mit einem Modell und einer gespeicherten Anweisung. Der Vorgang kann überwacht, angehalten, erneut gestartet und angezeigt werden, ohne Noten zu ändern.",
             "Verwenden Sie im Bewertungsbereich den KI-Bewertungsassistenten erst nach dem Speichern getrennter Bewertungs- und Feedback-Anweisungen. Prüfen Sie Fortschritt, Bericht, Protokoll, Punkte und Feedback vor der Freigabe.",
             "Verwalten und kopieren Sie wiederverwendbare Anweisungen für Bewertung, Feedback und Zusammenfassungen in den KI-Einstellungen.",
-            "Der KI-Chat für Studierende wird separat aktiviert. Legen Sie freigegebene Modelle, Standard, Hinweise und Werkzeugrunden fest; Studierende erhalten nur sichtbare oder überprüfbare Kursdaten und ihre eigenen Noten."
+            "Der KI-Chat für Studierende wird separat aktiviert. Legen Sie freigegebene Modelle, Standard, Hinweise und Werkzeugrunden fest; Studierende erhalten nur sichtbare oder überprüfbare Kursdaten und ihre eigenen Noten.",
+            "Speichern Sie geänderte Zusammenfassungsanweisungen vor dem Erstellen. Die ausgewählten Vorgaben bestimmen Sprache, Schwerpunkt und Ausgabeformat in jeder Zusammenfassungsphase."
           ],
           "warning": "KI-Ausgaben können unvollständig oder falsch sein. Prüfen Sie Inhalte, Zusammenfassungen, Noten, Feedback, Termine und vorgeschlagene Aktionen."
         },
@@ -2407,7 +2410,8 @@
             "Wenn Ihre Einrichtung eine verifizierte E-Mail-Adresse oder SSO erfordert, schließen Sie diese Einrichtung zuerst ab, bevor Sie annehmen, dass der Einschreibungscode falsch ist.",
             "Sie benötigen den Beitrittscode normalerweise nur einmal pro Kurs. Nachdem er funktioniert hat, bleibt der Kurs auf Ihrem Dashboard, bis Sie entfernt werden oder der Kurs für Ihr Konto archiviert wird.",
             "Achten Sie auf das Abzeichen an Ihrem Avatar in der App-Leiste für aktive Benachrichtigungen und öffnen Sie dann „Benachrichtigungen“ im Kontomenü, um sie zu lesen oder zu schließen.",
-            "Wählen Sie im Dashboard Aktivität beitreten und geben Sie einen S-Code ein, um ein Quiz oder eine Live-Sitzung ohne Kurseinschreibung zu öffnen. Live-Sitzungen können zusätzlich ihren rotierenden Code verlangen. Ohne Kurseinschreibung werden Ihre Antworten erfasst, Sie erhalten aber keine Note. Eingeschriebene Studierende können bei namentlichen Aktivitäten Noten erhalten; anonyme Aktivitäten bleiben unbenotet. Anonyme Antworten bleiben über Fragen hinweg unter einer Kennung verbunden und erscheinen erst nach dem Ende und vier Antworten je Frage und Versuch; eine eindeutige Antwort kann Sie trotzdem erkennbar machen."
+            "Wählen Sie im Dashboard Aktivität beitreten und geben Sie einen S-Code ein, um ein Quiz oder eine Live-Sitzung ohne Kurseinschreibung zu öffnen. Live-Sitzungen können zusätzlich ihren rotierenden Code verlangen. Ohne Kurseinschreibung werden Ihre Antworten erfasst, Sie erhalten aber keine Note. Eingeschriebene Studierende können bei namentlichen Aktivitäten Noten erhalten; anonyme Aktivitäten bleiben unbenotet. Anonyme Antworten bleiben über Fragen hinweg unter einer Kennung verbunden und erscheinen erst nach dem Ende und vier Antworten je Frage und Versuch; eine eindeutige Antwort kann Sie trotzdem erkennbar machen.",
+            "Bei der Einschreibung werden fehlende Noten für abgeschlossene Kursaktivitäten erstellt, auch aus gespeicherten Gastantworten. Versäumte Aufgaben erhalten null Punkte ohne Bewertungsbedarf; schriftliche Antworten müssen eventuell bewertet werden. Vorhandene Noten und Rückmeldungen bleiben erhalten. Anonyme Aktivitäten bleiben unbenotet."
           ],
           "screenshot": {
             "variant": "studentCourse",

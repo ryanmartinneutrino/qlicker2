@@ -1251,7 +1251,8 @@
       "noAnswersMatch": "Aucune réponse ne correspond au filtre.",
       "anonymousResponsesTable": "Réponses anonymes",
       "response": "Réponse",
-      "correctColumn": "Correcte"
+      "correctColumn": "Correcte",
+      "unsavedSummaryInstructionWarning": "Enregistrez ou annulez vos modifications aux consignes avant de générer le résumé."
     },
     "secondDesktop": {
       "joinCode": "Code d'inscription",
@@ -2346,7 +2347,8 @@
             "L'onglet Résultats affiche maintenant la note réelle de chaque étudiant avant la participation, et cliquer sur l'avatar d'un étudiant dans l'onglet Étudiants ouvre la photo en grand.",
             "Les dialogues de détail des notes identifient maintenant chaque ligne par numéro et type, par exemple Q1(MC) ou Q2(SA), et mettent en évidence les lignes qui demandent encore une correction tout en ignorant les anciens indicateurs de correction sur les questions à zéro point.",
             "Les étudiants reçoivent une notification lorsque vous publiez une nouvelle rétroaction; privilégiez donc des commentaires courts et directement actionnables.",
-            "Si la structure des groupes a compté pendant l'activité, comparez les données de révision et de notation avec les groupes du cours afin de repérer une participation inégale."
+            "Si la structure des groupes a compté pendant l'activité, comparez les données de révision et de notation avec les groupes du cours afin de repérer une participation inégale.",
+            "L’inscription crée les notes manquantes pour les activités terminées du cours, y compris à partir des réponses enregistrées comme invité. Le travail manqué reçoit zéro sans correction requise ; les réponses écrites peuvent nécessiter une correction. Les notes et commentaires existants sont conservés. Les activités anonymes restent sans notes."
           ],
           "success": "Les professeurs peuvent ouvrir le guide étudiant depuis le sélecteur ci-dessus afin de prévisualiser le flux de l'apprenant avant un cours."
         },
@@ -2372,7 +2374,8 @@
             "Dans la révision de séance, générez un résumé IA des réponses pour une question avec un modèle et une consigne enregistrée. Vous pouvez suivre, arrêter, relancer et consulter le résultat sans modifier les notes.",
             "Dans l'onglet de correction, utilisez l'assistant de correction IA seulement après avoir enregistré des consignes distinctes pour la note et la rétroaction. Vérifiez la progression, le rapport, le journal, les points et les commentaires avant publication.",
             "Gérez et copiez les consignes réutilisables de correction, rétroaction et résumé dans les paramètres IA.",
-            "Le clavardage IA étudiant est une option distincte. Choisissez les modèles autorisés, le modèle par défaut, les directives et la limite de tours; les étudiants n'accèdent qu'aux données visibles ou révisables et à leurs propres notes."
+            "Le clavardage IA étudiant est une option distincte. Choisissez les modèles autorisés, le modèle par défaut, les directives et la limite de tours; les étudiants n'accèdent qu'aux données visibles ou révisables et à leurs propres notes.",
+            "Enregistrez les consignes de résumé modifiées avant de générer le résumé. Les consignes sélectionnées déterminent la langue, le sujet et le format à chaque étape du résumé."
           ],
           "warning": "Les résultats de l'IA peuvent être incomplets ou erronés. Vérifiez le contenu, les résumés, les notes, la rétroaction, les dates et les actions proposées."
         },
@@ -2407,7 +2410,8 @@
             "Si votre établissement exige une vérification d'e-mail ou un SSO, terminez cette configuration avant de supposer que le code d'inscription est mauvais.",
             "En général, vous n'avez besoin du code d'inscription qu'une seule fois par cours. Une fois accepté, le cours reste sur votre tableau de bord jusqu'à ce que vous en soyez retiré ou qu'il soit archivé pour votre compte.",
             "Surveillez l’indicateur sur votre avatar dans la barre d’application pour repérer les notifications actives, puis ouvrez Notifications dans le menu du compte pour les lire ou les rejeter.",
-            "Choisissez Rejoindre une activité sur le tableau de bord et entrez un code S- pour ouvrir un quiz ou une séance sans vous inscrire au cours. Une séance en direct peut aussi demander son code tournant. Si vous n’êtes pas inscrit au cours, vos réponses sont suivies mais vous ne recevez pas de note. Les étudiants inscrits peuvent être notés dans une activité nominative; une activité anonyme n’a pas de notes. Les réponses anonymes restent liées entre questions sous un même libellé et ne sont montrées à l’enseignant qu’après la fin et quatre réponses à chaque question et tentative; une réponse particulière peut encore vous identifier."
+            "Choisissez Rejoindre une activité sur le tableau de bord et entrez un code S- pour ouvrir un quiz ou une séance sans vous inscrire au cours. Une séance en direct peut aussi demander son code tournant. Si vous n’êtes pas inscrit au cours, vos réponses sont suivies mais vous ne recevez pas de note. Les étudiants inscrits peuvent être notés dans une activité nominative; une activité anonyme n’a pas de notes. Les réponses anonymes restent liées entre questions sous un même libellé et ne sont montrées à l’enseignant qu’après la fin et quatre réponses à chaque question et tentative; une réponse particulière peut encore vous identifier.",
+            "L’inscription crée les notes manquantes pour les activités terminées du cours, y compris à partir des réponses enregistrées comme invité. Le travail manqué reçoit zéro sans correction requise ; les réponses écrites peuvent nécessiter une correction. Les notes et commentaires existants sont conservés. Les activités anonymes restent sans notes."
           ],
           "screenshot": {
             "variant": "studentCourse",

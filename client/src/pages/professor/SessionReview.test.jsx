@@ -599,6 +599,54 @@ describe('SessionReview', () => {
     });
   });
 
+  it('sends the selected saved guidance and blocks generation while editing it', async () => {
+    const defaultGet = apiClient.get.getMockImplementation();
+    const custom = { _id: 'custom-summary', kind: 'summary', name: 'French quotes', content: 'Give quotes in French.' };
+    apiClient.get.mockImplementation(async (url) => {
+      if (url === '/sessions/session-1/results') {
+        const payload = buildResultsPayload();
+        payload.questions[0] = { ...payload.questions[0], type: 2, options: [] };
+        return { data: payload };
+      }
+
+      if (url.endsWith('/grading-instructions')) return { data: { instructions: [
+        { _id: 'basic-summary', kind: 'summary', name: 'Basic summary', content: 'Default guidance.' }, custom,
+      ] } };
+      if (url.endsWith('/config')) return { data: { approvedModels: [
+        { backendId: 'local', modelId: 'model', displayName: 'Test model' },
+      ], defaultBackendId: 'local', defaultModelId: 'model' } };
+      return defaultGet(url);
+    });
+    apiClient.post.mockImplementation(async (url, payload) => {
+      if (url.endsWith('/grading-instructions')) return { data: { instruction: { ...payload, _id: custom._id } } };
+      return { data: { summary: { status: 'completed', summary: 'Custom output' } } };
+    });
+    renderSessionReview();
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Generate AI Response summary' }))[0]);
+    const dialog = screen.getByRole('dialog');
+    const generate = within(dialog).getByRole('button', { name: 'Generate AI Response summary' });
+    await waitFor(() => expect(generate).toBeEnabled());
+    fireEvent.mouseDown(within(dialog).getByRole('combobox', { name: 'Summary instructions' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'French quotes' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Edit' }));
+    expect(generate).toBeDisabled();
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Summary instructions' }), {
+      target: { value: 'Only quote responses in French, in a table.' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(generate).toBeEnabled());
+    expect(within(dialog).queryByRole('textbox', { name: 'Summary instructions' })).not.toBeInTheDocument();
+    fireEvent.click(generate);
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith(
+      '/ai/courses/course-1/sessions/session-1/questions/q-1/ai-summary', {
+        instruction: 'Only quote responses in French, in a table.', backendId: 'local', modelId: 'model',
+      }
+    ));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Generate AI Response summary' }))[0]);
+    await waitFor(() => expect(within(screen.getByRole('dialog')).getByRole('combobox', { name: 'Summary instructions' })).toHaveTextContent('French quotes'));
+  });
+
   it('shows a halt control while an AI response summary is running', async () => {
     const defaultGet = apiClient.get.getMockImplementation();
     const runningSummary = {

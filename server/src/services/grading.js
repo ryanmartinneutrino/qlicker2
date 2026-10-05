@@ -4,7 +4,6 @@ import Question from '../models/Question.js';
 import Response from '../models/Response.js';
 import Session from '../models/Session.js';
 import User from '../models/User.js';
-import { getActivityGuestUserIds } from './activityAccess.js';
 
 export const QUESTION_TYPES = {
   MULTIPLE_CHOICE: 0,
@@ -744,6 +743,36 @@ export async function setSessionGradesVisibility({ sessionId, visibleToStudents 
   );
 }
 
+// Called only when enrolling (including a retry), never on live response paths.
+// Keep stored responses and existing grades intact, including instructor overrides.
+export async function createMissingEnrollmentGrades({ courseId, userId }) {
+  const course = await Course.findById(courseId).lean();
+  if (!course || !(course.students || []).some((id) => String(id) === String(userId))) return;
+  const now = new Date();
+  const [sessions, existingSessionIds] = await Promise.all([
+    Session.find({
+      courseId: String(courseId), anonymous: { $ne: true },
+      practiceQuiz: { $ne: true }, studentCreated: { $ne: true },
+      $or: [
+        { status: 'done' },
+        { status: 'visible', quiz: true, quizEnd: { $lt: now } },
+      ],
+    }).lean(),
+    Grade.distinct('sessionId', { courseId: String(courseId), userId: String(userId) }),
+  ]);
+  const existing = new Set(existingSessionIds.map(String));
+  for (const session of sessions) {
+    if (existing.has(String(session._id))) continue;
+    // Expired scheduled quizzes may still be stored as visible until the next
+    // normal session access closes them. Never finalize an outstanding extension.
+    if (getSessionGradingLockReason({ ...session, status: 'done' }, now.getTime())) continue;
+    await recalculateSessionGrades({
+      sessionDoc: session, courseDoc: course, missingOnly: true,
+      onlyStudentIds: [String(userId)], preserveManualMarks: true,
+    });
+  }
+}
+
 export async function recalculateSessionGrades({
   sessionId,
   sessionDoc = null,
@@ -752,6 +781,7 @@ export async function recalculateSessionGrades({
   visibleToStudents = null,
   zeroNonAutoGradeable = false,
   preserveManualMarks = false,
+  onlyStudentIds = null,
 } = {}) {
   let session = sessionDoc
     ? (typeof sessionDoc.toObject === 'function' ? sessionDoc.toObject() : { ...sessionDoc })
@@ -799,9 +829,11 @@ export async function recalculateSessionGrades({
       },
     };
   }
-  const activityGuestIds = session.activityEverShared
-    ? await getActivityGuestUserIds(normalizedSessionId)
-    : new Set();
+  // Enrollment repair scopes writes to the joining student; cohort-wide response
+  // counts still use all participants for the existing exclusion rules.
+  const targetIds = onlyStudentIds === null ? null : new Set(onlyStudentIds.map(String));
+  const gradeFilter = { sessionId: normalizedSessionId, courseId,
+    ...(targetIds ? { userId: { $in: [...targetIds] } } : {}) };
   const sessionQuestionIds = Array.isArray(session.questions) ? session.questions.map((id) => String(id)) : [];
 
   const [questionDocs, responseDocs, existingGradeDocs, studentDocs] = await Promise.all([
@@ -811,9 +843,9 @@ export async function recalculateSessionGrades({
     sessionQuestionIds.length > 0
       ? Response.find({ questionId: { $in: sessionQuestionIds } }).lean()
       : Promise.resolve([]),
-    Grade.find({ sessionId: normalizedSessionId, courseId }),
+    Grade.find(gradeFilter),
     Array.isArray(course.students) && course.students.length > 0
-      ? User.find({ _id: { $in: course.students } }).select('_id profile emails email').lean()
+      ? User.find({ _id: { $in: targetIds ? course.students.filter((id) => targetIds.has(String(id))) : course.students } }).select('_id profile emails email').lean()
       : Promise.resolve([]),
   ]);
 
@@ -863,7 +895,7 @@ export async function recalculateSessionGrades({
 
   const joinedSet = new Set((session.joined || []).map((userId) => String(userId)).filter(Boolean));
   const courseStudentIds = Array.isArray(course.students)
-    ? course.students.map((studentId) => String(studentId)).filter((id) => !activityGuestIds.has(id))
+    ? course.students.map((studentId) => String(studentId))
     : [];
   const courseStudentSet = new Set(courseStudentIds);
   const joinedCount = session.activityEverShared
@@ -933,8 +965,9 @@ export async function recalculateSessionGrades({
     ...joinedSet,
     ...responderUserIds,
     ...existingGradesByStudentId.keys(),
-  ])].filter((studentId) => !courseStudentSet.has(studentId));
-  const studentIds = [...courseStudentIds, ...supplementalStudentIds];
+  ])].filter((studentId) => !courseStudentSet.has(studentId) && (!targetIds || targetIds.has(studentId)));
+  const studentIds = [...courseStudentIds, ...supplementalStudentIds]
+    .filter((id) => !targetIds || targetIds.has(id));
 
   if (supplementalStudentIds.length > 0) {
     const supplementalStudentDocs = await User.find({ _id: { $in: supplementalStudentIds } })
@@ -1137,6 +1170,9 @@ export async function recalculateSessionGrades({
       } catch (err) {
         // Another concurrent recalculation may have inserted this identity.
         if (err?.code !== 11000) throw err;
+        // A missing-only repair must not overwrite a grade created or edited
+        // while this request was calculating.
+        if (missingOnly) { skippedExistingCount += 1; continue; }
         await Grade.updateMany(gradeIdentityFilter, { $set: gradeUpdateSet });
         updatedGradeCount += 1;
       }
@@ -1150,13 +1186,15 @@ export async function recalculateSessionGrades({
     }
   }
 
-  // Keep visibility synchronized for any orphaned legacy rows too.
-  await Grade.updateMany(
-    { sessionId: normalizedSessionId, courseId },
-    { $set: { visibleToStudents: visibleFlag } }
-  );
+  // Enrollment repair leaves existing visibility and grades untouched.
+  if (!targetIds) {
+    await Grade.updateMany(
+      { sessionId: normalizedSessionId, courseId },
+      { $set: { visibleToStudents: visibleFlag } }
+    );
+  }
 
-  const persistedGrades = await Grade.find({ sessionId: normalizedSessionId, courseId }).lean();
+  const persistedGrades = await Grade.find(gradeFilter).lean();
   const needsGradingSummary = summarizeMarksNeedingGrading(persistedGrades);
 
   const warningMessages = [];

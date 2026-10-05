@@ -42,6 +42,8 @@ The dashboard lists your courses and highlights activities that are live now. Us
 3. Submit the code.
 4. Open the new course card and confirm the course name, number, section, and semester.
 
+On enrollment, Qlicker creates missing grades for completed course activities: zeros for missed work and grades based on any responses you previously submitted as a guest. Written answers may still need instructor grading. Anonymous activities remain ungraded.
+
 You normally enroll only once. The course stays on the dashboard until the instructor/admin removes you or the course is no longer available to your account.
 
 ### Open an activity without joining its course

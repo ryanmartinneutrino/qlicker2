@@ -1251,7 +1251,8 @@
       "noAnswersMatch": "No answers match the filter.",
       "anonymousResponsesTable": "Anonymous responses",
       "response": "Response",
-      "correctColumn": "Correct"
+      "correctColumn": "Correct",
+      "unsavedSummaryInstructionWarning": "Save or cancel your instruction edits before generating the summary."
     },
     "secondDesktop": {
       "joinCode": "Join Code",
@@ -2393,7 +2394,8 @@
             "The results tab now shows each student's actual session grade before participation, and clicking a student's avatar in the Students tab opens the larger profile photo.",
             "Grade detail dialogs now label question rows with both number and type, such as Q1(MC) or Q2(SA), and visually highlight rows that still need grading while ignoring stale zero-point grading flags.",
             "Students receive a notification when you publish new feedback, so use short, actionable comments that tell them what to revisit.",
-            "If group structures mattered during the activity, compare the review and grading data with the course groups so you can spot uneven participation patterns."
+            "If group structures mattered during the activity, compare the review and grading data with the course groups so you can spot uneven participation patterns.",
+            "Enrollment creates missing grades for completed course activities, including saved guest responses. Missed work receives zero without needing grading; written answers may need grading. Existing grades and feedback are preserved. Anonymous activities remain ungraded."
           ],
           "success": "Professors can open the student manual from the switcher above to preview the learner workflow before class."
         },
@@ -2419,7 +2421,8 @@
             "In Session Review, generate an AI response summary for an individual question by choosing a model and a saved summary instruction. You can monitor, halt, regenerate, and view the result without changing grades.",
             "In the Grading tab, use AI Grading Assistant only after saving separate grading and student-feedback instructions for each selected question. Review its progress, report, log, points, and feedback before making results visible.",
             "Manage reusable grading, feedback, and summary instructions in AI Settings and copy them from another course when appropriate.",
-            "Student AI Chat is a separate opt-in. Choose student-approved models, a default, guidance, and a smaller tool-round limit; students can access only visible/reviewable course data and their own grades."
+            "Student AI Chat is a separate opt-in. Choose student-approved models, a default, guidance, and a smaller tool-round limit; students can access only visible/reviewable course data and their own grades.",
+            "Save edited summary instructions before generating. The selected guidance controls the language, focus, and output format of each summarization stage."
           ],
           "warning": "AI output can be incomplete or wrong. Verify generated content, summaries, grades, feedback, dates, and proposed actions before relying on them."
         },
@@ -2454,7 +2457,8 @@
             "If your institution requires verified email or SSO, finish that setup first before assuming the enrollment code is wrong.",
             "You usually only need the join code once per course. After it works, the course stays on your dashboard until you are removed or the course is archived for your account.",
             "Watch the badge on your avatar in the app bar for active notifications, then open Notifications from the account menu to read or dismiss them.",
-            "Choose Join activity on the dashboard and enter an S- activity code to open a quiz or live session without enrolling in its course. A live session may also require its rotating join code. If you are not enrolled in the course, your responses are tracked but you receive no grade. Enrolled students can receive grades in named activities; anonymous activities have no grades. Anonymous answers stay linked across questions under one respondent label and are shown to the instructor only after the activity ends and four people answer each question and attempt; a unique answer may still reveal you."
+            "Choose Join activity on the dashboard and enter an S- activity code to open a quiz or live session without enrolling in its course. A live session may also require its rotating join code. If you are not enrolled in the course, your responses are tracked but you receive no grade. Enrolled students can receive grades in named activities; anonymous activities have no grades. Anonymous answers stay linked across questions under one respondent label and are shown to the instructor only after the activity ends and four people answer each question and attempt; a unique answer may still reveal you.",
+            "Enrollment creates missing grades for completed course activities, including saved guest responses. Missed work receives zero without needing grading; written answers may need grading. Existing grades and feedback are preserved. Anonymous activities remain ungraded."
           ],
           "screenshot": {
             "variant": "studentCourse",

@@ -675,7 +675,8 @@ export default function SessionReview() {
   const [summaryQuestion, setSummaryQuestion] = useState(null);
   const [summaryInstructions, setSummaryInstructions] = useState([]);
   const [summaryInstructionId, setSummaryInstructionId] = useState('basic-summary');
-  const [summaryInstruction, setSummaryInstruction] = useState('Summarize the student responses to identify up to five themes in the student responses. Give a few example quoted responses for the students for each theme.');
+  const [summaryInstructionEditing, setSummaryInstructionEditing] = useState(false);
+  const summaryInstruction = summaryInstructions.find((entry) => entry._id === summaryInstructionId)?.content || '';
   const [summaryModel, setSummaryModel] = useState('');
   const [summaryError, setSummaryError] = useState('');
   const [summaryView, setSummaryView] = useState(null);
@@ -815,8 +816,8 @@ export default function SessionReview() {
         const instructions = data.instructions || [];
         const basicSummary = instructions.find((entry) => entry._id === 'basic-summary');
         setSummaryInstructions(instructions);
-        setSummaryInstructionId(basicSummary?._id || '');
-        setSummaryInstruction(basicSummary?.content || '');
+        setSummaryInstructionId((current) => instructions.some((entry) => entry._id === current)
+          ? current : basicSummary?._id || '');
       })
       .catch((err) => {
         if (active) setSummaryError(err.response?.data?.message || t('grades.aiGrading.failedLoad'));
@@ -836,11 +837,11 @@ export default function SessionReview() {
     if (summaryInstructionId === instruction._id) {
       const basicSummary = summaryInstructions.find((entry) => entry._id === 'basic-summary');
       setSummaryInstructionId(basicSummary?._id || '');
-      setSummaryInstruction(basicSummary?.content || '');
     }
   };
 
   const startSummary = async () => {
+    if (summaryInstructionEditing || !summaryInstruction.trim()) return;
     setSummaryError('');
     try {
       const { data } = await apiClient.post(`/ai/courses/${courseId}/sessions/${sessionId}/questions/${summaryQuestion._id}/ai-summary`, {
@@ -2011,15 +2012,13 @@ export default function SessionReview() {
             instructionId={summaryInstructionId}
             instruction={summaryInstruction}
             instructions={summaryInstructions}
-            onChange={({ instructionId, instruction }) => {
-              setSummaryInstructionId(instructionId);
-              setSummaryInstruction(instruction);
-            }}
+            onChange={({ instructionId }) => setSummaryInstructionId(instructionId)}
+            onEditingChange={setSummaryInstructionEditing}
             onSaveInstruction={saveSummaryInstruction}
             onDeleteInstruction={deleteSummaryInstruction}
           />
         </DialogContent>
-        <DialogActions><Button onClick={() => setSummaryQuestion(null)}>{t('common.cancel')}</Button><Button variant="contained" disabled={!summaryModel || !summaryInstructionId || !summaryInstruction.trim()} onClick={startSummary}>{t('professor.sessionReview.generateAiResponseSummary')}</Button></DialogActions>
+        <DialogActions><Button onClick={() => setSummaryQuestion(null)}>{t('common.cancel')}</Button><Button variant="contained" disabled={summaryInstructionEditing || !summaryModel || !summaryInstructionId || !summaryInstruction.trim()} onClick={startSummary}>{t('professor.sessionReview.generateAiResponseSummary')}</Button></DialogActions>
       </Dialog>
       <Dialog open={!!summaryView} onClose={() => setSummaryView(null)} fullWidth maxWidth="md"><DialogTitle>{t('professor.sessionReview.viewAiResponseSummary')}</DialogTitle><DialogContent dividers><AiMarkdownContent content={summaryView?.summary} /></DialogContent><DialogActions><Button onClick={() => setSummaryView(null)}>{t('common.close')}</Button></DialogActions></Dialog>
     </Box>

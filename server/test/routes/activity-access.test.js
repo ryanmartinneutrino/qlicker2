@@ -410,12 +410,12 @@ describe('shared activity safeguards', () => {
     const joins = sendSpy.mock.calls.filter(([, event]) => event === 'session:participant-joined').map(([, , payload]) => payload.joinedStudent);
     expect(joins.find((row) => row._id === enrolled._id)).toMatchObject({ participantRole: 'student', isProfessor: false });
     expect(joins.find((row) => row._id === visitor._id)).toMatchObject({ participantRole: 'guest', isProfessor: true });
-    // Later enrollment does not change this activity's guest/grade status.
+    // Current course enrollment determines the displayed role.
     await Course.updateOne({ _id: course._id }, { $addToSet: { students: outsider._id } });
     const roster = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/live?includeJoinedStudents=true`, { token: professorToken });
     expect(roster.statusCode).toBe(200);
     const joined = roster.json().session.joinedStudents;
-    expect(joined.find((row) => row._id === outsider._id).participantRole).toBe('guest');
+    expect(joined.find((row) => row._id === outsider._id).participantRole).toBe('student');
     expect(joined.find((row) => row._id === visitor._id)).toMatchObject({ participantRole: 'guest', isProfessor: true });
     const results = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/results`, { token: professorToken });
     expect(results.statusCode).toBe(200);
@@ -475,26 +475,122 @@ describe('shared activity safeguards', () => {
     expect(guestReview.json().grade).toBeNull();
   });
 
-  it('does not retroactively grade a guest who enrolls after code redemption', async () => {
-    const { professorToken, outsiderToken, outsider, course, session } = await fixture();
+  it.each([
+    { quiz: false, role: 'student', byEmail: false },
+    { quiz: true, role: 'student', byEmail: false },
+    { quiz: false, role: 'professor', byEmail: true },
+    { quiz: true, role: 'professor', byEmail: true },
+  ])('backfills a former guest and missed work without changing saved data ($quiz, $role)', async ({ quiz, role, byEmail }) => {
+    const { professorToken, outsiderToken, outsider, course, session, professor } = await fixture({ quiz });
+    await mongoose.model('User').updateOne({ _id: outsider._id }, { $set: { 'profile.roles': [role] } });
     const code = (await issue(session._id, professorToken)).json().code;
     expect((await redeem(code, outsiderToken)).statusCode).toBe(200);
-    expect((await ActivityGrant.findOne({ sessionId: session._id, userId: outsider._id }).lean()).guestAtRedemption).toBe(true);
-    await Course.updateOne({ _id: course._id }, { $addToSet: { students: outsider._id } });
-    await Session.updateOne({ _id: session._id }, { $set: { status: 'done', reviewable: true } });
-    const recalculated = await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/grades/recalculate`, {
-      token: professorToken, payload: {},
+    const mc = await Question.create({ creator: professor._id, type: 0, courseId: course._id, sessionId: session._id,
+      options: [{ answer: 'Yes', correct: true }, { answer: 'No', correct: false }],
+      sessionOptions: { points: 2, maxAttempts: 2, attemptWeights: [1, 0.5] } });
+    const sa = await Question.create({ creator: professor._id, type: 2, courseId: course._id, sessionId: session._id,
+      sessionOptions: { points: 4 } });
+    await Response.create([
+      { questionId: mc._id, studentUserId: outsider._id, attempt: 1, answer: '1' },
+      { questionId: mc._id, studentUserId: outsider._id, attempt: 2, answer: '0' },
+      { questionId: sa._id, studentUserId: outsider._id, attempt: 1, answer: 'My explanation' },
+    ]);
+    await Session.updateOne({ _id: session._id }, { $set: {
+      questions: [mc._id, sa._id], joined: [outsider._id], status: 'done', reviewable: true,
+      submittedQuiz: quiz ? [outsider._id] : [],
+    } });
+    const missedQuestion = await Question.create({ creator: professor._id, type: 2, courseId: course._id, sessionOptions: { points: 4 } });
+    const missed = await Session.create({ name: 'Missed', courseId: course._id, status: 'done', questions: [missedQuestion._id] });
+    const expired = await Session.create({ name: 'Expired scheduled quiz', courseId: course._id,
+      quiz: true, status: 'visible', quizEnd: new Date(Date.now() - 60_000), questions: [missedQuestion._id] });
+    const existingSession = await Session.create({ name: 'Existing marks', courseId: course._id, status: 'done' });
+    const existingGrade = await Grade.create({ courseId: course._id, sessionId: existingSession._id,
+      userId: outsider._id, automatic: false, value: 73, visibleToStudents: true,
+      marks: [{ questionId: 'manual-question', automatic: false, points: 3, outOf: 4, feedback: 'Keep this feedback' }] });
+    const otherStudent = await createTestUser({ email: 'existing-grade@example.com', roles: ['student'] });
+    await Course.updateOne({ _id: course._id }, { $addToSet: { students: otherStudent._id } });
+    const otherGrade = await Grade.create({ courseId: course._id, sessionId: session._id,
+      userId: otherStudent._id, automatic: false, value: 62, visibleToStudents: false });
+    const skipped = await Session.create([
+      { name: 'Anonymous', courseId: course._id, status: 'done', anonymous: true },
+      { name: 'Practice', courseId: course._id, status: 'done', practiceQuiz: true },
+      { name: 'Student created', courseId: course._id, status: 'done', studentCreated: true },
+      { name: 'Draft', courseId: course._id, status: 'hidden' },
+      { name: 'Live', courseId: course._id, status: 'running' },
+      { name: 'Future quiz', courseId: course._id, quiz: true, status: 'visible', quizEnd: new Date(Date.now() + 60_000) },
+      { name: 'Extension', courseId: course._id, quiz: true, status: 'done',
+        quizExtensions: [{ userId: otherStudent._id, quizEnd: new Date(Date.now() + 60_000) }] },
+    ]);
+    const responsesBefore = await Response.find({ studentUserId: outsider._id }).sort('_id').lean();
+    const sessionBefore = await Session.findById(session._id).lean();
+    const enroll = () => authenticatedRequest(app, 'POST', byEmail ? `/api/v1/courses/${course._id}/students` : '/api/v1/courses/enroll', {
+      token: byEmail ? professorToken : outsiderToken,
+      payload: byEmail ? { email: outsider.emails[0].address } : { enrollmentCode: course.enrollmentCode },
     });
-    expect(recalculated.statusCode).toBe(200);
-    expect(await Grade.countDocuments({ sessionId: session._id, userId: outsider._id })).toBe(0);
+    expect((await enroll()).statusCode).toBe(200);
+    const grade = await Grade.findOne({ sessionId: session._id, userId: outsider._id }).lean();
+    expect(grade).toMatchObject({ points: 1, outOf: 6, needsGrading: true, visibleToStudents: true });
+    expect(grade.marks.find((mark) => mark.questionId === mc._id)).toMatchObject({ attempt: 2, points: 1, needsGrading: false });
+    expect(grade.marks.find((mark) => mark.questionId === sa._id)).toMatchObject({ needsGrading: true });
+    for (const missedSession of [missed, expired]) {
+      const zero = await Grade.findOne({ sessionId: missedSession._id, userId: outsider._id }).lean();
+      expect(zero).toMatchObject({ value: 0, needsGrading: false, joined: false });
+      expect(zero.marks.every((mark) => mark.points === 0 && !mark.needsGrading)).toBe(true);
+    }
+    expect(await Grade.countDocuments({ sessionId: { $in: skipped.map((entry) => entry._id) }, userId: outsider._id })).toBe(0);
+    expect((await enroll()).statusCode).toBe(409); // Retrying repairs missing rows but never duplicates them.
+    expect(await Grade.countDocuments({ sessionId: session._id, userId: outsider._id })).toBe(1);
+    expect(await Grade.findById(existingGrade._id).lean()).toEqual(existingGrade.toObject());
+    expect(await Grade.findById(otherGrade._id).lean()).toEqual(otherGrade.toObject());
+    expect(await Response.find({ studentUserId: outsider._id }).sort('_id').lean()).toEqual(responsesBefore);
+    const sessionAfter = await Session.findById(session._id).lean();
+    expect(sessionAfter.joined).toEqual(sessionBefore.joined);
+    expect(sessionAfter.submittedQuiz).toEqual(sessionBefore.submittedQuiz);
+    // Redemption history remains an audit fact, not a grading exclusion.
+    expect((await ActivityGrant.findOne({ sessionId: session._id, userId: outsider._id }).lean()).guestAtRedemption).toBe(true);
     const results = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/results`, { token: professorToken });
-    expect(results.json().studentResults.find((row) => row.studentId === outsider._id)?.guest).toBe(true);
-    const grades = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/grades`, { token: professorToken });
-    expect(grades.json().grades).toHaveLength(0);
+    expect(results.json().studentResults.find((row) => row.studentId === outsider._id)).toMatchObject({ guest: false, participantRole: 'student', isProfessor: role === 'professor' });
+    const grades = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/grades`, { token: outsiderToken });
+    expect(grades.statusCode).toBe(200);
+    expect(grades.json().grades).toHaveLength(1);
+    expect(grades.json().grades[0]).toMatchObject({ points: 1, outOf: 6, needsGrading: true });
+    const review = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/review`, { token: outsiderToken });
+    expect(review.json().grade).not.toBeNull();
     const gradebook = await authenticatedRequest(app, 'GET', `/api/v1/courses/${course._id}/grades`, { token: professorToken });
-    const guestGradebookRow = gradebook.json().rows.find((row) => row.student.studentId === outsider._id);
-    expect(guestGradebookRow?.grades.find((grade) => grade.sessionId === session._id)?.notApplicable).toBe(true);
-    expect(guestGradebookRow?.avgParticipation).toBeNull();
+    const row = gradebook.json().rows.find((entry) => entry.student.studentId === outsider._id);
+    expect(row.grades.find((entry) => entry.sessionId === session._id)).toMatchObject({ _id: grade._id, needsGrading: true });
+    expect(row.grades.some((entry) => entry.notApplicable)).toBe(false);
+    // Also support already-enrolled guests from the earlier branch implementation.
+    await Grade.deleteOne({ _id: grade._id });
+    const repaired = await authenticatedRequest(app, 'POST', `/api/v1/sessions/${session._id}/grades/recalculate`, {
+      token: professorToken, payload: { missingOnly: true },
+    });
+    expect(repaired.statusCode).toBe(200);
+    const repairedGrade = await Grade.findOne({ sessionId: session._id, userId: outsider._id }).lean();
+    expect(repairedGrade).toMatchObject({ points: 1, outOf: 6, needsGrading: true });
+    expect(await Grade.countDocuments({ sessionId: session._id, userId: outsider._id })).toBe(1);
+    expect((await Grade.findById(otherGrade._id).lean()).value).toBe(62);
+  });
+
+  it('keeps anonymous guest responses pseudonymous and ungraded after enrollment', async () => {
+    const { professorToken, outsiderToken, outsider, course, session } = await fixture({ anonymous: true });
+    const code = (await issue(session._id, professorToken)).json().code;
+    expect((await redeem(code, outsiderToken)).statusCode).toBe(200);
+    const respondentId = getSessionParticipantId(session, outsider._id);
+    const question = await Question.create({ creator: course.owner, courseId: course._id, type: 2 });
+    await Response.create({ questionId: question._id, studentUserId: respondentId, attempt: 1, answer: 'Private survey response' });
+    await Session.updateOne({ _id: session._id }, { $set: { status: 'done', questions: [question._id], joined: [respondentId] } });
+    const responses = await Response.find({ questionId: question._id }).lean();
+    const enrolled = await authenticatedRequest(app, 'POST', '/api/v1/courses/enroll', {
+      token: outsiderToken, payload: { enrollmentCode: course.enrollmentCode },
+    });
+    expect(enrolled.statusCode).toBe(200);
+    expect(await Grade.countDocuments({ sessionId: session._id })).toBe(0);
+    expect(await Response.find({ questionId: question._id }).lean()).toEqual(responses);
+    expect((await Session.findById(session._id).lean()).joined).toEqual([respondentId]);
+    const results = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${session._id}/results`, { token: professorToken });
+    expect(results.json().studentResults).toEqual([]);
+    expect(JSON.stringify(results.json())).not.toContain(outsider._id);
   });
 
   it('keeps an existing grant usable after code expiry without admitting new people', async () => {
