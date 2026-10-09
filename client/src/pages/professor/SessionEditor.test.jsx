@@ -353,7 +353,7 @@ describe('SessionEditor inline close behavior', () => {
     apiClientMock.get.mockImplementation(async (url) => {
       const response = await originalGet(url);
       if (url === '/sessions/session-1') {
-        response.data.session = { ...response.data.session, anonymous: true, joinedCount: 4 };
+        response.data.session = { ...response.data.session, anonymous: true, joinedCount: 1 };
       }
       return response;
     });

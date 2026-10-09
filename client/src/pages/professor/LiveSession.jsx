@@ -570,7 +570,7 @@ function LiveSessionContent() {
     switch (event) {
       case 'session:response-added':
         setLiveData((prev) => (
-          data?.responseStats || data?.response
+          data?.responseStats || data?.response || prev?.session?.anonymous
             ? applyLiveResponseAddedDelta(prev, data)
             : prev
               ? {
@@ -1488,6 +1488,12 @@ function LiveSessionContent() {
               )}
             </Box>
 
+            {anonymousSession && currentQ && !isSlide && (
+              <Typography variant="body2" color="text.secondary" role="status">
+                {t('professor.liveSession.anonymousStatsBatches', { count: responseStats?.total || 0 })}
+              </Typography>
+            )}
+
             <Divider />
 
             <Box
@@ -1838,7 +1844,7 @@ function LiveSessionContent() {
                   }}>
                     {t('professor.liveSession.selectQuestionToViewResponses')}
                   </Typography>
-                ) : anonymousSession ? (
+                ) : anonymousSession && !responseStats ? (
                   <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                     {t('professor.liveSession.respondedSummary', { responded: responseCount, total: joinedCount })}
                   </Typography>

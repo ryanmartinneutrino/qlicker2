@@ -2239,14 +2239,15 @@ function sanitizeStudentOwnResponse(response) {
 function buildStudentLiveQuestionSnapshot(question, extra = {}, { responseStats: resolvedResponseStats, anonymous = false } = {}) {
   const questionHidden = !!question?.sessionOptions?.hidden;
   const collectsResponses = isQuestionResponseCollectionEnabled(question);
-  const showStats = collectsResponses && !!question?.sessionOptions?.stats && !anonymous;
+  const showStats = collectsResponses && !!question?.sessionOptions?.stats;
   const showCorrect = collectsResponses && !!question?.sessionOptions?.correct;
   const showResponseList = question?.sessionOptions?.responseListVisible !== false;
   const currentAttempt = collectsResponses ? getCurrentAttempt(question) : null;
   const cachedStats = resolvedResponseStats !== undefined
     ? resolvedResponseStats
     : currentAttempt
-      ? materializeAttemptStatsEntry(getAttemptStatsEntry(question, currentAttempt.number))
+      ? (anonymous ? getAnonymousLiveResponseStats(question, currentAttempt.number)
+        : materializeAttemptStatsEntry(getAttemptStatsEntry(question, currentAttempt.number)))
       : null;
   const responseStats = showStats
     ? formatStudentLiveResponseStats(cachedStats, { showCorrect, showResponseList, anonymous })
@@ -2378,29 +2379,86 @@ async function upsertQuestionAttemptStatsEntry(questionId, attemptNumber, entry)
   );
 }
 
+// Anonymous live results use the same attempt cache and calculations as ordinary
+// sessions, but only published batches are readable. Never use the canonical
+// cache repair helper here: it includes answers not yet eligible for release.
+function getAnonymousLiveResponseStats(question, attemptNumber) {
+  const entry = getAttemptStatsEntry(question, attemptNumber);
+  if (!entry || entry.total < MIN_ANONYMOUS_RESPONDENTS) return null;
+  return formatInstructorLiveResponseStats(materializeAttemptStatsEntry(entry), {}, false, true);
+}
+
+async function publishAnonymousAttemptStats(question, attemptNumber, responses) {
+  // First response wins if concurrent submissions created duplicate documents.
+  // Count people, not documents; discard identity and arrival order before caching.
+  const distinctResponses = new Map();
+  for (const response of responses) {
+    const participantId = getResponseStudentId(response);
+    if (participantId && !distinctResponses.has(participantId)) distinctResponses.set(participantId, response);
+  }
+  const total = distinctResponses.size;
+  const previousTotal = Number(getAttemptStatsEntry(question, attemptNumber)?.total || 0);
+  if (total - previousTotal < MIN_ANONYMOUS_RESPONDENTS) return { question, published: false };
+
+  const entry = buildAttemptStatsEntry(question, attemptNumber, [...distinctResponses.values()]);
+  entry.answers = entry.answers.map(({ answer, answerWysiwyg }) => ({ answer, answerWysiwyg }))
+    .sort((a, b) => JSON.stringify([a.answer, a.answerWysiwyg]).localeCompare(JSON.stringify([b.answer, b.answerWysiwyg])));
+  entry.values.sort((a, b) => a - b);
+
+  // Compare-and-set protects the minimum gap even when different replicas build
+  // overlapping batches. A late writer cannot replace a newer published cache.
+  let updated = await Question.findOneAndUpdate({
+    _id: question._id,
+    'sessionOptions.attemptStats': { $elemMatch: {
+      number: attemptNumber, total: { $lte: total - MIN_ANONYMOUS_RESPONDENTS },
+    } },
+  }, { $set: { 'sessionOptions.attemptStats.$': entry } }, { returnDocument: 'after' }).lean();
+  if (!updated) {
+    updated = await Question.findOneAndUpdate({
+      _id: question._id,
+      'sessionOptions.attemptStats.number': { $ne: attemptNumber },
+    }, { $push: { 'sessionOptions.attemptStats': entry } }, { returnDocument: 'after' }).lean();
+  }
+  return { question: updated || question, published: !!updated };
+}
+
+async function appendAnonymousResponseToQuestionAttemptStats(question, attemptNumber) {
+  const count = await Response.countDocuments({ questionId: question._id, attempt: attemptNumber });
+  const tracked = await Question.findByIdAndUpdate(question._id, {
+    $set: { 'sessionProperties.lastAttemptNumber': attemptNumber },
+    $max: { 'sessionProperties.lastAttemptResponseCount': count, 'sessionProperties.lastAttemptAggregateCount': 0 },
+  }, { returnDocument: 'after' }).lean();
+  if (!tracked) return { question, published: false };
+
+  // Reserve at most one rebuild per batch, across replicas. Most submissions
+  // keep the existing count-only fast path and never load response documents.
+  const reservedCount = Number(tracked.sessionProperties?.lastAttemptAggregateCount || 0);
+  const responseCount = Number(tracked.sessionProperties?.lastAttemptResponseCount || 0);
+  if (responseCount - reservedCount < MIN_ANONYMOUS_RESPONDENTS) return { question: tracked, published: false };
+  const reserved = await Question.updateOne({
+    _id: question._id,
+    'sessionProperties.lastAttemptNumber': attemptNumber,
+    'sessionProperties.lastAttemptAggregateCount': reservedCount,
+  }, { $set: { 'sessionProperties.lastAttemptAggregateCount': responseCount } });
+  if (!reserved.modifiedCount) return { question: tracked, published: false };
+
+  try {
+    const responses = await Response.find({ questionId: question._id, attempt: attemptNumber })
+      .select('studentUserId answer answerWysiwyg').sort({ createdAt: 1, _id: 1 }).lean();
+    return await publishAnonymousAttemptStats(tracked, attemptNumber, responses);
+  } catch (error) {
+    await Question.updateOne({
+      _id: question._id,
+      'sessionProperties.lastAttemptNumber': attemptNumber,
+      'sessionProperties.lastAttemptAggregateCount': responseCount,
+    }, { $set: { 'sessionProperties.lastAttemptAggregateCount': reservedCount } });
+    throw error;
+  }
+}
+
 async function appendResponseToQuestionAttemptStats(question, attemptNumber, response) {
   const normalizedAttemptNumber = Number(attemptNumber) || 1;
   if (!question?._id || !response) return null;
-
-  if (isAnonymousParticipantId(getResponseStudentId(response))) {
-    // The Question document is readable through authoring APIs. Keep no
-    // individual anonymous answer or submission time in its live cache.
-    const count = await Response.countDocuments({
-      questionId: question._id,
-      attempt: normalizedAttemptNumber,
-    });
-    return Question.findByIdAndUpdate(
-      question._id,
-      {
-        $set: { 'sessionProperties.lastAttemptNumber': normalizedAttemptNumber },
-        $max: {
-          'sessionProperties.lastAttemptResponseCount': count,
-          'sessionProperties.lastAttemptAggregateCount': count,
-        },
-      },
-      { returnDocument: 'after' }
-    ).lean();
-  }
 
   const cachedEntry = getAttemptStatsEntry(question, normalizedAttemptNumber);
   const trackedCount = Number(question?.sessionProperties?.lastAttemptResponseCount || 0);
@@ -2927,14 +2985,14 @@ async function notifyResponseAdded(app, course, session, data, { includeStudents
   // real-time regardless of whether live stats are shown to students.
   const anonymousSession = isAnonymousSession(session);
   const instructorStats = anonymousSession
-    ? null
+    ? (data.anonymousStatsPublished ? getAnonymousLiveResponseStats(question, attempt) : null)
     : await buildResponseAddedStatsDelta(question, attempt, data?.responseCount, { force: true });
   // Students only receive stats when the instructor has enabled live stats.
-  const rawStudentStats = includeStudents && !anonymousSession
-    ? await buildResponseAddedStatsDelta(question, attempt, data?.responseCount)
+  const rawStudentStats = includeStudents
+    ? (anonymousSession ? instructorStats : await buildResponseAddedStatsDelta(question, attempt, data?.responseCount))
     : null;
   const studentStats = rawStudentStats
-    ? formatStudentLiveResponseStats(rawStudentStats, { showCorrect, showResponseList })
+    ? formatStudentLiveResponseStats(rawStudentStats, { showCorrect, showResponseList, anonymous: anonymousSession })
     : null;
 
   let instructorResponse = null;
@@ -2995,13 +3053,11 @@ function buildInstructorQuestionSnapshot(
   const cachedStats = currentAttempt
     ? getAttemptStatsEntry(question, currentAttempt.number)
     : null;
-  const rawResponseStats = cachedStats
+  const rawResponseStats = anonymous ? getAnonymousLiveResponseStats(question, currentAttempt?.number || 1) : cachedStats
     && isCanonicalAttemptStatsEntry(question, cachedStats, responses.length)
     ? materializeAttemptStatsEntry(cachedStats)
     : buildResponseStats(question, responses, currentAttempt?.number || 1);
-  const responseStats = anonymous
-    ? null
-    : formatInstructorLiveResponseStats(rawResponseStats, studentNameById, includeStudentNames, anonymous);
+  const responseStats = formatInstructorLiveResponseStats(rawResponseStats, studentNameById, includeStudentNames, anonymous);
   const questionPayload = toPlainObject(question);
   if (questionPayload?.sessionOptions) {
     questionPayload.sessionOptions = { ...questionPayload.sessionOptions };
@@ -3019,8 +3075,8 @@ function buildInstructorQuestionSnapshot(
     allResponses: anonymous ? [] : responses.map((response) => serializeLiveResponseEntry(response, {
       studentName: includeStudentNames ? (studentNameById[getResponseStudentId(response)] || null) : null,
     })),
-    wordCloudData: anonymous ? null : question?.sessionOptions?.wordCloudData || null,
-    histogramData: anonymous ? null : question?.sessionOptions?.histogramData || null,
+    wordCloudData: question?.sessionOptions?.wordCloudData || null,
+    histogramData: question?.sessionOptions?.histogramData || null,
     ...extra,
   };
 }
@@ -3066,12 +3122,13 @@ async function notifyQuestionChanged(app, course, session, question, data) {
   // when returning to an earlier question, while the responses loaded above
   // are already the authoritative current-attempt set.
   const studentResponseStats = question?.sessionOptions?.stats && currentAttempt
-    ? buildResponseStats(question, responses, currentAttempt.number)
+    ? (anonymousSession ? getAnonymousLiveResponseStats(question, currentAttempt.number)
+      : buildResponseStats(question, responses, currentAttempt.number))
     : null;
   const studentBasePayload = {
     ...basePayload,
     ...buildStudentLiveQuestionSnapshot(question, progressPayload, {
-      responseStats: anonymousSession ? null : studentResponseStats,
+      responseStats: studentResponseStats,
       anonymous: anonymousSession,
     }),
   };
@@ -3141,8 +3198,9 @@ async function notifyVisibilityChanged(app, course, session, question) {
   const currentAttempt = isQuestionResponseCollectionEnabled(question)
     ? getCurrentAttempt(question)
     : null;
-  const responseStats = !isAnonymousSession(session) && question?.sessionOptions?.stats && currentAttempt
-    ? await getQuestionAttemptStats(question, currentAttempt.number)
+  const responseStats = question?.sessionOptions?.stats && currentAttempt
+    ? (isAnonymousSession(session) ? getAnonymousLiveResponseStats(question, currentAttempt.number)
+      : await getQuestionAttemptStats(question, currentAttempt.number))
     : null;
   const audience = {
     ...basePayload,
@@ -5837,7 +5895,7 @@ export default async function sessionRoutes(app) {
 
       // For students: strip answer info and limit data
       const questionHidden = currentQuestion?.sessionOptions?.hidden ?? true;
-      const showStats = currentItemCollectsResponses && !anonymousSession
+      const showStats = currentItemCollectsResponses
         ? (currentQuestion?.sessionOptions?.stats ?? false) : false;
       const showCorrect = currentItemCollectsResponses ? (currentQuestion?.sessionOptions?.correct ?? false) : false;
       const attempts = currentQuestion?.sessionOptions?.attempts || [];
@@ -5863,7 +5921,21 @@ export default async function sessionRoutes(app) {
           const cachedResponseStats = currentAttempt
             ? getAttemptStatsEntry(currentQuestion, currentAttempt.number)
             : null;
-          responseStats = anonymousSession ? null : cachedResponseStats
+          // Repair interrupted/older anonymous publication using the responses
+          // already loaded for this instructor snapshot, with the same atomic gap.
+          if (anonymousSession) {
+            const published = await publishAnonymousAttemptStats(currentQuestion, currentAttempt.number,
+              [...responses].reverse());
+            currentQuestion = published.question;
+            if (published.published) {
+              await notifyResponseAdded(app, course, session, {
+                question: currentQuestion, attempt: currentAttempt.number,
+                responseCount: responses.length, joinedCount: (session.joined || []).length,
+                anonymousStatsPublished: true,
+              }, { includeStudents: !!currentQuestion.sessionOptions?.stats });
+            }
+          }
+          responseStats = anonymousSession ? getAnonymousLiveResponseStats(currentQuestion, currentAttempt.number) : cachedResponseStats
             && isCanonicalAttemptStatsEntry(currentQuestion, cachedResponseStats, responses.length)
             ? materializeAttemptStatsEntry(cachedResponseStats)
             : buildResponseStats(currentQuestion, responses, currentAttempt.number);
@@ -5917,10 +5989,12 @@ export default async function sessionRoutes(app) {
         } else if (isJoined && !questionHidden) {
           if (showStats) {
             responseStats = formatStudentLiveResponseStats(
-              await getQuestionAttemptStats(currentQuestion, currentAttempt.number),
+              anonymousSession ? getAnonymousLiveResponseStats(currentQuestion, currentAttempt.number)
+                : await getQuestionAttemptStats(currentQuestion, currentAttempt.number),
               {
                 showCorrect,
                 showResponseList: currentQuestion?.sessionOptions?.responseListVisible !== false,
+                anonymous: anonymousSession,
               }
             );
             studentResponse = await Response.findOne({
@@ -6343,7 +6417,9 @@ export default async function sessionRoutes(app) {
         createdAt: now,
       });
 
-      const trackedQuestion = await appendResponseToQuestionAttemptStats(
+      const anonymousUpdate = isAnonymousSession(session)
+        ? await appendAnonymousResponseToQuestionAttemptStats(question, currentAttempt.number) : null;
+      const trackedQuestion = anonymousUpdate ? anonymousUpdate.question : await appendResponseToQuestionAttemptStats(
         question,
         currentAttempt.number,
         response
@@ -6371,6 +6447,7 @@ export default async function sessionRoutes(app) {
       await notifyResponseAdded(app, course, session, {
         questionId: String(questionId),
         question: trackedQuestion || question,
+        anonymousStatsPublished: anonymousUpdate?.published || false,
         response: response.toObject ? response.toObject() : { ...response },
         attempt: currentAttempt.number,
         responseCount,
@@ -6500,7 +6577,10 @@ export default async function sessionRoutes(app) {
 
       const attempts = question.sessionOptions?.attempts || [];
       const currentAttempt = attempts.length > 0 ? attempts[attempts.length - 1] : { number: 1 };
-      const texts = await collectShortAnswerTextsFromAttemptStats(question, currentAttempt.number);
+      const texts = isAnonymousSession(session)
+        ? (getAnonymousLiveResponseStats(question, currentAttempt.number)?.answers || [])
+          .map((entry) => entry.answerWysiwyg || normalizeAnswerValue(entry.answer)).filter(Boolean)
+        : await collectShortAnswerTextsFromAttemptStats(question, currentAttempt.number);
 
       const stopWords = Array.isArray(request.body?.stopWords) ? request.body.stopWords : [];
       const wordFrequencies = computeWordFrequencies(texts, stopWords, 100);
@@ -6644,7 +6724,9 @@ export default async function sessionRoutes(app) {
 
       const attempts = question.sessionOptions?.attempts || [];
       const currentAttempt = attempts.length > 0 ? attempts[attempts.length - 1] : { number: 1 };
-      const values = await collectNumericalValuesFromAttemptStats(question, currentAttempt.number);
+      const values = isAnonymousSession(session)
+        ? (getAnonymousLiveResponseStats(question, currentAttempt.number)?.values || [])
+        : await collectNumericalValuesFromAttemptStats(question, currentAttempt.number);
 
       const histOpts = {};
       if (request.body?.numBins != null) histOpts.numBins = request.body.numBins;
@@ -6794,7 +6876,12 @@ export default async function sessionRoutes(app) {
       const previousAttemptNumber = attemptsToClose.length > 0
         ? Math.max(...attemptsToClose.map((a) => Number(a?.number) || 1))
         : 0;
-      const newAttemptNumber = previousAttemptNumber + 1;
+      // Published anonymous batches must survive authoring edits to attempt
+      // metadata. Never reuse an attempt number that already has a cache.
+      const anonymousAttemptNumbers = isAnonymousSession(session)
+        ? (question.sessionOptions?.attemptStats || []).map((entry) => Number(entry.number) || 0)
+        : [];
+      const newAttemptNumber = Math.max(previousAttemptNumber, ...anonymousAttemptNumbers) + 1;
       closedAttempts.push({ number: newAttemptNumber, closed: false });
       const nextAttemptStats = [
         ...((question.sessionOptions?.attemptStats || []).map((entry) => (entry.toObject ? entry.toObject() : { ...entry }))),
@@ -6805,20 +6892,32 @@ export default async function sessionRoutes(app) {
       }
       const resetGeneratedVisualizationUpdate = buildResetGeneratedVisualizationUpdate();
 
-      const updatedQuestion = await Question.findByIdAndUpdate(
-        questionId,
-        { $set: {
-          'sessionOptions.attempts': closedAttempts,
-          'sessionOptions.attemptStats': nextAttemptStats,
-          'sessionOptions.stats': false,
-          'sessionOptions.correct': false,
-          ...resetGeneratedVisualizationUpdate,
-          'sessionProperties.lastAttemptNumber': newAttemptNumber,
-          'sessionProperties.lastAttemptResponseCount': 0,
-          'sessionProperties.lastAttemptAggregateCount': 0,
-        } },
+      const anonymousSession = isAnonymousSession(session);
+      const updatedQuestion = await Question.findOneAndUpdate(
+        {
+          _id: questionId,
+          ...(anonymousSession ? { 'sessionOptions.attemptStats.number': { $ne: newAttemptNumber } } : {}),
+        },
+        {
+          $set: {
+            'sessionOptions.attempts': closedAttempts,
+            ...(!anonymousSession ? { 'sessionOptions.attemptStats': nextAttemptStats } : {}),
+            'sessionOptions.stats': false,
+            'sessionOptions.correct': false,
+            ...resetGeneratedVisualizationUpdate,
+            'sessionProperties.lastAttemptNumber': newAttemptNumber,
+            'sessionProperties.lastAttemptResponseCount': 0,
+            'sessionProperties.lastAttemptAggregateCount': 0,
+          },
+          // Append atomically so a concurrent response publication cannot be
+          // overwritten by the older question document loaded above.
+          ...(anonymousSession ? { $push: { 'sessionOptions.attemptStats': newAttemptStatsEntry } } : {}),
+        },
         { returnDocument: 'after' }
       );
+      if (!updatedQuestion) {
+        return reply.code(409).send({ error: 'Conflict', message: 'Attempt changed; reload and retry' });
+      }
 
       notifyAttemptChanged(app, course, session._id, updatedQuestion, { resetResponses: true });
 
@@ -6872,6 +6971,9 @@ export default async function sessionRoutes(app) {
 
       const attempts = question.sessionOptions?.attempts || [];
       if (attempts.length === 0) {
+        // Anonymous answers may already belong to the implicit first attempt.
+        // Closing/reopening it must preserve its published privacy boundary.
+        const anonymousSession = isAnonymousSession(session);
         // Initialize with first attempt
         const firstAttemptStatsEntry = buildAttemptStatsEntry(question, 1);
         const resetGeneratedVisualizationUpdate = buildResetGeneratedVisualizationUpdate();
@@ -6880,16 +6982,18 @@ export default async function sessionRoutes(app) {
           {
             $set: {
               'sessionOptions.attempts': [{ number: 1, closed: request.body.closed }],
-              'sessionOptions.attemptStats': firstAttemptStatsEntry ? [firstAttemptStatsEntry] : [],
-              ...resetGeneratedVisualizationUpdate,
-              'sessionProperties.lastAttemptNumber': 1,
-              'sessionProperties.lastAttemptResponseCount': 0,
-              'sessionProperties.lastAttemptAggregateCount': 0,
+              ...(!anonymousSession ? {
+                'sessionOptions.attemptStats': firstAttemptStatsEntry ? [firstAttemptStatsEntry] : [],
+                ...resetGeneratedVisualizationUpdate,
+                'sessionProperties.lastAttemptNumber': 1,
+                'sessionProperties.lastAttemptResponseCount': 0,
+                'sessionProperties.lastAttemptAggregateCount': 0,
+              } : {}),
             },
           },
           { returnDocument: 'after' }
         );
-        notifyAttemptChanged(app, course, session._id, updatedQuestion, { resetResponses: true });
+        notifyAttemptChanged(app, course, session._id, updatedQuestion, { resetResponses: !anonymousSession });
         return { question: updatedQuestion?.toObject() };
       }
 

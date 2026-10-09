@@ -163,8 +163,7 @@ delivery, answer submission, quiz autosave, and final results duration. Run
 result rows remain withheld below four respondents, then with at least four
 students to verify correlated rows appear. A threshold failure or a missing
 summary is a failed run; investigate it before comparing latency. All four live variants use the same browser-like delta workload in
-`scenarios/live-session.js`; anonymous variants enforce count-only updates and
-omit word clouds and histograms that are unavailable during anonymous activity.
+`scenarios/live-session.js`; anonymous variants check identity-free statistics in groups of at least four new respondents and exercise live word clouds/histograms when at least four participants respond. `anonymous_batch_stats_success` requires a released cache with fewer than four unreleased answers at the end of each question (or no cache below four participants).
 
 Test on the lower-stakes host first, then use the same commands on production.
 `load-testing/.env`, state, and results contain test credentials and remain
@@ -234,7 +233,7 @@ including after a failed workload. Keep summaries for the staging comparison.
 | Scenario | Student journey | Instructor and privacy checks |
 | --- | --- | --- |
 | `live-named` | Join, hold WebSocket, answer five questions, and exercise chat and live deltas | Professor drives visibility, attempts, aggregates, chat, and response delivery |
-| `live-anonymous` | Join, hold WebSocket, and answer five questions | Instructor receives response counts only; final results show one correlated row per respondent after the four-person minimum |
+| `live-anonymous` | Join, hold WebSocket, and answer five questions | Counts update immediately; anonymous statistics update in groups of at least four; final results show correlated respondent rows after the session ends and the four-person minimum is met |
 | `quiz-named` | Load course sessions, open the quiz, autosave five answers, and submit | Final results preserve one row and five answers per student |
 | `quiz-anonymous` | Same quiz journey | Final results show one correlated row per respondent after the four-person minimum, without identities |
 
@@ -282,7 +281,7 @@ command line.
 
 Timing and sync variables:
 
-- `LIVE_STATS_DURING_ANSWERS`: default `false`. Set `true` to keep statistics enabled while answers arrive and exercise per-answer delivery to participants. Anonymous payloads remain count-only.
+- `LIVE_STATS_DURING_ANSWERS`: default `false`. Set `true` to keep statistics enabled while answers arrive and exercise per-answer delivery to participants. Anonymous answer content is delivered only in batches of at least four new respondents. Compare both stats-on and stats-off runs; the ordinary workload and production rate-limit configuration are unchanged.
 
 - `SESSION_CHAT_ENABLED`: set to `true`/`false` (or use
   `./run.sh --session-chat on|off`) to run the interactive session with session

@@ -56,6 +56,8 @@ An activity code opens only its own quiz or live session. It can be used by mult
 
 In a named code-accessible activity, enrolled students can receive grades, while participants who are outside the course have their responses tracked without receiving grades. Anonymous activities have no grades for anyone. Anonymous responses are correlated across questions under one respondent label, but the instructor sees the answer rows only after the activity ends and at least four people have answered every question and attempt with responses. A distinctive answer may still reveal who wrote it.
 
+Anonymous live statistics and shared answer lists update in groups of at least four new respondents per question and attempt. These live answers have no respondent labels linking them across questions. Linked respondent rows are available to the instructor only after the activity ends and the four-person minimum is met for every question and attempt with responses.
+
 ### If enrollment fails
 
 - Re-enter the current code; an instructor can regenerate it, making an older code invalid.

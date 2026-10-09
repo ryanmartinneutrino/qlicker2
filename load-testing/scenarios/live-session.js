@@ -114,6 +114,7 @@ const resultsDuration = new Trend('results_duration', true);
 const resultsSuccess = new Rate('results_success');
 const gradeContractSuccess = new Rate('grade_contract_success');
 const privacySuccess = new Rate('anonymous_privacy_success');
+const anonymousBatchStatsSuccess = new Rate('anonymous_batch_stats_success');
 const questionResponseCountSuccess = new Rate('question_response_count_success');
 
 const loginDuration = new Trend('login_duration', true);
@@ -202,7 +203,7 @@ const thresholds = {
   grade_contract_success: ['rate==1'],
   question_response_count_success: ['rate==1'],
   results_duration: ['p(95)<3000'],
-  ...(anonymous ? { anonymous_privacy_success: ['rate==1'] } : {}),
+  ...(anonymous ? { anonymous_privacy_success: ['rate==1'], anonymous_batch_stats_success: ['rate==1'] } : {}),
   ...(external ? { activity_redeem_success: ['rate==1'], activity_redeem_duration: ['p(95)<3000'] } : {}),
   session_completion: ['rate==1'],
   'login_duration{role:student}': ['p(95)<3000'],
@@ -425,11 +426,29 @@ function fetchLive(token, role, reason = 'live_refresh') {
   };
 }
 
+// k6 module state is private to each VU. Check publication gaps even if Redis
+// delivers batches out of order or a reconnect repeats an HTTP snapshot.
+const anonymousPublishedTotals = new Map();
+function isSafeAnonymousStats(stats, responseCount, questionId, attempt = 1) {
+  if (stats == null) return true;
+  const total = Number(stats.total);
+  if (total < 4 || total > responseCount || !Number.isInteger(total)) return false;
+  if (!(stats.answers || []).every((entry) => Object.keys(entry)
+    .every((key) => key === 'answer' || key === 'answerWysiwyg'))) return false;
+  const key = `${questionId}:${attempt}`;
+  const totals = anonymousPublishedTotals.get(key) || new Set([0]);
+  if ([...totals].some((previous) => previous !== total && Math.abs(previous - total) < 4)) return false;
+  totals.add(total);
+  anonymousPublishedTotals.set(key, totals);
+  return true;
+}
+
 function checkLivePrivacy(snapshot, role) {
   if (anonymous && role === 'professor') {
     const serialized = JSON.stringify(snapshot);
     privacySuccess.add(!!snapshot && (snapshot.allResponses || []).length === 0
-      && snapshot.responseStats == null && (snapshot.session?.joinedStudents || []).length === 0
+      && isSafeAnonymousStats(snapshot.responseStats, snapshot.responseCount, snapshot.currentQuestion?._id, snapshot.currentAttempt?.number)
+      && (snapshot.session?.joinedStudents || []).length === 0
       && students.every((student) => !serialized.includes(student.id)));
   }
   return snapshot;
@@ -751,7 +770,9 @@ function applyLiveResponseAddedDelta(previousData, eventPayload = {}) {
   const currentStats = previousData?.responseStats;
   let nextResponseStats = currentStats;
 
-  if (eventPayload?.responseStats && typeof eventPayload.responseStats === 'object') {
+  const staleAnonymousStats = previousData.session?.anonymous
+    && Number(eventPayload?.responseStats?.total || 0) < Number(currentStats?.total || 0);
+  if (eventPayload?.responseStats && typeof eventPayload.responseStats === 'object' && !staleAnonymousStats) {
     if (eventPayload.responseStats.type === 'distribution') {
       nextResponseStats = eventPayload.responseStats;
     } else {
@@ -780,7 +801,9 @@ function applyLiveResponseAddedDelta(previousData, eventPayload = {}) {
 
   return {
     ...previousData,
-    responseCount: eventPayload?.responseCount ?? previousData?.responseCount,
+    responseCount: previousData.session?.anonymous
+      ? Math.max(Number(eventPayload?.responseCount || 0), Number(previousData?.responseCount || 0))
+      : eventPayload?.responseCount ?? previousData?.responseCount,
     session: previousData?.session
       ? {
         ...previousData.session,
@@ -1388,6 +1411,11 @@ export function professorFlow() {
 
     const snapshot = fetchLive(professorToken, role, 'question_final_count').data;
     questionResponseCountSuccess.add(snapshot?.responseCount === students.length);
+    if (anonymous) {
+      const published = Number(snapshot?.responseStats?.total || 0);
+      anonymousBatchStatsSuccess.add(students.length < 4 ? published === 0
+        : published >= 4 && students.length - published >= 0 && students.length - published < 4);
+    }
 
     group(`question_${questionNumber}_stats`, () => {
       professorRequest(
@@ -1398,7 +1426,7 @@ export function professorFlow() {
         'show_stats',
       );
 
-      if (!anonymous && Number(question.type) === 2) {
+      if ((!anonymous || students.length >= 4) && Number(question.type) === 2) {
         professorRequest(
           'POST',
           `/sessions/${sessionId}/word-cloud`,
@@ -1408,7 +1436,7 @@ export function professorFlow() {
         );
       }
 
-      if (!anonymous && Number(question.type) === 4) {
+      if ((!anonymous || students.length >= 4) && Number(question.type) === 4) {
         professorRequest(
           'POST',
           `/sessions/${sessionId}/histogram`,
@@ -1598,7 +1626,7 @@ export function professorViewerFlow() {
         case 'session:response-added':
           {
             professorResponseEvents.add(1);
-            if (anonymous) privacySuccess.add(data.response == null && data.responseStats == null
+            if (anonymous) privacySuccess.add(data.response == null && isSafeAnonymousStats(data.responseStats, data.responseCount, data.questionId, data.attempt)
               && data.responseSubmittedAt == null);
             const submittedAtMs = parseTimestampMs(data?.responseSubmittedAt);
             const emittedAtMs = parseTimestampMs(data?.emittedAt);
@@ -2132,7 +2160,7 @@ export function studentFlow() {
             break;
 
           case 'session:response-added':
-            if (anonymous) privacySuccess.add(data.response == null && data.responseStats == null
+            if (anonymous) privacySuccess.add(data.response == null && isSafeAnonymousStats(data.responseStats, data.responseCount, data.questionId, data.attempt)
               && data.responseSubmittedAt == null);
             if (data?.responseStats || data?.response || data?.responseCount !== undefined || data?.joinedCount !== undefined) {
               liveData = syncLiveAfterEvent(
