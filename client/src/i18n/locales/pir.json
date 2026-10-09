@@ -1433,6 +1433,7 @@
       "correctVisible": "Right answer be in plain sight.",
       "sessionNotFound": "Voyage not found",
       "sessionEnded": "Voyage has docked.",
+      "sessionNotStarted": "This voyage has not begun yet. Wait fer yer captain.",
       "liveSessionFallback": "Underway Voyage",
       "attemptLabel": "Stab {{number}}",
       "responseSubmittedCheck": "✓ Reply turned in",
@@ -2321,7 +2322,8 @@
             "If a voyage depends on secret codes, watches, or in plain sight statistics, confirm those rigging afore crew begin joinin'.",
             "Voyage lists keep hunt, filters, an' pagination inside Hunt voyages. While an interactive voyage be underway, openin' its card joins th' underway controls directly; underway reckoning cards still open th' editor.",
             "Replies an' musters be stowed without the crew's names. This voyage won't be scored. The mask can't be changed once crew have boarded or replied. Masked live reckonings and untied answer lists update after at least four new mateys answer the riddle and attempt. Names and answer times stay hidden. Rows tied to one matey appear only after the voyage ends and at least four mateys answer every riddle and attempt with replies. A rare reply may still reveal someone.",
-            "Use the voyage switch to open or close sharing; the live code stays in sight after a refresh and can be forged anew. First enable code sharing in course settings, matey; it starts off. Turnin’ it off scuttles old codes and outside access. Clear individual quiz extensions afore sharing; they stay gone thereafter. To invite signed-in mateys outside yer ship, make a quiz or live voyage in the course and forge an S- activity code in the editor. Copy it at once; a new code bars new use of the old one, and disabling it revokes outside entry. Turnin’ sharing back on uses the same code; only forgin’ a new one replaces it. In a named voyage, enrolled mateys may earn marks; guest replies be tracked without marks. Turn on masking fer a survey with no marks fer any matey. Choose named or masked replies before the first code use. Masked rows appear only after the voyage ends and four mateys answer each riddle and attempt. A rare answer may still reveal a matey. The rotating live boarding code still applies when enabled."
+            "Use the voyage switch to open or close sharing; the live code stays in sight after a refresh and can be forged anew. First enable code sharing in course settings, matey; it starts off. Turnin’ it off scuttles old codes and outside access. Clear individual quiz extensions afore sharing; they stay gone thereafter. To invite signed-in mateys outside yer ship, make a quiz or live voyage in the course and forge an S- activity code in the editor. Copy it at once; a new code bars new use of the old one, and disabling it revokes outside entry. Turnin’ sharing back on uses the same code; only forgin’ a new one replaces it. In a named voyage, enrolled mateys may earn marks; guest replies be tracked without marks. Turn on masking fer a survey with no marks fer any matey. Choose named or masked replies before the first code use. Masked rows appear only after the voyage ends and four mateys answer each riddle and attempt. A rare answer may still reveal a matey. The rotating live boarding code still applies when enabled.",
+            "If the captain moves a live voyage to Upcoming, mateys see a waitin’ screen till it sails Live again. Draft sends enrolled crew back to the course and guests to their dashboard. Saved answers stay aboard."
           ]
         },
         {
@@ -2431,7 +2433,8 @@
             "If yer officer reveals statistics fer a word cloud or histogram, th' view should amend automatically without a freshen.",
             "Fer short-answer riddles, th' shared reply list can be revealed or stowed away separately from th' word cloud, so ye may see one without th' other.",
             "Scroll o’er a numerical answer and its value stays put, matey. The input loses focus so the page can sail along. Click or tab back into the field to keep editing.",
-            "A Masked label means yer captain sees yer replies without yer name. Ye still sign aboard an' can answer each question but once, ye can review yer own replies later, an' the voyage earns no plunder."
+            "A Masked label means yer captain sees yer replies without yer name. Ye still sign aboard an' can answer each question but once, ye can review yer own replies later, an' the voyage earns no plunder.",
+            "If the captain moves a live voyage to Upcoming, mateys see a waitin’ screen till it sails Live again. Draft sends enrolled crew back to the course and guests to their dashboard. Saved answers stay aboard."
           ]
         },
         {

@@ -58,6 +58,8 @@ In a named code-accessible activity, enrolled students can receive grades, while
 
 Anonymous live statistics and shared answer lists update in groups of at least four new respondents per question and attempt. These live answers have no respondent labels linking them across questions. Linked respondent rows are available to the instructor only after the activity ends and the four-person minimum is met for every question and attempt with responses.
 
+When an instructor changes a live session to **Upcoming**, you see a waiting screen until it returns to **Live**. **Draft** sends enrolled students back to the course page and guests back to their dashboard. Saved answers are preserved.
+
 ### If enrollment fails
 
 - Re-enter the current code; an instructor can regenerate it, making an older code invalid.

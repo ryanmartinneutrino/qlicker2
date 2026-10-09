@@ -3019,7 +3019,7 @@ async function notifyResponseAdded(app, course, session, data, { includeStudents
     attempt,
     responseCount: Number(data?.responseCount || 0),
     joinedCount: Number(data?.joinedCount || 0),
-    ...(!anonymousSession ? { responseSubmittedAt: response?.submittedAt || response?.createdAt || null } : {}),
+    ...(anonymousSession ? { anonymous: true } : { responseSubmittedAt: response?.submittedAt || response?.createdAt || null }),
   };
   sendToInstructors(app, course, 'session:response-added', {
     ...payload,
@@ -5876,6 +5876,19 @@ export default async function sessionRoutes(app) {
         && parseBooleanQuery(request.query?.includeJoinedStudents);
       const userId = getSessionParticipantId(session, request.user.userId);
       let isJoined = (session.joined || []).includes(userId);
+
+      // Inactive interactive sessions expose only enough state for participants
+      // to leave a draft or display Upcoming/Ended. Do not load questions or
+      // responses until the instructor returns the session to Live.
+      if (!isInstrOrAdmin && !session.quiz && session.status !== 'running') {
+        return {
+          session: { _id: session._id, name: session.name, status: session.status, anonymous: anonymousSession, chatEnabled: false },
+          isJoined,
+          currentQuestion: null, currentAttempt: null, studentResponse: null,
+          responseStats: null, wordCloudData: null, histogramData: null,
+          questionHidden: true, showStats: false, showCorrect: false,
+        };
+      }
 
       // Fetch current question
       let currentQuestion = null;

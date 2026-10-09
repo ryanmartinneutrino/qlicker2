@@ -6572,3 +6572,40 @@ describe('Histogram in /sessions/:id/live', () => {
     expect(body.currentQuestion?.sessionOptions?.histogramData).toBeUndefined();
   });
 });
+
+describe('inactive interactive participant snapshots', () => {
+  it.each([false, true])('withholds questions outside Live and preserves answers when resumed (anonymous=%s)', async (anonymous) => {
+    const { profToken, course, studentToken } = await setupCourseWithStudent();
+    const session = (await createSessionInCourse(profToken, course._id, { anonymous })).json().session;
+    const question = await createQuestionInSession(profToken, {
+      sessionId: session._id, courseId: course._id, type: 2, content: '<p>Live-only question</p>', options: [],
+    });
+    const call = (method, suffix, token, payload) => authenticatedRequest(app, method, `/api/v1/sessions/${session._id}${suffix}`, { token, payload });
+    expect((await call('POST', '/start', profToken)).statusCode).toBe(200);
+    await call('PATCH', '/question-visibility', profToken, { hidden: false, stats: true });
+    await call('POST', '/join', studentToken, {});
+    expect((await call('POST', '/respond', studentToken, { answer: 'Keep my response' })).statusCode).toBe(201);
+    for (const status of ['visible', 'hidden', 'done']) {
+      const changed = await call('PATCH', '', profToken, { status });
+      expect(changed.statusCode).toBe(200);
+      const questionRead = vi.spyOn(Question, 'findById');
+      const responseRead = vi.spyOn(Response, 'findOne');
+      const live = await call('GET', '/live', studentToken);
+      expect(live.statusCode).toBe(200);
+      expect(live.json()).toMatchObject({
+        session: { status }, isJoined: true, currentQuestion: null, studentResponse: null,
+        responseStats: null, wordCloudData: null, histogramData: null, showStats: false, showCorrect: false,
+      });
+      expect(questionRead).not.toHaveBeenCalled();
+      expect(responseRead).not.toHaveBeenCalled();
+      questionRead.mockRestore();
+      responseRead.mockRestore();
+      expect((await call('POST', '/respond', studentToken, { answer: 'Blocked' })).statusCode).toBe(400);
+      expect((await call('GET', '/live', profToken)).json().currentQuestion._id).toBe(question._id);
+      await call('PATCH', '', profToken, { status: 'running' });
+      const resumed = (await call('GET', '/live', studentToken)).json();
+      expect(resumed.currentQuestion._id).toBe(question._id);
+      expect(resumed.studentResponse.answer).toBe('Keep my response');
+    }
+  });
+});

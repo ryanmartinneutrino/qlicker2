@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo, useLayoutEffect } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import {
   Box, Typography, Button, Paper, Alert, CircularProgress, Chip,
   TextField, Radio, RadioGroup, FormControlLabel, Checkbox, FormGroup,
@@ -231,7 +231,7 @@ function LiveSessionContent() {
   // --------------------------------------------------
 
   useEffect(() => {
-    if (!liveData || liveData.isJoined || autoJoinAttempted) return;
+    if (!liveData || liveData.session?.status !== 'running' || liveData.isJoined || autoJoinAttempted) return;
     if (liveData.session?.joinCodeActive || liveData.session?.joinCodeEnabled) return; // passcode protection enabled
 
     setAutoJoinAttempted(true);
@@ -399,14 +399,19 @@ function LiveSessionContent() {
   }
 
   // --------------------------------------------------
-  // Render: session ended
+  // Render: inactive session. Keep the socket mounted for Upcoming/Ended so
+  // returning to Live restores the question through the existing status refresh.
   // --------------------------------------------------
 
-  if (session.status === 'done') {
+  if (session.status === 'hidden') {
+    return <Navigate to={courseBackLink} replace />;
+  }
+
+  if (session.status === 'done' || session.status === 'visible') {
     return (
         <Box sx={{ p: 4, maxWidth: 600, mx: 'auto', textAlign: 'center' }}>
           <Alert severity="info" sx={{ mb: 3, justifyContent: 'center' }}>
-            {t('student.liveSession.sessionEnded')}
+            {t(session.status === 'done' ? 'student.liveSession.sessionEnded' : 'student.liveSession.sessionNotStarted')}
           </Alert>
           <BackLinkButton variant="outlined" label={t(isOutsideActivity ? 'common.backToDashboard' : 'student.liveSession.backToCourse')} onClick={() => navigate(courseBackLink)} />
         </Box>

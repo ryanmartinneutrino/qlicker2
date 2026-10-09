@@ -1433,6 +1433,7 @@
       "correctVisible": "Correct answer is visible.",
       "sessionNotFound": "Session not found",
       "sessionEnded": "Session has ended.",
+      "sessionNotStarted": "This session has not started yet. Please wait for your instructor.",
       "liveSessionFallback": "Live Session",
       "attemptLabel": "Attempt {{number}}",
       "responseSubmittedCheck": "✓ Response submitted",
@@ -2368,7 +2369,8 @@
             "If a session depends on passcodes, groups, or visible statistics, confirm those settings before students begin joining.",
             "Session lists keep search, filters, and pagination inside Search sessions. While an interactive session is live, opening its card joins the live controls directly; live quiz cards still open the editor.",
             "Responses and attendance are stored without student identities. This session will not be graded. Anonymity cannot be changed after students have joined or responded. Anonymous live statistics and unlinked answer lists update after at least four new people respond to the question and attempt. Names and answer times are hidden. Linked respondent rows become available only after the activity ends and at least four people have answered every question and attempt with responses. Unique answers may still identify someone.",
-            "Use the session switch to turn sharing on or off; the active code remains visible after a refresh and can be regenerated. First enable activity-code sharing in Course settings; it is off by default. Turning it off revokes existing codes and outside access. Remove individual quiz extensions before sharing; they remain unavailable after sharing. To invite signed-in people outside the course, create a quiz or live session in the course and generate an S- activity code in its editor. Copy it when shown; regenerating stops new use of the old code, and disabling revokes outside access. Turning sharing back on reuses the same code; only Regenerate code replaces it. In a named activity, enrolled students can receive grades; guests have tracked responses but no grade items. Turn on anonymity for a survey with no grade items for anyone. Choose named or anonymous responses before anyone redeems the code; anonymous respondent rows appear only after the activity ends and four people answer every question and attempt. Unique answers may still reveal someone. The rotating live join code still applies when enabled."
+            "Use the session switch to turn sharing on or off; the active code remains visible after a refresh and can be regenerated. First enable activity-code sharing in Course settings; it is off by default. Turning it off revokes existing codes and outside access. Remove individual quiz extensions before sharing; they remain unavailable after sharing. To invite signed-in people outside the course, create a quiz or live session in the course and generate an S- activity code in its editor. Copy it when shown; regenerating stops new use of the old code, and disabling revokes outside access. Turning sharing back on reuses the same code; only Regenerate code replaces it. In a named activity, enrolled students can receive grades; guests have tracked responses but no grade items. Turn on anonymity for a survey with no grade items for anyone. Choose named or anonymous responses before anyone redeems the code; anonymous respondent rows appear only after the activity ends and four people answer every question and attempt. Unique answers may still reveal someone. The rotating live join code still applies when enabled.",
+            "If an instructor changes a live session to Upcoming, participants see a waiting screen until it returns to Live. Draft sends enrolled students back to the course and guests back to their dashboard. Saved answers are preserved."
           ]
         },
         {
@@ -2478,7 +2480,8 @@
             "If your instructor reveals statistics for a word cloud or histogram, the view should update automatically without a refresh.",
             "For short-answer questions, the shared response list can be shown or hidden separately from the word cloud, so you may see one without the other.",
             "Scrolling over a numerical answer leaves its value unchanged and moves focus out of the input so the page can scroll. Click or tab back into the input to continue editing.",
-            "An Anonymous label means your instructor sees your answers without your name. You still sign in and can answer each question only once, you can review your own answers later, and the session is not graded."
+            "An Anonymous label means your instructor sees your answers without your name. You still sign in and can answer each question only once, you can review your own answers later, and the session is not graded.",
+            "If an instructor changes a live session to Upcoming, participants see a waiting screen until it returns to Live. Draft sends enrolled students back to the course and guests back to their dashboard. Saved answers are preserved."
           ]
         },
         {

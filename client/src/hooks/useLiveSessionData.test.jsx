@@ -84,3 +84,19 @@ describe('shared student/presentation live state', () => {
     expect(nextCallback).not.toHaveBeenCalled();
   });
 });
+
+it.each(['student', 'presentation'])('handles withheld anonymous batches for %s without scheduling HTTP refreshes', async (role) => {
+  const { result, unmount } = renderHook(() => useLiveSessionData({ sessionId: 's1', role }));
+  await waitFor(() => expect(result.current.loading).toBe(false));
+  vi.useFakeTimers();
+  try {
+    const pending = { anonymous: true, questionId: 'q1', attempt: 1, responseCount: 3 };
+    act(() => emit('session:response-added', role === 'student' ? pending : { questionId: 'q1', audience: pending }));
+    await act(async () => { vi.advanceTimersByTime(2500); });
+    expect(result.current.liveData.responseCount).toBe(3);
+    expect(apiClient.get).toHaveBeenCalledTimes(1);
+  } finally {
+    unmount();
+    vi.useRealTimers();
+  }
+});
