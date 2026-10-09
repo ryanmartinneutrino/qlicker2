@@ -232,18 +232,18 @@ describe('anonymous activity code boundary', () => {
 });
 
 
-describe('outside activity participation', () => {
-  async function addQuestion({ session, course, professor, type = 2 }) {
-    const question = await Question.create({
-      type, creator: professor._id, sessionId: session._id, courseId: course._id,
-      content: '<p>Survey question</p>', plainText: 'Survey question',
-      options: type === 0 ? [{ content: 'Yes', correct: true }, { content: 'No', correct: false }] : [],
-      sessionOptions: { hidden: false, attempts: [{ number: 1, closed: false }] },
-    });
-    await Session.updateOne({ _id: session._id }, { $addToSet: { questions: question._id } });
-    return question;
-  }
+async function addQuestion({ session, course, professor, type = 2 }) {
+  const question = await Question.create({
+    type, creator: professor._id, sessionId: session._id, courseId: course._id,
+    content: '<p>Survey question</p>', plainText: 'Survey question',
+    options: type === 0 ? [{ content: 'Yes', correct: true }, { content: 'No', correct: false }] : [],
+    sessionOptions: { hidden: false, attempts: [{ number: 1, closed: false }] },
+  });
+  await Session.updateOne({ _id: session._id }, { $addToSet: { questions: question._id } });
+  return question;
+}
 
+describe('outside activity participation', () => {
   for (const anonymous of [false, true]) {
     it(`${anonymous ? 'anonymous' : 'named'} outside quiz keeps response identity and grade isolation`, async () => {
       const context = await fixture({ anonymous });
@@ -654,4 +654,58 @@ describe('shared activity safeguards', () => {
     for (const user of users) expect(serialized).not.toContain(user._id);
     expect(await Grade.countDocuments({ sessionId: session._id })).toBe(0);
   });
+});
+
+describe('upcoming interactive admission', () => {
+  for (const anonymous of [false, true]) {
+    it.each([false, true])(`waiting does not admit participants and current join codes apply (anonymous=${anonymous}, enrolled=%s)`, async (enrolled) => {
+      const context = await fixture({ anonymous, quiz: false });
+      const { professorToken, outsiderToken, outsider, course, session } = context;
+      await addQuestion({ ...context, type: 0 });
+      const call = (method, path, token, payload) => authenticatedRequest(app, method, `/api/v1/sessions/${session._id}${path}`, { token, payload });
+      expect((await call('PATCH', '', professorToken, { status: 'visible' })).statusCode).toBe(200);
+      if (enrolled) {
+        expect((await authenticatedRequest(app, 'POST', '/api/v1/courses/enroll', {
+          token: outsiderToken, payload: { enrollmentCode: course.enrollmentCode },
+        })).statusCode).toBe(200);
+      } else {
+        const code = (await issue(session._id, professorToken)).json().code;
+        expect((await redeem(code, outsiderToken)).statusCode).toBe(200);
+      }
+      for (let read = 0; read < 2; read += 1) {
+        const waiting = (await call('GET', '/live', outsiderToken)).json();
+        expect(waiting).toMatchObject({ session: { status: 'visible' }, isJoined: false, currentQuestion: null });
+      }
+      expect((await call('POST', '/join', outsiderToken, {})).statusCode).toBe(400);
+      let stored = await Session.findById(session._id).lean();
+      expect(stored.joined).toEqual([]);
+      expect(stored.joinRecords).toEqual([]);
+      expect(!!stored.participationStarted).toBe(!enrolled); // Only code redemption has locked identity.
+      expect((await call('PATCH', '', professorToken, { name: 'Edited while waiting', joinCodeEnabled: true })).statusCode).toBe(200);
+      expect((await call('POST', '/start', professorToken)).statusCode).toBe(200);
+      const beforeAdmission = (await call('GET', '/live', outsiderToken)).json();
+      expect(beforeAdmission).toMatchObject({ session: { joinCodeEnabled: true, joinCodeActive: false }, isJoined: false, currentQuestion: null });
+      expect((await call('POST', '/join', outsiderToken, {})).statusCode).toBe(403);
+      const open = await call('PATCH', '/join-code-settings', professorToken, { joinCodeActive: true });
+      expect(open.statusCode).toBe(200);
+      const firstCode = open.json().session.currentJoinCode;
+      expect((await call('POST', '/join', outsiderToken, {})).statusCode).toBe(400);
+      expect((await call('POST', '/join', outsiderToken, { joinCode: 'wrong' })).statusCode).toBe(403);
+      const rotated = await call('POST', '/refresh-join-code', professorToken, { force: true });
+      expect(rotated.statusCode).toBe(200);
+      const current = await Session.findById(session._id).lean();
+      if (current.currentJoinCode !== firstCode) {
+        expect((await call('POST', '/join', outsiderToken, { joinCode: firstCode })).statusCode).toBe(403);
+      }
+      const live = (await call('GET', '/live', outsiderToken)).json();
+      expect(live.session.currentJoinCode).toBeUndefined();
+      expect(live.isJoined).toBe(false);
+      expect((await call('POST', '/join', outsiderToken, { joinCode: current.currentJoinCode })).statusCode).toBe(200);
+      stored = await Session.findById(session._id).lean();
+      expect(stored.joined).toEqual([getSessionParticipantId(stored, outsider._id)]);
+      expect(stored.joinRecords).toHaveLength(anonymous ? 0 : 1);
+      await call('PATCH', '/join-code-settings', professorToken, { joinCodeActive: false });
+      expect((await call('GET', '/live', outsiderToken)).json().isJoined).toBe(true);
+    });
+  }
 });

@@ -60,6 +60,8 @@ Anonymous live statistics and shared answer lists update in groups of at least f
 
 When an instructor changes a live session to **Upcoming**, you see a waiting screen until it returns to **Live**. **Draft** sends enrolled students back to the course page and guests back to their dashboard. Saved answers are preserved.
 
+For an **Upcoming** interactive session, enrolled students can select **Open waiting page**; guests can enter its **S- activity code** through **Join activity**. Waiting does not record attendance. The instructor can still edit the session and require a live join code. When the session goes **Live**, participants wait for a question or enter the join code once the instructor opens the join period. Redeeming an activity code still locks the anonymity setting.
+
 ### If enrollment fails
 
 - Re-enter the current code; an instructor can regenerate it, making an older code invalid.

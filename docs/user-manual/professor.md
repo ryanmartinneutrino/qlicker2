@@ -224,6 +224,8 @@ Use **Set all question points** only after considering ungraded slides and delib
 - **Anonymous responses** hides who gave each answer. See [Run an anonymous survey](#run-an-anonymous-survey).
 - Session tags help organize and apply tags to questions.
 
+For an **Upcoming** interactive session, enrolled students can select **Open waiting page**; guests can enter its **S- activity code** through **Join activity**. Waiting does not record attendance. The instructor can still edit the session and require a live join code. When the session goes **Live**, participants wait for a question or enter the join code once the instructor opens the join period. Redeeming an activity code still locks the anonymity setting.
+
 Do a student-view rehearsal before a high-stakes activity. Confirm the session appears on the intended tab and that solutions are not exposed early.
 
 ### Run an anonymous survey
