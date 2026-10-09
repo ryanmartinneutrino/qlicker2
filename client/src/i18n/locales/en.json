@@ -1,5 +1,12 @@
 {
   "common": {
+    "backToDashboard": "Back to dashboard",
+    "participantRoles": {
+      "student": "Student",
+      "guest": "Guest",
+      "instructor": "Instructor",
+      "professor": "Professor"
+    },
     "appName": "Qlicker",
     "loading": "Loading…",
     "cancel": "Cancel",
@@ -61,7 +68,8 @@
     "option": "Option {{letter}}",
     "ta": "TA",
     "redirecting": "Redirecting…",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "rowsPerPage": "Rows per page"
   },
   "autoSave": {
     "errorNotSaved": "Changes could not be saved. Your last change was not recorded.",
@@ -868,7 +876,11 @@
       "aiRequiresAdminAuthorization": "Requires admin authorization",
       "aiHelperHelp": "Enable an AI assistant to help with grading, generate questions, manage sessions and students.",
       "enrollmentCodeHelp": "This is the code students need to enroll in the course.",
-      "anonymousSession": "Anonymous"
+      "anonymousSession": "Anonymous",
+      "allowSharedActivities": "Allow activities to be shared by code",
+      "allowSharedActivitiesHelp": "Allows quizzes and interactive sessions in this course to be shared by code with signed-in people who are not enrolled. Turning this off revokes outside access.",
+      "searchSessionsPlaceholder": "Search by session name",
+      "noSessionsMatchFilters": "No sessions match the current filters."
     },
     "sessionEditor": {
       "sessionSettings": "Session Settings",
@@ -1006,7 +1018,27 @@
       "anonymousHelp": "Instructors see the answers but not who gave them. Students still sign in and can answer only once. Anonymous sessions are not graded and do not appear in the gradebook.",
       "anonymousEnabledNote": "Responses and attendance are stored without student identities. This session will not be graded.",
       "anonymousNoExtensions": "Individual quiz extensions are unavailable for anonymous sessions.",
-      "anonymousLockedNote": "Anonymity cannot be changed after students have joined or responded."
+      "anonymousLockedNote": "Anonymity cannot be changed after students have joined or responded.",
+      "activityCodeTitle": "Share by activity code",
+      "activityCodeHelp": "Signed-in users with this code can access this activity without enrolling in the course. Enrolled students can receive grades; guest responses are tracked without grades. If responses are also anonymized, the activity can function like a survey, with no grades for anyone.",
+      "sharedNamedGradingInfo": "Enrolled students can receive grades. Guests can respond, but receive no grades or course gradebook entries.",
+      "sharedAnonymousSurveyInfo": "Anonymous sharing creates a survey: responses stay linked across questions, and nobody receives a grade. Answer rows appear only after at least four people answer each question and attempt.",
+      "activityCodeExpires": "Code expires {{date}}",
+      "activityCodeLabel": "Activity code",
+      "generateActivityCode": "Generate code",
+      "rotateActivityCode": "Regenerate code",
+      "disableActivityCode": "Disable code",
+      "activityCodeError": "Could not change activity sharing.",
+      "removeExtensionsBeforeSharing": "Remove individual quiz extensions before generating an activity code.",
+      "sharedNoExtensions": "Individual quiz extensions are unavailable after this activity has been shared by code.",
+      "courseSharingDisabled": "Enable activity-code sharing in the course settings first.",
+      "allowActivityCodeAccess": "Enable sharing this activity outside the course",
+      "disableActivityCodeHelp": "Turning this off makes the stored code unusable and revokes outside access. Turning it on again reuses the same code. Regenerate code replaces it and invalidates the old code. Enrolled students retain their grade eligibility in a named activity.",
+      "activityCodeUnavailable": "This code cannot be displayed. Regenerate it to show a new persistent code.",
+      "sessionName": "Session name",
+      "tags": "Session tags",
+      "tagsPlaceholder": "Add a topic tag",
+      "tagsHelp": "Use tags that describe the specific topic covered by this session and its questions."
     },
     "liveSession": {
       "currentQuestion": "Current question",
@@ -1100,6 +1132,7 @@
       "studentsJoined": "{{count}} students joined.",
       "studentsResponded": "{{responded}} of {{total}} students responded.",
       "respondedSummary": "{{responded}} / {{total}} responded",
+      "anonymousStatsBatches": "Live results update in groups of at least four new respondents. Showing {{count}} responses.",
       "respondedSummaryAria": "{{responded}} of {{total}} students have responded",
       "questionControls": "Question Controls",
       "controlsTab": "Controls",
@@ -1133,6 +1166,10 @@
       "name": "Name",
       "email": "Email",
       "grade": "Grade",
+      "guest": "Guest",
+      "guestNoGrade": "No grade",
+      "guestResponses": "Guest responses",
+      "guestResponsesHelp": "Guest answers are tracked here for review. Guests do not receive grades.",
       "participation": "Participation",
       "noQuestions": "This session has no questions.",
       "noResults": "No student results available.",
@@ -1215,7 +1252,8 @@
       "noAnswersMatch": "No answers match the filter.",
       "anonymousResponsesTable": "Anonymous responses",
       "response": "Response",
-      "correctColumn": "Correct"
+      "correctColumn": "Correct",
+      "unsavedSummaryInstructionWarning": "Save or cancel your instruction edits before generating the summary."
     },
     "secondDesktop": {
       "joinCode": "Join Code",
@@ -1276,6 +1314,13 @@
     "dashboard": {
       "myCourses": "My Courses",
       "enrollInCourse": "Enroll in Course",
+      "joinActivity": "Join activity",
+      "activityCode": "Activity code",
+      "activityCodeHelp": "Enter an activity code starting with S- to open a quiz or interactive session without enrolling in its course.",
+      "activityCodeRequired": "Enter an activity code beginning with S-.",
+      "activityCodeUseJoin": "This is an activity code. Use Join activity instead.",
+      "failedJoinActivity": "Could not join the activity.",
+      "joiningActivity": "Joining activity…",
       "noCoursesYet": "No courses yet",
       "enrollMessage": "Use an enrollment code from your instructor to join a course.",
       "section": "Section: {{section}}",
@@ -1286,7 +1331,11 @@
       "enrollSuccess": "Successfully enrolled in course",
       "failedEnroll": "Failed to enroll",
       "inactiveCourseCannotEnroll": "This course is inactive and cannot be joined right now.",
-      "failedLoadCourses": "Failed to load courses"
+      "failedLoadCourses": "Failed to load courses",
+      "enterJoinCode": "Enter a code",
+      "courseOrActivityCode": "Course or activity code",
+      "courseOrActivityCodeHelp": "Enter a course enrollment code or an activity code from your instructor.",
+      "continueWithCode": "Continue"
     },
     "course": {
       "lectures": "Lectures",
@@ -1307,6 +1356,7 @@
       "quizSubmitted": "Quiz submitted",
       "upcomingQuiz": "Upcoming quiz",
       "joinLive": "Join live",
+      "openWaitingPage": "Open waiting page",
       "startQuiz": "Start quiz",
       "resumeQuiz": "Resume quiz",
       "submitQuiz": "Submit quiz",
@@ -1384,6 +1434,7 @@
       "correctVisible": "Correct answer is visible.",
       "sessionNotFound": "Session not found",
       "sessionEnded": "Session has ended.",
+      "sessionNotStarted": "This session has not started yet. Please wait for your instructor.",
       "liveSessionFallback": "Live Session",
       "attemptLabel": "Attempt {{number}}",
       "responseSubmittedCheck": "✓ Response submitted",
@@ -1753,6 +1804,7 @@
       "noAutoConflicts": "No auto-gradeable conflicts to apply.",
       "appliedAutoPartial": "Applied automatic marks where supported. {{count}} conflict(s) require manual handling.",
       "avgParticipation": "Avg. Participation",
+      "notApplicable": "Not applicable",
       "firstName": "First name",
       "lastName": "Last name",
       "all": "All",
@@ -1900,11 +1952,11 @@
       "questionSelection": "Questions for AI grading",
       "includeQuestion": "Include question {{question}} in AI grading",
       "clickQuestionToEdit": "Click this row to edit its rubric",
-      "notEligible": "This question cannot be graded by AI"
-      ,"guidanceMissing": "Guidance required before grading"
-      ,"clearLog": "Clear log",
-      "logRunAt": "Run started: {{timestamp}}"
-      ,"inappropriateResponses": "Flagged inappropriate responses",
+      "notEligible": "This question cannot be graded by AI",
+      "guidanceMissing": "Guidance required before grading",
+      "clearLog": "Clear log",
+      "logRunAt": "Run started: {{timestamp}}",
+      "inappropriateResponses": "Flagged inappropriate responses",
       "noInappropriateResponses": "No inappropriate responses were flagged."
     }
   },
@@ -2060,7 +2112,8 @@
     "groupMembersTitle": "{{category}} — {{group}}",
     "uncategorizedGroup": "Uncategorized",
     "removeFromCourse": "Remove from course",
-    "confirmRemove": "Confirm Remove"
+    "confirmRemove": "Confirm Remove",
+    "noStudentsMatch": "No students match the current search."
   },
   "video": {
     "title": "Video Chat",
@@ -2316,7 +2369,10 @@
             "Practice quizzes feel more like guided rehearsal and are well suited for self-study or optional reinforcement.",
             "If a session depends on passcodes, groups, or visible statistics, confirm those settings before students begin joining.",
             "Session lists keep search, filters, and pagination inside Search sessions. While an interactive session is live, opening its card joins the live controls directly; live quiz cards still open the editor.",
-            "Turn on Anonymous responses in the session editor for surveys and course feedback. Students still sign in and answer each question once, but you see answers under labels such as Respondent 1 instead of names, the live view shows only how many students joined, and the session is never graded or added to the gradebook. The setting locks once anyone joins or answers, and very small groups can still be identified by elimination. Respondent rows appear only after the activity ends and at least four people have answered every question and attempt with responses; unique or self-identifying answers may still reveal someone."
+            "Responses and attendance are stored without student identities. This session will not be graded. Anonymity cannot be changed after students have joined or responded. Anonymous live statistics and unlinked answer lists update after at least four new people respond to the question and attempt. Names and answer times are hidden. Linked respondent rows become available only after the activity ends and at least four people have answered every question and attempt with responses. Unique answers may still identify someone.",
+            "Use the session switch to turn sharing on or off; the active code remains visible after a refresh and can be regenerated. First enable activity-code sharing in Course settings; it is off by default. Turning it off revokes existing codes and outside access. Remove individual quiz extensions before sharing; they remain unavailable after sharing. To invite signed-in people outside the course, create a quiz or live session in the course and generate an S- activity code in its editor. Copy it when shown; regenerating stops new use of the old code, and disabling revokes outside access. Turning sharing back on reuses the same code; only Regenerate code replaces it. In a named activity, enrolled students can receive grades; guests have tracked responses but no grade items. Turn on anonymity for a survey with no grade items for anyone. Choose named or anonymous responses before anyone redeems the code; anonymous respondent rows appear only after the activity ends and four people answer every question and attempt. Unique answers may still reveal someone. The rotating live join code still applies when enabled.",
+            "If an instructor changes a live session to Upcoming, participants see a waiting screen until it returns to Live. Draft sends enrolled students back to the course and guests back to their dashboard. Saved answers are preserved.",
+            "For an Upcoming interactive session, students can select Open waiting page; guests can enter its S- activity code. Waiting does not record attendance. The instructor can still edit the session and require a live join code. When the session goes Live, participants wait for a question or enter the join code once the instructor opens the join period."
           ]
         },
         {
@@ -2343,7 +2399,8 @@
             "The results tab now shows each student's actual session grade before participation, and clicking a student's avatar in the Students tab opens the larger profile photo.",
             "Grade detail dialogs now label question rows with both number and type, such as Q1(MC) or Q2(SA), and visually highlight rows that still need grading while ignoring stale zero-point grading flags.",
             "Students receive a notification when you publish new feedback, so use short, actionable comments that tell them what to revisit.",
-            "If group structures mattered during the activity, compare the review and grading data with the course groups so you can spot uneven participation patterns."
+            "If group structures mattered during the activity, compare the review and grading data with the course groups so you can spot uneven participation patterns.",
+            "Enrollment creates missing grades for completed course activities, including saved guest responses. Missed work receives zero without needing grading; written answers may need grading. Existing grades and feedback are preserved. Anonymous activities remain ungraded."
           ],
           "success": "Professors can open the student manual from the switcher above to preview the learner workflow before class."
         },
@@ -2369,7 +2426,8 @@
             "In Session Review, generate an AI response summary for an individual question by choosing a model and a saved summary instruction. You can monitor, halt, regenerate, and view the result without changing grades.",
             "In the Grading tab, use AI Grading Assistant only after saving separate grading and student-feedback instructions for each selected question. Review its progress, report, log, points, and feedback before making results visible.",
             "Manage reusable grading, feedback, and summary instructions in AI Settings and copy them from another course when appropriate.",
-            "Student AI Chat is a separate opt-in. Choose student-approved models, a default, guidance, and a smaller tool-round limit; students can access only visible/reviewable course data and their own grades."
+            "Student AI Chat is a separate opt-in. Choose student-approved models, a default, guidance, and a smaller tool-round limit; students can access only visible/reviewable course data and their own grades.",
+            "Save edited summary instructions before generating. The selected guidance controls the language, focus, and output format of each summarization stage."
           ],
           "warning": "AI output can be incomplete or wrong. Verify generated content, summaries, grades, feedback, dates, and proposed actions before relying on them."
         },
@@ -2403,7 +2461,9 @@
             "Session lists keep search, filters, and pagination inside a collapsible Search sessions area so you can expand controls only when you need them.",
             "If your institution requires verified email or SSO, finish that setup first before assuming the enrollment code is wrong.",
             "You usually only need the join code once per course. After it works, the course stays on your dashboard until you are removed or the course is archived for your account.",
-            "Watch the badge on your avatar in the app bar for active notifications, then open Notifications from the account menu to read or dismiss them."
+            "Watch the badge on your avatar in the app bar for active notifications, then open Notifications from the account menu to read or dismiss them.",
+            "Choose Join activity on the dashboard and enter an S- activity code to open a quiz or live session without enrolling in its course. A live session may also require its rotating join code. If you are not enrolled in the course, your responses are tracked but you receive no grade. Enrolled students can receive grades in named activities; anonymous activities have no grades. Anonymous live statistics and unlinked answer lists update after at least four new people respond to the question and attempt. Names and answer times are hidden. Linked respondent rows become available only after the activity ends and at least four people have answered every question and attempt with responses. Unique answers may still identify someone.",
+            "Enrollment creates missing grades for completed course activities, including saved guest responses. Missed work receives zero without needing grading; written answers may need grading. Existing grades and feedback are preserved. Anonymous activities remain ungraded."
           ],
           "screenshot": {
             "variant": "studentCourse",
@@ -2422,7 +2482,9 @@
             "If your instructor reveals statistics for a word cloud or histogram, the view should update automatically without a refresh.",
             "For short-answer questions, the shared response list can be shown or hidden separately from the word cloud, so you may see one without the other.",
             "Scrolling over a numerical answer leaves its value unchanged and moves focus out of the input so the page can scroll. Click or tab back into the input to continue editing.",
-            "An Anonymous label means your instructor sees your answers without your name. You still sign in and can answer each question only once, you can review your own answers later, and the session is not graded."
+            "An Anonymous label means your instructor sees your answers without your name. You still sign in and can answer each question only once, you can review your own answers later, and the session is not graded.",
+            "If an instructor changes a live session to Upcoming, participants see a waiting screen until it returns to Live. Draft sends enrolled students back to the course and guests back to their dashboard. Saved answers are preserved.",
+            "For an Upcoming interactive session, students can select Open waiting page; guests can enter its S- activity code. Waiting does not record attendance. The instructor can still edit the session and require a live join code. When the session goes Live, participants wait for a question or enter the join code once the instructor opens the join period."
           ]
         },
         {

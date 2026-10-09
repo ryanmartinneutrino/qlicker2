@@ -144,6 +144,17 @@ describe('CourseGradesPanel', () => {
     expect(screen.getByRole('button', { name: /87.5%/i })).toBeInTheDocument();
   });
 
+  it('shows a later-enrolled activity guest as not applicable instead of zero', async () => {
+    const payload = buildGradesPayload();
+    payload.rows[0].avgParticipation = null;
+    payload.rows[0].grades = [{ sessionId: 'session-1', notApplicable: true }];
+    apiClient.get.mockResolvedValue({ data: payload });
+    render(<CourseGradesPanel courseId="course-1" instructorView availableSessions={payload.sessions} />);
+    await openInstructorGradeTable();
+    expect(screen.getAllByText('Not applicable')).toHaveLength(3);
+    expect(screen.queryByRole('button', { name: /87.5%/i })).not.toBeInTheDocument();
+  });
+
   it('locks grade and question editors when an ended quiz has remaining extensions', async () => {
     const payload = buildGradesPayload();
     payload.sessions[0].gradingLockReason = 'extensions';

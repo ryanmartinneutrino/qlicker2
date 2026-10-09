@@ -1,5 +1,12 @@
 {
   "common": {
+    "backToDashboard": "Retour au tableau de bord",
+    "participantRoles": {
+      "student": "Étudiant",
+      "guest": "Invité",
+      "instructor": "Enseignant du cours",
+      "professor": "Professeur"
+    },
     "appName": "Qlicker",
     "loading": "Chargement…",
     "cancel": "Annuler",
@@ -61,7 +68,8 @@
     "option": "Option {{letter}}",
     "ta": "AC",
     "redirecting": "Redirection…",
-    "confirm": "Confirmer"
+    "confirm": "Confirmer",
+    "rowsPerPage": "Lignes par page"
   },
   "autoSave": {
     "errorNotSaved": "Les modifications n'ont pas pu être enregistrées. Votre dernière modification n'a pas été enregistrée.",
@@ -868,7 +876,11 @@
       "aiRequiresAdminAuthorization": "Autorisation administrateur requise",
       "aiHelperHelp": "Activez un assistant IA pour aider à la notation, générer des questions et gérer les séances et les étudiants.",
       "enrollmentCodeHelp": "C’est le code dont les étudiants ont besoin pour s’inscrire au cours.",
-      "anonymousSession": "Anonyme"
+      "anonymousSession": "Anonyme",
+      "allowSharedActivities": "Autoriser le partage des activités par code",
+      "allowSharedActivitiesHelp": "Permet de partager par code les quiz et séances interactives de ce cours avec des personnes connectées qui ne sont pas inscrites. La désactivation révoque leur accès.",
+      "searchSessionsPlaceholder": "Rechercher par nom de séance",
+      "noSessionsMatchFilters": "Aucune séance ne correspond aux filtres actuels."
     },
     "sessionEditor": {
       "sessionSettings": "Paramètres de la séance",
@@ -1006,7 +1018,27 @@
       "anonymousHelp": "Les enseignants voient les réponses mais pas qui les a données. Les étudiants se connectent toujours et ne peuvent répondre qu'une fois. Les sessions anonymes ne sont pas notées et n'apparaissent pas dans le carnet de notes.",
       "anonymousEnabledNote": "Les réponses et la présence sont enregistrées sans l'identité des étudiants. Cette session ne sera pas notée.",
       "anonymousNoExtensions": "Les prolongations individuelles ne sont pas disponibles pour les sessions anonymes.",
-      "anonymousLockedNote": "L'anonymat ne peut plus être modifié une fois que des étudiants ont rejoint la session ou répondu."
+      "anonymousLockedNote": "L'anonymat ne peut plus être modifié une fois que des étudiants ont rejoint la session ou répondu.",
+      "activityCodeTitle": "Partager avec un code d’activité",
+      "activityCodeHelp": "Les utilisateurs connectés disposant de ce code peuvent accéder à cette activité sans s’inscrire au cours. Les étudiants inscrits peuvent recevoir des notes ; les réponses des invités sont enregistrées sans être notées. Si les réponses sont aussi anonymisées, l’activité peut servir de sondage, sans notes pour personne.",
+      "sharedNamedGradingInfo": "Les étudiants inscrits peuvent recevoir des notes. Les invités peuvent répondre, mais ne reçoivent ni note ni entrée dans le carnet de notes.",
+      "sharedAnonymousSurveyInfo": "Le partage anonyme crée un sondage : les réponses restent liées entre questions et personne ne reçoit de note. Les lignes n’apparaissent qu’après quatre réponses par question et tentative.",
+      "activityCodeExpires": "Le code expire le {{date}}",
+      "activityCodeLabel": "Code d’activité",
+      "generateActivityCode": "Générer un code",
+      "rotateActivityCode": "Regénérer le code",
+      "disableActivityCode": "Désactiver le code",
+      "activityCodeError": "Impossible de modifier le partage de l’activité.",
+      "removeExtensionsBeforeSharing": "Supprimez les prolongations individuelles du quiz avant de générer un code d’activité.",
+      "sharedNoExtensions": "Les prolongations individuelles du quiz ne sont plus disponibles après le partage de cette activité par code.",
+      "courseSharingDisabled": "Activez d’abord le partage par code dans les paramètres du cours.",
+      "allowActivityCodeAccess": "Autoriser le partage de cette activité hors du cours",
+      "disableActivityCodeHelp": "La désactivation rend le code conservé inutilisable et révoque l’accès externe. La réactivation réutilise le même code. Régénérer le code le remplace et invalide l’ancien. Les étudiants inscrits restent admissibles aux notes dans une activité nominative.",
+      "activityCodeUnavailable": "Ce code ne peut pas être affiché. Régénérez-le pour afficher un nouveau code permanent.",
+      "sessionName": "Nom de la séance",
+      "tags": "Étiquettes de la séance",
+      "tagsPlaceholder": "Ajouter une étiquette de sujet",
+      "tagsHelp": "Utilisez des étiquettes décrivant le sujet précis de cette séance et de ses questions."
     },
     "liveSession": {
       "currentQuestion": "Question actuelle",
@@ -1100,6 +1132,7 @@
       "studentsJoined": "{{count}} étudiants connectés.",
       "studentsResponded": "{{responded}} de {{total}} étudiants ont répondu.",
       "respondedSummary": "{{responded}} / {{total}} ont répondu",
+      "anonymousStatsBatches": "Les résultats en direct sont mis à jour par groupes d’au moins quatre nouvelles personnes. {{count}} réponses affichées.",
       "respondedSummaryAria": "{{responded}} étudiants sur {{total}} ont répondu",
       "questionControls": "Contrôles de question",
       "controlsTab": "Contrôles",
@@ -1133,6 +1166,10 @@
       "name": "Nom",
       "email": "E-mail",
       "grade": "Note",
+      "guest": "Invité",
+      "guestNoGrade": "Sans note",
+      "guestResponses": "Réponses des invités",
+      "guestResponsesHelp": "Les réponses des invités sont conservées ici pour consultation. Les invités ne reçoivent pas de notes.",
       "participation": "Participation",
       "noQuestions": "Cette séance n'a pas de questions.",
       "noResults": "Aucun résultat d'étudiant disponible.",
@@ -1215,7 +1252,8 @@
       "noAnswersMatch": "Aucune réponse ne correspond au filtre.",
       "anonymousResponsesTable": "Réponses anonymes",
       "response": "Réponse",
-      "correctColumn": "Correcte"
+      "correctColumn": "Correcte",
+      "unsavedSummaryInstructionWarning": "Enregistrez ou annulez vos modifications aux consignes avant de générer le résumé."
     },
     "secondDesktop": {
       "joinCode": "Code d'inscription",
@@ -1276,6 +1314,13 @@
     "dashboard": {
       "myCourses": "Mes cours",
       "enrollInCourse": "S'inscrire à un cours",
+      "joinActivity": "Rejoindre une activité",
+      "activityCode": "Code d’activité",
+      "activityCodeHelp": "Entrez un code d’activité commençant par S- pour ouvrir un quiz ou une séance interactive sans vous inscrire au cours.",
+      "activityCodeRequired": "Entrez un code d’activité commençant par S-.",
+      "activityCodeUseJoin": "Il s’agit d’un code d’activité. Utilisez Rejoindre une activité.",
+      "failedJoinActivity": "Impossible de rejoindre l’activité.",
+      "joiningActivity": "Connexion à l’activité…",
       "noCoursesYet": "Aucun cours pour l'instant",
       "enrollMessage": "Utilisez un code d'inscription de votre enseignant pour rejoindre un cours.",
       "section": "Section : {{section}}",
@@ -1286,7 +1331,11 @@
       "enrollSuccess": "Inscription au cours réussie",
       "failedEnroll": "Échec de l'inscription",
       "inactiveCourseCannotEnroll": "Ce cours est inactif et ne peut pas être rejoint pour le moment.",
-      "failedLoadCourses": "Échec du chargement des cours"
+      "failedLoadCourses": "Échec du chargement des cours",
+      "enterJoinCode": "Entrer un code",
+      "courseOrActivityCode": "Code de cours ou d’activité",
+      "courseOrActivityCodeHelp": "Entrez un code d’inscription au cours ou un code d’activité fourni par votre enseignant.",
+      "continueWithCode": "Continuer"
     },
     "course": {
       "lectures": "Cours magistraux",
@@ -1307,6 +1356,7 @@
       "quizSubmitted": "Questionnaire soumis",
       "upcomingQuiz": "Questionnaire à venir",
       "joinLive": "Rejoindre en direct",
+      "openWaitingPage": "Ouvrir la page d’attente",
       "startQuiz": "Commencer le questionnaire",
       "resumeQuiz": "Reprendre le questionnaire",
       "submitQuiz": "Soumettre le questionnaire",
@@ -1384,6 +1434,7 @@
       "correctVisible": "La bonne réponse est visible.",
       "sessionNotFound": "Session introuvable",
       "sessionEnded": "La session est terminée.",
+      "sessionNotStarted": "Cette séance n’a pas encore commencé. Veuillez attendre votre enseignant.",
       "liveSessionFallback": "Session en direct",
       "attemptLabel": "Tentative {{number}}",
       "responseSubmittedCheck": "✓ Réponse soumise",
@@ -1753,6 +1804,7 @@
       "noAutoConflicts": "Aucun conflit auto-évaluable à appliquer.",
       "appliedAutoPartial": "Notes automatiques appliquées lorsque possible. {{count}} conflit(s) nécessitent un traitement manuel.",
       "avgParticipation": "Participation moy.",
+      "notApplicable": "Sans objet",
       "firstName": "Prénom",
       "lastName": "Nom de famille",
       "all": "Tous",
@@ -2013,7 +2065,8 @@
     "groupMembersTitle": "{{category}} — {{group}}",
     "uncategorizedGroup": "Sans catégorie",
     "removeFromCourse": "Retirer du cours",
-    "confirmRemove": "Confirmer le retrait"
+    "confirmRemove": "Confirmer le retrait",
+    "noStudentsMatch": "Aucun étudiant ne correspond à la recherche actuelle."
   },
   "video": {
     "title": "Chat vidéo",
@@ -2269,7 +2322,10 @@
             "Les quiz de pratique conviennent bien à l'étude personnelle ou au renforcement facultatif.",
             "Si une séance dépend des codes d'accès, des groupes ou des statistiques visibles, confirmez ces réglages avant que les étudiants commencent à se joindre.",
             "Les listes de séances gardent la recherche, les filtres et la pagination dans Rechercher des séances. Lorsqu'une séance interactive est en direct, l'ouverture de sa carte rejoint directement les contrôles en direct; les cartes de quiz en direct ouvrent encore l'éditeur.",
-            "Activez Réponses anonymes dans l'éditeur de session pour les sondages et les évaluations de cours. Les étudiants se connectent toujours et répondent une seule fois à chaque question, mais vous voyez les réponses sous des libellés comme Répondant 1 plutôt que des noms, la vue en direct n'indique que le nombre d'étudiants présents, et la session n'est jamais notée ni ajoutée au carnet de notes. Le réglage est verrouillé dès qu'une personne rejoint la session ou répond, et les très petits groupes restent identifiables par élimination. Les lignes des répondants ne s’affichent qu’après la fin de l’activité et lorsque quatre personnes au moins ont répondu à chaque question et tentative ayant des réponses; une réponse unique ou révélatrice peut encore identifier quelqu’un."
+            "Les réponses et la présence sont enregistrées sans l'identité des étudiants. Cette session ne sera pas notée. L'anonymat ne peut plus être modifié une fois que des étudiants ont rejoint la session ou répondu. Les statistiques anonymes en direct et les listes de réponses non liées sont mises à jour après les réponses d’au moins quatre nouvelles personnes à la question et à la tentative. Les noms et les heures des réponses sont masqués. Les lignes liées par personne ne sont disponibles qu’après la fin de l’activité et les réponses d’au moins quatre personnes à chaque question et tentative comportant des réponses. Une réponse particulière peut encore identifier quelqu’un.",
+            "Utilisez l’interrupteur de la séance pour activer ou désactiver le partage; le code actif reste visible après actualisation et peut être régénéré. Activez d’abord le partage par code dans les paramètres du cours; il est désactivé par défaut. Le désactiver révoque les codes existants et l’accès externe. Supprimez les prolongations individuelles avant le partage; elles restent indisponibles ensuite. Pour inviter des personnes connectées hors du cours, créez un quiz ou une séance en direct dans le cours, puis générez un code d’activité S- dans l’éditeur. Copiez-le aussitôt; le renouveler bloque les nouveaux accès avec l’ancien code et le désactiver retire l’accès externe. La réactivation réutilise le même code; seule la régénération le remplace. Dans une activité nominative, les étudiants inscrits peuvent recevoir des notes; les invités ont des réponses suivies mais pas de notes. Activez l’anonymat pour un sondage sans note pour personne. Choisissez des réponses nominatives ou anonymes avant le premier accès. Les lignes anonymes ne sont visibles qu’après la fin et quatre réponses à chaque question et tentative. Une réponse particulière peut encore identifier son auteur. Le code tournant de la séance reste requis s’il est activé.",
+            "Si l’enseignant remet une séance en direct à l’état À venir, les participants voient un écran d’attente jusqu’à sa reprise. L’état Brouillon renvoie les étudiants inscrits au cours et les invités à leur tableau de bord. Les réponses enregistrées sont conservées.",
+            "Pour une session interactive à venir, les étudiants peuvent sélectionner Ouvrir la page d’attente ; les invités peuvent saisir son code d’activité S-. L’attente n’enregistre aucune présence. L’enseignant peut encore modifier la session et exiger un code d’accès en direct. Lorsque la session démarre, les participants attendent une question ou saisissent le code après l’ouverture de la période d’accès par l’enseignant."
           ]
         },
         {
@@ -2296,7 +2352,8 @@
             "L'onglet Résultats affiche maintenant la note réelle de chaque étudiant avant la participation, et cliquer sur l'avatar d'un étudiant dans l'onglet Étudiants ouvre la photo en grand.",
             "Les dialogues de détail des notes identifient maintenant chaque ligne par numéro et type, par exemple Q1(MC) ou Q2(SA), et mettent en évidence les lignes qui demandent encore une correction tout en ignorant les anciens indicateurs de correction sur les questions à zéro point.",
             "Les étudiants reçoivent une notification lorsque vous publiez une nouvelle rétroaction; privilégiez donc des commentaires courts et directement actionnables.",
-            "Si la structure des groupes a compté pendant l'activité, comparez les données de révision et de notation avec les groupes du cours afin de repérer une participation inégale."
+            "Si la structure des groupes a compté pendant l'activité, comparez les données de révision et de notation avec les groupes du cours afin de repérer une participation inégale.",
+            "L’inscription crée les notes manquantes pour les activités terminées du cours, y compris à partir des réponses enregistrées comme invité. Le travail manqué reçoit zéro sans correction requise ; les réponses écrites peuvent nécessiter une correction. Les notes et commentaires existants sont conservés. Les activités anonymes restent sans notes."
           ],
           "success": "Les professeurs peuvent ouvrir le guide étudiant depuis le sélecteur ci-dessus afin de prévisualiser le flux de l'apprenant avant un cours."
         },
@@ -2322,7 +2379,8 @@
             "Dans la révision de séance, générez un résumé IA des réponses pour une question avec un modèle et une consigne enregistrée. Vous pouvez suivre, arrêter, relancer et consulter le résultat sans modifier les notes.",
             "Dans l'onglet de correction, utilisez l'assistant de correction IA seulement après avoir enregistré des consignes distinctes pour la note et la rétroaction. Vérifiez la progression, le rapport, le journal, les points et les commentaires avant publication.",
             "Gérez et copiez les consignes réutilisables de correction, rétroaction et résumé dans les paramètres IA.",
-            "Le clavardage IA étudiant est une option distincte. Choisissez les modèles autorisés, le modèle par défaut, les directives et la limite de tours; les étudiants n'accèdent qu'aux données visibles ou révisables et à leurs propres notes."
+            "Le clavardage IA étudiant est une option distincte. Choisissez les modèles autorisés, le modèle par défaut, les directives et la limite de tours; les étudiants n'accèdent qu'aux données visibles ou révisables et à leurs propres notes.",
+            "Enregistrez les consignes de résumé modifiées avant de générer le résumé. Les consignes sélectionnées déterminent la langue, le sujet et le format à chaque étape du résumé."
           ],
           "warning": "Les résultats de l'IA peuvent être incomplets ou erronés. Vérifiez le contenu, les résumés, les notes, la rétroaction, les dates et les actions proposées."
         },
@@ -2356,7 +2414,9 @@
             "Les listes de séances gardent la recherche, les filtres et la pagination dans une zone Rechercher des séances repliable afin que vous n'ouvriez les contrôles que lorsque nécessaire.",
             "Si votre établissement exige une vérification d'e-mail ou un SSO, terminez cette configuration avant de supposer que le code d'inscription est mauvais.",
             "En général, vous n'avez besoin du code d'inscription qu'une seule fois par cours. Une fois accepté, le cours reste sur votre tableau de bord jusqu'à ce que vous en soyez retiré ou qu'il soit archivé pour votre compte.",
-            "Surveillez l’indicateur sur votre avatar dans la barre d’application pour repérer les notifications actives, puis ouvrez Notifications dans le menu du compte pour les lire ou les rejeter."
+            "Surveillez l’indicateur sur votre avatar dans la barre d’application pour repérer les notifications actives, puis ouvrez Notifications dans le menu du compte pour les lire ou les rejeter.",
+            "Choisissez Rejoindre une activité sur le tableau de bord et entrez un code S- pour ouvrir un quiz ou une séance sans vous inscrire au cours. Une séance en direct peut aussi demander son code tournant. Si vous n’êtes pas inscrit au cours, vos réponses sont suivies mais vous ne recevez pas de note. Les étudiants inscrits peuvent être notés dans une activité nominative; une activité anonyme n’a pas de notes. Les statistiques anonymes en direct et les listes de réponses non liées sont mises à jour après les réponses d’au moins quatre nouvelles personnes à la question et à la tentative. Les noms et les heures des réponses sont masqués. Les lignes liées par personne ne sont disponibles qu’après la fin de l’activité et les réponses d’au moins quatre personnes à chaque question et tentative comportant des réponses. Une réponse particulière peut encore identifier quelqu’un.",
+            "L’inscription crée les notes manquantes pour les activités terminées du cours, y compris à partir des réponses enregistrées comme invité. Le travail manqué reçoit zéro sans correction requise ; les réponses écrites peuvent nécessiter une correction. Les notes et commentaires existants sont conservés. Les activités anonymes restent sans notes."
           ],
           "screenshot": {
             "variant": "studentCourse",
@@ -2375,7 +2435,9 @@
             "Si votre enseignant révèle les statistiques d'un nuage de mots ou d'un histogramme, la vue devrait se mettre à jour automatiquement sans rechargement.",
             "Pour les questions à réponse courte, la liste partagée des réponses peut être affichée ou masquée séparément du nuage de mots; vous pouvez donc voir l'un sans l'autre.",
             "Faire défiler la page au-dessus d’une réponse numérique ne modifie pas sa valeur et retire le focus du champ pour permettre le défilement. Cliquez dans le champ ou utilisez la touche Tab pour continuer à modifier la réponse.",
-            "Le libellé Anonyme signifie que votre enseignant voit vos réponses sans votre nom. Vous devez toujours vous connecter et ne pouvez répondre qu'une fois à chaque question, vous pourrez revoir vos propres réponses plus tard, et la session n'est pas notée."
+            "Le libellé Anonyme signifie que votre enseignant voit vos réponses sans votre nom. Vous devez toujours vous connecter et ne pouvez répondre qu'une fois à chaque question, vous pourrez revoir vos propres réponses plus tard, et la session n'est pas notée.",
+            "Si l’enseignant remet une séance en direct à l’état À venir, les participants voient un écran d’attente jusqu’à sa reprise. L’état Brouillon renvoie les étudiants inscrits au cours et les invités à leur tableau de bord. Les réponses enregistrées sont conservées.",
+            "Pour une session interactive à venir, les étudiants peuvent sélectionner Ouvrir la page d’attente ; les invités peuvent saisir son code d’activité S-. L’attente n’enregistre aucune présence. L’enseignant peut encore modifier la session et exiger un code d’accès en direct. Lorsque la session démarre, les participants attendent une question ou saisissent le code après l’ouverture de la période d’accès par l’enseignant."
           ]
         },
         {

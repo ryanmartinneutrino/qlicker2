@@ -1103,6 +1103,17 @@ export default function CourseDetail() {
     }
   };
 
+  const handleToggleAllowSharedActivities = async () => {
+    markSettingAutoSaveInProgress();
+    try {
+      await apiClient.patch(`/courses/${id}`, { allowSharedActivities: !course.allowSharedActivities });
+      fetchCourse();
+      setSettingsAutoSaveStatus('success');
+    } catch (err) {
+      markSettingAutoSaveError(err, t('professor.course.failedUpdateSetting'));
+    }
+  };
+
   const handleQuizTimeFormatChange = async (nextValue) => {
     markSettingAutoSaveInProgress();
     try {
@@ -2397,6 +2408,17 @@ export default function CourseDetail() {
                   {t('professor.course.allowStudentQuestions')}
                 </Typography>
                 <Tooltip title={t('professor.course.allowStudentQuestionsHelp')}>
+                  <InfoOutlinedIcon fontSize="small" color="action" />
+                </Tooltip>
+              </Box>
+            )}
+          />
+          <FormControlLabel
+            control={<Switch checked={!!course.allowSharedActivities} onChange={handleToggleAllowSharedActivities} />}
+            label={(
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                <Typography variant="body2">{t('professor.course.allowSharedActivities')}</Typography>
+                <Tooltip title={t('professor.course.allowSharedActivitiesHelp')}>
                   <InfoOutlinedIcon fontSize="small" color="action" />
                 </Tooltip>
               </Box>

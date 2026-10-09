@@ -1,6 +1,6 @@
 # Qlicker Load Testing Suite
 
-Automated load testing for named and anonymous interactive sessions and quizzes.
+Automated load testing for named and anonymous interactive sessions and quizzes, including activities opened by code by people outside the course.
 The suite seeds dedicated users, a course, questions, and one session per run.
 The original named interactive scenario follows the real classroom flow:
 
@@ -89,8 +89,9 @@ an external domain.
 |---------|-------------|
 | `./run.sh` | Seed + run the load test |
 | `./run.sh --students N` | Override the configured student count |
-| `./run.sh --scenario NAME` | Choose `live-named` (default), `live-anonymous`, `quiz-named`, or `quiz-anonymous` |
-| `./run.sh --session-chat on|off` | Run `live-named` with chat enabled or disabled |
+| `./run.sh --scenario NAME` | Choose `live-named` (default), `live-anonymous`, `quiz-named`, `quiz-anonymous`, `live-external-named`, `live-external-anonymous`, `quiz-external-named`, or `quiz-external-anonymous` |
+| `./run.sh --session-chat on|off` | Run `live-named` with chat enabled or disabled; shared and anonymous comparisons require chat off |
+| `./run.sh --enrolled-percent N` | Set the enrolled proportion (0–100) for external fixtures; ordinary fixtures require 100 |
 | `./run.sh --seed-only` | Seed without running k6 |
 | `./run.sh --test-only` | Run k6 with the existing `state/state.json` for the selected scenario |
 | `./run.sh --clean` | Delete load-test fixtures and `state/state.json` |
@@ -121,11 +122,15 @@ Otherwise, run `./setup.sh` and choose `prod` plus `docker` on either host.
    JOIN_GRACE_S=30 ./run.sh --scenario live-anonymous --students 100
    ./run.sh --scenario quiz-named --students 100
    ./run.sh --scenario quiz-anonymous --students 100
+   JOIN_GRACE_S=30 ./run.sh --scenario live-external-named --students 100
+   JOIN_GRACE_S=30 ./run.sh --scenario live-external-anonymous --students 100
+   ./run.sh --scenario quiz-external-named --students 100
+   ./run.sh --scenario quiz-external-anonymous --students 100
    ```
 
    Choose `JOIN_GRACE_S` long enough for the student login wave to complete;
    keep it identical across comparison runs. Each command reseeds its own
-   fixture. Run `./run.sh --test-only --scenario NAME` only if the current
+   fixture. External variants accept `--enrolled-percent` (default 50 for identified activities and 0 for anonymous activities). The seed rounds the enrolled count to the nearest whole participant. Only eligible enrolled participants receive grade rows; guests redeem the code without enrolling. Anonymous variants remain ungraded for everyone. All external variants check code redemption, response tracking, and live delivery. Run `./run.sh --test-only --scenario NAME` only if the current
    fixture was seeded for that name and has not been consumed by a previous
    run. Quiz submissions and live session endings make a completed fixture
    unsuitable for another full pass.
@@ -157,22 +162,78 @@ delivery, answer submission, quiz autosave, and final results duration. Run
 `quiz-anonymous` and `live-anonymous` once with three students to confirm that
 result rows remain withheld below four respondents, then with at least four
 students to verify correlated rows appear. A threshold failure or a missing
-summary is a failed run; investigate it before comparing latency. The
-anonymous live workload intentionally refreshes `/live` on relevant WebSocket
-events and is a stress test; the named live workload remains the browser-like
-delta baseline.
+summary is a failed run; investigate it before comparing latency. All four live variants use the same browser-like delta workload in
+`scenarios/live-session.js`; anonymous variants check identity-free statistics in groups of at least four new respondents and exercise live word clouds/histograms when at least four participants respond. `anonymous_batch_stats_success` requires a released cache with fewer than four unreleased answers at the end of each question (or no cache below four participants).
 
 Test on the lower-stakes host first, then use the same commands on production.
 `load-testing/.env`, state, and results contain test credentials and remain
 local to each host. Confirm each host's configuration points at its intended
 stack before seeding.
 
+## Compare shared interactive latency
+
+Use the same `prod` + `docker` configuration, `production_setup` images, public
+`BASE_URL`, replica count, and timing settings as the ordinary-session baseline.
+After `./run.sh --prepare`, run this comparison on the staging copy:
+
+```bash
+export JOIN_GRACE_S=30 ANSWER_WINDOW_S=30 STATS_PAUSE_S=15 CORRECT_PAUSE_S=15
+export STUDENT_LOGIN_SPREAD_S=12 RESPONSE_JITTER_MS=2000
+export LIVE_STATS_DURING_ANSWERS=true
+./run.sh --scenario live-named --students 500 --session-chat off
+./run.sh --scenario live-external-named --enrolled-percent 100 --students 500 --session-chat off
+./run.sh --scenario live-external-named --enrolled-percent 50 --students 500 --session-chat off
+./run.sh --scenario live-external-named --enrolled-percent 0 --students 500 --session-chat off
+./run.sh --scenario live-external-anonymous --enrolled-percent 0 --students 500 --session-chat off
+./run.sh --scenario live-anonymous --students 500 --session-chat off
+```
+
+These compare sharing off, sharing on with no guests, mixed enrollment, and
+all guests, with anonymous variants for the ordinary and shared paths. Repeat
+with `LIVE_STATS_DURING_ANSWERS=false` to separate the cost of broadcasts during
+answer bursts. Keep chat off in every comparison because guests cannot use it;
+retain the ordinary `live-named` run with chat on as a separate regression.
+Run each configuration more than once and compare matching configurations on
+the baseline and PR images. A single fast run is not evidence of unchanged
+latency. Small local smoke runs only validate execution and assertions.
+
+All participants in a shared run redeem the code once, including enrolled
+students. `activity_redeem_duration` reports that initial step separately from
+ongoing participation. The run log records participant counts and settings;
+external result filenames include `enrolled-N`, and answer-burst runs include
+`live-stats`. `--test-only` rejects a fixture with a different enrollment mix.
+Reseed after updating the seed image or consuming a fixture.
+
+Compare p95 and p99 for `respond_duration`, `join_duration`,
+`live_refresh_duration`, `event_sync_duration`, and
+`response_delivery_to_professor_duration`, together with error and completion
+counts. Student metrics include separate `participant:enrolled` and
+`participant:guest` summaries so one group cannot conceal the other's delay.
+`event_sync_duration{role:student}` includes processing question/visibility
+updates from their server emission through applying the local snapshot. It
+measures the simulated client, not React rendering in a browser. Identified
+runs also report `response_to_professor_duration` and
+`response_server_processing_duration`. Anonymous events deliberately omit the
+per-response timestamp, so those two measurements are unavailable; HTTP answer
+time and count-event delivery remain measured. Do not expose identities or
+response timestamps just to obtain an anonymous latency metric.
+
+Every run checks answer counts, completed participants, instructor response
+event counts, correlated result rows, and enrolled-only grades. Anonymous runs
+also check that live events and final results do not expose identities and
+that rows remain withheld below four respondents. Anonymous payloads and
+available result features intentionally differ, so compare them against the
+ordinary anonymous run as well as the identified runs.
+
+When finished, run `./run.sh --restore` and `./run.sh --clean` separately,
+including after a failed workload. Keep summaries for the staging comparison.
+
 ## Workloads
 
 | Scenario | Student journey | Instructor and privacy checks |
 | --- | --- | --- |
 | `live-named` | Join, hold WebSocket, answer five questions, and exercise chat and live deltas | Professor drives visibility, attempts, aggregates, chat, and response delivery |
-| `live-anonymous` | Join, hold WebSocket, and answer five questions | Instructor receives response counts only; final results show one correlated row per respondent after the four-person minimum |
+| `live-anonymous` | Join, hold WebSocket, and answer five questions | Counts update immediately; anonymous statistics update in groups of at least four; final results show correlated respondent rows after the session ends and the four-person minimum is met |
 | `quiz-named` | Load course sessions, open the quiz, autosave five answers, and submit | Final results preserve one row and five answers per student |
 | `quiz-anonymous` | Same quiz journey | Final results show one correlated row per respondent after the four-person minimum, without identities |
 
@@ -189,7 +250,7 @@ email login is normally blocked for non-admin accounts.
 
 ## Scenario Coverage
 
-The `live-named` scenario tracks the real live-session update path used by the browser:
+All live scenarios track the same live-session update path used by the browser. The ordinary `live-named` defaults remain unchanged:
 
 1. Professor logs in, explicitly selects and hides the first question, and
    starts the session. Every later transition also hides the previous question
@@ -219,6 +280,8 @@ editing the script. Export them before `./run.sh`, or prefix them on the
 command line.
 
 Timing and sync variables:
+
+- `LIVE_STATS_DURING_ANSWERS`: default `false`. Set `true` to keep statistics enabled while answers arrive and exercise per-answer delivery to participants. Anonymous answer content is delivered only in batches of at least four new respondents. Compare both stats-on and stats-off runs; the ordinary workload and production rate-limit configuration are unchanged.
 
 - `SESSION_CHAT_ENABLED`: set to `true`/`false` (or use
   `./run.sh --session-chat on|off`) to run the interactive session with session

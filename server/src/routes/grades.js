@@ -344,20 +344,24 @@ export default async function gradeRoutes(app) {
         }
       }
 
-      const gradeQuery = instructorView
-        ? { sessionId: String(session._id), courseId: String(course._id) }
-        : studentVisibleGradeQuery(course._id, session._id, request.user);
-
       if (session.anonymous) {
         return {
           sessionId: String(session._id),
           courseId: String(course._id),
           instructorView,
-          anonymous: true,
+          anonymous: !!session.anonymous,
           ...(instructorView ? { gradingLockReason: 'anonymous' } : {}),
           grades: [],
         };
       }
+
+      const eligibleStudents = session.activityEverShared
+        ? (course.students || [])
+        : [];
+      const gradeQuery = instructorView
+        ? { sessionId: String(session._id), courseId: String(course._id),
+          ...(session.activityEverShared ? { userId: { $in: eligibleStudents } } : {}) }
+        : studentVisibleGradeQuery(course._id, session._id, request.user);
 
       let grades = await normalizeGradesManualGradingState(await Grade.find(gradeQuery).lean());
       if (!instructorView) grades = grades.map(sanitizeStudentVisibleGrade);
@@ -770,7 +774,7 @@ export default async function gradeRoutes(app) {
       }
 
       const sessions = await Session.find(sessionQuery)
-        .select('_id name status date quizStart quizEnd quizExtensions createdAt reviewable quiz practiceQuiz questions joined submittedQuiz')
+        .select('_id name status date quizStart quizEnd quizExtensions createdAt reviewable quiz practiceQuiz questions joined submittedQuiz activityEverShared')
         .lean();
 
       sessions.sort((a, b) => {
@@ -893,9 +897,10 @@ export default async function gradeRoutes(app) {
           };
         });
 
-        const avgParticipation = gradeEntries.length > 0
-          ? Math.round((gradeEntries.reduce((sum, grade) => sum + toFiniteNumber(grade.participation, 0), 0) / gradeEntries.length) * 10) / 10
-          : 0;
+        const applicableGrades = gradeEntries.filter((grade) => !grade.notApplicable);
+        const avgParticipation = applicableGrades.length > 0
+          ? Math.round((applicableGrades.reduce((sum, grade) => sum + toFiniteNumber(grade.participation, 0), 0) / applicableGrades.length) * 10) / 10
+          : gradeEntries.some((grade) => grade.notApplicable) ? null : 0;
 
         return {
           student: {

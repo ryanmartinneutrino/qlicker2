@@ -38,11 +38,29 @@ The dashboard lists your courses and highlights activities that are live now. Us
 ### Enroll in a course
 
 1. Get the current enrollment code from the instructor.
-2. Enter it exactly in the enrollment field on your dashboard.
+2. Select **Enroll in Course** on your dashboard and enter the enrollment code.
 3. Submit the code.
 4. Open the new course card and confirm the course name, number, section, and semester.
 
+On enrollment, Qlicker creates missing grades for completed course activities: zeros for missed work and grades based on any responses you previously submitted as a guest. Written answers may still need instructor grading. Anonymous activities remain ungraded.
+
 You normally enroll only once. The course stays on the dashboard until the instructor/admin removes you or the course is no longer available to your account.
+
+### Open an activity without joining its course
+
+1. Sign in and select **Join activity** on the dashboard.
+2. Enter the activity code beginning with `S-`, then select **Join activity**. The activity opens directly; your account is not enrolled in its course.
+3. Take the quiz or join the interactive session as usual. **Back to dashboard** returns you to your home page. A live activity may also ask for its separate rotating six-digit join code.
+
+An activity code opens only its own quiz or live session. It can be used by multiple people, but your account can submit a quiz only once and answer each live question/attempt only once. If the activity code expires after you have used it, you can still enter it again while your access remains enabled. The instructor can disable sharing, which immediately removes outside access. If sharing is enabled again with the same code, enter that code again to regain access. Outside participants cannot use that course's roster, gradebook, or chat. They do not get session chat.
+
+In a named code-accessible activity, enrolled students can receive grades, while participants who are outside the course have their responses tracked without receiving grades. Anonymous activities have no grades for anyone. Anonymous responses are correlated across questions under one respondent label, but the instructor sees the answer rows only after the activity ends and at least four people have answered every question and attempt with responses. A distinctive answer may still reveal who wrote it.
+
+Anonymous live statistics and shared answer lists update in groups of at least four new respondents per question and attempt. These live answers have no respondent labels linking them across questions. Linked respondent rows are available to the instructor only after the activity ends and the four-person minimum is met for every question and attempt with responses.
+
+When an instructor changes a live session to **Upcoming**, you see a waiting screen until it returns to **Live**. **Draft** sends enrolled students back to the course page and guests back to their dashboard. Saved answers are preserved.
+
+For an **Upcoming** interactive session, enrolled students can select **Open waiting page**; guests can enter its **S- activity code** through **Join activity**. Waiting does not record attendance. The instructor can still edit the session and require a live join code. When the session goes **Live**, participants wait for a question or enter the join code once the instructor opens the join period. Redeeming an activity code still locks the anonymity setting.
 
 ### If enrollment fails
 
