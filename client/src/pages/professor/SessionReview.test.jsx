@@ -425,6 +425,33 @@ describe('SessionReview', () => {
     expect(csvExport.csvContent).toContain(',B,4');
   });
 
+  it.each([false, true])('exports join times as ISO timestamps when response timestamps are %s', (includeResponseTimestamps) => {
+    const payload = buildResultsPayload();
+    const joinedAt = '2026-10-02T19:59:58.771Z';
+    payload.studentResults[0].joinedAt = joinedAt;
+    payload.studentResults[0].questionResults[0].responses = [{ attempt: 1, answer: '1', submittedAt: joinedAt }];
+    for (const value of [joinedAt, null, 'invalid']) {
+      payload.studentResults[0].joinedAt = value;
+      const csv = buildSessionResultsCsv({
+        includeResponseTimestamps,
+        csvQuestionAttempts: [{ question: payload.questions[0], questionNumber: 1, attempts: [1] }],
+        studentResults: [payload.studentResults[0]],
+        gradesByStudentId: {},
+        t: i18n.t.bind(i18n),
+      });
+      const [headers, row] = csv.csvContent.split('\n').map((line) => line.split(','));
+      expect(row).toHaveLength(headers.length);
+      const time = row[headers.indexOf('Joined Session')];
+      if (value === joinedAt) {
+        expect(time).toMatch(/^2026-10-\d{2}T\d{2}:\d{2}:58\.771[+-]\d{2}:\d{2}$/);
+        expect(new Date(time).toISOString()).toBe(joinedAt);
+        if (includeResponseTimestamps) expect(time).toBe(row[headers.indexOf('Q1 Time')]);
+      } else {
+        expect(time).toBe('');
+      }
+    }
+  });
+
   it.each(['en', 'fr'])('labels True/False responses in the table and CSV in %s', async (locale) => {
     await i18n.changeLanguage(locale);
     const payload = buildResultsPayload();

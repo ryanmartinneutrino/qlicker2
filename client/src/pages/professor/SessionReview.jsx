@@ -44,7 +44,7 @@ import BackLinkButton from '../../components/common/BackLinkButton';
 import StudentIdentity from '../../components/common/StudentIdentity';
 import ResponsiveTabsNavigation from '../../components/common/ResponsiveTabsNavigation';
 import { buildCourseTitle } from '../../utils/courseTitle';
-import { formatResponseTimestamp, getLatestResponse, sortResponsesNewestFirst } from '../../utils/responses';
+import { formatCsvTimestamp, formatResponseTimestamp, getLatestResponse, sortResponsesNewestFirst } from '../../utils/responses';
 import { toggleSessionReviewable } from '../../utils/reviewableToggle';
 import SessionGradesVisibilityControl from '../../components/common/SessionGradesVisibilityControl';
 
@@ -491,7 +491,7 @@ export function buildSessionResultsCsv({
         escapeCsvCell(student.inSession ? t('common.yes') : t('common.no')),
         escapeCsvCell(formatParticipation(student.participation)),
         escapeCsvCell(formatPercent(visibleStudent?.percentCorrectValue)),
-        escapeCsvCell(formatJoinedAt(student.joinedAt)),
+        escapeCsvCell(formatCsvTimestamp(student.joinedAt)),
       ];
 
     csvQuestionAttempts.forEach(({ question, attempts }) => {

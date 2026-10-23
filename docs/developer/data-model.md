@@ -121,6 +121,8 @@ Response timing uses existing optional fields: `createdAt` is the initial save/s
 
 Instructor results already include these fields for named activities. The optional session-review CSV time columns use `submittedAt`, then legacy `updatedAt`, then `createdAt`, and leave unavailable or invalid dates blank. Legacy data may not distinguish answer edits from locking when only `updatedAt` survives. Formatting uses the downloading browser's timezone with the offset at the response date. Anonymous results strip all response timestamps and the CSV never includes anonymous time columns. No schema change or backfill is required.
 
+The CSV's `Joined Session` column uses the same formatter for `joinedAt`, regardless of the response timestamp option, with blank cells for missing or invalid dates. The on-screen join-time display remains localized.
+
 ## Grade
 
 Represents course/session/question grading state.

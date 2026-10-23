@@ -1,9 +1,6 @@
-// Use the browser's offset at the response date, including historical DST.
+// Use the browser's offset at the recorded date, including historical DST.
 // Missing legacy dates must stay blank rather than becoming the Unix epoch.
-export function formatResponseTimestamp(response) {
-  // Despite its name, submittedAt records each answer save. updatedAt also
-  // changes when quiz submission locks answers, so use it only for old data.
-  const value = response?.submittedAt || response?.updatedAt || response?.createdAt;
+export function formatCsvTimestamp(value) {
   if (!value) return '';
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return '';
@@ -13,6 +10,12 @@ export function formatResponseTimestamp(response) {
   const localTime = `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.${pad(date.getMilliseconds(), 3)}`;
   const zone = `${offset >= 0 ? '+' : '-'}${pad(Math.floor(Math.abs(offset) / 60))}:${pad(Math.abs(offset) % 60)}`;
   return `${localDate}T${localTime}${zone}`;
+}
+
+export function formatResponseTimestamp(response) {
+  // Despite its name, submittedAt records each answer save. updatedAt also
+  // changes when quiz submission locks answers, so use it only for old data.
+  return formatCsvTimestamp(response?.submittedAt || response?.updatedAt || response?.createdAt);
 }
 
 export function getResponseTimestampMs(response) {

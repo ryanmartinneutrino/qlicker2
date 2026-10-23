@@ -525,6 +525,8 @@ Select **Export CSV** in **Response Data** to open the export options. Enable **
 
 Quiz times represent the last saved modification of each answer; interactive-session times represent when the student submitted that response. Older records fall back to their creation time. Times use ISO 8601 with milliseconds and an explicit UTC offset, such as `2026-03-15T08:00:00.000-04:00`, in the downloading browser's timezone with the offset that applied on the response date (including daylight saving time). This does not recover the student's original timezone or the time of final quiz submission. Missing or invalid timestamps remain blank. Anonymous activities never export response timestamps.
 
+The CSV's **Joined Session** column always uses the same ISO 8601 format, whether or not response timestamps are enabled. Missing join times are blank. The suffix `-04:00` means four hours behind UTC: `2026-10-02T15:59:58.771-04:00` is October 2 at 3:59:58.771 p.m. in Toronto, equivalent to 19:59:58.771 UTC. The offset reflects daylight saving time at that date.
+
 ![CSV export options with response timestamps](../assets/manuals/professor-response-export.png)
 
 ![Anonymous review with the full question preview and respondent answers](../assets/manuals/professor-anonymous-review.png)
