@@ -10,6 +10,7 @@ import {
   createQuestionViaApi,
   createSessionViaApi,
   enrollStudentViaApi,
+  expectNoCriticalAccessibilityViolations,
   loginViaUi,
   patchSessionViaApi,
   patchSettingsViaApi,
@@ -367,6 +368,19 @@ test('capture current user-manual screenshots', async ({ browser, request }) => 
   await professorPage.goto(`/prof/course/${course._id}/session/${completedQuiz._id}/review`);
   await expect(professorPage.getByRole('switch', { name: 'Grades visible', exact: true })).toBeChecked();
   await capture(professorPage, 'professor-session-review.png');
+  await professorPage.getByRole('tab', { name: /^Response Data$/i }).click();
+  await professorPage.getByRole('button', { name: /^Export results to CSV$/i }).click();
+  const exportDialog = professorPage.getByRole('dialog', { name: /^Export results to CSV$/i });
+  await expect(exportDialog.getByRole('checkbox', { name: /include response timestamps/i })).not.toBeChecked();
+  await exportDialog.getByRole('checkbox', { name: /include response timestamps/i }).check();
+  await expectNoCriticalAccessibilityViolations(professorPage);
+  await capture(professorPage, 'professor-response-export.png');
+  const downloadPromise = professorPage.waitForEvent('download');
+  await exportDialog.getByRole('button', { name: /^Export CSV$/i }).click();
+  const download = await downloadPromise;
+  const csv = await fs.readFile(await download.path(), 'utf8');
+  expect(csv).toContain('Q1 Time');
+  expect(csv).toMatch(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}[+-]\d{2}:\d{2}/);
   await professorPage.goto(`/prof/course/${course._id}`);
   await professorPage.getByRole('tab', { name: /^AI Settings$/i }).click();
   await expect(professorPage.getByLabel(/^Default model$/i)).toBeVisible();

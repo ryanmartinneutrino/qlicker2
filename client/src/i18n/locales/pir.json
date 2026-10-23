@@ -1261,7 +1261,12 @@
       "correctColumn": "Right",
       "unsavedSummaryInstructionWarning": "Save or cancel yer order edits before generatin’ the summary.",
       "anonymousAnswersHidden": "Replies hidden — fewer than {{minimum}} mateys.",
-      "attempt": "Attempt"
+      "attempt": "Attempt",
+      "includeResponseTimestamps": "Include response timestamps, arr!",
+      "responseTimestampsHint": "These times mark when each answer was last stowed (or first created in older logs), not when the whole quiz was handed over. ISO 8601 uses yer browser timezone ({{timezone}}) and the offset on the response date. Missing timestamps stay blank, matey.",
+      "anonymousTimestampsHidden": "Response timestamps stay hidden in anonymous activities to keep identities under wraps, arr!",
+      "csvTime": "Q{{number}} Time",
+      "csvAttemptTime": "Q{{number}} Attempt {{attempt}} Time"
     },
     "secondDesktop": {
       "joinCode": "Board Code",
@@ -2375,7 +2380,8 @@
             "If watch structures mattered durin' th' activity, compare th' recap an' gradin' data with th' ship watches so ye can spot uneven turnout patterns.",
             "Joinin’ a course fills missin’ marks for finished activities, includin’ answers saved as a guest. Missed work earns zero with no reckonin’ needed; written answers may need reckonin’. Existing marks and feedback stay aboard. Anonymous activities stay ungraded.",
             "The grade table averages the marks aboard the displayed sessions. Missing marks stay out; recorded zeros count. Use Select sessions with marks aboard, or pick sessions with No marks aboard by hand.",
-            "Only submitted quizzes be shown till this quiz ends, arrr. Once it ends, saved answers come aboard even if the student never hit submit."
+            "Only submitted quizzes be shown till this quiz ends, arrr. Once it ends, saved answers come aboard even if the student never hit submit.",
+            "In Response Data, Export CSV opens yer options. Tick Include response timestamps to add a time column for each question and attempt. ISO 8601 uses yer browser timezone and the offset on the response date, daylight saving included. Times mark the last answer save, or creation if needed, not the final quiz handover. Missing old timestamps stay blank. Anonymous activities never reveal response times, arr! The export keeps yer table search and sort order."
           ],
           "success": "Professors can open th' crew member manual from th' switcher above to preview th' learner workflow afore class."
         },

@@ -117,6 +117,10 @@ Key concerns:
 - attempt handling
 - quiz save vs live-response workflows
 
+Response timing uses existing optional fields: `createdAt` is the initial save/submission, and `submittedAt` is refreshed on each quiz answer save or set when a live response is submitted. Despite its name, `submittedAt` is not the whole-quiz submission time. `updatedAt` also changes when quiz submission locks answers, so it must not override `submittedAt` when reporting the last answer modification.
+
+Instructor results already include these fields for named activities. The optional session-review CSV time columns use `submittedAt`, then legacy `updatedAt`, then `createdAt`, and leave unavailable or invalid dates blank. Legacy data may not distinguish answer edits from locking when only `updatedAt` survives. Formatting uses the downloading browser's timezone with the offset at the response date. Anonymous results strip all response timestamps and the CSV never includes anonymous time columns. No schema change or backfill is required.
+
 ## Grade
 
 Represents course/session/question grading state.

@@ -1261,7 +1261,12 @@
       "correctColumn": "Correcta",
       "unsavedSummaryInstructionWarning": "Guarde o cancele los cambios en las instrucciones antes de generar el resumen.",
       "anonymousAnswersHidden": "Respuestas ocultas — menos de {{minimum}} participantes.",
-      "attempt": "Intento"
+      "attempt": "Intento",
+      "includeResponseTimestamps": "Incluir marcas de tiempo de las respuestas",
+      "responseTimestampsHint": "Las horas indican cuándo se guardó por última vez cada respuesta (o cuándo se creó en registros antiguos), no cuándo se entregó el cuestionario completo. El formato ISO 8601 usa la zona horaria del navegador ({{timezone}}) con el desfase de la fecha de respuesta. Las marcas de tiempo que falten se dejan en blanco.",
+      "anonymousTimestampsHidden": "Las marcas de tiempo de las respuestas se ocultan en las actividades anónimas para proteger el anonimato.",
+      "csvTime": "P{{number}} Hora",
+      "csvAttemptTime": "P{{number}} Intento {{attempt}} Hora"
     },
     "secondDesktop": {
       "joinCode": "Código de acceso",
@@ -2375,7 +2380,8 @@
             "Si las estructuras de grupo importaron durante la actividad, compare los datos de revisión y calificación con los grupos del curso para detectar patrones desiguales de participación.",
             "Al inscribirse, se crean las calificaciones que faltan para las actividades finalizadas del curso, incluidas las respuestas guardadas como invitado. Las actividades no realizadas reciben cero sin necesitar corrección; las respuestas escritas pueden necesitarla. Se conservan las calificaciones y los comentarios existentes. Las actividades anónimas siguen sin calificarse.",
             "Los promedios de la tabla utilizan los registros de calificación existentes de las sesiones mostradas. Se excluyen los registros ausentes; los ceros registrados cuentan. Use Seleccionar sesiones con registros de calificación o incluya manualmente sesiones sin registros.",
-            "Hasta que termine este cuestionario, solo se muestran los intentos entregados. Después, se incluyen las respuestas guardadas aunque el estudiante no haya entregado el cuestionario."
+            "Hasta que termine este cuestionario, solo se muestran los intentos entregados. Después, se incluyen las respuestas guardadas aunque el estudiante no haya entregado el cuestionario.",
+            "En Datos de respuestas, Exportar CSV abre un diálogo de opciones. Selecciona Incluir marcas de tiempo de las respuestas para añadir una columna de hora por pregunta e intento. Las horas usan ISO 8601 con la zona horaria del navegador y el desfase de la fecha de respuesta, incluido el horario de verano. Indican el último guardado de la respuesta o, en su defecto, su creación, no la entrega final del cuestionario. Las marcas de tiempo antiguas que falten quedan en blanco. Las actividades anónimas nunca exportan horas de respuesta. La exportación conserva la búsqueda y el orden de la tabla."
           ],
           "success": "Los profesores pueden abrir el manual del estudiante desde el selector de arriba para previsualizar el flujo de trabajo del estudiante antes de la clase."
         },

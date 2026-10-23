@@ -334,6 +334,15 @@ describe('SessionReview', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /export results to csv/i }));
 
+    const exportDialog = screen.getByRole('dialog', { name: /export results to csv/i });
+    expect(within(exportDialog).getByRole('checkbox', { name: /include response timestamps/i })).not.toBeChecked();
+    expect(clickSpy).not.toHaveBeenCalled();
+    fireEvent.click(within(exportDialog).getByRole('button', { name: /cancel/i }));
+    expect(clickSpy).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /export results to csv/i }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^export csv$/i }));
+
     expect(clickSpy).toHaveBeenCalled();
     expect(downloadedBlob).toBeTruthy();
     const csvText = downloadedBlob.parts.join('');
@@ -342,6 +351,16 @@ describe('SessionReview', () => {
     expect(csvText).toContain('Lovelace,Ada,ada@example.edu,87.5%,Yes,100%,100%');
     expect(csvText).toContain(',B,4');
     expect(csvText).not.toContain('grace@example.edu');
+    expect(csvText).not.toContain(' Time');
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /export results to csv/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /include response timestamps/i }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^export csv$/i }));
+    expect(downloadedBlob.parts.join('')).toContain('Q1 Attempt 1 Time');
+    expect(downloadedBlob.parts.join('')).toContain('Q1 Attempt 2 Time');
+    expect(downloadedBlob.parts.join('')).toMatch(/2026-03-15T\d{2}:00:00\.000[+-]\d{2}:\d{2}/);
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 
     vi.stubGlobal('Blob', originalBlob);
     createObjectUrlSpy.mockRestore();
@@ -433,8 +452,54 @@ describe('SessionReview', () => {
     expect(csv.csvContent).toContain(`,${falseLabel},`);
   });
 
-  it('builds anonymous CSV rows without identity, grade, or join columns', () => {
+  it('exports times for each attempt, leaving missing responses and legacy dates blank', () => {
+    const payload = buildResultsPayload();
+    payload.studentResults[0].joinedAt = null;
+    payload.studentResults[0].questionResults[0].responses = [
+      { attempt: 1, answer: '0', createdAt: '2026-03-15T12:00:00Z' },
+      { attempt: 1, answer: '1', createdAt: '2026-03-15T11:00:00Z', submittedAt: '2026-03-15T12:05:00Z', updatedAt: '2026-03-15T12:10:00Z' },
+      { attempt: 2, answer: '0' },
+      { attempt: 3, answer: '1', createdAt: 'invalid' },
+    ];
+    const csv = buildSessionResultsCsv({
+      includeResponseTimestamps: true,
+      csvQuestionAttempts: [{ question: payload.questions[0], questionNumber: 1, attempts: [1, 2, 3, 4] }],
+      studentResults: [payload.studentResults[0]],
+      gradesByStudentId: {},
+      t: i18n.t.bind(i18n),
+    });
+    const [header, row] = csv.csvContent.split('\n').map((line) => line.split(','));
+    expect(row).toHaveLength(header.length);
+    expect(row[header.indexOf('Q1 Attempt 1 Response')]).toBe('B');
+    expect(new Date(row[header.indexOf('Q1 Attempt 1 Time')]).toISOString()).toBe('2026-03-15T12:05:00.000Z');
+    for (const attempt of [2, 3, 4]) expect(row[header.indexOf(`Q1 Attempt ${attempt} Time`)]).toBe('');
+
+    const single = buildSessionResultsCsv({
+      includeResponseTimestamps: true,
+      csvQuestionAttempts: [{ question: payload.questions[0], questionNumber: 1, attempts: [1] }],
+      studentResults: [payload.studentResults[0]],
+      gradesByStudentId: {},
+      t: i18n.t.bind(i18n),
+    });
+    expect(single.csvContent.split('\n')[0]).toContain('Q1 Response,Q1 Points,Q1 Time');
+  });
+
+  it('disables timestamp exports for anonymous activities', async () => {
+    const defaultGet = apiClient.get.getMockImplementation();
+    apiClient.get.mockImplementation(async (url) => url === '/sessions/session-1/results'
+      ? { data: buildResultsPayload({ anonymous: true }) }
+      : defaultGet(url));
+    renderSessionReview();
+    await screen.findByText('Midterm review');
+    fireEvent.click(screen.getByRole('tab', { name: /response data/i }));
+    fireEvent.click(screen.getByRole('button', { name: /export results to csv/i }));
+    expect(screen.getByRole('checkbox', { name: /include response timestamps/i })).toBeDisabled();
+    expect(screen.getByText(/timestamps are hidden for anonymous activities/i)).toBeInTheDocument();
+  });
+
+  it('builds anonymous CSV rows without identity, grade, join, or time columns even if requested', () => {
     const csvExport = buildSessionResultsCsv({
+      includeResponseTimestamps: true,
       anonymous: true,
       csvQuestionAttempts: [
         {
@@ -459,7 +524,7 @@ describe('SessionReview', () => {
           lastname: '',
           email: '',
           participation: 100,
-          questionResults: [{ questionId: 'q-1', responses: [{ attempt: 1, answer: '1' }] }],
+          questionResults: [{ questionId: 'q-1', responses: [{ attempt: 1, answer: '1', createdAt: '2026-03-15T12:00:00Z' }] }],
         },
       ],
       visibleStudents: [{ studentId: 'respondent-1', percentCorrectValue: 100 }],

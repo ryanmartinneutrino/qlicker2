@@ -1261,7 +1261,12 @@
       "correctColumn": "Correcte",
       "unsavedSummaryInstructionWarning": "Enregistrez ou annulez vos modifications aux consignes avant de générer le résumé.",
       "anonymousAnswersHidden": "Réponses masquées — moins de {{minimum}} répondants.",
-      "attempt": "Tentative"
+      "attempt": "Tentative",
+      "includeResponseTimestamps": "Inclure les horodatages des réponses",
+      "responseTimestampsHint": "Les heures indiquent le dernier enregistrement de chaque réponse (ou sa création pour les anciens enregistrements), et non la remise du quiz entier. Le format ISO 8601 utilise le fuseau horaire de votre navigateur ({{timezone}}) avec le décalage à la date de la réponse. Les horodatages manquants restent vides.",
+      "anonymousTimestampsHidden": "Les horodatages des réponses sont masqués pour préserver l’anonymat des activités anonymes.",
+      "csvTime": "Q{{number}} Heure",
+      "csvAttemptTime": "Q{{number}} Tentative {{attempt}} Heure"
     },
     "secondDesktop": {
       "joinCode": "Code d'inscription",
@@ -2375,7 +2380,8 @@
             "Si la structure des groupes a compté pendant l'activité, comparez les données de révision et de notation avec les groupes du cours afin de repérer une participation inégale.",
             "L’inscription crée les notes manquantes pour les activités terminées du cours, y compris à partir des réponses enregistrées comme invité. Le travail manqué reçoit zéro sans correction requise ; les réponses écrites peuvent nécessiter une correction. Les notes et commentaires existants sont conservés. Les activités anonymes restent sans notes.",
             "Les moyennes du tableau utilisent les éléments de note existants des séances affichées. Les éléments manquants sont exclus ; les zéros enregistrés comptent. Utilisez Sélectionner les séances avec des éléments de note, ou ajoutez manuellement les séances sans élément de note.",
-            "Seuls les questionnaires soumis sont affichés jusqu’à la fin de ce quiz. Ensuite, les réponses enregistrées sont incluses même si l’étudiant n’a pas soumis son questionnaire."
+            "Seuls les questionnaires soumis sont affichés jusqu’à la fin de ce quiz. Ensuite, les réponses enregistrées sont incluses même si l’étudiant n’a pas soumis son questionnaire.",
+            "Dans Données des réponses, Exporter CSV ouvre une boîte de dialogue. Cochez Inclure les horodatages des réponses pour ajouter une colonne d’heure par question et tentative. Les heures au format ISO 8601 utilisent le fuseau du navigateur et le décalage à la date de la réponse, y compris l’heure d’été. Elles indiquent le dernier enregistrement de la réponse, ou sa création à défaut, et non la remise finale du quiz. Les horodatages anciens manquants restent vides. Les activités anonymes n’exportent jamais les heures des réponses. L’export conserve la recherche et le tri du tableau."
           ],
           "success": "Les professeurs peuvent ouvrir le guide étudiant depuis le sélecteur ci-dessus afin de prévisualiser le flux de l'apprenant avant un cours."
         },
