@@ -531,7 +531,7 @@ The CSV's **Joined Session** column always uses the same ISO 8601 format, whethe
 
 ### Response timelines
 
-The **Results** tab starts with a collapsible **Session response timeline**, combining recorded responses from all questions and attempts. Each question/attempt also has an expandable **Response timeline**. Bars show response counts per time interval; empty intervals preserve pauses between live periods. **Detail** changes the interval size automatically for a coarse or fine view. A question chart starts with its own response range; enable **Use whole-session range** to compare it with other questions on the same time range.
+The **Results** tab starts with a **Session response timeline**, collapsed on page load, combining recorded responses from all questions and attempts. Each question/attempt also has its own expandable **Response timeline**, using only that attempt's response timestamps to set its range. Multiple attempts appear as separate graphs, not combined into one question graph. Bars show response counts per time interval; empty intervals preserve pauses between live periods. **Detail** changes the interval size automatically for a coarse or fine view.
 
 The range is inferred from the earliest and latest available response timestamps, rounded outward to complete intervals. No session start/end times are recorded for this feature. Quiz charts count each answer once at its last saved time, rather than showing every edit or final quiz submission. Interactive-session charts count responses at submission. Missing or invalid timestamps are excluded with a visible count. Anonymous activities do not show timelines.
 

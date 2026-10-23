@@ -11,7 +11,11 @@ const data = collectResponseTimeline([
   { createdAt: '2026-10-02T19:04:00Z' },
   {},
 ]);
-const props = { title: 'Session response timeline', data, defaultExpanded: true };
+const props = { title: 'Session response timeline', data };
+
+function expandTimeline() {
+  fireEvent.click(screen.getByRole('button', { name: props.title }));
+}
 
 function pointer(svg, x, type = 'mouse') {
   svg.getBoundingClientRect = () => ({ left: 0, top: 0, width: 900, height: 250 });
@@ -25,6 +29,9 @@ describe('ResponseTimeline', () => {
 
   it('supports keyboard, pointer and touch inspection, including empty intervals', () => {
     render(<ResponseTimeline {...props} />);
+    expect(screen.getByRole('button', { name: props.title })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expandTimeline();
     expect(screen.getByText(/Responses plotted: 4/)).toBeVisible();
     expect(screen.getByText(/without a usable timestamp: 1/)).toBeVisible();
     const chart = screen.getByRole('img', { name: props.title });
@@ -45,6 +52,7 @@ describe('ResponseTimeline', () => {
 
   it('marks scheduled quiz dates without restricting responses to the schedule', () => {
     render(<ResponseTimeline {...props} quiz quizStart="2026-10-02T19:01:00Z" quizEnd="2026-10-02T19:03:00Z" />);
+    expandTimeline();
     expect(screen.getByText(/last saved time/)).toBeVisible();
     expect(screen.getByText(/Responses plotted: 4/)).toBeVisible();
     const chart = screen.getByRole('img');
@@ -53,16 +61,16 @@ describe('ResponseTimeline', () => {
     expect(screen.getByText(/^Scheduled closing:/, { selector: 'div' })).toBeVisible();
   });
 
-  it('lists schedule dates outside the response range and clears stale readouts on range changes', () => {
-    render(<ResponseTimeline {...props} quiz quizStart="2026-10-02T18:00:00Z" quizEnd="2026-10-02T21:00:00Z"
-      sessionRange={{ min: Date.parse('2026-10-02T18:00:00Z'), max: Date.parse('2026-10-02T21:00:00Z') }} />);
+  it('lists dates outside its own response range and clears stale readouts when detail changes', () => {
+    render(<ResponseTimeline {...props} quiz quizStart="2026-10-02T18:00:00Z" quizEnd="2026-10-02T21:00:00Z" />);
+    expandTimeline();
     expect(screen.getAllByText(/outside response range/)).toHaveLength(2);
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
     fireEvent.focus(screen.getByRole('img'));
-    fireEvent.click(screen.getByRole('switch', { name: /whole-session range/i }));
-    expect(screen.getByRole('status')).toBeEmptyDOMElement();
-    expect(screen.queryByText(/outside response range/)).not.toBeInTheDocument();
     fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Detail' }));
     fireEvent.click(screen.getByRole('option', { name: 'Fine' }));
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
+    expect(screen.getAllByText(/outside response range/)).toHaveLength(2);
     expect(screen.getByText(/Responses plotted: 4/)).toBeVisible();
   });
 

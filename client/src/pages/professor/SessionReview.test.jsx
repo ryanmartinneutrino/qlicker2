@@ -514,13 +514,22 @@ describe('SessionReview', () => {
   it('combines all attempts in the overview and offers separate question timelines', async () => {
     renderSessionReview();
     await screen.findByText('Midterm review');
+    expect(screen.getByRole('button', { name: 'Session response timeline' })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('region', { name: 'Session response timeline' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Session response timeline' }));
     const overview = screen.getByRole('region', { name: 'Session response timeline' });
     expect(within(overview).getByText('Responses plotted: 2')).toBeVisible();
     expect(screen.queryByRole('img', { name: /Q1, attempt/ })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Response timeline — Q1, attempt 1' }));
-    const attempt = screen.getByRole('region', { name: 'Response timeline — Q1, attempt 1' });
-    expect(within(attempt).getByText('Responses plotted: 1')).toBeVisible();
-    expect(within(attempt).getByRole('switch', { name: 'Use whole-session range' })).not.toBeChecked();
+    for (const number of [1, 2]) {
+      const name = `Response timeline — Q1, attempt ${number}`;
+      fireEvent.click(screen.getByRole('button', { name }));
+      const attempt = screen.getByRole('region', { name });
+      expect(within(attempt).getByText('Responses plotted: 1')).toBeVisible();
+      expect(within(attempt).queryByRole('switch')).not.toBeInTheDocument();
+      // Each attempt has a single timestamp; its plot must not inherit the
+      // broader multi-bin range of the other attempt or the whole session.
+      expect(within(attempt).getByRole('img').querySelectorAll('rect')).toHaveLength(1);
+    }
     expect(within(overview).queryByRole('switch')).not.toBeInTheDocument();
   });
 

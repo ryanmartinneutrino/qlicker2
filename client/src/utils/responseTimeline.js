@@ -20,11 +20,9 @@ export function collectResponseTimeline(responses = []) {
 const INTERVALS = [1000, 5000, 10000, 30000, 60000, 300000, 900000, 1800000,
   3600000, 10800000, 21600000, 43200000, 86400000, 604800000, 2592000000];
 
-export function buildResponseTimelineBins(data, { range = data.range, targetBins = 25 } = {}) {
-  if (!data.timestamps.length || !range) return null;
-  // A selected comparison range must never exclude a recorded response.
-  const min = Math.min(range.min, data.range.min);
-  const max = Math.max(range.max, data.range.max);
+export function buildResponseTimelineBins(data, { targetBins = 25 } = {}) {
+  if (!data.timestamps.length || !data.range) return null;
+  const { min, max } = data.range;
   const desired = Math.max(1000, (max - min) / Math.max(1, Math.min(80, targetBins)));
   const interval = INTERVALS.find((value) => value >= desired)
     || Math.ceil(desired / 2592000000) * 2592000000;

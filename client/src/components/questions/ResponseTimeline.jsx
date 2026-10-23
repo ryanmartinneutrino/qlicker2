@@ -1,5 +1,5 @@
 import { useId, useMemo, useState } from 'react';
-import { Alert, Box, Button, Collapse, FormControlLabel, MenuItem, Switch, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Collapse, MenuItem, TextField, Typography } from '@mui/material';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
 import { useTranslation } from 'react-i18next';
 import { buildResponseTimelineBins } from '../../utils/responseTimeline';
@@ -8,15 +8,14 @@ const PLOT = { left: 55, top: 25, width: 810, height: 180 };
 const WIDTH = 900;
 const HEIGHT = 250;
 
-function TimelineChart({ data, title, quiz, quizStart, quizEnd, sessionRange }) {
+function TimelineChart({ data, title, quiz, quizStart, quizEnd }) {
   const { t } = useTranslation();
   const helpId = useId();
   const [detail, setDetail] = useState(25);
-  const [wholeSession, setWholeSession] = useState(false);
   const [selection, setSelection] = useState(null);
   const chart = useMemo(() => buildResponseTimelineBins(data, {
-    targetBins: detail, range: wholeSession && sessionRange ? sessionRange : data.range,
-  }), [data, detail, wholeSession, sessionRange]);
+    targetBins: detail,
+  }), [data, detail]);
   const activeIndex = selection?.chart === chart ? selection.index : null;
   const activeBin = activeIndex === null ? null : chart?.bins[activeIndex];
   const formatTime = (value) => new Intl.DateTimeFormat(undefined, {
@@ -69,7 +68,6 @@ function TimelineChart({ data, title, quiz, quizStart, quizEnd, sessionRange }) 
               <MenuItem value={25}>{t('responseTimeline.auto')}</MenuItem>
               <MenuItem value={80}>{t('responseTimeline.fine')}</MenuItem>
             </TextField>
-            {sessionRange && <FormControlLabel control={<Switch size="small" checked={wholeSession} onChange={(event) => setWholeSession(event.target.checked)} />} label={t('responseTimeline.wholeSession')} />}
             <Typography variant="body2">{t('responseTimeline.interval', { interval: intervalLabel, timezone })}</Typography>
           </Box>
           <Typography variant="body2">{t('responseTimeline.total', { count: data.timestamps.length })}</Typography>
@@ -118,8 +116,8 @@ function TimelineChart({ data, title, quiz, quizStart, quizEnd, sessionRange }) 
   );
 }
 
-export default function ResponseTimeline({ title, defaultExpanded = false, ...props }) {
-  const [expanded, setExpanded] = useState(defaultExpanded);
+export default function ResponseTimeline({ title, ...props }) {
+  const [expanded, setExpanded] = useState(false);
   const id = useId();
   return (
     <Box sx={{ minWidth: 0 }}>

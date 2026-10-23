@@ -1628,7 +1628,7 @@ export default function SessionReview() {
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             {sessionTimeline && <Paper variant="outlined" sx={{ p: 2.5, minWidth: 0 }}>
               <ResponseTimeline key={sessionId} title={t('responseTimeline.overview')} data={sessionTimeline}
-                quiz={session?.quiz} quizStart={session?.quizStart} quizEnd={session?.quizEnd} defaultExpanded />
+                quiz={session?.quiz} quizStart={session?.quizStart} quizEnd={session?.quizEnd} />
             </Paper>}
             {questionAttemptRows.map((row) => {
               const q = row.question;
@@ -1712,7 +1712,7 @@ export default function SessionReview() {
 
                   {row.timeline && <Box sx={{ mb: 2 }}>
                     <ResponseTimeline title={t('responseTimeline.question', { number: row.questionNumber, attempt: row.attemptNumber })}
-                      data={row.timeline} sessionRange={sessionTimeline?.range}
+                      data={row.timeline}
                       quiz={session?.quiz} quizStart={session?.quizStart} quizEnd={session?.quizEnd} />
                   </Box>}
 

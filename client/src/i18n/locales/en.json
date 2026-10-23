@@ -2429,7 +2429,7 @@
             "Grade-table averages use actual grade items in the displayed sessions. Missing items are excluded; recorded zeros count. Use Select sessions with grade items, or include sessions labelled No grade items manually.",
             "Only submitted quizzes are shown until this quiz ends. After it ends, saved answers are included even if the student did not submit.",
             "In Response Data, Export CSV opens an options dialog. Select Include response timestamps to add a time column for each question and attempt. Times use ISO 8601 with the browser timezone and the offset at the response date, including daylight saving time. They indicate the last answer save, falling back to creation time, not final quiz submission. Missing legacy timestamps remain blank. Anonymous activities never export response times. The export keeps the table’s current search and sort order. The Joined Session CSV column always uses the same format. The suffix -04:00 means four hours behind UTC; the offset accounts for daylight saving time at the recorded date. Missing join times are blank.",
-            "In Results, the session response timeline combines all questions and attempts. Expand a question’s timeline to inspect that attempt alone, and optionally use the whole-session range to compare timing. Adjust Detail to change the interval size; hover, tap, or use the arrow keys to inspect counts. Charts span the recorded response times, including gaps and responses outside scheduled quiz dates. Dotted lines mark scheduled quiz dates within the plot; dates outside it are listed below. Quiz charts count each answer at its last saved time, not every edit or final quiz submission. Missing timestamps are counted but excluded, and anonymous activities do not show timelines."
+            "In Results, the session response timeline is collapsed on page load and combines all questions and attempts. Each question attempt has its own expandable graph, using only that attempt’s response timestamps to set the range. Adjust Detail to change the interval size; hover, tap, or use the arrow keys to inspect counts. Charts span the recorded response times, including gaps and responses outside scheduled quiz dates. Dotted lines mark scheduled quiz dates within the plot; dates outside it are listed below. Quiz charts count each answer at its last saved time, not every edit or final quiz submission. Missing timestamps are counted but excluded, and anonymous activities do not show timelines."
           ],
           "success": "Professors can open the student manual from the switcher above to preview the learner workflow before class."
         },
@@ -2818,7 +2818,6 @@
     "coarse": "Coarse",
     "auto": "Automatic",
     "fine": "Fine",
-    "wholeSession": "Use whole-session range",
     "interval": "Interval: {{interval}} · Timezone: {{timezone}}",
     "total": "Responses plotted: {{count}}",
     "inspectHelp": "Hover or tap to inspect an interval. With the chart focused, use Left/Right, Home/End, and Escape.",

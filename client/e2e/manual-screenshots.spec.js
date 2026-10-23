@@ -372,7 +372,7 @@ test('capture current user-manual screenshots', async ({ browser, request }) => 
   await capture(professorPage, 'professor-grades.png');
   await professorPage.goto(`/prof/course/${course._id}/session/${completedQuiz._id}/review`);
   await expect(professorPage.getByRole('switch', { name: 'Grades visible', exact: true })).toBeChecked();
-  await professorPage.getByRole('button', { name: 'Session response timeline', exact: true }).click();
+  await expect(professorPage.getByRole('button', { name: 'Session response timeline', exact: true })).toHaveAttribute('aria-expanded', 'false');
   await capture(professorPage, 'professor-session-review.png');
   await professorPage.getByRole('tab', { name: /^Response Data$/i }).click();
   await professorPage.getByRole('button', { name: /^Export results to CSV$/i }).click();
@@ -591,6 +591,8 @@ test('review response timelines include all response times and work on narrow sc
   await loginViaUi(page, professor.email, professor.password, /\/prof$/);
   await page.setViewportSize({ width: 1440, height: 1500 });
   await page.goto(`/prof/course/${course._id}/session/${session._id}/review`);
+  await expect(page.getByRole('button', { name: 'Session response timeline', exact: true })).toHaveAttribute('aria-expanded', 'false');
+  await page.getByRole('button', { name: 'Session response timeline', exact: true }).click();
   const overview = page.getByRole('region', { name: 'Session response timeline', exact: true });
   await expect(overview.getByText('Responses plotted: 23', { exact: true })).toBeVisible();
   await expect(overview.getByText(/without a usable timestamp: 1/)).toBeVisible();
@@ -606,11 +608,11 @@ test('review response timelines include all response times and work on narrow sc
   await page.getByRole('button', { name: 'Response timeline — Q1, attempt 1', exact: true }).click();
   const question = page.getByRole('region', { name: 'Response timeline — Q1, attempt 1', exact: true });
   await expect(question.getByText('Responses plotted: 12', { exact: true })).toBeVisible();
-  await question.getByRole('switch', { name: 'Use whole-session range' }).check();
+  await expect(question.getByRole('switch')).toHaveCount(0);
   await expectNoCriticalAccessibilityViolations(page);
   if (process.env.QCLICKER_CAPTURE_MANUALS === '1') await capture(page, 'professor-response-timeline.png', 1900);
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(question.getByRole('switch', { name: 'Use whole-session range' })).toBeVisible();
+  await expect(question.getByRole('combobox', { name: 'Detail' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
   await chart.scrollIntoViewIfNeeded();
   await chart.tap({ position: { x: 90, y: 80 } });

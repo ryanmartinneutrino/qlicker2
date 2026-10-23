@@ -32,11 +32,11 @@ describe('response timelines', () => {
     expect(chart.end - chart.start).toBe(1000);
   });
 
-  it('uses a session comparison range without clipping question responses', () => {
+  it('uses only its own responses to set the range', () => {
     const data = collectResponseTimeline([{ createdAt: '2026-10-02T19:00:00Z' }, { createdAt: '2026-10-02T20:00:00Z' }]);
-    const chart = buildResponseTimelineBins(data, { range: { min: Date.parse('2026-10-02T19:30:00Z'), max: Date.parse('2026-10-02T21:00:00Z') } });
-    expect(chart.start).toBeLessThanOrEqual(data.range.min);
-    expect(chart.end).toBeGreaterThan(Date.parse('2026-10-02T21:00:00Z'));
+    const chart = buildResponseTimelineBins(data);
+    expect(chart.start).toBe(data.range.min);
+    expect(chart.end).toBe(data.range.max + chart.interval);
     expect(chart.bins.reduce((sum, bin) => sum + bin.count, 0)).toBe(2);
   });
 
