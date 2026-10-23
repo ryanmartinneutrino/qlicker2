@@ -40,11 +40,13 @@ import AiModelSelect, { parseAiModelValue } from '../../components/ai/AiModelSel
 import SessionChatPanel from '../../components/live/SessionChatPanel';
 import WordCloudPanel from '../../components/questions/WordCloudPanel';
 import HistogramPanel from '../../components/questions/HistogramPanel';
+import ResponseTimeline from '../../components/questions/ResponseTimeline';
 import BackLinkButton from '../../components/common/BackLinkButton';
 import StudentIdentity from '../../components/common/StudentIdentity';
 import ResponsiveTabsNavigation from '../../components/common/ResponsiveTabsNavigation';
 import { buildCourseTitle } from '../../utils/courseTitle';
 import { formatCsvTimestamp, formatResponseTimestamp, getLatestResponse, sortResponsesNewestFirst } from '../../utils/responses';
+import { collectResponseTimeline } from '../../utils/responseTimeline';
 import { toggleSessionReviewable } from '../../utils/reviewableToggle';
 import SessionGradesVisibilityControl from '../../components/common/SessionGradesVisibilityControl';
 
@@ -1191,11 +1193,30 @@ export default function SessionReview() {
         minimumRespondents: release?.minimumRespondents,
         correctIndices,
         responseCount: release?.respondentCount ?? (cachedAttemptStats ? Number(cachedAttemptStats.total || 0) : attemptResponses.length),
+        timeline: !anonymousSession && !isSlideType(qType) ? collectResponseTimeline(attemptResponses) : null,
         saResponses,
         nuResponses,
       };
     });
-  }), [progressList, questions, studentNameById, studentResults, t]);
+  }), [anonymousSession, progressList, questions, studentNameById, studentResults, t]);
+
+  const sessionTimeline = useMemo(() => {
+    if (anonymousSession) return null;
+    const timestamps = [];
+    let missingCount = 0;
+    let min = Infinity;
+    let max = -Infinity;
+    for (const { timeline } of questionAttemptRows) {
+      if (!timeline) continue;
+      for (const timestamp of timeline.timestamps) timestamps.push(timestamp);
+      missingCount += timeline.missingCount;
+      if (timeline.range) {
+        min = Math.min(min, timeline.range.min);
+        max = Math.max(max, timeline.range.max);
+      }
+    }
+    return { timestamps, missingCount, range: timestamps.length ? { min, max } : null };
+  }, [anonymousSession, questionAttemptRows]);
 
   const csvQuestionAttempts = useMemo(() => questions.map((question, questionIndex) => ({
     question,
@@ -1605,6 +1626,10 @@ export default function SessionReview() {
           <Alert severity="info">{t('professor.sessionReview.noQuestions')}</Alert>
         ) : (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {sessionTimeline && <Paper variant="outlined" sx={{ p: 2.5, minWidth: 0 }}>
+              <ResponseTimeline key={sessionId} title={t('responseTimeline.overview')} data={sessionTimeline}
+                quiz={session?.quiz} quizStart={session?.quizStart} quizEnd={session?.quizEnd} defaultExpanded />
+            </Paper>}
             {questionAttemptRows.map((row) => {
               const q = row.question;
               const qT = row.qType;
@@ -1684,6 +1709,12 @@ export default function SessionReview() {
                   <Box sx={{ mb: 2 }}>
                     <RichContent html={q.content} fallback={q.plainText} allowVideoEmbeds />
                   </Box>
+
+                  {row.timeline && <Box sx={{ mb: 2 }}>
+                    <ResponseTimeline title={t('responseTimeline.question', { number: row.questionNumber, attempt: row.attemptNumber })}
+                      data={row.timeline} sessionRange={sessionTimeline?.range}
+                      quiz={session?.quiz} quizStart={session?.quizStart} quizEnd={session?.quizEnd} />
+                  </Box>}
 
                   {row.responsesWithheld && (
                     <Alert severity="info" sx={{ mb: 1 }}>

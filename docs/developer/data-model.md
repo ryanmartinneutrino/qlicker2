@@ -123,6 +123,8 @@ Instructor results already include these fields for named activities. The option
 
 The CSV's `Joined Session` column uses the same formatter for `joinedAt`, regardless of the response timestamp option, with blank cells for missing or invalid dates. The on-screen join-time display remains localized.
 
+Session-review response timelines use the same response timestamp precedence as CSV exports. They aggregate the existing results payload locally per question/attempt and across the session, retaining the API's submitted-quiz and anonymity filters. Missing timestamps are counted but excluded. Histogram domains come from response extrema, rounded outward to complete intervals; scheduled quiz dates are annotations, never response filters. No live-period tracking, additional requests, or edit-history collection is introduced. Coarse/automatic/fine detail bounds the chart to at most 81 bins, including long gaps and outlying dates. Anonymous sessions never build timeline data.
+
 ## Grade
 
 Represents course/session/question grading state.

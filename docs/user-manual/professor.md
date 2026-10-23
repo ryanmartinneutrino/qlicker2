@@ -529,6 +529,18 @@ The CSV's **Joined Session** column always uses the same ISO 8601 format, whethe
 
 ![CSV export options with response timestamps](../assets/manuals/professor-response-export.png)
 
+### Response timelines
+
+The **Results** tab starts with a collapsible **Session response timeline**, combining recorded responses from all questions and attempts. Each question/attempt also has an expandable **Response timeline**. Bars show response counts per time interval; empty intervals preserve pauses between live periods. **Detail** changes the interval size automatically for a coarse or fine view. A question chart starts with its own response range; enable **Use whole-session range** to compare it with other questions on the same time range.
+
+The range is inferred from the earliest and latest available response timestamps, rounded outward to complete intervals. No session start/end times are recorded for this feature. Quiz charts count each answer once at its last saved time, rather than showing every edit or final quiz submission. Interactive-session charts count responses at submission. Missing or invalid timestamps are excluded with a visible count. Anonymous activities do not show timelines.
+
+For quizzes, dotted vertical lines mark scheduled opening and closing dates within the plotted range. The dates are also listed below, including dates outside the response range. They are reference markers only: responses before opening or after closing remain visible, including responses during extensions or manual live mode. Existing review rules still apply: an ongoing quiz exposes submitted participants only; ended quizzes include saved, unsubmitted answers too.
+
+Times use the browser's timezone. Hover or tap a chart to inspect an interval and its count. With keyboard focus on the chart, use Left/Right, Home/End, and Escape. On narrow screens, the chart scrolls horizontally within its card.
+
+![Session and question response timelines](../assets/manuals/professor-response-timeline.png)
+
 ![Anonymous review with the full question preview and respondent answers](../assets/manuals/professor-anonymous-review.png)
 
 Review tabs can include result summaries, per-question response data, students, grading, and chat history. Use them to answer different questions:

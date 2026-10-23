@@ -13,9 +13,17 @@ export function formatCsvTimestamp(value) {
 }
 
 export function formatResponseTimestamp(response) {
+  const timestamp = getRecordedResponseTimestampMs(response);
+  return formatCsvTimestamp(timestamp === null ? null : new Date(timestamp));
+}
+
+export function getRecordedResponseTimestampMs(response) {
   // Despite its name, submittedAt records each answer save. updatedAt also
   // changes when quiz submission locks answers, so use it only for old data.
-  return formatCsvTimestamp(response?.submittedAt || response?.updatedAt || response?.createdAt);
+  const value = response?.submittedAt || response?.updatedAt || response?.createdAt;
+  if (!value) return null;
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) ? timestamp : null;
 }
 
 export function getResponseTimestampMs(response) {

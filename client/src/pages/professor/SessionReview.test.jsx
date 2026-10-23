@@ -511,13 +511,27 @@ describe('SessionReview', () => {
     expect(single.csvContent.split('\n')[0]).toContain('Q1 Response,Q1 Points,Q1 Time');
   });
 
-  it('disables timestamp exports for anonymous activities', async () => {
+  it('combines all attempts in the overview and offers separate question timelines', async () => {
+    renderSessionReview();
+    await screen.findByText('Midterm review');
+    const overview = screen.getByRole('region', { name: 'Session response timeline' });
+    expect(within(overview).getByText('Responses plotted: 2')).toBeVisible();
+    expect(screen.queryByRole('img', { name: /Q1, attempt/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Response timeline — Q1, attempt 1' }));
+    const attempt = screen.getByRole('region', { name: 'Response timeline — Q1, attempt 1' });
+    expect(within(attempt).getByText('Responses plotted: 1')).toBeVisible();
+    expect(within(attempt).getByRole('switch', { name: 'Use whole-session range' })).not.toBeChecked();
+    expect(within(overview).queryByRole('switch')).not.toBeInTheDocument();
+  });
+
+  it('disables timestamp exports and timelines for anonymous activities', async () => {
     const defaultGet = apiClient.get.getMockImplementation();
     apiClient.get.mockImplementation(async (url) => url === '/sessions/session-1/results'
       ? { data: buildResultsPayload({ anonymous: true }) }
       : defaultGet(url));
     renderSessionReview();
     await screen.findByText('Midterm review');
+    expect(screen.queryByRole('button', { name: /response timeline/i })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: /response data/i }));
     fireEvent.click(screen.getByRole('button', { name: /export results to csv/i }));
     expect(screen.getByRole('checkbox', { name: /include response timestamps/i })).toBeDisabled();
