@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { execFileSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 
 import { applyLiveResponseAddedDelta, formatResponseTimestamp, mergeResponsesNewestFirst } from './responses';
 
@@ -36,7 +37,8 @@ describe('formatResponseTimestamp', () => {
     ['UTC', '2026-01-15T12:34:56.789Z', '2026-01-15T12:34:56.789+00:00'],
   ])('uses the offset in %s on %s', (timezone, createdAt, expected) => {
     // Isolate TZ from the test runner and other tests, including worker threads.
-    const script = `import { formatResponseTimestamp } from ${JSON.stringify(new URL('./responses.js', import.meta.url).href)};
+    const moduleUrl = pathToFileURL(`${process.cwd()}/src/utils/responses.js`).href;
+    const script = `import { formatResponseTimestamp } from ${JSON.stringify(moduleUrl)};
       process.stdout.write(formatResponseTimestamp({ createdAt: ${JSON.stringify(createdAt)} }));`;
     const formatted = execFileSync(process.execPath, ['--input-type=module', '-e', script], {
       env: { ...process.env, TZ: timezone }, encoding: 'utf8',
