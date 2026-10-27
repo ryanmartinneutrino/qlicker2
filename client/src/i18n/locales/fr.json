@@ -2319,7 +2319,7 @@
             "Utilisez Développer tous les aperçus ou Réduire tous les aperçus au-dessus de la liste des questions, ou ouvrez et fermez chaque aperçu individuellement.",
             "Utilisez Notes visibles à côté du contrôle de révision dans la liste des séances, l’éditeur ou la page de révision pour publier les résultats sans ouvrir la révision. Le contrôle de révision active ou désactive aussi la visibilité des notes. Lorsque la révision est désactivée, vous pouvez publier explicitement les notes. La publication est disponible après la fin de la séance et de toute prolongation."
           ],
-          "warning": "Lorsqu'une question possède déjà des réponses, certaines modifications sont volontairement limitées pour protéger le sens des résultats passés.",
+          "warning": "Dès qu’une question a une réponse enregistrée, son type et le nombre de choix sont verrouillés et elle ne peut plus être supprimée. Vous pouvez encore modifier son contenu et le texte des choix existants. Cela inclut les réponses de quiz enregistrées automatiquement avant l’envoi et les activités partagées ou anonymes comptant moins de quatre répondants. Déverrouiller une session terminée conserve ces protections.",
           "screenshot": {
             "variant": "professorSession",
             "title": "Aperçu de l'éditeur de séance",

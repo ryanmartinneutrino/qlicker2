@@ -2319,7 +2319,7 @@
             "Use Unfurl all previews or Furl all previews above the question manifest, or toggle each question preview on its own, arr!",
             "Use Marks visible beside Reviewable in the voyage list, editor, or review page to release scores without opening review. Reviewable hoists or lowers mark visibility with it. With Reviewable off, ye can explicitly release marks. Wait until the voyage and all extensions end, arr!"
           ],
-          "warning": "Once a riddle has reply data, some edits be intentionally restricted to protect th' meanin' o' past results.",
+          "warning": "Once a question has any saved answer, its type and option count be locked, and ye cannot send it to the depths. Ye may still edit its content and the words of existing options. This covers quiz autosaves before Submit and shared or anonymous activities with fewer than four answering crewmates. Unlocking an ended session keeps these protections aboard.",
           "screenshot": {
             "variant": "professorSession",
             "title": "Voyage editor preview",

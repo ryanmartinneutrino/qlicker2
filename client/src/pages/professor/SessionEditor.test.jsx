@@ -163,8 +163,8 @@ describe('SessionEditor inline close behavior', () => {
         });
       }
 
-      if (url === '/sessions/session-1/results') {
-        return Promise.resolve({ data: { studentResults: [] } });
+      if (url === '/sessions/session-1/response-locks') {
+        return Promise.resolve({ data: { responseBackedQuestionIds: [] } });
       }
 
       if (url === '/settings/public') {
@@ -193,6 +193,75 @@ describe('SessionEditor inline close behavior', () => {
 
       return Promise.reject(new Error(`Unexpected GET ${url}`));
     });
+  });
+
+  it.each([false, true])('locks answered question structure independently of review results (anonymous=%s)', async (anonymous) => {
+    const get = apiClientMock.get.getMockImplementation();
+    apiClientMock.get.mockImplementation(async (url) => {
+      if (url === '/sessions/session-1/response-locks') {
+        return { data: { responseBackedQuestionIds: ['q1'] } };
+      }
+      const result = await get(url);
+      if (url === '/sessions/session-1') Object.assign(result.data.session, { quiz: true, anonymous });
+      return result;
+    });
+    render(<SessionEditor />);
+    fireEvent.click((await screen.findAllByRole('button', { name: 'common.edit' }))[0]);
+    expect(lastQuestionEditorProps.current.disableTypeSelection).toBe(true);
+    expect(lastQuestionEditorProps.current.disableOptionCountChanges).toBe(true);
+    expect(lastQuestionEditorProps.current.onAutoSave).toEqual(expect.any(Function));
+    expect(screen.getByRole('button', { name: 'common.delete' })).toBeDisabled();
+    expect(apiClientMock.get).not.toHaveBeenCalledWith('/sessions/session-1/results');
+  });
+
+  it('keeps unanswered questions editable', async () => {
+    render(<SessionEditor />);
+    fireEvent.click((await screen.findAllByRole('button', { name: 'common.edit' }))[0]);
+    expect(lastQuestionEditorProps.current.disableTypeSelection).toBe(false);
+    expect(lastQuestionEditorProps.current.disableOptionCountChanges).toBe(false);
+    expect(screen.getByRole('button', { name: 'common.delete' })).toBeEnabled();
+  });
+
+  it.each([
+    { quiz: true, status: 'running' },
+    { quiz: false, status: 'running' },
+    { quiz: true, status: 'done', quizHasRemainingExtensions: true },
+  ])('refreshes locks without resetting edits and retains them on request failure: %j', async (sessionFields) => {
+    const intervalSpy = vi.spyOn(globalThis, 'setInterval');
+    const get = apiClientMock.get.getMockImplementation();
+    let answered = false;
+    let failRefresh = false;
+    apiClientMock.get.mockImplementation(async (url) => {
+      if (url === '/sessions/session-1/response-locks') {
+        if (failRefresh) throw new Error('Temporary failure');
+        return { data: { responseBackedQuestionIds: answered ? ['q1'] : [] } };
+      }
+      const result = await get(url);
+      if (url === '/sessions/session-1') Object.assign(result.data.session, sessionFields);
+      return result;
+    });
+    try {
+      render(<SessionEditor />);
+      await screen.findByDisplayValue('Draft Session');
+      if (sessionFields.status === 'done') {
+        fireEvent.click(screen.getByRole('button', { name: 'professor.sessionEditor.unlockEditing' }));
+      }
+      fireEvent.click(screen.getByRole('button', { name: 'common.edit' }));
+      expect(lastQuestionEditorProps.current.disableTypeSelection).toBe(false);
+      const initial = lastQuestionEditorProps.current.initial;
+      const refresh = intervalSpy.mock.calls.find(([, delay]) => delay === 3000)?.[0];
+      expect(refresh).toEqual(expect.any(Function));
+      answered = true;
+      await act(async () => { await refresh(); });
+      expect(lastQuestionEditorProps.current.disableTypeSelection).toBe(true);
+      expect(lastQuestionEditorProps.current.initial).toBe(initial);
+      failRefresh = true;
+      await act(async () => { await refresh(); });
+      expect(lastQuestionEditorProps.current.disableTypeSelection).toBe(true);
+      expect(lastQuestionEditorProps.current.disableOptionCountChanges).toBe(true);
+    } finally {
+      intervalSpy.mockRestore();
+    }
   });
 
   it.each([

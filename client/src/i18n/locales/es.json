@@ -2319,7 +2319,7 @@
             "Usa Expandir todas las vistas previas o Contraer todas las vistas previas encima de la lista de preguntas, o abre y cierra cada vista previa individualmente.",
             "Usa Calificaciones visibles junto al control de revisión en la lista de sesiones, el editor o la página de revisión para publicar resultados sin abrir la revisión. El control de revisión también activa o desactiva la visibilidad de las calificaciones. Con la revisión desactivada, puedes publicar las calificaciones explícitamente. La publicación está disponible al finalizar la sesión y todas las prórrogas."
           ],
-          "warning": "Una vez que una pregunta tiene datos de respuesta, algunas ediciones se restringen intencionalmente para proteger el significado de los resultados pasados.",
+          "warning": "En cuanto una pregunta tiene una respuesta guardada, se bloquean su tipo y el número de opciones y ya no se puede eliminar. Aún puedes editar su contenido y el texto de las opciones existentes. Esto incluye las respuestas de cuestionarios guardadas automáticamente antes de enviar y las actividades compartidas o anónimas con menos de cuatro participantes que hayan respondido. Desbloquear una sesión finalizada mantiene estas protecciones.",
           "screenshot": {
             "variant": "professorSession",
             "title": "Vista previa del editor de sesión",

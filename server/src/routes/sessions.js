@@ -4027,6 +4027,53 @@ export default async function sessionRoutes(app) {
     }
   );
 
+  // Editing protections depend on stored answers, not review visibility or
+  // final quiz submission. Return only question IDs, including for anonymous
+  // activities below the results-release threshold.
+  app.get(
+    '/sessions/:id/response-locks',
+    {
+      preHandler: authenticate,
+      schema: {
+        description: 'Instructor-only question edit locks, including autosaved and withheld anonymous responses.',
+        params: {
+          type: 'object',
+          required: ['id'],
+          properties: { id: { type: 'string', minLength: 1 } },
+          additionalProperties: false,
+        },
+        response: {
+          200: {
+            type: 'object',
+            required: ['responseBackedQuestionIds'],
+            properties: {
+              responseBackedQuestionIds: { type: 'array', items: { type: 'string' } },
+            },
+            additionalProperties: false,
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const session = await Session.findById(request.params.id).select('courseId questions').lean();
+      if (!session) {
+        return reply.code(404).send({ error: 'Not Found', message: 'Session not found' });
+      }
+      const course = await Course.findById(session.courseId).select('instructors').lean();
+      if (!course) {
+        return reply.code(404).send({ error: 'Not Found', message: 'Course not found' });
+      }
+      if (!isInstructorOrAdmin(course, request.user)) {
+        return reply.code(403).send({ error: 'Forbidden', message: 'Insufficient permissions' });
+      }
+      const questionIds = normalizeQuestionIds(session.questions);
+      const responseBackedQuestionIds = questionIds.length > 0
+        ? await Response.distinct('questionId', { questionId: { $in: questionIds } })
+        : [];
+      return { responseBackedQuestionIds };
+    }
+  );
+
   // GET /sessions/:id - Get a single session
   app.get(
     '/sessions/:id',

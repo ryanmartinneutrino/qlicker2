@@ -2366,7 +2366,7 @@
             "Use Expand all previews or Collapse all previews above the question list, or toggle an individual question preview.",
             "Use Grades visible beside Reviewable in the session list, editor, or review page to release scores without opening session review. Reviewable turns grade visibility on or off with it. While Reviewable is off, you can explicitly release grades. Release is available after the session and any extensions end."
           ],
-          "warning": "Once a question has response data, some edits are intentionally restricted to protect the meaning of past results.",
+          "warning": "Once a question has any saved response, its type and option count are locked and it cannot be deleted. You can still edit its content and existing option text. This includes quiz autosaves before Submit and shared or anonymous activities below the four-respondent threshold. Unlocking an ended session keeps these protections.",
           "screenshot": {
             "variant": "professorSession",
             "title": "Session editor preview",

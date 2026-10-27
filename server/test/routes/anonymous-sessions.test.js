@@ -667,6 +667,79 @@ describe('anonymous interactive sessions', () => {
 });
 
 describe('anonymous quizzes', () => {
+  it.each([
+    { anonymous: false, shared: false },
+    { anonymous: true, shared: false },
+    { anonymous: false, shared: true },
+    { anonymous: true, shared: true },
+  ])('protects saved quiz answers before submission and results release: %j', async ({ anonymous, shared }) => {
+    const { profToken, course, students } = await setupCourse({ studentCount: 1 });
+    const sessionId = (await createSession(profToken, course._id, {
+      anonymous, quiz: true, allowSkippingZeroPointQuestions: true,
+    })).json().session._id;
+    const questionId = await addMcQuestion(profToken, sessionId, course._id);
+    const unansweredId = await addMcQuestion(profToken, sessionId, course._id, 'Optional question');
+    await Question.updateOne({ _id: unansweredId }, { $set: { 'sessionOptions.points': 0 } });
+    const call = (method, suffix, token = profToken, payload) => authenticatedRequest(
+      app, method, `/api/v1/sessions/${sessionId}${suffix}`, { token, payload }
+    );
+    expect((await call('PATCH', '', profToken, { status: 'running' })).statusCode).toBe(200);
+    let participantToken = students[0].token;
+    const outsider = await createTestUser({ email: 'outsider-editor@example.com', roles: ['professor'] });
+    const outsiderToken = await getAuthToken(app, outsider);
+    expect((await call('GET', '/response-locks', outsiderToken)).statusCode).toBe(403);
+    if (shared) {
+      expect((await authenticatedRequest(app, 'PATCH', `/api/v1/courses/${course._id}`, {
+        token: profToken, payload: { allowSharedActivities: true },
+      })).statusCode).toBe(200);
+      const share = await call('POST', '/activity-share', profToken, {});
+      expect(share.statusCode).toBe(200);
+      const redeemed = await authenticatedRequest(app, 'POST', '/api/v1/activity-codes/redeem', {
+        token: outsiderToken, payload: { code: share.json().code },
+      });
+      expect(redeemed.statusCode).toBe(200);
+      participantToken = outsiderToken;
+    }
+    expect((await call('GET', '/response-locks', students[0].token)).statusCode).toBe(403);
+    expect((await call('GET', '/response-locks', outsiderToken)).statusCode).toBe(403);
+    expect((await app.inject({ method: 'GET', url: `/api/v1/sessions/${sessionId}/response-locks` })).statusCode).toBe(401);
+    expect((await call('GET', '/response-locks')).json()).toEqual({ responseBackedQuestionIds: [] });
+
+    const saved = await call('PATCH', '/quiz-response', participantToken, { questionId, answer: '0' });
+    expect(saved.statusCode).toBe(200);
+    expect(saved.json().response.editable).toBe(true);
+    expect((await Session.findById(sessionId).lean()).submittedQuiz).toEqual([]);
+    // A single draft response must lock editing even though review has no answers.
+    const draftResults = await call('GET', '/results');
+    expect(draftResults.statusCode).toBe(anonymous ? 409 : 200);
+    if (!anonymous) expect(draftResults.json().studentResults).toEqual([]);
+    expect((await call('GET', '/response-locks')).json()).toEqual({ responseBackedQuestionIds: [questionId] });
+    // Editing the answer does not create another response or change the locks.
+    expect((await call('PATCH', '/quiz-response', participantToken, { questionId, answer: '1' })).statusCode).toBe(200);
+    expect(await Response.countDocuments({ questionId })).toBe(1);
+
+    const edit = (payload) => authenticatedRequest(app, 'PATCH', `/api/v1/questions/${questionId}`, { token: profToken, payload });
+    expect((await edit({ type: 2 })).statusCode).toBe(409);
+    expect((await edit({ options: [{ content: 'Only option', correct: true }] })).statusCode).toBe(409);
+    expect((await call('DELETE', `/questions/${questionId}`)).statusCode).toBe(409);
+    expect((await authenticatedRequest(app, 'DELETE', `/api/v1/questions/${questionId}`, { token: profToken })).statusCode).toBe(409);
+    expect((await edit({ content: '<p>Clarified prompt</p>', options: [
+      { content: 'Yes', correct: true }, { content: 'No', correct: false },
+    ] })).statusCode).toBe(200);
+    expect((await authenticatedRequest(app, 'PATCH', `/api/v1/questions/${unansweredId}`, {
+      token: profToken, payload: { type: 2 },
+    })).statusCode).toBe(200);
+
+    expect((await call('POST', '/submit', participantToken)).statusCode).toBe(200);
+    expect((await call('GET', '/response-locks')).json()).toEqual({ responseBackedQuestionIds: [questionId] });
+    expect((await call('PATCH', '', profToken, { status: 'done' })).statusCode).toBe(200);
+    expect((await call('GET', '/response-locks')).json()).toEqual({ responseBackedQuestionIds: [questionId] });
+    if (anonymous) {
+      expect((await call('GET', '/results')).json().studentResults).toEqual([]);
+      expect(await Grade.countDocuments({ sessionId })).toBe(0);
+    }
+  });
+
   it('allows one submission per student and keeps the course list status per student', async (ctx) => {
     if (mongoose.connection.readyState !== 1) ctx.skip();
     const { profToken, course, students } = await setupCourse({ studentCount: 2 });
