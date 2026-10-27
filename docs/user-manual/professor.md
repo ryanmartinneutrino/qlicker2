@@ -215,6 +215,8 @@ For each question, review:
 - tags and visibility
 - whether response data already exists, which can restrict editing to protect historical results
 
+Once a question has any saved response, you cannot delete it, change its type, or add or remove answer options. You can still clarify its content and edit existing option text. These restrictions start with the first quiz autosave, before the participant selects Submit. They also apply to shared and anonymous activities, even when fewer than four people have responded and answers are withheld from review. Unlocking an ended session does not remove these protections.
+
 Use **Set all question points** only after considering ungraded slides and deliberately zero-point participation questions.
 
 ### Session-level controls

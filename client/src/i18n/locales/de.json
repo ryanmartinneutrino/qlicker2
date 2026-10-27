@@ -2319,7 +2319,7 @@
             "Verwenden Sie Alle Vorschauen aufklappen oder Alle Vorschauen zuklappen über der Fragenliste oder öffnen und schließen Sie einzelne Vorschauen.",
             "Verwenden Sie Noten sichtbar neben der Freigabe zur Einsicht in der Sitzungsliste, im Editor oder auf der Auswertungsseite, um nur die Ergebnisse zu veröffentlichen. Die Freigabe zur Einsicht schaltet die Notensichtbarkeit ebenfalls ein oder aus. Bei deaktivierter Sitzungseinsicht können Sie Noten ausdrücklich freigeben. Dies ist erst nach Ende der Sitzung und aller Verlängerungen möglich."
           ],
-          "warning": "Sobald eine Frage Antwortdaten hat, sind einige Bearbeitungen absichtlich eingeschränkt, um die Bedeutung vergangener Ergebnisse zu schützen.",
+          "warning": "Sobald für eine Frage eine Antwort gespeichert wurde, sind Fragetyp und Anzahl der Antwortoptionen gesperrt und die Frage kann nicht gelöscht werden. Inhalt und Text bestehender Optionen bleiben bearbeitbar. Dies gilt auch für automatisch gespeicherte Quizantworten vor dem Absenden sowie für geteilte oder anonyme Aktivitäten mit weniger als vier Antwortenden. Diese Schutzmaßnahmen bleiben beim Entsperren einer beendeten Sitzung bestehen.",
           "screenshot": {
             "variant": "professorSession",
             "title": "Vorschau des Sitzungseditors",

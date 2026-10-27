@@ -2319,7 +2319,7 @@
             "Usa Espandi tutte le anteprime o Comprimi tutte le anteprime sopra l’elenco delle domande, oppure apri e chiudi le singole anteprime.",
             "Usa Voti visibili accanto al controllo di revisione nell’elenco delle sessioni, nell’editor o nella pagina di revisione per pubblicare i risultati senza aprire la revisione. Il controllo di revisione attiva o disattiva anche la visibilità dei voti. Quando la revisione è disattivata, puoi pubblicare esplicitamente i voti. La pubblicazione è disponibile dopo la fine della sessione e di tutte le proroghe."
           ],
-          "warning": "Una volta che una domanda ha dati di risposta, alcune modifiche sono intenzionalmente limitate per proteggere il significato dei risultati passati.",
+          "warning": "Non appena una domanda ha una risposta salvata, il tipo e il numero di opzioni vengono bloccati e la domanda non può essere eliminata. Puoi ancora modificarne il contenuto e il testo delle opzioni esistenti. Questo vale anche per le risposte ai quiz salvate automaticamente prima dell’invio e per le attività condivise o anonime con meno di quattro rispondenti. Sbloccare una sessione conclusa mantiene queste protezioni.",
           "screenshot": {
             "variant": "professorSession",
             "title": "Anteprima dell'editor di sessione",
