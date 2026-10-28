@@ -95,3 +95,71 @@ test('anonymous review shows the full grading preview without grade controls or 
   await expect(page.getByRole('navigation', { name: 'Question navigator' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 });
+
+test('anonymous live quiz review releases batches and handles answers without timestamps', async ({ page, request }) => {
+  const { admin, professor, student } = await seedUsers(request);
+  const course = await createCourseViaApi(request, admin.token, { name: 'Anonymous quiz review' });
+  await addInstructorToCourseViaApi(request, admin.token, course._id, professor.user._id);
+  const participants = [student];
+  for (let index = 1; index < 9; index += 1) {
+    const registered = await apiJson(request, 'POST', '/auth/register', { payload: buildUser('batch-survey') });
+    expect(registered.response.status()).toBe(201);
+    participants.push(registered.body);
+  }
+  for (const participant of participants) await enrollStudentViaApi(request, participant.token, course.enrollmentCode);
+  const session = await createSessionViaApi(request, professor.token, course._id, { quiz: true, anonymous: true, name: 'Anonymous concept quiz' });
+  const question = await createQuestionViaApi(request, professor.token, {
+    sessionId: session._id, courseId: course._id, type: 0,
+    content: '<p>Which organelle produces most of a cell’s ATP?</p>',
+    options: [{ content: 'Nucleus', correct: false }, { content: 'Mitochondrion', correct: true }],
+  });
+  await addQuestionToSessionViaApi(request, professor.token, session._id, question._id);
+  await patchSessionViaApi(request, professor.token, session._id, { status: 'running' });
+  const call = async (method, suffix, payload, token = professor.token) => {
+    const result = await apiJson(request, method, `/sessions/${session._id}${suffix}`, { token, payload });
+    expect(result.response.status(), JSON.stringify(result.body)).toBe(200);
+    return result.body;
+  };
+  for (let index = 0; index < participants.length; index += 1) {
+    await call('PATCH', '/quiz-response', { questionId: question._id, answer: index < 4 ? '1' : '0' }, participants[index].token);
+    if (index < 3) await call('POST', '/submit', {}, participants[index].token);
+  }
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await loginViaUi(page, professor.email, professor.password, /\/prof$/);
+  await page.goto(`/prof/course/${course._id}`);
+  await page.getByRole('tab', { name: /^Quizzes/ }).click();
+  await expect(page.getByText('Live review needs at least 4 submitted quizzes.')).toBeVisible();
+  await expect(page.getByRole('button', { name: /review live.*anonymous concept quiz/i })).toHaveCount(0);
+  await call('POST', '/submit', {}, participants[3].token);
+  await page.getByRole('button', { name: /review live.*anonymous concept quiz/i }).click();
+  await expect(page.getByText(/Anonymous live review releases submitted quizzes in batches of 4/)).toBeVisible();
+  await expect(page.getByRole('button', { name: /response timeline/i })).toHaveCount(0);
+  await expectNoCriticalAccessibilityViolations(page);
+  await page.setViewportSize({ width: 1440, height: 1100 });
+  await capture(page, 'professor-anonymous-live-review.png');
+  const firstBatch = (await call('GET', '/results')).studentResults;
+  expect(firstBatch).toHaveLength(4);
+  expect(JSON.stringify(firstBatch)).not.toMatch(/createdAt|updatedAt|anon_/);
+  await page.getByRole('tab', { name: 'Response Data', exact: true }).click();
+  const table = page.getByRole('table', { name: 'Student results', exact: true });
+  await expect(table.getByRole('row')).toHaveCount(5);
+  for (const participant of participants.slice(4, 7)) {
+    await call('POST', '/submit', {}, participant.token);
+    expect((await call('GET', '/results')).studentResults).toEqual(firstBatch);
+  }
+  await page.reload();
+  await page.getByRole('tab', { name: 'Response Data', exact: true }).click();
+  await expect(table.getByRole('row')).toHaveCount(5);
+  await call('POST', '/submit', {}, participants[7].token);
+  await expect(table.getByRole('row')).toHaveCount(9);
+  await call('PATCH', '', { status: 'done' });
+  await expect(table.getByRole('row')).toHaveCount(10);
+  await expect(page.getByRole('button', { name: /response timeline/i })).toHaveCount(0);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('combobox', { name: 'View', exact: true }).click();
+  await page.getByRole('option', { name: 'Responses by question', exact: true }).click();
+  await expect(page.getByRole('table', { name: 'Anonymous responses', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  expect(errors).toEqual([]);
+});

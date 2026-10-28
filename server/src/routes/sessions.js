@@ -5553,7 +5553,10 @@ export default async function sessionRoutes(app) {
         $addToSet: { submittedQuiz: userId, joined: userId },
       };
       if (anonymousSession) {
-        // No timestamped join records for anonymous sessions.
+        // Keep a durable append-only order for anonymous review batches.
+        // The update predicate below prevents duplicate concurrent submissions.
+        delete updateOps.$addToSet.submittedQuiz;
+        updateOps.$push = { submittedQuiz: userId };
       } else if (hasJoinRecord) {
         updateOps.$set = { 'joinRecords.$[student].joinedAt': now };
       } else {
@@ -5566,8 +5569,10 @@ export default async function sessionRoutes(app) {
         };
       }
 
-      const updated = await Session.findByIdAndUpdate(
-        request.params.id,
+      const updated = await Session.findOneAndUpdate(
+        anonymousSession
+          ? { _id: request.params.id, submittedQuiz: { $ne: userId } }
+          : { _id: request.params.id },
         updateOps,
         hasJoinRecord && !anonymousSession
           ? {
@@ -5577,12 +5582,16 @@ export default async function sessionRoutes(app) {
           : { returnDocument: 'after' }
       );
 
+      if (!updated) {
+        return reply.code(409).send({ error: 'Conflict', message: 'Quiz already submitted' });
+      }
       notifyQuizSubmitted(app, course, updated?._id || request.params.id, request.user.userId);
-      if (!anonymousSession) {
+      if (!anonymousSession || updated.submittedQuiz.length % MIN_ANONYMOUS_RESPONDENTS === 0) {
         // No answers or participant IDs in the notification. Review clients
         // coalesce submissions before loading the submitted-only snapshot.
         sendToInstructors(app, course, 'session:quiz-submitted', {
           courseId: String(course._id), sessionId: String(updated._id),
+          ...(anonymousSession ? { anonymous: true, submittedCount: updated.submittedQuiz.length } : {}),
         });
       }
 
@@ -7912,6 +7921,9 @@ export default async function sessionRoutes(app) {
     '/sessions/:id/results',
     {
       preHandler: authenticate,
+      schema: {
+        description: 'Instructor results and CSV data. Active named quizzes include submitted answers only. Active anonymous quizzes require four submissions and release fixed batches of four submissions and respondents per question/attempt, without identities or timestamps. Ended quizzes include saved unsubmitted answers; anonymous question/attempt groups still require at least four respondents.',
+      },
       rateLimit: { max: 30, timeWindow: '1 minute' },
       config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
     },
@@ -7938,11 +7950,17 @@ export default async function sessionRoutes(app) {
       if (changed) {
         notifyStatusChanged(app, course, session?._id || request.params.id, { status: 'done' });
       }
-      if (isAnonymousSession(session) && session.status !== 'done') {
-        return reply.code(409).send({ error: 'Conflict', message: 'Anonymous results are available after the session ends' });
-      }
-
       const quizResultParticipantIds = getQuizResultsParticipantIds(session);
+      const anonymousLiveQuiz = isAnonymousSession(session) && session.quiz && !session.practiceQuiz && session.status !== 'done';
+      if (isAnonymousSession(session) && session.status !== 'done'
+        && (!anonymousLiveQuiz || quizResultParticipantIds.length < MIN_ANONYMOUS_RESPONDENTS)) {
+        return reply.code(409).send({
+          error: 'Conflict',
+          message: anonymousLiveQuiz
+            ? 'Anonymous live review requires at least four submitted quizzes'
+            : 'Anonymous results are available after the session ends',
+        });
+      }
 
       // Fetch questions in session order and normalize legacy fields for review.
       const questionIds = session.questions || [];
@@ -7994,6 +8012,7 @@ export default async function sessionRoutes(app) {
           attempts.get(attempt).add(respondentId);
         });
         anonymousRespondentCount = respondentIds.size;
+        const releasedByQuestion = new Map();
         orderedQuestions.forEach((question) => {
           const attempts = respondentsByQuestion.get(String(question._id)) || new Map();
           const attemptNumbers = new Set([
@@ -8004,17 +8023,29 @@ export default async function sessionRoutes(app) {
           // Aggregate counts are safe below the threshold. Never include who
           // answered a withheld attempt, even as an empty respondent row.
           question.anonymousResponseAttempts = [...attemptNumbers].sort((a, b) => a - b).map((attempt) => {
-            const respondentCount = attempts.get(attempt)?.size || 0;
-            const withheld = respondentCount > 0 && respondentCount < MIN_ANONYMOUS_RESPONDENTS;
-            responsesWithheld ||= withheld;
-            return { attempt, respondentCount, responsesWithheld: withheld, minimumRespondents: MIN_ANONYMOUS_RESPONDENTS };
+            const respondents = attempts.get(attempt) || new Set();
+            const respondentCount = respondents.size;
+            // Question edits/legacy data can leave unequal answer counts even
+            // among submitted quizzes. Batch each attempt independently too.
+            const orderedRespondents = anonymousLiveQuiz
+              ? quizResultParticipantIds.filter((id) => respondents.has(id))
+              : [...respondents];
+            const releasedCount = anonymousLiveQuiz
+              ? respondentCount - (respondentCount % MIN_ANONYMOUS_RESPONDENTS)
+              : respondentCount >= MIN_ANONYMOUS_RESPONDENTS ? respondentCount : 0;
+            releasedByQuestion.set(`${question._id}:${attempt}`, new Set(orderedRespondents.slice(0, releasedCount)));
+            const withheld = respondentCount > 0 && releasedCount === 0;
+            responsesWithheld ||= releasedCount < respondentCount;
+            return {
+              attempt, respondentCount, responsesWithheld: withheld, minimumRespondents: MIN_ANONYMOUS_RESPONDENTS,
+              ...(anonymousLiveQuiz ? { releasedRespondentCount: releasedCount } : {}),
+            };
           });
         });
         // Filter before building rows or participation totals so sparse answers
         // cannot leak through derived per-respondent fields or exports.
         allResponses = allResponses.filter((response) => (
-          (respondentsByQuestion.get(String(response.questionId))?.get(Number(response.attempt) || 1)?.size || 0)
-            >= MIN_ANONYMOUS_RESPONDENTS
+          releasedByQuestion.get(`${response.questionId}:${Number(response.attempt) || 1}`)?.has(getResponseStudentId(response))
         ));
       }
 
@@ -8047,6 +8078,8 @@ export default async function sessionRoutes(app) {
           questions: orderedQuestions,
           studentResults: [],
           chatPosts: [],
+          quizResultsRefreshAt: session.quiz && !session.practiceQuiz && session.status === 'visible'
+            ? getLatestQuizWindowEndMs(session, getNormalizedQuizExtensions(session)) : null,
           anonymousSummary: {
             respondentCount: anonymousRespondentCount,
             joinedCount: joinedUserIds.size,
