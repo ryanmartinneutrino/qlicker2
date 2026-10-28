@@ -667,6 +667,129 @@ describe('anonymous interactive sessions', () => {
 });
 
 describe('anonymous quizzes', () => {
+  it.each(['running', 'visible'])('releases fixed batches for %s quizzes, hides identities and times, and includes unsent answers after ending', async (status) => {
+    const { prof, profToken, course, students } = await setupCourse({ studentCount: 9 });
+    const quizEnd = new Date(Date.now() + 3_600_000);
+    const sessionId = (await createSession(profToken, course._id, {
+      anonymous: true, quiz: true,
+      quizStart: new Date(Date.now() - 3_600_000).toISOString(), quizEnd: quizEnd.toISOString(),
+    })).json().session._id;
+    const questionId = await addMcQuestion(profToken, sessionId, course._id);
+    await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${sessionId}`, { token: profToken, payload: { status } });
+    const sent = vi.spyOn(app, 'wsSendToUsers');
+    const results = () => authenticatedRequest(app, 'GET', `/api/v1/sessions/${sessionId}/results`, { token: profToken });
+    const instructorEvents = () => sent.mock.calls.filter(([ids, event]) => ids.includes(String(prof._id)) && event === 'session:quiz-submitted');
+    let firstBatch;
+    for (let index = 0; index < students.length; index += 1) {
+      const { token } = students[index];
+      const saved = await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${sessionId}/quiz-response`, {
+        token, payload: { questionId, answer: index < 4 ? '0' : '1' },
+      });
+      expect(saved.statusCode).toBe(200);
+      // The ninth student saves an answer but forgets to submit.
+      if (index === 8) break;
+      const submit = await authenticatedRequest(app, 'POST', `/api/v1/sessions/${sessionId}/submit`, { token });
+      expect(submit.statusCode).toBe(200);
+      const reviewed = await results();
+      if (index < 3) {
+        expect(reviewed.statusCode).toBe(409);
+        expect(instructorEvents()).toHaveLength(0);
+        continue;
+      }
+      expect(reviewed.statusCode).toBe(200);
+      const payload = reviewed.json();
+      expect(payload.quizResultsRefreshAt).toBe(status === 'visible' ? quizEnd.getTime() : null);
+      expect(payload.studentResults).toHaveLength(index < 7 ? 4 : 8);
+      expectNoIdentity(payload, students);
+      expect(JSON.stringify(payload.studentResults)).not.toMatch(/anon_|createdAt|updatedAt|submittedIpAddress/);
+      if (index === 3) firstBatch = payload.studentResults;
+      if (index > 3 && index < 7) {
+        expect(payload.studentResults).toEqual(firstBatch);
+        expect((await results()).json().studentResults).toEqual(firstBatch);
+      }
+      expect(instructorEvents()).toHaveLength(index < 7 ? 1 : 2);
+    }
+    expect((await results()).json().studentResults).toHaveLength(8);
+    expect(instructorEvents().map(([, , data]) => data.submittedCount)).toEqual([4, 8]);
+    for (const [, , data] of instructorEvents()) {
+      expectNoIdentity(data, students);
+      expect(data.anonymous).toBe(true);
+    }
+    const forbidden = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${sessionId}/results`, { token: students[0].token });
+    expect(forbidden.statusCode).toBe(403);
+    const outsider = await createTestUser({ email: 'unrelated-prof@example.com', roles: ['professor'] });
+    expect((await authenticatedRequest(app, 'GET', `/api/v1/sessions/${sessionId}/results`, { token: await getAuthToken(app, outsider) })).statusCode).toBe(403);
+    if (status === 'visible') {
+      await Session.updateOne({ _id: sessionId }, { $set: { quizEnd: new Date(Date.now() - 1000) } });
+    } else {
+      await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${sessionId}`, { token: profToken, payload: { status: 'done' } });
+    }
+    const ended = (await results()).json();
+    expect(ended.session.status).toBe('done');
+    expect(ended.studentResults).toHaveLength(9);
+    expect(await Grade.countDocuments({ sessionId })).toBe(0);
+    // Reopening preserves the submitted prefix instead of releasing the tail.
+    await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${sessionId}`, { token: profToken, payload: { status: 'running' } });
+    expect((await results()).json().studentResults).toHaveLength(8);
+  });
+
+  it('keeps an optional question’s partial next batch hidden while releasing the next four quizzes', async () => {
+    const { profToken, course, students } = await setupCourse({ studentCount: 8 });
+    const sessionId = (await createSession(profToken, course._id, {
+      anonymous: true, quiz: true, allowSkippingZeroPointQuestions: true,
+    })).json().session._id;
+    const requiredId = await addMcQuestion(profToken, sessionId, course._id);
+    const optionalId = await addMcQuestion(profToken, sessionId, course._id, 'Optional feedback');
+    await Question.updateOne({ _id: optionalId }, { $set: { 'sessionOptions.points': 0 } });
+    await Session.updateOne({ _id: sessionId }, { $set: { status: 'running' } });
+    let firstOptionalAnswers;
+    for (let index = 0; index < students.length; index += 1) {
+      const { token } = students[index];
+      for (const questionId of index < 5 ? [requiredId, optionalId] : [requiredId]) {
+        expect((await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${sessionId}/quiz-response`, {
+          token, payload: { questionId, answer: index === 4 ? '1' : '0' },
+        })).statusCode).toBe(200);
+      }
+      expect((await authenticatedRequest(app, 'POST', `/api/v1/sessions/${sessionId}/submit`, { token })).statusCode).toBe(200);
+      if (index !== 3 && index !== 7) continue;
+      const result = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${sessionId}/results`, { token: profToken });
+      expect(result.statusCode).toBe(200);
+      expect(result.json().studentResults).toHaveLength(index + 1);
+      const optionalAnswers = result.json().studentResults.flatMap((student) => student.questionResults
+        .filter((question) => question.questionId === optionalId).flatMap((question) => question.responses.map((response) => response.answer)));
+      if (index === 3) firstOptionalAnswers = optionalAnswers;
+      else {
+        expect(optionalAnswers).toEqual(firstOptionalAnswers);
+        expect(optionalAnswers).toHaveLength(4);
+        expect(result.json().questions.find((question) => question._id === optionalId).anonymousResponseAttempts[0])
+          .toMatchObject({ respondentCount: 5, releasedRespondentCount: 4 });
+      }
+    }
+  });
+
+  it('batches sparse question/attempt groups independently and survives concurrent duplicate submissions', async () => {
+    const { profToken, course, students } = await setupCourse({ studentCount: 8 });
+    const sessionId = (await createSession(profToken, course._id, { anonymous: true, quiz: true })).json().session._id;
+    const questionId = await addMcQuestion(profToken, sessionId, course._id);
+    await Session.updateOne({ _id: sessionId }, { $set: { status: 'running' } });
+    for (const { token } of students) {
+      expect((await authenticatedRequest(app, 'PATCH', `/api/v1/sessions/${sessionId}/quiz-response`, { token, payload: { questionId, answer: '0' } })).statusCode).toBe(200);
+    }
+    const duplicate = await Promise.all([0, 1].map(() => authenticatedRequest(app, 'POST', `/api/v1/sessions/${sessionId}/submit`, { token: students[0].token })));
+    expect(duplicate.map((res) => res.statusCode).sort()).toEqual([200, 409]);
+    for (const { token } of students.slice(1)) await authenticatedRequest(app, 'POST', `/api/v1/sessions/${sessionId}/submit`, { token });
+    const stored = await Session.findById(sessionId).lean();
+    expect(stored.submittedQuiz).toHaveLength(8);
+    // Model legacy/incomplete data: only five submitted respondents answered attempt 2.
+    await Response.insertMany(stored.submittedQuiz.slice(0, 5).map((studentUserId) => ({ questionId, studentUserId, attempt: 2, answer: '1' })));
+    const result = await authenticatedRequest(app, 'GET', `/api/v1/sessions/${sessionId}/results`, { token: profToken });
+    expect(result.statusCode).toBe(200);
+    expect(result.json().questions[0].anonymousResponseAttempts.find((entry) => entry.attempt === 2)).toMatchObject({ respondentCount: 5, releasedRespondentCount: 4 });
+    const answers = result.json().studentResults.flatMap((student) => student.questionResults.flatMap((question) => question.responses));
+    expect(answers.filter((answer) => answer.attempt === 2)).toHaveLength(4);
+    expect(result.json().studentResults.every((student) => student.participation === null)).toBe(true);
+  });
+
   it.each([
     { anonymous: false, shared: false },
     { anonymous: true, shared: false },

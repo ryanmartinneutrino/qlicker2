@@ -3,6 +3,17 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SessionEditor from './SessionEditor';
 
+const quizEvents = vi.hoisted(() => ({ listeners: new Set() }));
+vi.mock('../../contexts/LiveSessionWebSocketContext', () => ({
+  LiveSessionWebSocketProvider: ({ children }) => children,
+  useLiveSessionWebSocket: () => ({
+    subscribe: quizEvents.subscribe,
+    registerRefreshHandler: quizEvents.register,
+  }),
+}));
+quizEvents.subscribe = (handler) => { quizEvents.listeners.add(handler); return () => quizEvents.listeners.delete(handler); };
+quizEvents.register = () => () => {};
+
 const {
   navigateMock,
   requestCloseMock,
@@ -451,6 +462,24 @@ describe('SessionEditor inline close behavior', () => {
     if (status === 'running') {
       expect(screen.getByRole('button', { name: 'professor.sessionEditor.reviewLiveResults' })).toBeInTheDocument();
     }
+  });
+
+  it('replaces the anonymous waiting notice with live review when a batch arrives', async () => {
+    const originalGet = apiClientMock.get.getMockImplementation();
+    apiClientMock.get.mockImplementation(async (url) => {
+      const response = await originalGet(url);
+      if (url === '/sessions/session-1') Object.assign(response.data.session, {
+        quiz: true, anonymous: true, status: 'running', submittedCount: 3,
+      });
+      return response;
+    });
+    render(<SessionEditor />);
+    expect(await screen.findByText('professor.sessionReview.anonymousLiveWaiting')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'professor.sessionEditor.reviewLiveResults' })).not.toBeInTheDocument();
+    act(() => quizEvents.listeners.forEach((handler) => handler({ event: 'session:quiz-submitted', data: { anonymous: true, submittedCount: 4 } })));
+    fireEvent.click(await screen.findByRole('button', { name: 'professor.sessionEditor.reviewLiveResults' }));
+    expect(navigateMock).toHaveBeenCalledWith('/prof/course/course-1/session/session-1/review?returnTab=1');
+    expect(screen.queryByText('professor.sessionReview.anonymousLiveWaiting')).not.toBeInTheDocument();
   });
 
   it('adopts the returned status when removing the last active scheduled extension', async () => {
