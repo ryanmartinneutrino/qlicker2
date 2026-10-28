@@ -279,16 +279,8 @@ export default function SessionEditor() {
 
   const refreshResponseBackedQuestions = useCallback(async () => {
     try {
-      const { data: resultsData } = await apiClient.get(`/sessions/${sessionId}/results`);
-      const backedIds = new Set();
-      (resultsData?.studentResults || []).forEach((studentResult) => {
-        (studentResult?.questionResults || []).forEach((questionResult) => {
-          if ((questionResult?.responses || []).length > 0) {
-            backedIds.add(String(questionResult.questionId));
-          }
-        });
-      });
-      setResponseBackedQuestionIds(backedIds);
+      const { data } = await apiClient.get(`/sessions/${sessionId}/response-locks`);
+      setResponseBackedQuestionIds(new Set(data.responseBackedQuestionIds.map(String)));
     } catch {
       // Keep the last known locks if the response check is temporarily unavailable.
     }
@@ -396,15 +388,15 @@ export default function SessionEditor() {
     return () => clearTimeout(timer);
   }, [fetchSession, quiz, session?.quizEnd, session?.quizStart, session?.quizExtensions, status]);
 
-  // While a quiz is live, poll only its response metadata. This immediately
+  // While responses can arrive, poll only edit-lock metadata. This
   // applies the existing type/option locks when a student starts responding,
   // without resetting any fields the instructor is editing.
   useEffect(() => {
-    if (!quiz || status !== 'running') return undefined;
+    if (status !== 'running' && !session?.quizHasRemainingExtensions) return undefined;
     refreshResponseBackedQuestions();
     const timer = setInterval(refreshResponseBackedQuestions, 3000);
     return () => clearInterval(timer);
-  }, [quiz, refreshResponseBackedQuestions, status]);
+  }, [refreshResponseBackedQuestions, session?.quizHasRemainingExtensions, status]);
 
   const toIsoIfValid = (dateValue) => {
     if (!dateValue) return null;
@@ -1645,6 +1637,18 @@ export default function SessionEditor() {
                 </Tooltip>
               )}
             />
+            {quiz && !practiceQuiz && (
+              <FormControlLabel
+                control={(
+                  <Switch
+                    checked={!!session.allowSkippingZeroPointQuestions}
+                    onChange={(e) => saveSessionPatch({ allowSkippingZeroPointQuestions: e.target.checked })}
+                    disabled={savingSession}
+                  />
+                )}
+                label={t('professor.sessionEditor.allowSkippingZeroPointQuestions')}
+              />
+            )}
             <FormControlLabel
               control={(
                 <Switch
