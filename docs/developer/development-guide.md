@@ -23,6 +23,8 @@ Dependency validation includes the client and server suites, client production b
 
 Rebuild Docker images to deploy dependency updates; pulling the source alone does not change packages inside an existing image. Smoke-test your configured SMTP delivery and SAML identity provider after deploying mail or SAML dependency updates.
 
+Keep Nodemailer on a patched 10.x release (the manifest currently requires 10.4.0 or newer). The email regression suite submits the nested-comment, group-semicolon, and quoted-local-part advisory examples through registration and password reset, and checks SMTP `RCPT TO` recipients for both verification and reset messages. Both request schemas reject these RFC 5322 header forms. Account mail also refuses stored values that parse as multiple recipients, require header parsing, or contain angle brackets or control characters that SMTP would rewrite. Existing accounts with such values need their address corrected before account email can be delivered; no stored data is rewritten automatically. Run `npm test --prefix server -- test/services/email.test.js test/routes/auth.test.js` with MongoDB available when changing this path.
+
 ### Run the app
 
 Use the repository scripts when possible:
