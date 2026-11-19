@@ -1,86 +1,46 @@
-# Deployment privacy notice template
+# Your data in Qlicker
 
-**Operator instructions — remove this section before publication.** Complete every bracketed field, remove unused optional-service rows, and verify the wording against your deployed version using the [data-handling reference](data-handling.md). Have the institution's privacy office approve the notice and the operational practices behind it. This draft does not itself authorize collection or establish legal compliance. Publish accessible, institution-approved translations as needed.
+> For the operator: fill in the brackets and remove this note before publishing. This notice describes the current app. The [app proposal](app-proposal.md) explains how a future Privacy page could fill in deployment and course settings automatically.
 
-The IP-address paragraph below describes the current application. Do not replace it with an administrator-only promise until the relevant API restrictions have been implemented and tested. Retention entries must describe enforceable schedules, including backups and exports. Avoid a generic “by using this service you consent to everything” clause.
+[Institution] runs this Qlicker service to support teaching, class participation, and assessment. Last updated: [date].
 
----
+## What does Qlicker save?
 
-# Privacy notice for [institution]'s Qlicker service
+- **Your account:** your name, email, role, and student number if supplied. It also saves your profile picture and preferences if you set them. Account details may come from your institution's sign-in service.
+- **Your coursework:** courses and activities you join, your answers, attempts, submission times, grades, and feedback. Quiz answers are saved as you work, even before you select Submit.
+- **Your contributions:** chat messages, comments, votes, questions, and files you upload.
+- **Technical information:** sign-in times, IP addresses (network addresses), and service logs used to run and troubleshoot Qlicker. Named responses include an IP address; anonymous responses do not.
 
-Effective date: [date]. Notice version: [version]. Service address: [deployment URL].
+Qlicker uses cookies and browser storage to keep you signed in and remember preferences.
 
-## Who operates this service
+## Who can see it?
 
-[Institution's legal name] operates this Qlicker service for [teaching, classroom participation, assessment, and other actual purposes]. This notice applies to students, instructors, teaching assistants, administrators, and signed-in guests using this deployment. Our institutional privacy policy is available at [policy URL].
+**Your instructors and teaching assistants assigned to the course** can see your named answers, participation, grades, and feedback. They can download course results. In the current app, they can also access the IP addresses recorded with named answers.
 
-Questions about collection can be directed to [official's position title], [business postal address], [business telephone number], [email]. The privacy office can be reached at [contact and website]. Technical support is available at [support contact].
+**Other students** can see chat and any answers or statistics shared with the class. They cannot browse your private grades. In ordinary chat, your name may be hidden from classmates while still being visible to instructors.
 
-## Why we collect information
+**Administrators and authorized technical staff** can access records needed to manage accounts, support users, and operate the service. This includes sign-in information and IP addresses. Staff who manage the database, logs, or backups may have access beyond what appears in the app.
 
-We collect information under [specific enabling statute and section or other applicable legal authority, approved by the institution]. We use it to [state the actual principal purposes, such as authenticate accounts, deliver teaching activities, record participation, assess coursework, provide feedback, and operate and secure the service]. [Describe any additional authorized use separately.]
+## What does anonymous mean?
 
-[Explain which activities and information are required for the course, which are optional, and the practical consequences of not providing them. Give the contact and process for available alternatives or accommodations. Describe any separately authorized research or academic-integrity use explicitly; do not imply that ordinary classroom participation authorizes all later uses.]
+**Anonymous quizzes and activities are anonymous to your instructors.** Results show respondent labels instead of names. Answers from the same person can appear together, and small groups of answers are withheld to help protect privacy. Anonymous activities have no grades.
 
-## What we record
+You still sign in. An administrator with access to the underlying system can work out which account an anonymous response belongs to. Avoid putting your name or other identifying details in an anonymous answer.
 
-- Account and identity information: [actual local-account and SSO fields, including name, email, student number where supplied, role, profile image, and preferences].
-- Course and activity information: enrollment and activity access, joins, submitted answers, attempts, timestamps, quiz submission status, marks, and feedback. Quiz answers can be saved before you select Submit, and saved unsubmitted answers can be included after a quiz ends.
-- Discussion and content: posts, comments, votes, relevant viewing/moderation records, and files or questions you supply.
-- Security and service information: login/session IP addresses and times, IP addresses associated with named responses, and [actual application, proxy, identity-provider, and monitoring log fields].
-- Optional features: [AI conversations and processing, video, or other enabled services; remove features not used].
+## Are other services involved?
 
-Information comes from you, [the institutional identity provider or enrollment source], and your interactions with the service. The service uses authentication cookies and browser storage for sign-in and preferences. [Describe other cookies, external resources, or analytics actually used.]
+[Briefly list hosting/storage, sign-in, email, and any video or AI services used, with processing locations and links to their privacy information.]
 
-## Who can see information
+If AI features are enabled, Qlicker saves conversations and generated results. Prompts and relevant course information may be sent to the configured AI service. This can include answers an instructor asks AI to summarize or help grade, even if you do not use AI Chat yourself. [Explain this deployment's AI use, or state that AI is disabled.]
 
-**Your instructors and authorized teaching assistants** can access relevant course identities, participation, named responses, timestamps, marks, feedback, and moderation information according to their assigned permissions. They can export permitted results. In the current Qlicker version, authorized course instructors can also retrieve the IP addresses stored with named responses through the results API.
+## How long is information kept?
 
-**Other participants** can see discussion content and any answers or statistics released for viewing, including in classroom presentations. Your private grades are not generally shared with classmates. Ordinary chat's anonymous labels may hide your identity from classmates while allowing instructors to identify you for moderation.
+[Give a short summary of how long accounts, coursework, chat, IP addresses, and logs are kept, and when those periods start. Link to the institution's detailed schedule if needed.]
 
-**Administrators and technical operators** have access appropriate to [describe approved responsibilities and controls]. Qlicker administrators can see login and active-session IP information. Authorized database, hosting, backup, or support personnel may have technical access beyond what teaching screens show. [Identify the teams/providers and approved purposes; describe any investigation or exceptional-access procedure.]
+[Explain when backup copies expire.] Archiving a course or chat does not necessarily delete its data. Some records may need to be kept longer for grade appeals or other institutional requirements.
 
-**Service providers** receive information as described below. [Describe other authorized disclosures, including legally required disclosures, with institutional review.]
+## Questions or corrections?
 
-## Anonymous activities
+Contact [privacy contact's title, email, phone, and business address] to ask about your information or request access or corrections. For questions about a grade, contact your instructor. [Give the contact for participation alternatives or accommodations.]
 
-An activity explicitly marked anonymous hides your identity in instructor results and applies minimum-response release rules. It has no grades. Eligible answers from the same participant can still appear together under a respondent label.
-
-You still sign in. Qlicker stores activity-specific pseudonyms that its server can recompute for your account, and it does not store your IP address in the anonymous response record. Authentication records, activity access records, and infrastructure logs may still exist. Authorized personnel with sufficient technical access may be able to associate participation with an account. Identifying details in your answers can also reveal who you are. Anonymous mode therefore does not guarantee that identification is impossible.
-
-## Providers and locations
-
-| Service | Provider and purpose | Information received | Processing, storage, and support locations | Provider retention and privacy terms |
-| --- | --- | --- | --- | --- |
-| Hosting, database, and backups | [complete] | [complete] | [complete] | [complete] |
-| Institutional sign-in | [complete] | [complete] | [complete] | [complete] |
-| Email | [complete] | [complete] | [complete] | [complete] |
-| File storage | [complete or remove] | [complete] | [complete] | [complete] |
-| AI | [complete or remove] | [prompts, answers, course context, other actual data] | [complete] | [retention, training use, contractual terms] |
-| Video and other services | [complete or remove] | [complete] | [complete] | [complete] |
-
-[Explain applicable cross-border processing and access. For AI, explain whether instructors use it for response analysis or grading, who reviews results, how students can question an outcome, and any available alternatives. Distinguish private conversations from provider/operator access.]
-
-## How long information is kept
-
-| Information | Retention period and starting event | Disposal or anonymization process |
-| --- | --- | --- |
-| Accounts and authentication records | [complete] | [complete] |
-| Enrollment, participation, answers, marks, and feedback | [complete] | [complete] |
-| Response IP addresses | [complete] | [complete] |
-| Discussions, uploads, and notifications | [complete] | [complete] |
-| AI conversations, outputs, and logs | [complete or remove] | [complete] |
-| Application, proxy, and security logs | [complete] | [complete] |
-| Backups and exported copies | [complete] | [complete] |
-
-Archiving a discussion or closing an account does not necessarily delete its records. [Explain backup expiry, restrictions on backup use, restoration handling, and any legal/appeal holds that extend retention.]
-
-## Access, correction, and concerns
-
-You can view [available account and released coursework information] in Qlicker. To request access to other personal information, request correction, or raise a concern, contact [institutional process and privacy office]. [Explain applicable rights, limits, and the separate process for contesting grades.] Requests for deletion are considered under applicable law and institutional retention obligations; immediate deletion of all records is not guaranteed.
-
-[For applicable Ontario institutions: explain the right to complain or appeal to the Information and Privacy Commissioner of Ontario, and link to the appropriate IPC process. Provide the institution's incident-reporting contact and explain how legally required breach notifications will be delivered.]
-
-## Changes to this notice
-
-[Explain where updates and previous versions are available, how material changes are communicated before a new practice begins, and how additional notice or consent is obtained when required.]
+[Institution] collects this information under [institution-approved legal authority] for the purposes described above. Read [institutional privacy policy link] for more about your rights and how to raise a concern.

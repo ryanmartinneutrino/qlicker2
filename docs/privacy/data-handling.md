@@ -26,11 +26,13 @@ Request logs can contain addresses, routes, and timestamps, but they are not gua
 
 ## What anonymous activities mean
 
+Anonymous activities are anonymous to instructors. An administrator with access to the underlying system can identify a respondent; this is an accepted administrative capability, not an instructor feature. There is no existing administrator UI for reversing the mapping.
+
 Participants still sign in. Response and attendance ownership uses a separate HMAC-derived pseudonym per activity, rather than the account ID. The server recomputes the pseudonym to prevent duplicate responses and show a participant their own work. A database-only copy does not directly reveal the mapping, but someone with the relevant server secret and account identifiers can recompute it. Activity-code grants also retain the account's association with an activity. This is not irreversible anonymization.
 
 Instructor review hides identities and response timestamps and uses respondent labels that link eligible answers within the activity. Four-respondent thresholds and live release batches reduce disclosure from small groups; see the [anonymous survey workflow](../user-manual/professor.md#run-an-anonymous-survey) for the different live, ended, and AI release rules. Anonymous activities have no grades. Named guests have tracked responses without grades until they enroll.
 
-Unique answer combinations, identifying text, observations in the classroom, privileged access, or external logs can still create identification risks. Do not describe anonymous activities as untraceable or promise that no operator could identify a respondent.
+Identifying text or unique answer combinations can also reveal who wrote an answer. The short user notice should explain the instructor/admin distinction without requiring readers to understand the pseudonym implementation.
 
 ## Retention and external services
 

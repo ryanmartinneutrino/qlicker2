@@ -30,17 +30,6 @@ Maintain an incident response process that assesses harm and handles notificatio
 
 For schools, use age-appropriate explanations and review parent/guardian involvement and educational alternatives with the board. The IPC's [Digital Privacy Charter for Ontario Schools](https://www.ipc.on.ca/en/digital-privacy-charter-ontario-schools-pledge) offers relevant principles on necessity, providers, transparency, and children's interests. Research reuse and sensitive surveys require their own institutional assessment; enabling anonymous mode does not replace it.
 
-## Recommended application changes
+## Application settings
 
-These are recommendations, not implemented controls. Existing app code is unchanged by this documentation.
-
-| Priority | Recommendation | Acceptance evidence |
-| --- | --- | --- |
-| First | Decide whether response IPs are necessary; if retained, remove them from instructor-facing payloads and expose them only through an expressly authorized administrative path. | Permission tests across HTTP, WebSockets, exports, and AI paths; an IP hidden in the UI must not remain retrievable by instructors. Preserve the blank IP field for anonymous responses. |
-| First | Add a public deployment privacy page or institutional notice link, short collection notices, effective date/version, and administrator configuration with a preview. | Accessible links before login/SSO/registration and guest participation, plus signed-in navigation; localized interface text; no fabricated institutional policy when unconfigured. |
-| First | Establish category-specific retention and disposal, with legal holds, backup handling, and safe operator review. | Verified deletion/anonymization outcomes and restoration behavior; explicitly distinguish archive from erasure. |
-| Next | Explain anonymous-mode limits where it is selected and where participants answer; review existing suggestions to use it for sensitive check-ins. | Copy matches pseudonym handling and release rules, without promising untraceability or irreversible anonymization. |
-| Next | Make enabled providers and AI data flows visible and subject to institutional approval. | Notices cover instructor-triggered grading/analysis as well as student AI Chat; provider changes trigger review before use. |
-| Next | Strengthen privileged-access accountability and access/correction workflows. | Restricted, retained audit events for sensitive administrative actions and verified exports that avoid disclosing other people's information. |
-
-An initial implementation can link to an institution-hosted notice rather than build a policy editor. Avoid requiring blanket consent to ordinary authorized educational processing; use separate consent only where the institution determines it is the appropriate basis. Keep historical notice versions for accountability without treating a recorded acknowledgment as authorization for every future use.
+See the separate [app proposal](app-proposal.md) for the public Privacy page, administrator controls, retention settings, and per-course instructor access to response IPs. Those controls are proposed, not implemented. Keep this legal and operational background out of the short user-facing notice.
