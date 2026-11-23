@@ -63,6 +63,7 @@ Choose the `local` image tags in setup, configure your domain and certificates, 
 | I want to… | Guide |
 | --- | --- |
 | Join activities and review my work | [Student manual](docs/user-manual/student.md) |
+| Understand what data Qlicker collects | [Your data in Qlicker](docs/privacy/data-handling.md) |
 | Teach, run surveys, or grade responses | [Professor and TA manual](docs/user-manual/professor.md) |
 | Manage accounts, SSO, storage, AI, and backups | [Administrator manual](docs/user-manual/admin.md) |
 | Deploy or upgrade a server | [Production operations](production_setup/README.md) |

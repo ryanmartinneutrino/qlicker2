@@ -2183,7 +2183,7 @@
       "navigationTitle": "Navigation",
       "backToDashboard": "Zurück zum Dashboard",
       "openProfile": "Profil öffnen",
-      "navigationHint": "Die gewohnte App-Leiste bleibt beim Lesen verfügbar. Nutzen Sie diese Verknüpfungen, wenn Sie schnell zu Qlicker zurückkehren möchten."
+      "navigationHint": "Die gewohnte App-Leiste bleibt beim Lesen verfügbar. Nutzen Sie diese Verknüpfungen, wenn Sie schnell zu Qlicker zurückkehren möchten. Wähle Datenschutz im Kontomenü, um mehr über deine Daten zu erfahren."
     },
     "admin": {
       "title": "Admin-Benutzerhandbuch",
@@ -2898,5 +2898,36 @@
     "scheduledClose": "Geplantes Ende",
     "scheduleHint": "Gepunktete Linien markieren geplante Quiztermine im dargestellten Zeitraum. Sie dienen nur als Orientierung und schließen keine Antworten aus.",
     "outsideRange": "außerhalb des Antwortzeitraums"
+  },
+  "privacy": {
+    "link": "Datenschutz",
+    "title": "Deine Daten in Qlicker",
+    "intro": "Deine Bildungseinrichtung nutzt Qlicker für Unterricht, Beteiligung und Leistungsbewertung. Hier erfährst du, was gespeichert wird und wer es sehen kann.",
+    "sections": [
+      {
+        "title": "Was wird erfasst?",
+        "body": "Qlicker speichert deine Kontodaten, darunter Name, E-Mail-Adresse, Rolle und, falls angegeben, Matrikelnummer. Gespeichert werden außerdem Einstellungen, belegte Kurse und Aktivitäten, Antworten, Abgabezeiten, Noten, Feedback, Chatnachrichten, Abstimmungen und hochgeladene Dateien. Quizantworten werden schon während der Bearbeitung vor der Abgabe gespeichert. Anmeldeinformationen, IP-Adressen und Protokolle helfen beim Betrieb und Support. Cookies und Browserspeicher halten dich angemeldet und merken sich deine Einstellungen."
+      },
+      {
+        "title": "Wer kann die Daten sehen?",
+        "body": "Deine Lehrkräfte und zugewiesenen Lehrassistenzen können namentlich zugeordnete Arbeiten, Beteiligung, Noten und Feedback sowie die mit diesen Antworten erfassten IP-Adressen einsehen. Andere Teilnehmende sehen Chats und mit dem Kurs geteilte Antworten oder Statistiken, aber nicht deine persönlichen Noten. Die Administration und autorisierte Supportmitarbeitende können auf die für Verwaltung und Support nötigen Informationen zugreifen."
+      },
+      {
+        "title": "Was bedeutet anonym?",
+        "body": "Bei anonymen Aktivitäten bleibt deine Identität vor Lehrkräften verborgen. Antworten derselben Person können unter einer gemeinsamen Kennzeichnung erscheinen. Die Administration kann das Konto hinter einer Antwort identifizieren. Vermeide Angaben in deinen Antworten, die dich erkennen lassen. Anonyme Aktivitäten werden nicht benotet."
+      },
+      {
+        "title": "Werden andere Dienste verwendet?",
+        "body": "Deine Bildungseinrichtung kann externe Dienste für Anmeldung, E-Mail, Hosting, Speicherung, Video oder KI nutzen. Bei aktivierter KI werden Gespräche und erzeugte Ergebnisse gespeichert; relevante Kursinhalte können an den KI-Dienst gesendet werden. Dazu gehören auch Antworten, die eine Lehrkraft von der KI zusammenfassen oder bei der Bewertung unterstützen lässt. Frage die Administration, welche Dienste verwendet werden."
+      },
+      {
+        "title": "Wie lange werden Informationen aufbewahrt?",
+        "body": "Deine Bildungseinrichtung legt fest, wie lange Datensätze, Protokolle und Sicherungskopien aufbewahrt werden. Das Archivieren eines Kurses oder Chats löscht dessen Informationen nicht unbedingt. Frage die Administration nach Aufbewahrung und Löschung an deiner Einrichtung."
+      },
+      {
+        "title": "Fragen oder Berichtigungen?",
+        "body": "Wende dich an die Administration oder die Datenschutzstelle deiner Bildungseinrichtung, um Fragen zu deinen Informationen zu stellen, Auskunft oder Berichtigung zu beantragen oder dich über die Datenschutzrichtlinie zu informieren. Bei Fragen zu Noten oder alternativen Beteiligungsmöglichkeiten kontaktiere deine Lehrkraft."
+      }
+    ]
   }
 }

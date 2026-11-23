@@ -210,6 +210,9 @@ export default function Login() {
             <Button fullWidth variant="contained" onClick={() => window.location.reload()}>
               {t('common.retry', { defaultValue: 'Retry' })}
             </Button>
+            <Button component={Link} to="/privacy" fullWidth sx={{ mt: 2 }}>
+              {t('privacy.link')}
+            </Button>
           </CardContent>
         </Card>
       </Box>
@@ -367,6 +370,9 @@ export default function Login() {
               )}
             </>
           )}
+          <Button component={Link} to="/privacy" fullWidth sx={{ mt: 2 }}>
+            {t('privacy.link')}
+          </Button>
         </CardContent>
       </Card>
       <Dialog open={forgotOpen} onClose={() => setForgotOpen(false)} maxWidth="xs" fullWidth>
