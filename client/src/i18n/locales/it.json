@@ -2183,7 +2183,7 @@
       "navigationTitle": "Navigazione",
       "backToDashboard": "Torna alla dashboard",
       "openProfile": "Apri profilo",
-      "navigationHint": "La consueta barra dell'applicazione resta disponibile mentre leggi. Usa queste scorciatoie quando vuoi tornare rapidamente in Qlicker."
+      "navigationHint": "La consueta barra dell'applicazione resta disponibile mentre leggi. Usa queste scorciatoie quando vuoi tornare rapidamente in Qlicker. Scegli Privacy nel menu dell’account per informazioni sui tuoi dati."
     },
     "admin": {
       "title": "Guida utente amministratore",
@@ -2899,5 +2899,36 @@
     "scheduledClose": "Chiusura programmata",
     "scheduleHint": "Le linee tratteggiate indicano le date programmate del quiz nell’intervallo visualizzato. Sono solo riferimenti e non escludono risposte.",
     "outsideRange": "fuori dall’intervallo delle risposte"
+  },
+  "privacy": {
+    "link": "Privacy",
+    "title": "I tuoi dati in Qlicker",
+    "intro": "Il tuo istituto utilizza Qlicker per la didattica, la partecipazione in classe e la valutazione. Questa pagina spiega quali dati vengono salvati e chi può consultarli.",
+    "sections": [
+      {
+        "title": "Quali dati vengono raccolti?",
+        "body": "Qlicker salva i dati del tuo account, tra cui nome, email, ruolo e numero di matricola, se fornito. Salva anche preferenze, corsi e attività a cui partecipi, risposte, orari di consegna, voti, feedback, messaggi, voti nelle discussioni e file caricati. Le risposte ai quiz vengono salvate mentre lavori, prima dell’invio. Le informazioni di accesso, gli indirizzi IP e i registri aiutano a gestire il servizio e fornire assistenza. Cookie e memoria del browser mantengono l’accesso e ricordano le preferenze."
+      },
+      {
+        "title": "Chi può consultarli?",
+        "body": "I tuoi docenti e gli assistenti assegnati al corso possono vedere lavori nominativi, partecipazione, voti e feedback, e accedere agli indirizzi IP registrati con le risposte nominative. Gli altri partecipanti possono vedere la chat e le risposte o statistiche condivise con la classe, ma non i tuoi voti personali. L’amministratore e il personale di assistenza autorizzato possono accedere alle informazioni necessarie alla gestione e all’assistenza del servizio."
+      },
+      {
+        "title": "Che cosa significa anonimo?",
+        "body": "Le attività anonime nascondono la tua identità ai docenti. Le risposte della stessa persona possono apparire insieme sotto un’etichetta di partecipante. L’amministratore può identificare l’account associato a una risposta. Evita dettagli che possano identificarti. Le attività anonime non prevedono voti."
+      },
+      {
+        "title": "Vengono utilizzati altri servizi?",
+        "body": "Il tuo istituto può utilizzare servizi esterni per accesso, email, hosting, archiviazione, video o IA. Se l’IA è attiva, vengono salvati conversazioni e risultati generati, e contenuti pertinenti del corso possono essere inviati al servizio di IA. Ciò può includere risposte che un docente chiede all’IA di riassumere o aiutare a valutare. Chiedi all’amministratore quali servizi vengono utilizzati."
+      },
+      {
+        "title": "Per quanto tempo vengono conservati i dati?",
+        "body": "Il tuo istituto stabilisce per quanto tempo conservare dati, registri e copie di backup. Archiviare un corso o una chat non ne elimina necessariamente le informazioni. Chiedi all’amministratore informazioni sulla conservazione e sull’eliminazione dei dati nel tuo istituto."
+      },
+      {
+        "title": "Domande o correzioni?",
+        "body": "Contatta l’amministratore o l’ufficio privacy del tuo istituto per informazioni sui tuoi dati, per richiederne l’accesso o la correzione, o per conoscere l’informativa sulla privacy. Per domande sui voti o sulle alternative di partecipazione, contatta il docente."
+      }
+    ]
   }
 }

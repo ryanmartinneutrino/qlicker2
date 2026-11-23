@@ -2183,7 +2183,7 @@
       "navigationTitle": "Navegación",
       "backToDashboard": "Volver al panel",
       "openProfile": "Abrir perfil",
-      "navigationHint": "La barra de la aplicación habitual permanece disponible mientras lee. Use estos atajos cuando quiera volver rápidamente a Qlicker."
+      "navigationHint": "La barra de la aplicación habitual permanece disponible mientras lee. Use estos atajos cuando quiera volver rápidamente a Qlicker. Elige Privacidad en el menú de la cuenta para saber más sobre tus datos."
     },
     "admin": {
       "title": "Manual de usuario del administrador",
@@ -2869,5 +2869,36 @@
     "scheduledClose": "Cierre programado",
     "scheduleHint": "Las líneas de puntos marcan las fechas programadas del cuestionario dentro del gráfico. Son solo referencias y no excluyen respuestas.",
     "outsideRange": "fuera del intervalo de respuestas"
+  },
+  "privacy": {
+    "link": "Privacidad",
+    "title": "Tus datos en Qlicker",
+    "intro": "Tu institución utiliza Qlicker para la enseñanza, la participación en clase y la evaluación. Esta página explica qué se guarda y quién puede verlo.",
+    "sections": [
+      {
+        "title": "¿Qué se recopila?",
+        "body": "Qlicker guarda los datos de tu cuenta, incluidos tu nombre, correo electrónico, rol y número de estudiante, si lo proporcionas. También guarda tus preferencias, los cursos y actividades a los que te unes, respuestas, horas de entrega, calificaciones, comentarios, mensajes de chat, votos y archivos subidos. Las respuestas a los cuestionarios se guardan mientras trabajas, antes de enviarlas. La información de inicio de sesión, las direcciones IP y los registros ayudan a mantener y dar soporte al servicio. Las cookies y el almacenamiento del navegador mantienen tu sesión y recuerdan tus preferencias."
+      },
+      {
+        "title": "¿Quién puede verlo?",
+        "body": "Tus docentes y los ayudantes asignados al curso pueden ver los trabajos identificados, la participación, las calificaciones y los comentarios, y acceder a las direcciones IP registradas con las respuestas identificadas. Los demás participantes pueden ver el chat y las respuestas o estadísticas compartidas con la clase, pero no tus calificaciones privadas. El administrador y el personal de soporte autorizado pueden acceder a la información necesaria para gestionar y mantener el servicio."
+      },
+      {
+        "title": "¿Qué significa anónimo?",
+        "body": "Las actividades anónimas ocultan tu identidad a los docentes. Las respuestas de una misma persona pueden aparecer juntas bajo una etiqueta de participante. El administrador puede identificar la cuenta asociada a una respuesta. Evita incluir detalles que te identifiquen. Las actividades anónimas no tienen calificaciones."
+      },
+      {
+        "title": "¿Se utilizan otros servicios?",
+        "body": "Tu institución puede utilizar servicios externos para el inicio de sesión, correo, alojamiento, almacenamiento, vídeo o IA. Si la IA está activada, se guardan las conversaciones y los resultados generados, y se puede enviar contenido relevante del curso al servicio de IA. Esto puede incluir respuestas que un docente pide a la IA que resuma o ayude a calificar. Pregunta al administrador qué servicios se utilizan."
+      },
+      {
+        "title": "¿Cuánto tiempo se conserva la información?",
+        "body": "Tu institución determina cuánto tiempo se conservan los datos, registros y copias de seguridad. Archivar un curso o un chat no elimina necesariamente su información. Pregunta al administrador sobre la conservación y eliminación de datos en tu institución."
+      },
+      {
+        "title": "¿Preguntas o correcciones?",
+        "body": "Contacta con el administrador o la oficina de privacidad de tu institución para preguntar por tus datos, solicitar acceso o correcciones, o conocer la política de privacidad. Para cuestiones sobre calificaciones o alternativas de participación, contacta con tu docente."
+      }
+    ]
   }
 }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   AppBar, Toolbar, IconButton, Menu, MenuItem, Avatar, Box, Container, Button, Tooltip, Badge, Typography,
 } from '@mui/material';
@@ -235,6 +235,7 @@ export default function AppLayout() {
             {currentPath !== manualPath && (
               <MenuItem onClick={() => { handleMenuClose(); navigate(manualPath); }}>{t('nav.userManual')}</MenuItem>
             )}
+            <MenuItem component={Link} to="/privacy" onClick={handleMenuClose}>{t('privacy.link')}</MenuItem>
             {isAdmin && !isOnCourseList && (
               <MenuItem onClick={() => { handleMenuClose(); navigate('/prof'); }}>{t('nav.courses')}</MenuItem>
             )}

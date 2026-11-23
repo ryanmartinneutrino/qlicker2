@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTheme } from '@mui/material/styles';
 import Tooltip from '@mui/material/Tooltip';
+import { Box, Link } from '@mui/material';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -334,6 +335,9 @@ export default function Home() {
           </button>
         </Tooltip>
       </main>
+      <Box component="footer" sx={{ textAlign: 'center', py: 2, bgcolor: 'background.default' }}>
+        <Link href="/privacy">{t('privacy.link')}</Link>
+      </Box>
     </>
   );
 }

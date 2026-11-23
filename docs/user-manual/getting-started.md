@@ -2,6 +2,8 @@
 
 This guide covers tasks shared by students, professors, teaching assistants, and administrators. Your institution may enable only SSO, only email/password login, or both.
 
+Choose **Privacy** on the landing or sign-in page, or in your account menu, to read [Your data in Qlicker](../privacy/data-handling.md). You do not need to sign in to read the notice.
+
 ## Sign in or create an account
 
 1. Open the Qlicker address supplied by your institution.
@@ -18,6 +20,7 @@ The Qlicker logo or **Dashboard** menu item returns to the dashboard for your cu
 - dashboard and role-appropriate course shortcuts
 - notifications
 - the in-app user manual
+- the privacy notice
 - profile settings
 - logout
 

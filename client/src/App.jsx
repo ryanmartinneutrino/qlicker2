@@ -31,6 +31,7 @@ const StudentLiveSession = lazy(() => import('./pages/student/LiveSession'));
 const StudentQuizSession = lazy(() => import('./pages/student/QuizSession'));
 const JitsiWindow = lazy(() => import('./pages/JitsiWindow'));
 const UserManual = lazy(() => import('./pages/manuals/UserManual'));
+const Privacy = lazy(() => import('./pages/Privacy'));
 
 function RouteAccessibility() {
   const location = useLocation();
@@ -40,6 +41,7 @@ function RouteAccessibility() {
     const routes = [
       [/^\/$/, t('pageTitles.home')],
       [/^\/login$/, t('pageTitles.login')],
+      [/^\/privacy$/, t('privacy.title')],
       [/^\/sso-callback$/, t('pageTitles.signingIn')],
       [/^\/reset\/[^/]+$/, t('pageTitles.resetPassword')],
       [/^\/verify-email\/[^/]+$/, t('pageTitles.verifyEmail')],
@@ -98,6 +100,7 @@ export default function App() {
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/privacy" element={<Privacy />} />
               <Route path="/sso-callback" element={<SSOCallback />} />
               <Route path="/reset/:token" element={<ResetPassword />} />
               <Route path="/verify-email/:token" element={<VerifyEmail />} />

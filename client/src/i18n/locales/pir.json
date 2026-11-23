@@ -2183,7 +2183,7 @@
       "navigationTitle": "Gettin' Around",
       "backToDashboard": "Aft to quarterdeck",
       "openProfile": "Open dossier",
-      "navigationHint": "Th' usual app bar stays within reach while ye read. Use these shortcuts when ye want to jump aft into Qlicker quick-like."
+      "navigationHint": "Th' usual app bar stays within reach while ye read. Use these shortcuts when ye want to jump aft into Qlicker quick-like. Choose Privacy aboard in the account menu to read about yer data."
     },
     "admin": {
       "title": "Admin hand manual",
@@ -2844,5 +2844,36 @@
     "scheduledClose": "Planned closing",
     "scheduleHint": "Dotted lines mark planned quiz dates inside the chart. They be landmarks only; no responses get tossed overboard.",
     "outsideRange": "outside the response range"
+  },
+  "privacy": {
+    "link": "Privacy aboard",
+    "title": "Yer data in Qlicker",
+    "intro": "Yer institution uses Qlicker fer teachin’, class participation, and assessment. Here be what gets saved and who can see it.",
+    "sections": [
+      {
+        "title": "What gets collected, matey?",
+        "body": "Qlicker saves yer account details: name, email, role, and student number if supplied. It also keeps yer preferences, courses and activities ye join, answers, submission times, grades, feedback, chat messages, votes, and uploads. Quiz answers be saved as ye work, before ye select Submit. Sign-in information, IP addresses, and service logs help keep the ship runnin’. Cookies and browser storage keep ye signed in and remember yer preferences."
+      },
+      {
+        "title": "Who can see it?",
+        "body": "Yer instructors and assigned teaching assistants can see named coursework, participation, grades, and feedback, and can access IP addresses saved with named answers. Other shipmates can see chat and answers or statistics shared with the class, but not yer private grades. The administrator and authorized support crew can access information needed to manage and support the service."
+      },
+      {
+        "title": "What does anonymous mean?",
+        "body": "Anonymous activities hide yer identity from instructors. Answers from the same matey may appear together under a respondent label. The administrator can identify the account behind a response. Keep identifying details out of yer answers. Anonymous activities carry no grades."
+      },
+      {
+        "title": "Be other services involved?",
+        "body": "Yer institution may use outside services fer sign-in, email, hosting, storage, video, or AI. If AI be enabled, conversations and generated results be saved, and relevant course content may be sent to the AI service. This can include answers an instructor asks AI to summarize or help grade. Ask the administrator which services sail with ye."
+      },
+      {
+        "title": "How long be information kept?",
+        "body": "Yer institution decides how long records, logs, and backups stay aboard. Archiving a course or chat does not necessarily erase its information. Ask the administrator about retention and deletion at yer institution."
+      },
+      {
+        "title": "Questions or corrections, matey?",
+        "body": "Contact the administrator or yer institution’s privacy office to ask about yer information, request access or corrections, or learn about yer institution’s privacy policy. Fer questions about grades or participation alternatives, ask yer instructor."
+      }
+    ]
   }
 }

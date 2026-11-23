@@ -2183,7 +2183,7 @@
       "navigationTitle": "Navigation",
       "backToDashboard": "Retour au tableau de bord",
       "openProfile": "Ouvrir le profil",
-      "navigationHint": "La barre d'application habituelle reste disponible pendant la lecture. Utilisez ces raccourcis pour revenir rapidement dans Qlicker."
+      "navigationHint": "La barre d'application habituelle reste disponible pendant la lecture. Utilisez ces raccourcis pour revenir rapidement dans Qlicker. Choisissez Confidentialité dans le menu du compte pour en savoir plus sur vos données."
     },
     "admin": {
       "title": "Guide d'utilisation administrateur",
@@ -2829,5 +2829,36 @@
     "scheduledClose": "Fermeture prévue",
     "scheduleHint": "Les pointillés indiquent les dates prévues du quiz dans la plage affichée. Ces dates sont des repères et n’excluent aucune réponse.",
     "outsideRange": "hors de la plage des réponses"
+  },
+  "privacy": {
+    "link": "Confidentialité",
+    "title": "Vos données dans Qlicker",
+    "intro": "Votre établissement utilise Qlicker pour l’enseignement, la participation en classe et l’évaluation. Cette page explique quelles données sont conservées et qui peut y accéder.",
+    "sections": [
+      {
+        "title": "Quelles données sont recueillies ?",
+        "body": "Qlicker conserve les renseignements de votre compte, notamment votre nom, votre adresse courriel, votre rôle et votre numéro étudiant, si fourni. Il conserve aussi vos préférences, les cours et activités auxquels vous participez, vos réponses, les heures de remise, les notes, les commentaires, les messages, les votes et les fichiers téléversés. Les réponses aux questionnaires sont enregistrées pendant que vous travaillez, avant la remise. Les renseignements de connexion, les adresses IP et les journaux servent au fonctionnement et au soutien du service. Des témoins et le stockage du navigateur maintiennent votre connexion et mémorisent vos préférences."
+      },
+      {
+        "title": "Qui peut y accéder ?",
+        "body": "Vos enseignants et les auxiliaires d’enseignement affectés au cours peuvent consulter vos travaux nominatifs, votre participation, vos notes et les commentaires, ainsi que les adresses IP associées aux réponses nominatives. Les autres participants peuvent voir les discussions et les réponses ou statistiques partagées avec la classe, mais pas vos notes personnelles. L’administrateur et le personnel de soutien autorisé peuvent accéder aux renseignements nécessaires à la gestion et au soutien du service."
+      },
+      {
+        "title": "Que signifie « anonyme » ?",
+        "body": "Les activités anonymes cachent votre identité aux enseignants. Les réponses d’une même personne peuvent être regroupées sous un identifiant de répondant. L’administrateur peut identifier le compte associé à une réponse. Évitez d’inclure des détails permettant de vous identifier. Les activités anonymes ne sont pas notées."
+      },
+      {
+        "title": "D’autres services sont-ils utilisés ?",
+        "body": "Votre établissement peut utiliser des services externes pour la connexion, le courriel, l’hébergement, le stockage, la vidéo ou l’IA. Si l’IA est activée, les conversations et les résultats générés sont conservés, et du contenu pertinent du cours peut être transmis au service d’IA. Cela peut inclure des réponses qu’un enseignant demande à l’IA de résumer ou d’aider à évaluer. Demandez à l’administrateur quels services sont utilisés."
+      },
+      {
+        "title": "Combien de temps les données sont-elles conservées ?",
+        "body": "Votre établissement détermine la durée de conservation des dossiers, des journaux et des sauvegardes. Archiver un cours ou une discussion ne supprime pas nécessairement ses données. Renseignez-vous auprès de l’administrateur sur la conservation et la suppression dans votre établissement."
+      },
+      {
+        "title": "Des questions ou des corrections ?",
+        "body": "Contactez l’administrateur ou le bureau de protection de la vie privée de votre établissement pour poser des questions sur vos renseignements, demander leur accès ou leur correction, ou connaître la politique de confidentialité. Pour les notes ou les autres modes de participation, contactez votre enseignant."
+      }
+    ]
   }
 }
